@@ -1,6 +1,24 @@
 export type Frequency = "monthly" | "quarterly" | "yearly";
 export type User = { id: string; username: string; passwordHash: string };
-export type Income = { id: string; userId: string; source: string; amount: number; frequency: Frequency };
+export interface Income {
+  id: string;
+  userId: string;
+  category: string;
+  frequency: "monthly" | "quarterly" | "yearly";
+  amount?: number;  // Legacy plaintext
+  startDate: string;
+  endDate?: string;
+  name?: string;  // Legacy plaintext
+
+  // Encrypted fields
+  name_encrypted?: string;
+  name_iv?: string;
+  amount_encrypted?: string;
+  amount_iv?: string;
+  description?: string;  // Legacy plaintext
+  description_encrypted?: string;
+  description_iv?: string;
+}
 export type FixedExpense = { id: string; userId: string; name: string; amount: number; frequency: Frequency; category: string; isSip?: boolean; startDate?: string; endDate?: string };
 export type VariableExpensePlan = { id: string; userId: string; name: string; planned: number; category: string; startDate: string; endDate?: string };
 export type VariableExpenseActual = { id: string; userId: string; planId: string; amount: number; incurredAt: string; justification?: string };
