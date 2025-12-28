@@ -161,7 +161,8 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/current-month-expenses" element={<CurrentMonthExpensesPage token={token} />} />
           <Route path="/sip-expenses" element={<SIPExpensesPage token={token} />} />
           <Route path="/export" element={<ExportPage token={token} />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/fixed-expenses" element={<FixedExpensesPage token={token} />} />
+          <Route path="/variable-expenses" element={<VariableExpensesPage token={token} />} />          <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
 
     </div>
