@@ -6,52 +6,41 @@ node_modules/
 # Testing
 coverage/
 
-# Production
-dist/
+# Production builds
 build/
-*.tsbuildinfo
+dist/
+*.log
 
-# Environment
+# Environment variables
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Data files
-data/
-*.json
-!package.json
-!package-lock.json
-!tsconfig.json
-!vercel.json
-!railway.json
-!pubspec.yaml
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-logs/
-*.log
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
-.DS_Store
+*.swo
+*~
 
-# Mobile
-*.iml
-.gradle/
-local.properties
-.dart_tool/
-.flutter-plugins
-.pub-cache/
-.pub/
-build/
-*.apk
-*.ipa
+# OS
+.DS_Store
+Thumbs.db
+
+# Flutter/Dart
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/pubspec.lock
+mobile/build/
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/android/.gradle/
+mobile/android/local.properties
 
 # Misc
-temp/
-tmp/
+*.iml
+.gradle
