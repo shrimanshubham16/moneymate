@@ -224,7 +224,7 @@ export function ExportPage({ token }: ExportPageProps) {
           </ul>
 
           <button
-            onClick={handleExportExcel}
+            onClick={handleExport}
             disabled={exporting}
             className="export-button"
           >

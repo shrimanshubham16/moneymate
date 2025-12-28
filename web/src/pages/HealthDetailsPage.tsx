@@ -36,6 +36,11 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         fetchLoans(token)
       ]);
 
+      if (!healthResRaw.ok) {
+        throw new Error("Failed to fetch health details");
+      }
+
+      const healthRes = await healthResRaw.json();
       const data = dashRes.data;
       const healthData = healthRes.data;
 

@@ -200,7 +200,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
             </div>
           }
           icon={<MdTrendingUp />}
-          onClick={() => navigate("/investments")}
+          onClick={() => navigate("/settings/plan-finances/investments")}
           color="#10b981"
         />
         <DashboardWidget
