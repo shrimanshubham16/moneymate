@@ -281,22 +281,18 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
               transition={{ delay: index * 0.05 }}
             >
               <div className="expense-info">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h3>{expense.name}</h3>
-                    <div className="expense-details">
-                      <span>₹{expense.amount.toLocaleString("en-IN")}</span>
-                      <span>{expense.frequency}</span>
-                      <span>{expense.category}</span>
-                      {expense.is_sip_flag && <StatusBadge status="active" size="small" label="SIP" icon="🔄" />}
-                      {expense.paid && <StatusBadge status="paid" size="small" />}
-                    </div>
-                  </div>
-                  <div className="expense-actions">
-                    <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">✏️</button>
-                    <button onClick={() => handleDelete(expense.id)} className="delete-btn" title="Delete" aria-label="Delete expense">🗑️</button>
-                  </div>
+                <h3>{expense.name}</h3>
+                <div className="expense-details">
+                  <span>₹{expense.amount.toLocaleString("en-IN")}</span>
+                  <span>{expense.frequency}</span>
+                  <span>{expense.category}</span>
+                  {expense.is_sip_flag && <StatusBadge status="active" size="small" label="SIP" icon="🔄" />}
+                  {expense.paid && <StatusBadge status="paid" size="small" />}
                 </div>
+              </div>
+              <div className="expense-actions">
+                <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">✏️</button>
+                <button onClick={() => handleDelete(expense.id)} className="delete-btn" title="Delete" aria-label="Delete expense">🗑️</button>
               </div>
             </motion.div>
           ))}

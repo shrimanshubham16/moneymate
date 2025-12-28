@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCog } from "react-icons/fa";
+import { FaCog, FaCalendar, FaMoneyBillWave, FaClock, FaSave, FaExclamationTriangle } from "react-icons/fa";
 import { getUserPreferences, updateUserPreferences } from "../api";
 import "./PreferencesPage.css";
 
@@ -63,7 +63,7 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
         <div className="preferences-content">
           <div className="preference-card">
             <div className="preference-header">
-              <h2>📅 Month Start Day</h2>
+              <h2><FaCalendar style={{ marginRight: 8, verticalAlign: 'middle' }} /> Month Start Day</h2>
               <p className="preference-description">
                 Choose which day of the month your billing cycle starts. This determines when:
               </p>
@@ -102,7 +102,7 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
           </div>
 
           <div className="preference-card">
-            <h2>💰 Currency</h2>
+            <h2><FaMoneyBillWave style={{ marginRight: 8, verticalAlign: 'middle' }} /> Currency</h2>
             <div className="preference-control">
               <label htmlFor="currency">Display currency:</label>
               <select
@@ -119,7 +119,7 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
           </div>
 
           <div className="preference-card">
-            <h2>🕐 Timezone</h2>
+            <h2><FaClock style={{ marginRight: 8, verticalAlign: 'middle' }} /> Timezone</h2>
             <div className="preference-control">
               <label htmlFor="timezone">Your timezone:</label>
               <select
@@ -137,17 +137,17 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
           </div>
 
           <div className="save-section">
-            <button 
-              className="save-button" 
+            <button
+              className="save-button"
               onClick={handleSave}
               disabled={saving}
             >
-              {saving ? "Saving..." : "💾 Save Preferences"}
+              {saving ? "Saving..." : <><FaSave style={{ marginRight: 8 }} /> Save Preferences</>}
             </button>
           </div>
 
           <div className="warning-box">
-            <h3>⚠️ Important Notes:</h3>
+            <h3><FaExclamationTriangle style={{ marginRight: 8, verticalAlign: 'middle' }} /> Important Notes:</h3>
             <ul>
               <li>Changing the month start day will reset all payment tracking</li>
               <li>Choose a day between 1-28 to avoid issues with shorter months</li>

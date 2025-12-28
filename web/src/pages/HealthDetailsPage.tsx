@@ -397,7 +397,12 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           <div className="summary-row final">
             <span className="label">Remaining:</span>
             <span className={`value ${health.remaining >= 0 ? 'positive' : 'negative'}`}>
-              {health.remaining >= 0 ? "+" : ""}₹{health.remaining.toLocaleString("en-IN")}
+              {(() => {
+                console.log('[HealthDetailsPage] Raw health.remaining:', health.remaining);
+                const rounded = Math.round(health.remaining);
+                console.log('[HealthDetailsPage] Rounded:', rounded);
+                return `${health.remaining >= 0 ? "+" : ""}₹${rounded.toLocaleString("en-IN")}`;
+              })()}
             </span>
           </div>
         </motion.div>
