@@ -1,5 +1,14 @@
 /* MoneyMate - CRED/Blissy Inspired Design System */
 
+/* MOBILE FIX: Prevent iOS Safari auto-zoom on input focus */
+/* iOS Safari auto-zooms when font-size < 16px */
+input,
+select,
+textarea {
+    font-size: 16px !important;
+    /* Force minimum 16px to prevent zoom */
+}
+
 :root {
     /* ============================================
      DARK THEME COLORS (CRED Inspired)
@@ -12,6 +21,15 @@
     /* Elevated navy - cards */
     --bg-hover: #1E2749;
     /* Hover state */
+
+    /* Colors */
+    --color-primary: #3b82f6;
+    --color-primary-dark: #2563eb;
+    --color-secondary: #8b5cf6;
+    --color-success: #10b981;
+    --color-danger: #ef4444;
+    --color-warning: #f59e0b;
+    --color-info: #06b6d4;
 
     /* Text Colors */
     --text-primary: #FFFFFF;
@@ -45,8 +63,14 @@
      ============================================ */
 
     /* Fonts */
-    --font-display: 'Poppins', -apple-system, system-ui, sans-serif;
-    --font-body: 'Poppins', -apple-system, system-ui, sans-serif;
+    --font-display: 'Poppins',
+        -apple-system,
+        system-ui,
+        sans-serif;
+    --font-body: 'Poppins',
+        -apple-system,
+        system-ui,
+        sans-serif;
 
     /* Type Scale - BOLD numbers emphasis */
     --text-tiny: 0.75rem;

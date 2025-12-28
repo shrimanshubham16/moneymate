@@ -175,23 +175,35 @@
 }
 
 .expense-actions button {
-  padding: 8px 16px;
+  width: 36px;
+  height: 36px;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
 .expense-actions button:first-child {
+  background: #dbeafe;
+}
+
+.expense-actions button:first-child:hover {
   background: #3b82f6;
-  color: white;
+  transform: scale(1.1);
 }
 
 .expense-actions .delete-btn {
+  background: #fee2e2;
+}
+
+.expense-actions .delete-btn:hover {
   background: #ef4444;
-  color: white;
+  transform: scale(1.1);
 }
 
 .empty-state {
