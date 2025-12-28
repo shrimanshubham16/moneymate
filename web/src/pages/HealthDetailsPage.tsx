@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaMoneyBillWave, FaShoppingCart, FaChartLine, FaCreditCard, FaUniversity, FaHeart } from "react-icons/fa";
-import { fetchDashboard, fetchCreditCards, fetchLoans } from "../api";
+import { fetchDashboard, fetchCreditCards, fetchLoans, fetchHealthDetails } from "../api";
+import { IntroModal } from "../components/IntroModal";
+import { useIntroModal } from "../hooks/useIntroModal";
 import "./HealthDetailsPage.css";
 
 interface HealthDetailsPageProps {
@@ -10,8 +12,10 @@ interface HealthDetailsPageProps {
 }
 
 export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
-  const navigate = useNavigate();
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { showIntro, closeIntro } = useIntroModal("health");
   const [health, setHealth] = useState<any>(null);
   const [breakdown, setBreakdown] = useState<any>(null);
 

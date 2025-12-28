@@ -1,10 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaUser, FaCreditCard, FaHandshake, FaPalette, FaInfoCircle, FaChartLine, FaCog } from "react-icons/fa";
+import { IntroModal } from "../components/IntroModal";
+import { useIntroModal } from "../hooks/useIntroModal";
 import "./SettingsPage.css";
 
 export function SettingsPage() {
   const navigate = useNavigate();
+  const { showIntro, closeIntro } = useIntroModal("settings");
 
   const settingsItems = [
     { id: "account", title: "Account", icon: <FaUser size={32} />, description: "Manage username and profile" },
@@ -18,6 +21,18 @@ export function SettingsPage() {
 
   return (
     <div className="settings-page">
+      <IntroModal
+        isOpen={showIntro}
+        onClose={closeIntro}
+        title="⚙️ Settings & Configuration"
+        description="Customize your MoneyMate experience. Manage your account, set financial preferences, share with family, and configure everything to match your needs."
+        tips={[
+          "Account settings let you update your profile and password",
+          "Billing Preferences sets your month start day for calculations",
+          "Sharing allows you to merge finances with family members",
+          "Plan Finances is where you set up recurring income and expenses"
+        ]}
+      />
       <div className="settings-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>
           ← Back

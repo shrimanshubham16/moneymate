@@ -14,6 +14,8 @@ import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { TrendIndicator } from "../components/TrendIndicator";
 import { StatusBadge } from "../components/StatusBadge";
+import { IntroModal } from "../components/IntroModal";
+import { useIntroModal } from "../hooks/useIntroModal";
 import "./DashboardPage.css";
 
 interface DashboardPageProps {
@@ -28,6 +30,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [loans, setLoans] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
+  const { showIntro, closeIntro } = useIntroModal("dashboard");
 
   const handleLogout = () => {
     localStorage.removeItem("token");
