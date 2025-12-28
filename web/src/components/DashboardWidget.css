@@ -1,85 +1,190 @@
+/* CRED/Blissy Inspired Dashboard Widget */
+
 .dashboard-widget {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-  transition: all 0.3s ease;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-md), var(--card-glow);
+  transition: all var(--transition-smooth);
+  cursor: pointer;
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(184, 193, 236, 0.05);
 }
 
+/* Subtle animated glow */
 .dashboard-widget::before {
-  content: "";
+  content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(0, 217, 255, 0.05) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity var(--transition-smooth);
 }
 
 .dashboard-widget:hover::before {
-  transform: scaleX(1);
+  opacity: 1;
 }
 
 .dashboard-widget:hover {
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-  border-color: #3b82f6;
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl), var(--card-glow-hover);
+  border-color: rgba(0, 217, 255, 0.2);
 }
 
+.dashboard-widget:active {
+  transform: translateY(-4px);
+}
+
+/* Widget Header - Minimal */
 .widget-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.widget-icon {
-  font-size: 24px;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
 }
 
 .widget-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-tiny);
+  font-weight: var(--font-semibold);
+  color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.1em;
 }
 
+.widget-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 217, 255, 0.1);
+  color: var(--accent-cyan);
+  transition: all var(--transition-base);
+}
+
+.dashboard-widget:hover .widget-icon {
+  transform: scale(1.15);
+  background: rgba(0, 217, 255, 0.2);
+  box-shadow: var(--glow-cyan);
+}
+
+/* BOLD VALUE - The Showstopper */
 .widget-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 8px 0;
+  font-size: var(--text-4xl);
+  font-weight: var(--font-extrabold);
+  color: var(--text-primary);
+  margin: var(--space-4) 0;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.02em;
 }
 
+.widget-prefix {
+  font-size: var(--text-2xl);
+  opacity: 0.8;
+  margin-right: var(--space-1);
+}
+
+/* Health-based colors with neon glow */
+.widget-value.health-excellent {
+  color: var(--accent-green);
+  text-shadow: var(--glow-green);
+}
+
+.widget-value.health-good {
+  color: var(--accent-cyan);
+  text-shadow: var(--glow-cyan);
+}
+
+.widget-value.health-okay {
+  color: var(--accent-yellow);
+  text-shadow: var(--glow-yellow);
+}
+
+.widget-value.health-danger {
+  color: var(--accent-pink);
+  text-shadow: var(--glow-pink);
+}
+
+/* Subtitle - Minimal */
 .widget-subtitle {
-  font-size: 12px;
-  color: #94a3b8;
-  margin-top: 4px;
+  font-size: var(--text-small);
+  color: var(--text-tertiary);
+  font-weight: var(--font-regular);
+}
+
+/* Footer with trend */
+.widget-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(184, 193, 236, 0.05);
+}
+
+.widget-label {
+  font-size: var(--text-tiny);
+  color: var(--text-secondary);
+  font-weight: var(--font-medium);
 }
 
 .widget-trend {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  font-size: 20px;
-  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-tiny);
+  font-weight: var(--font-bold);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
 }
 
-.widget-trend.up {
-  color: #10b981;
+.widget-trend.positive {
+  background: rgba(0, 255, 163, 0.1);
+  color: var(--accent-green);
 }
 
-.widget-trend.down {
-  color: #ef4444;
+.widget-trend.negative {
+  background: rgba(255, 0, 110, 0.1);
+  color: var(--accent-pink);
 }
 
-.widget-trend.neutral {
-  color: #64748b;
+/* Loading State */
+.dashboard-widget.loading {
+  pointer-events: none;
+  opacity: 0.6;
 }
 
+.dashboard-widget.loading .widget-value {
+  background: linear-gradient(90deg,
+      var(--bg-hover) 0%,
+      rgba(184, 193, 236, 0.1) 50%,
+      var(--bg-hover) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  color: transparent;
+  text-shadow: none;
+  border-radius: var(--radius-base);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard-widget {
+    padding: var(--space-6);
+  }
+
+  .widget-value {
+    font-size: var(--text-3xl);
+  }
+
+  .widget-prefix {
+    font-size: var(--text-xl);
+  }
+}
