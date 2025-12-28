@@ -1,0 +1,206 @@
+/* MoneyMate - CRED/Blissy Inspired Design System */
+
+:root {
+    /* ============================================
+     DARK THEME COLORS (CRED Inspired)
+     ============================================ */
+
+    /* Background Layers */
+    --bg-primary: #0A0E27;
+    /* Deep navy - main background */
+    --bg-elevated: #151B3D;
+    /* Elevated navy - cards */
+    --bg-hover: #1E2749;
+    /* Hover state */
+
+    /* Text Colors */
+    --text-primary: #FFFFFF;
+    /* Primary text */
+    --text-secondary: #B8C1EC;
+    /* Muted text */
+    --text-tertiary: #6B7299;
+    /* Subtle text */
+
+    /* Neon Accents (CRED Style) */
+    --accent-cyan: #00D9FF;
+    /* Primary neon */
+    --accent-green: #00FFA3;
+    /* Success/positive */
+    --accent-yellow: #FFB800;
+    /* Warning */
+    --accent-pink: #FF006E;
+    /* Danger/negative */
+    --accent-purple: #A78BFA;
+    /* Secondary accent */
+
+    /* Health Status Colors */
+    --health-excellent: #00FFA3;
+    --health-good: #00D9FF;
+    --health-okay: #FFB800;
+    --health-warning: #FF8A00;
+    --health-danger: #FF006E;
+
+    /* ============================================
+     TYPOGRAPHY (Blissy Minimalism)
+     ============================================ */
+
+    /* Fonts */
+    --font-display: 'Poppins', -apple-system, system-ui, sans-serif;
+    --font-body: 'Poppins', -apple-system, system-ui, sans-serif;
+
+    /* Type Scale - BOLD numbers emphasis */
+    --text-tiny: 0.75rem;
+    /* 12px - labels */
+    --text-small: 0.875rem;
+    /* 14px - secondary */
+    --text-base: 1rem;
+    /* 16px - body */
+    --text-large: 1.25rem;
+    /* 20px */
+    --text-xl: 1.5rem;
+    /* 24px */
+    --text-2xl: 2rem;
+    /* 32px */
+    --text-3xl: 2.5rem;
+    /* 40px */
+    --text-4xl: 3rem;
+    /* 48px - widget values */
+    --text-5xl: 4rem;
+    /* 64px - hero numbers */
+
+    /* Weights */
+    --font-regular: 400;
+    --font-medium: 500;
+    --font-semibold: 600;
+    --font-bold: 700;
+    --font-extrabold: 800;
+
+    /* Line Heights */
+    --leading-tight: 1.2;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.75;
+
+    /* ============================================
+     SPACING (Generous - Blissy Style)
+     ============================================ */
+
+    --space-1: 0.25rem;
+    /* 4px */
+    --space-2: 0.5rem;
+    /* 8px */
+    --space-3: 0.75rem;
+    /* 12px */
+    --space-4: 1rem;
+    /* 16px */
+    --space-5: 1.25rem;
+    /* 20px */
+    --space-6: 1.5rem;
+    /* 24px */
+    --space-8: 2rem;
+    /* 32px - generous gaps */
+    --space-10: 2.5rem;
+    /* 40px */
+    --space-12: 3rem;
+    /* 48px */
+    --space-16: 4rem;
+    /* 64px */
+
+    /* ============================================
+     BORDER RADIUS (Rounded - Friendly)
+     ============================================ */
+
+    --radius-sm: 0.5rem;
+    /* 8px */
+    --radius-base: 0.75rem;
+    /* 12px */
+    --radius-md: 1rem;
+    /* 16px */
+    --radius-lg: 1.25rem;
+    /* 20px */
+    --radius-xl: 1.5rem;
+    /* 24px */
+    --radius-2xl: 2rem;
+    /* 32px */
+    --radius-full: 9999px;
+
+    /* ============================================
+     SHADOWS & GLOWS (Soft - Blissy + CRED)
+     ============================================ */
+
+    /* Soft Shadows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 12px 48px rgba(0, 0, 0, 0.6);
+
+    /* Neon Glows (CRED Style) */
+    --glow-cyan: 0 0 20px rgba(0, 217, 255, 0.4);
+    --glow-green: 0 0 20px rgba(0, 255, 163, 0.4);
+    --glow-yellow: 0 0 20px rgba(255, 184, 0, 0.4);
+    --glow-pink: 0 0 20px rgba(255, 0, 110, 0.4);
+
+    /* Card Glow */
+    --card-glow: 0 0 40px rgba(0, 217, 255, 0.1);
+    --card-glow-hover: 0 0 60px rgba(0, 217, 255, 0.2);
+
+    /* ============================================
+     ANIMATIONS (Smooth - CRED Style)
+     ============================================ */
+
+    --transition-quick: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bouncy: 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Easing */
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ============================================
+     BACKDROP BLUR (Glassmorphism)
+     ============================================ */
+
+    --blur-sm: blur(8px);
+    --blur-md: blur(12px);
+    --blur-lg: blur(16px);
+
+    /* ============================================
+     Z-INDEX
+     ============================================ */
+
+    --z-base: 0;
+    --z-dropdown: 10;
+    --z-sticky: 20;
+    --z-header: 30;
+    --z-modal: 40;
+    --z-tooltip: 50;
+}
+
+/* ============================================
+   DARK THEME UTILITIES
+   ============================================ */
+
+.dark-gradient {
+    background: linear-gradient(135deg, var(--bg-primary) 0%, #0D1230 100%);
+}
+
+.neon-text-cyan {
+    color: var(--accent-cyan);
+    text-shadow: var(--glow-cyan);
+}
+
+.neon-text-green {
+    color: var(--accent-green);
+    text-shadow: var(--glow-green);
+}
+
+.neon-text-yellow {
+    color: var(--accent-yellow);
+    text-shadow: var(--glow-yellow);
+}
+
+.neon-text-pink {
+    color: var(--accent-pink);
+    text-shadow: var(--glow-pink);
+}
