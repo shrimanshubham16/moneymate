@@ -31,6 +31,102 @@
       "createdAt": "2025-12-28T04:11:42.485Z",
       "failedLoginAttempts": 0,
       "accountLockedUntil": null
+    },
+    {
+      "id": "c936dc48-a6bd-4e2b-bd3f-9d451b461646",
+      "username": "qa_individual_1",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:49:44.045Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "191a8931-6e16-4d3f-9957-deb9f32ed9c8",
+      "username": "qa_individual_2",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:49:44.060Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "8d438c0a-71e1-441b-bc2d-d32056cdfc56",
+      "username": "qa_family_owner",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:49:44.072Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "3a8bdc92-39f1-4f7a-b3cf-d249ebe86151",
+      "username": "qa_family_spouse",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:49:44.085Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "61926c6d-0358-4700-9b2c-8d386730003e",
+      "username": "qa_family_parent",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:49:44.097Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "d25b930a-fef3-454a-99a5-728358e3bf48",
+      "username": "qa_test_176695139336",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:49:54.209Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "15d199cd-1dc6-41fd-87ca-ab18e5abb187",
+      "username": "qa_api_1766951411564",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:50:11.581Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "e7a4168d-160f-4b5d-b554-59a1987cb57a",
+      "username": "qa_api_1766951412778",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:50:12.789Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "05576f5e-94fe-446a-b83d-9002e04c39da",
+      "username": "qa_test_176695142795",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:50:28.808Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "960a2075-8589-44ef-9d7f-f91b242e3e6a",
+      "username": "qa_api_1766951440820",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:50:40.832Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "7787ec54-d3d4-42ca-a75f-14a94914667c",
+      "username": "qa_test_176695146272",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:51:03.576Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "fa8d2c6d-f579-4423-940a-3872b93481eb",
+      "username": "qa_api_1766951495508",
+      "passwordHash": "969fdf03e82fe9c964ed1f9177f5914246b0f30620a7c84180bbb42a65953224",
+      "createdAt": "2025-12-28T19:51:35.519Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
     }
   ],
   "incomes": [
@@ -69,11 +165,21 @@
       "userId": "425ac793-1c6a-403b-924c-b071e057c1d6"
     }
   ],
-  "fixedExpenses": [],
+  "fixedExpenses": [
+    {
+      "name": "Utilities",
+      "amount": 5000,
+      "frequency": "monthly",
+      "category": "Housing",
+      "isSip": false,
+      "id": "002dbeea-4602-40d9-ba81-04a36a98080d",
+      "userId": "c936dc48-a6bd-4e2b-bd3f-9d451b461646"
+    }
+  ],
   "variablePlans": [],
   "variableActuals": [],
   "constraint": {
-    "score": 95,
+    "score": 87,
     "tier": "red",
     "recentOverspends": 0,
     "decayAppliedAt": "2025-01-15T00:00:00.000Z"
@@ -135,6 +241,16 @@
         "id": "456e3c0c-3d0f-41f8-ac39-590215f4247f"
       },
       "createdAt": "2025-12-28T04:13:52.940Z"
+    },
+    {
+      "id": "1c02b193-d34b-4894-9a2b-df714d715daa",
+      "actorId": "c936dc48-a6bd-4e2b-bd3f-9d451b461646",
+      "entity": "income",
+      "action": "created",
+      "payload": {
+        "id": "3868749a-034b-4533-91af-20b371ba0bc9"
+      },
+      "createdAt": "2025-12-28T19:52:06.825Z"
     }
   ],
   "themeStates": []

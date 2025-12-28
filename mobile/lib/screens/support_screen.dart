@@ -83,7 +83,7 @@ class SupportScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Visit our documentation at docs.moneymate.app or reach out to support@moneymate.app',
+                      'Visit our documentation at docs.moneymate.app or reach out to shriman.shubham@gmail.com',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.blue.shade800),
                     ),

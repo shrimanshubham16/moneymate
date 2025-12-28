@@ -162,6 +162,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/settings/sharing" element={<SharingPage token={token} />} />
           <Route path="/settings/support" element={<SupportPage />} />
           <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />
+          <Route path="/settings/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/settings/manage-debts/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/investments" element={<InvestmentsPage token={token} />} />
           <Route path="/alerts" element={<AlertsPage token={token} />} />

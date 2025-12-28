@@ -3,7 +3,7 @@
  * Provides reusable test data and helper functions
  */
 
-export const API_BASE = process.env.API_URL || 'http://localhost:3000';
+export const API_BASE = process.env.API_URL || 'http://localhost:12022';
 
 // Test Accounts
 export const TEST_ACCOUNTS = {
@@ -83,7 +83,7 @@ export class APIHelper {
     }
 
     static async addIncome(token: string, data: any) {
-        const response = await fetch(`${API_BASE}/incomes`, {
+        const response = await fetch(`${API_BASE}/planning/income`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -92,11 +92,12 @@ export class APIHelper {
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error(`Add income failed: ${await response.text()}`);
-        return response.json();
+        const result = await response.json();
+        return result.data;
     }
 
     static async addFixedExpense(token: string, data: any) {
-        const response = await fetch(`${API_BASE}/fixed-expenses`, {
+        const response = await fetch(`${API_BASE}/planning/fixed-expenses`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -105,15 +106,17 @@ export class APIHelper {
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error(`Add fixed expense failed: ${await response.text()}`);
-        return response.json();
+        const result = await response.json();
+        return result.data;
     }
 
-    static async getDashboard(token: string, date: string = new Date().toISOString()) {
-        const response = await fetch(`${API_BASE}/dashboard?date=${date}`, {
+    static async getDashboard(token: string, today: string = new Date().toISOString()) {
+        const response = await fetch(`${API_BASE}/dashboard?today=${encodeURIComponent(today)}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error(`Get dashboard failed: ${await response.text()}`);
-        return response.json();
+        const result = await response.json();
+        return result.data;
     }
 }
 
@@ -121,11 +124,15 @@ export class APIHelper {
 export class UIHelper {
     static async loginUI(page: any, username: string, password: string) {
         await page.goto('/');
-        await page.getByRole('tab', { name: 'Login' }).click();
+        // Switch to Login mode if needed (button text: "Already have an account? Login")
+        const loginButton = page.getByRole('button', { name: /Already have an account\? Login/i });
+        if (await loginButton.isVisible()) {
+            await loginButton.click();
+        }
         await page.getByPlaceholder('your_unique_username').fill(username);
         await page.getByPlaceholder('••••••••').fill(password);
         await page.getByRole('button', { name: 'Login' }).click();
-        await page.waitForURL('/dashboard');
+        await page.waitForURL('/dashboard', { timeout: 10000 });
     }
 
     static async logoutUI(page: any) {

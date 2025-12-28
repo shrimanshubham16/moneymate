@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaChartBar } from "react-icons/fa";
+import { FaChartBar, FaShoppingCart } from "react-icons/fa";
 import { fetchDashboard, createVariableExpensePlan, updateVariableExpensePlan, deleteVariableExpensePlan, addVariableActual } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";

@@ -1,0 +1,55 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "MoneyMate" [ref=e5] [cursor=pointer]:
+      - /url: /dashboard
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e11]: MoneyMate
+    - generic [ref=e12]:
+      - button "Export" [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+        - generic [ref=e16]: Export
+      - button "Settings" [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+        - generic [ref=e21]: Settings
+  - generic [ref=e23]:
+    - generic [ref=e24]:
+      - button "← Back" [ref=e25] [cursor=pointer]
+      - generic [ref=e26]:
+        - heading "Income Sources" [level=1] [ref=e27]:
+          - img [ref=e28]
+          - text: Income Sources
+        - button "Add Income" [active] [ref=e30] [cursor=pointer]:
+          - img [ref=e31]
+          - text: Add Income
+    - generic [ref=e33]:
+      - generic [ref=e34]:
+        - heading "Total Monthly Income" [level=3] [ref=e35]
+        - paragraph [ref=e36]: ₹0
+      - generic [ref=e37]:
+        - heading "Income Sources" [level=3] [ref=e38]
+        - paragraph [ref=e39]: "0"
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - heading "Add New Income Source" [level=2] [ref=e43]
+        - button "✕" [ref=e44] [cursor=pointer]
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - generic [ref=e47]: Source (e.g., Salary, Freelance, Business)
+          - textbox "Salary" [ref=e48]
+        - generic [ref=e49]:
+          - generic [ref=e50]: Amount
+          - spinbutton [ref=e51]
+        - generic [ref=e52]:
+          - generic [ref=e53]: Frequency
+          - combobox [ref=e54]:
+            - option "Monthly" [selected]
+            - option "Quarterly"
+            - option "Yearly"
+        - generic [ref=e55]:
+          - button "Cancel" [ref=e56] [cursor=pointer]
+          - button "Add Income" [ref=e57] [cursor=pointer]
+```

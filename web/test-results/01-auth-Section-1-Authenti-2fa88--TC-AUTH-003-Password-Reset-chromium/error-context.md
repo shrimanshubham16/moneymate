@@ -1,0 +1,53 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "MoneyMate" [ref=e5] [cursor=pointer]:
+      - /url: /dashboard
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e11]: MoneyMate
+    - generic [ref=e12]:
+      - button "Export" [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+        - generic [ref=e16]: Export
+      - button "Settings" [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+        - generic [ref=e21]: Settings
+  - generic [ref=e23]:
+    - generic [ref=e24]:
+      - button "← Back" [ref=e25] [cursor=pointer]
+      - heading "Account" [level=1] [ref=e26]
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: Q
+        - generic [ref=e30]:
+          - heading "@qa_individual_1" [level=2] [ref=e31]
+          - generic [ref=e32]: Username is immutable (set once)
+      - generic [ref=e34]:
+        - generic [ref=e35]: User ID
+        - generic [ref=e36]: c936dc48-a6bd-4e2b-bd3f-9d451b461646
+      - button "Logout" [ref=e37] [cursor=pointer]
+    - generic [ref=e39]:
+      - generic [ref=e40]:
+        - generic [ref=e41]: Current Password *
+        - textbox [ref=e42]
+      - generic [ref=e43]:
+        - generic [ref=e44]: New Password *
+        - textbox [ref=e45]
+        - generic [ref=e46]: Minimum 8 characters
+      - generic [ref=e47]:
+        - generic [ref=e48]: Confirm New Password *
+        - textbox [ref=e49]
+      - generic [ref=e50]:
+        - button "Cancel" [ref=e51] [cursor=pointer]
+        - button "Update Password" [ref=e52] [cursor=pointer]
+    - generic [ref=e53]:
+      - heading "About Your Account" [level=3] [ref=e54]
+      - paragraph [ref=e55]:
+        - text: Your username is
+        - strong [ref=e56]: immutable
+        - text: and cannot be changed after signup. This ensures consistency across shared accounts and activity logs.
+      - paragraph [ref=e57]: Need help? Visit the Support section in Settings.
+```

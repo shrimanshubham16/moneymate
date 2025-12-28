@@ -1,0 +1,70 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "MoneyMate" [ref=e5] [cursor=pointer]:
+      - /url: /dashboard
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e11]: MoneyMate
+    - generic [ref=e12]:
+      - button "Export" [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+        - generic [ref=e16]: Export
+      - button "Settings" [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+        - generic [ref=e21]: Settings
+  - generic [ref=e23]:
+    - generic [ref=e24]:
+      - button "← Back" [ref=e25] [cursor=pointer]
+      - heading "Fixed Expenses" [level=1] [ref=e26]
+      - button "+ Add New Fixed Expense" [active] [ref=e27] [cursor=pointer]
+    - generic [ref=e29]:
+      - heading "Add Fixed Expense" [level=2] [ref=e30]
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]: Name *
+          - textbox [ref=e34]
+        - generic [ref=e35]:
+          - generic [ref=e36]:
+            - generic [ref=e37]: Amount *
+            - spinbutton [ref=e38]
+          - generic [ref=e39]:
+            - generic [ref=e40]: Frequency *
+            - combobox [ref=e41]:
+              - option "Monthly" [selected]
+              - option "Quarterly"
+              - option "Yearly"
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - generic [ref=e44]: Starting From *
+            - textbox [ref=e45]: 2025-12-28
+          - generic [ref=e46]:
+            - generic [ref=e47]: Till *
+            - textbox [ref=e48]: 2030-12-27
+        - generic [ref=e49]:
+          - generic [ref=e50]: Category *
+          - combobox [ref=e51]:
+            - option "General" [selected]
+            - option "Housing"
+            - option "Food"
+            - option "Transport"
+            - option "Utilities"
+            - option "Insurance"
+            - option "Loan"
+            - option "Education"
+            - option "Healthcare"
+            - option "Entertainment"
+            - option "Shopping"
+            - option "Personal Care"
+            - option "Subscriptions"
+        - generic [ref=e52]:
+          - button "Cancel" [ref=e53] [cursor=pointer]
+          - button "Add" [ref=e54] [cursor=pointer]
+    - generic [ref=e55]:
+      - img [ref=e57]
+      - heading "No Fixed Expenses Yet" [level=3] [ref=e59]
+      - paragraph [ref=e60]: Add your recurring expenses like rent, utilities, and subscriptions to track your monthly commitments
+      - button "Add First Fixed Expense" [ref=e62] [cursor=pointer]
+```
