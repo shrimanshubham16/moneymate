@@ -225,6 +225,42 @@
       "isSip": false,
       "id": "c20c3ec7-7c27-4d28-9f0a-4bb0eaccec5d",
       "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "name": "HL Loan",
+      "amount": 50000,
+      "frequency": "monthly",
+      "category": "Loan",
+      "isSip": false,
+      "id": "70cbcf9b-ccb7-4b59-aea5-c94ac18df645",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "uiuiu",
+      "amount": 5000,
+      "frequency": "monthly",
+      "category": "Utilities",
+      "isSip": false,
+      "id": "ef201a37-596b-465a-a16e-6053c6c729e6",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "6000",
+      "amount": 6000,
+      "frequency": "quarterly",
+      "category": "General",
+      "isSip": true,
+      "id": "5b293b4d-f3b5-47ec-8efd-2ea4fe76b441",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "emi56",
+      "amount": 6000,
+      "frequency": "monthly",
+      "category": "Loan",
+      "isSip": false,
+      "id": "4439fb76-04d8-43b0-b0d8-d55ff2f0d7de",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
     }
   ],
   "variablePlans": [
@@ -254,6 +290,15 @@
       "endDate": "2030-12-27",
       "id": "033162be-1df2-484a-ac5a-ffd79203fbd5",
       "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "Fooood",
+      "planned": 30000,
+      "category": "Food",
+      "startDate": "2025-12-28",
+      "endDate": "2030-12-27",
+      "id": "63b6820c-fb75-4d3b-ba7f-1af33b0cc060",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
     }
   ],
   "variableActuals": [
@@ -270,6 +315,13 @@
       "incurredAt": "2025-01-15T00:00:00Z",
       "id": "7beaea52-7e9a-4f01-933b-a54861cd926b",
       "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "planId": "033162be-1df2-484a-ac5a-ffd79203fbd5",
+      "amount": 2333,
+      "incurredAt": "2025-01-15T00:00:00Z",
+      "id": "3a9101e3-ee8c-4aff-af8e-2b07c4a6a2b9",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
     }
   ],
   "constraint": {
@@ -278,12 +330,31 @@
     "recentOverspends": 0,
     "decayAppliedAt": "2025-01-15T00:00:00.000Z"
   },
-  "investments": [],
+  "investments": [
+    {
+      "name": "Goold",
+      "goal": "Gold",
+      "monthlyAmount": 2000,
+      "status": "active",
+      "id": "b904994d-f1bb-49ea-8506-44db86ba52d3",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    }
+  ],
   "futureBombs": [],
   "sharedAccounts": [],
   "sharedMembers": [],
   "sharingRequests": [],
-  "creditCards": [],
+  "creditCards": [
+    {
+      "name": "HDFC",
+      "dueDate": "2025-12-28",
+      "billAmount": 30000,
+      "statementDate": "2025-12-28",
+      "id": "9f8e92a2-fbe5-46e0-9cea-829dd2f6b8ff",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "paidAmount": 0
+    }
+  ],
   "loans": [],
   "activities": [
     {
@@ -379,6 +450,28 @@
         "id": "50adf171-c241-4f1d-865b-a00842404b85"
       },
       "createdAt": "2025-12-28T20:32:00.675Z"
+    },
+    {
+      "id": "9ce3b7a1-7f37-4602-9450-41ddaa3c3c62",
+      "actorId": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "grocery",
+        "amount": 2333,
+        "category": "Groceries"
+      },
+      "createdAt": "2025-12-28T20:46:57.177Z"
+    },
+    {
+      "id": "af7e548b-f171-4d18-b620-0a58e2dbb49e",
+      "actorId": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "entity": "credit_card",
+      "action": "created",
+      "payload": {
+        "id": "9f8e92a2-fbe5-46e0-9cea-829dd2f6b8ff"
+      },
+      "createdAt": "2025-12-28T20:50:57.002Z"
     }
   ],
   "themeStates": []

@@ -49,8 +49,9 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       console.log("Calculation:", healthData.calculation);
 
       // Trust the backend's calculation completely!
-      const backendHealth = healthData.health;
-      const backendCategory = healthData.category;
+      // FIX: Health is now an object with { remaining, category }
+      const backendHealth = healthData.health.remaining;
+      const backendCategory = healthData.health.category;
 
       // Determine health description and advice based on backend's category
       let description = "";

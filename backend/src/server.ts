@@ -179,8 +179,11 @@ app.get("/health/details", requireAuth, (req, res) => {
 
   res.json({
     data: {
-      health: health.remaining,
-      category: health.category,
+      // FIX: Return health object with same structure as dashboard for consistency
+      health: {
+        remaining: health.remaining,
+        category: health.category
+      },
       breakdown: {
         totalIncome,
         paymentsMade,
@@ -272,7 +275,8 @@ app.post("/planning/income", requireAuth, (req, res) => {
   const parsed = incomeSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const created = addIncome(userId, { name: parsed.data.source, amount: parsed.data.amount, frequency: parsed.data.frequency, category: "employment", startDate: new Date().toISOString() });
-  addActivity((req as any).user.id, "income", "created", { id: created.id });
+  // FIX: Use userId instead of user.id for activity logging
+  addActivity(userId, "income", "added income source", { name: created.name, amount: created.amount, frequency: created.frequency });
   dashboardCache.clear();
   res.status(201).json({ data: created });
 });
@@ -315,6 +319,13 @@ app.post("/planning/fixed-expenses", requireAuth, (req, res) => {
     frequency: parsed.data.frequency,
     category: parsed.data.category,
     isSip: parsed.data.is_sip_flag
+  });
+  // FIX: Add activity logging for fixed expense creation
+  addActivity(userId, "fixed_expense", "added fixed expense", { 
+    name: created.name, 
+    amount: created.amount, 
+    frequency: created.frequency, 
+    category: created.category 
   });
   dashboardCache.clear();
   // Return with snake_case field name for API consistency
@@ -367,6 +378,12 @@ app.post("/planning/variable-expenses", requireAuth, (req, res) => {
     category: parsed.data.category,
     startDate: parsed.data.start_date,
     endDate: parsed.data.end_date
+  });
+  // FIX: Add activity logging for variable expense plan creation
+  addActivity(userId, "variable_expense_plan", "added variable expense plan", { 
+    name: created.name, 
+    planned: created.planned, 
+    category: created.category 
   });
   dashboardCache.clear();
   res.status(201).json({ data: created });
@@ -443,6 +460,12 @@ app.post("/investments", requireAuth, (req, res) => {
   const parsed = investmentSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const created = addInvestment(userId, parsed.data);
+  // FIX: Add activity logging for investment creation
+  addActivity(userId, "investment", "added investment", { 
+    name: created.name, 
+    amount: created.amount, 
+    type: created.type 
+  });
   dashboardCache.clear();
   res.status(201).json({ data: created });
 });
