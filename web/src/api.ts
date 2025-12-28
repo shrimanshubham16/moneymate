@@ -1,6 +1,6 @@
 export type LoginResponse = { access_token: string; user: { id: string; username: string } };
 
-const BASE_URL = "http://localhost:12022";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
