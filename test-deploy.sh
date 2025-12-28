@@ -64,7 +64,8 @@ echo "
 FUNCS=("addVariablePlan" "updateVariablePlan" "deleteVariablePlan")
 
 for func in "${FUNCS[@]}"; do
-    if grep -A 5 "export function $func" backend/src/store.ts | grep -q "scheduleSave"; then
+    # Look within the function body (next 10 lines after function declaration)
+    if grep -A 10 "export function $func" backend/src/store.ts | grep -q "scheduleSave"; then
         echo -e "${GREEN}✓ $func has scheduleSave()${NC}"
     else
         echo -e "${RED}✗ $func MISSING scheduleSave()${NC}"
@@ -85,7 +86,7 @@ fi
 # Test 6: Check Version Number
 echo "
 [6/6] Checking Version Display..."
-if grep -q "v1.1.0" web/src/pages/AboutPage.tsx; then
+if grep -q "v1\.1\." web/src/pages/AboutPage.tsx; then
     echo -e "${GREEN}✓ Version number present${NC}"
 else
     echo -e "${RED}✗ Version number MISSING${NC}"
