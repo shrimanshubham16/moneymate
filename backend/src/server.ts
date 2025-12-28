@@ -216,6 +216,7 @@ app.get("/dashboard", requireAuth, (req, res) => {
   const constraintDecayed = applyConstraintDecay(getConstraint(), today);
   setConstraint(constraintDecayed);
   const userId = (req as any).user.userId;
+  const groupUserIds = getMergedFinanceGroupUserIds(userId);
   const health = computeHealthSnapshot(today, userId);
   const store = getStore();
 
