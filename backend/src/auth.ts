@@ -90,7 +90,8 @@ export function recordSuccessfulLogin(username: string): void {
 
 const signupSchema = z.object({
   username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
-  password: z.string().min(8)
+  password: z.string().min(8),
+  salt: z.string().optional()
 });
 
 const loginSchema = z.object({

@@ -60,8 +60,8 @@ export function loadFixtures(): Store {
   });
 
   const incomes: Income[] = [
-    { id: "inc-fixture-1", userId: FIXTURE_USER_ID, source: "Primary Salary", amount: 150000, frequency: "monthly" },
-    { id: "inc-fixture-2", userId: FIXTURE_USER_ID, source: "Side Hustle", amount: 20000, frequency: "monthly" }
+    { id: "inc-fixture-1", userId: FIXTURE_USER_ID, name: "Primary Salary", amount: 150000, category: "employment", frequency: "monthly", startDate: "2024-01-01" },
+    { id: "inc-fixture-2", userId: FIXTURE_USER_ID, name: "Side Hustle", amount: 20000, category: "freelance", frequency: "monthly", startDate: "2024-01-01" }
   ];
 
   return {
