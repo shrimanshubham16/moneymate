@@ -188,6 +188,7 @@ export function deleteFixedExpense(userId: string, id: string): boolean {
 export function addVariablePlan(userId: string, data: Omit<VariableExpensePlan, "id" | "userId">): VariableExpensePlan {
   const plan = { ...data, id: randomUUID(), userId };
   state.variablePlans.push(plan);
+  scheduleSave();  // FIX: Save data to persist across deploys
   return plan;
 }
 
@@ -198,14 +199,17 @@ export function updateVariablePlan(
   const idx = state.variablePlans.findIndex((v) => v.id === id);
   if (idx === -1) return undefined;
   state.variablePlans[idx] = { ...state.variablePlans[idx], ...data };
+  scheduleSave();  // FIX: Save data to persist across deploys
   return state.variablePlans[idx];
 }
 
 export function deleteVariablePlan(userId: string, id: string): boolean {
   const prev = state.variablePlans.length;
   state.variablePlans = state.variablePlans.filter((v) => v.id !== id || v.userId !== userId);
+  const deleted = state.variablePlans.length < prev;
   state.variableActuals = state.variableActuals.filter((a) => a.planId !== id);
-  return state.variablePlans.length < prev;
+  if (deleted) scheduleSave();  // FIX: Save data to persist across deploys
+  return deleted;
 }
 
 export function addVariableActual(userId: string, data: Omit<VariableExpenseActual, "id" | "userId">): VariableExpenseActual {
