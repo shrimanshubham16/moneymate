@@ -3,7 +3,7 @@ import cors from "cors";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { authRoutes, requireAuth } from "./auth";
-import { applyConstraintDecay, computeHealthSnapshot, tierFor, totalIncomePerMonth, totalPaymentsMadeThisMonth, unpaidFixedPerMonth, unpaidProratedVariableForRemainingDays, unpaidInvestmentsPerMonth, unpaidCreditCardDues, calculateMonthProgress, totalPlannedVariableExpenses } from "./logic";
+import { applyConstraintDecay, computeHealthSnapshot, tierFor, totalIncomePerMonth, totalPaymentsMadeThisMonth, unpaidFixedPerMonth, unpaidProratedVariableForRemainingDays, unpaidInvestmentsPerMonth, unpaidCreditCardDues, calculateMonthProgress } from "./logic";
 import { markAsPaid, markAsUnpaid, isPaid, getPaymentStatus, getUserPayments, getPaymentsSummary } from "./payments";
 import { getUserPreferences, updateUserPreferences } from "./preferences";
 import {
@@ -53,7 +53,7 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     // Check if origin is in allowed list or allow all in development
     if (NODE_ENV === 'development' || ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
@@ -154,19 +154,14 @@ app.get("/health/details", requireAuth, (req, res) => {
   const useProrated = preferences?.useProrated ?? false;
 
   // Get components
-  const totalIncome = totalIncomePerMonth();
+  const totalIncome = totalIncomePerMonth(userId);
   const paymentsMade = totalPaymentsMadeThisMonth(userId, today);
   const availableFunds = totalIncome - paymentsMade;
 
   const unpaidFixed = unpaidFixedPerMonth(userId, today);
-  
-  // Use prorated or full planned based on user preference
-  const unpaidVariable = useProrated
-    ? unpaidProratedVariableForRemainingDays(today, monthStartDay)
-    : totalPlannedVariableExpenses();
-    
+  const unpaidVariable = unpaidProratedVariableForRemainingDays(userId, today, monthStartDay);
   const unpaidInvestments = unpaidInvestmentsPerMonth(userId, today);
-  const unpaidCreditCards = unpaidCreditCardDues(today);
+  const unpaidCreditCards = unpaidCreditCardDues(userId, today);
 
   const monthProgress = calculateMonthProgress(today, monthStartDay);
 
@@ -226,26 +221,33 @@ app.get("/dashboard", requireAuth, (req, res) => {
   // Get payment status for current month
   const paymentStatus = getPaymentStatus(userId);
 
+  // Filter all data by userId
+  const userIncomes = store.incomes.filter(i => i.userId === userId);
+  const userFixedExpenses = store.fixedExpenses.filter(f => f.userId === userId);
+  const userVariablePlans = store.variablePlans.filter(v => v.userId === userId);
+  const userInvestments = store.investments.filter(i => i.userId === userId);
+  const userFutureBombs = store.futureBombs.filter(fb => fb.userId === userId);
+
   // Attach actuals and actualTotal to each variable plan
-  const variablePlansWithActuals = store.variablePlans.map((plan) => {
-    const actuals = store.variableActuals.filter((a) => a.planId === plan.id);
+  const variablePlansWithActuals = userVariablePlans.map((plan) => {
+    const actuals = store.variableActuals.filter((a) => a.planId === plan.id && a.userId === userId);
     const actualTotal = actuals.reduce((sum, a) => sum + a.amount, 0);
     return { ...plan, actuals, actualTotal };
   });
 
   const payload = {
-    incomes: store.incomes,
-    fixedExpenses: store.fixedExpenses.map((e) => ({
+    incomes: userIncomes,
+    fixedExpenses: userFixedExpenses.map((e) => ({
       ...e,
       is_sip_flag: e.isSip,
       paid: paymentStatus[`fixed_expense:${e.id}`] || false
     })),
     variablePlans: variablePlansWithActuals,
-    investments: store.investments.map((i) => ({
+    investments: userInvestments.map((i) => ({
       ...i,
       paid: paymentStatus[`investment:${i.id}`] || false
     })),
-    futureBombs: store.futureBombs,
+    futureBombs: userFutureBombs,
     health,
     constraintScore: constraintDecayed,
     alerts: listAlerts()
@@ -254,14 +256,18 @@ app.get("/dashboard", requireAuth, (req, res) => {
   res.json({ data: payload });
 });
 
-app.get("/planning/income", requireAuth, (_req, res) => {
-  res.json({ data: getStore().incomes });
+app.get("/planning/income", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const store = getStore();
+  const userIncomes = store.incomes.filter(i => i.userId === userId);
+  res.json({ data: userIncomes });
 });
 
 app.post("/planning/income", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = incomeSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addIncome({ source: parsed.data.source, amount: parsed.data.amount, frequency: parsed.data.frequency });
+  const created = addIncome(userId, { source: parsed.data.source, amount: parsed.data.amount, frequency: parsed.data.frequency });
   addActivity((req as any).user.id, "income", "created", { id: created.id });
   dashboardCache.clear();
   res.status(201).json({ data: created });
@@ -281,21 +287,25 @@ app.put("/planning/income/:id", requireAuth, (req, res) => {
 });
 
 app.delete("/planning/income/:id", requireAuth, (req, res) => {
-  const ok = deleteIncome(req.params.id);
+  const userId = (req as any).user.userId;
+  const ok = deleteIncome(userId, req.params.id);
   if (!ok) return res.status(404).json({ error: { message: "Not found" } });
   dashboardCache.clear();
   res.status(200).json({ data: { deleted: true } });
 });
 
-app.get("/planning/fixed-expenses", requireAuth, (_req, res) => {
-  const expenses = getStore().fixedExpenses.map((e) => ({ ...e, is_sip_flag: e.isSip }));
-  res.json({ data: expenses });
+app.get("/planning/fixed-expenses", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const store = getStore();
+  const userExpenses = store.fixedExpenses.filter(f => f.userId === userId).map((e) => ({ ...e, is_sip_flag: e.isSip }));
+  res.json({ data: userExpenses });
 });
 
 app.post("/planning/fixed-expenses", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = fixedSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addFixedExpense({
+  const created = addFixedExpense(userId, {
     name: parsed.data.name,
     amount: parsed.data.amount,
     frequency: parsed.data.frequency,
@@ -324,16 +334,19 @@ app.put("/planning/fixed-expenses/:id", requireAuth, (req, res) => {
 });
 
 app.delete("/planning/fixed-expenses/:id", requireAuth, (req, res) => {
-  const ok = deleteFixedExpense(req.params.id);
+  const userId = (req as any).user.userId;
+  const ok = deleteFixedExpense(userId, req.params.id);
   if (!ok) return res.status(404).json({ error: { message: "Not found" } });
   dashboardCache.clear();
   res.status(200).json({ data: { deleted: true } });
 });
 
-app.get("/planning/variable-expenses", requireAuth, (_req, res) => {
+app.get("/planning/variable-expenses", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
   const store = getStore();
-  const plans = store.variablePlans.map((p) => {
-    const actual = store.variableActuals.filter((a) => a.planId === p.id);
+  const userPlans = store.variablePlans.filter(p => p.userId === userId);
+  const plans = userPlans.map((p) => {
+    const actual = store.variableActuals.filter((a) => a.planId === p.id && a.userId === userId);
     const actualTotal = actual.reduce((s, a) => s + a.amount, 0);
     return { ...p, actualTotal, actuals: actual };
   });
@@ -341,9 +354,10 @@ app.get("/planning/variable-expenses", requireAuth, (_req, res) => {
 });
 
 app.post("/planning/variable-expenses", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = variablePlanSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addVariablePlan({
+  const created = addVariablePlan(userId, {
     name: parsed.data.name,
     planned: parsed.data.planned,
     category: parsed.data.category,
@@ -370,26 +384,28 @@ app.put("/planning/variable-expenses/:id", requireAuth, (req, res) => {
 });
 
 app.delete("/planning/variable-expenses/:id", requireAuth, (req, res) => {
-  const ok = deleteVariablePlan(req.params.id);
+  const userId = (req as any).user.userId;
+  const ok = deleteVariablePlan(userId, req.params.id);
   if (!ok) return res.status(404).json({ error: { message: "Not found" } });
   dashboardCache.clear();
   res.status(200).json({ data: { deleted: true } });
 });
 
 app.post("/planning/variable-expenses/:id/actuals", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = variableActualSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const store = getStore();
-  const plan = store.variablePlans.find((p) => p.id === req.params.id);
+  const plan = store.variablePlans.find((p) => p.id === req.params.id && p.userId === userId);
   if (!plan) return res.status(404).json({ error: { message: "Plan not found" } });
   // Overspend check: if constraint is red and over plan, justification required
-  const actualTotal = store.variableActuals.filter((a) => a.planId === plan.id).reduce((s, a) => s + a.amount, 0);
+  const actualTotal = store.variableActuals.filter((a) => a.planId === plan.id && a.userId === userId).reduce((s, a) => s + a.amount, 0);
   const projected = actualTotal + parsed.data.amount;
   const constraint = getConstraint();
   if (constraint.tier === "red" && projected > plan.planned && !parsed.data.justification) {
     return res.status(400).json({ error: { message: "Justification required for overspend in red tier" } });
   }
-  const created = addVariableActual({
+  const created = addVariableActual(userId, {
     planId: plan.id,
     amount: parsed.data.amount,
     incurredAt: parsed.data.incurred_at,
@@ -411,14 +427,18 @@ app.post("/planning/variable-expenses/:id/actuals", requireAuth, (req, res) => {
   res.status(201).json({ data: created });
 });
 
-app.get("/investments", requireAuth, (_req, res) => {
-  res.json({ data: getStore().investments });
+app.get("/investments", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const store = getStore();
+  const userInvestments = store.investments.filter(i => i.userId === userId);
+  res.json({ data: userInvestments });
 });
 
 app.post("/investments", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = investmentSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addInvestment(parsed.data);
+  const created = addInvestment(userId, parsed.data);
   dashboardCache.clear();
   res.status(201).json({ data: created });
 });
@@ -432,14 +452,18 @@ app.put("/investments/:id", requireAuth, (req, res) => {
   res.json({ data: updated });
 });
 
-app.get("/future-bombs", requireAuth, (_req, res) => {
-  res.json({ data: getStore().futureBombs });
+app.get("/future-bombs", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const store = getStore();
+  const userFutureBombs = store.futureBombs.filter(fb => fb.userId === userId);
+  res.json({ data: userFutureBombs });
 });
 
 app.post("/future-bombs", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = futureBombSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addFutureBomb(parsed.data);
+  const created = addFutureBomb(userId, parsed.data);
   dashboardCache.clear();
   res.status(201).json({ data: created });
 });
@@ -500,14 +524,18 @@ app.delete("/sharing/members/:id", requireAuth, (req, res) => {
   res.status(204).end();
 });
 
-app.get("/debts/credit-cards", requireAuth, (_req, res) => {
-  res.json({ data: listCreditCards() });
+app.get("/debts/credit-cards", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const store = getStore();
+  const userCards = store.creditCards.filter(c => c.userId === userId);
+  res.json({ data: userCards });
 });
 
 app.post("/debts/credit-cards", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = creditCardSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addCreditCard(parsed.data);
+  const created = addCreditCard(userId, parsed.data);
   addActivity((req as any).user.id, "credit_card", "created", { id: created.id });
   res.status(201).json({ data: created });
 });
@@ -584,7 +612,7 @@ app.get("/export/finances", requireAuth, (req, res) => {
   };
 
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', `attachment; filename="moneymate-export-${new Date().toISOString().split('T')[0]}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename = "moneymate-export-${new Date().toISOString().split('T')[0]}.json"`);
   res.json(exportData);
 });
 
@@ -603,7 +631,7 @@ app.get("/themes/state", requireAuth, (req, res) => {
       mode: theme.mode,
       selected_theme: theme.selectedTheme,
       constraint_tier_effect: theme.constraintTierEffect,
-      current_health_category: computeHealthSnapshot(new Date()).category,
+      current_health_category: computeHealthSnapshot(new Date(), user.userId).category,
       current_constraint_tier: constraint.tier
     }
   });
@@ -624,7 +652,7 @@ app.patch("/themes/state", requireAuth, (req, res) => {
       mode: updated.mode,
       selected_theme: updated.selectedTheme,
       constraint_tier_effect: updated.constraintTierEffect,
-      current_health_category: computeHealthSnapshot(new Date()).category,
+      current_health_category: computeHealthSnapshot(new Date(), user.userId).category,
       current_constraint_tier: constraint.tier
     }
   });
@@ -718,11 +746,11 @@ const dashboardCache: Map<string, { payload: any; expiresAt: number }> = new Map
 if (require.main === module) {
   const PORT = process.env.PORT || 12022;
   const server = app.listen(PORT, () => {
-    console.log(`🚀 MoneyMate backend listening on port ${PORT}`);
-    console.log(`📊 Environment: ${NODE_ENV}`);
-    console.log(`🔒 CORS origins: ${ALLOWED_ORIGINS.join(', ')}`);
+    console.log(`🚀 MoneyMate backend listening on port ${PORT} `);
+    console.log(`📊 Environment: ${NODE_ENV} `);
+    console.log(`🔒 CORS origins: ${ALLOWED_ORIGINS.join(', ')} `);
   });
-  
+
   // Save data on graceful shutdown
   const handleShutdown = () => {
     console.log('💾 Saving data before shutdown...');
@@ -733,7 +761,7 @@ if (require.main === module) {
       process.exit(0);
     });
   };
-  
+
   process.on('SIGTERM', handleShutdown);
   process.on('SIGINT', handleShutdown);
 }

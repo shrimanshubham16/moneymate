@@ -24,8 +24,11 @@ export function loadFixtures(): Store {
   const varRaw = readJson("variable_expenses.json") as FixtureData["variableFixtures"];
   const invRaw = readJson("investments.json") as Array<{ name: string; goal: string; monthly_amount: number; status: string }>;
 
+  const FIXTURE_USER_ID = "fixture-user-001"; // Dummy user ID for fixtures
+
   const fixed: FixedExpense[] = fixedRaw.map((f, idx) => ({
     id: `fix-fixture-${idx}`,
+    userId: FIXTURE_USER_ID,
     name: f.name,
     category: f.category,
     amount: f.amount,
@@ -38,6 +41,7 @@ export function loadFixtures(): Store {
     const planId = `var-fixture-${idx}`;
     variablePlans.push({
       id: planId,
+      userId: FIXTURE_USER_ID,
       name: v.category ?? "Variable",
       planned: v.planned ?? 0,
       category: v.category ?? "General",
@@ -46,6 +50,7 @@ export function loadFixtures(): Store {
     if (v.actual != null) {
       variableActuals.push({
         id: `act-fixture-${idx}`,
+        userId: FIXTURE_USER_ID,
         planId,
         amount: v.actual,
         incurredAt: v.date ?? "2025-01-01T00:00:00Z",
@@ -55,8 +60,8 @@ export function loadFixtures(): Store {
   });
 
   const incomes: Income[] = [
-    { id: "inc-fixture-1", source: "Primary Salary", amount: 150000, frequency: "monthly" },
-    { id: "inc-fixture-2", source: "Side Hustle", amount: 20000, frequency: "monthly" }
+    { id: "inc-fixture-1", userId: FIXTURE_USER_ID, source: "Primary Salary", amount: 150000, frequency: "monthly" },
+    { id: "inc-fixture-2", userId: FIXTURE_USER_ID, source: "Side Hustle", amount: 20000, frequency: "monthly" }
   ];
 
   return {

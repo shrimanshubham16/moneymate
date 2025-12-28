@@ -15,10 +15,10 @@ export type HealthCategory = "good" | "ok" | "not_well" | "worrisome";
 export function calculateMonthProgress(today: Date, monthStartDay: number = 1): number {
   // Calculate progress based on user's billing cycle, not calendar month
   const currentDay = today.getDate();
-  
+
   let startDate: Date;
   let endDate: Date;
-  
+
   if (currentDay >= monthStartDay) {
     startDate = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
     endDate = new Date(today.getFullYear(), today.getMonth() + 1, monthStartDay - 1);
@@ -26,7 +26,7 @@ export function calculateMonthProgress(today: Date, monthStartDay: number = 1): 
     startDate = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
     endDate = new Date(today.getFullYear(), today.getMonth(), monthStartDay - 1);
   }
-  
+
   const progress = (today.getTime() - startDate.getTime()) / (endDate.getTime() - startDate.getTime());
   return Math.min(Math.max(progress, 0), 1);
 }
@@ -37,12 +37,12 @@ export function monthlyEquivalent(amount: number, frequency: Frequency): number 
   return amount / 12;
 }
 
-export function proratedVariableSpend(today: Date, monthStartDay: number = 1): number {
+export function proratedVariableSpend(userId: string, today: Date, monthStartDay: number = 1): number {
   const store = getStore();
   const monthProgress = calculateMonthProgress(today, monthStartDay);
-  return store.variablePlans.reduce((sum, plan) => {
+  return store.variablePlans.filter(p => p.userId === userId).reduce((sum, plan) => {
     const actualTotal = store.variableActuals
-      .filter((a) => a.planId === plan.id)
+      .filter((a) => a.planId === plan.id && a.userId === userId)
       .reduce((s, a) => s + a.amount, 0);
     const proratedPlanned = plan.planned * monthProgress;
     const considered = Math.max(proratedPlanned, actualTotal);
@@ -50,12 +50,12 @@ export function proratedVariableSpend(today: Date, monthStartDay: number = 1): n
   }, 0);
 }
 
-export function unpaidProratedVariableForRemainingDays(today: Date, monthStartDay: number = 1): number {
+export function unpaidProratedVariableForRemainingDays(userId: string, today: Date, monthStartDay: number = 1): number {
   const store = getStore();
   const monthProgress = calculateMonthProgress(today, monthStartDay);
   const remainingDaysRatio = 1 - monthProgress;
 
-  return store.variablePlans.reduce((sum, plan) => {
+  return store.variablePlans.filter(p => p.userId === userId).reduce((sum, plan) => {
     // Calculate prorated amount for remaining days of billing cycle
     const proratedForRemainingDays = plan.planned * remainingDaysRatio;
     return sum + proratedForRemainingDays;
@@ -68,14 +68,14 @@ export function totalPaymentsMadeThisMonth(userId: string, today: Date): number 
   return payments.reduce((sum: number, payment: any) => sum + payment.paidAmount, 0);
 }
 
-export function totalIncomePerMonth(): number {
+export function totalIncomePerMonth(userId: string): number {
   const store = getStore();
-  return store.incomes.reduce((sum, inc) => sum + monthlyEquivalent(inc.amount, inc.frequency), 0);
+  return store.incomes.filter(i => i.userId === userId).reduce((sum, inc) => sum + monthlyEquivalent(inc.amount, inc.frequency), 0);
 }
 
-export function totalFixedPerMonth(): number {
+export function totalFixedPerMonth(userId: string): number {
   const store = getStore();
-  return store.fixedExpenses.reduce((sum, exp) => sum + monthlyEquivalent(exp.amount, exp.frequency), 0);
+  return store.fixedExpenses.filter(f => f.userId === userId).reduce((sum, exp) => sum + monthlyEquivalent(exp.amount, exp.frequency), 0);
 }
 
 export function unpaidFixedPerMonth(userId: string, today: Date): number {
@@ -93,93 +93,63 @@ export function unpaidFixedPerMonth(userId: string, today: Date): number {
 
 export function unpaidInvestmentsPerMonth(userId: string, today: Date): number {
   const store = getStore();
-  const preferences = getUserPreferences(userId);
-  const targetMonth = getBillingPeriodId(preferences.monthStartDay, today);
 
-  return store.investments.reduce((sum, inv) => {
+  return store.investments.filter(inv => inv.userId === userId).reduce((sum, inv) => {
     // Only count active investments
     if (inv.status !== 'active') return sum;
 
-    const paid = isItemPaid(userId, inv.id, 'investment', targetMonth);
-    if (paid) return sum; // Skip paid investments
+    const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const isInvestmentPaid = isItemPaid(userId, inv.id, 'investment', month);
+    if (isInvestmentPaid) return sum; // Skip paid investments
 
     return sum + inv.monthlyAmount;
   }, 0);
 }
 
-export function totalActiveInvestmentsPerMonth(): number {
+export function totalActiveInvestmentsPerMonth(userId: string): number {
   const store = getStore();
-  return store.investments
-    .filter(inv => inv.status === 'active')
-    .reduce((sum, inv) => sum + inv.monthlyAmount, 0);
+  return store.investments.filter(i => i.userId === userId && i.status === 'active').reduce((sum, inv) => sum + inv.monthlyAmount, 0);
 }
 
-export function unpaidCreditCardDues(today: Date): number {
+export function unpaidCreditCardDues(userId: string, today: Date): number {
   const store = getStore();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
 
-  return store.creditCards.reduce((sum, card) => {
+  return store.creditCards.filter(c => c.userId === userId).reduce((sum, card) => {
     const dueDate = new Date(card.dueDate);
     // Only count cards due in current month
     if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
       const unpaidAmount = card.billAmount - card.paidAmount;
-      return sum + Math.max(0, unpaidAmount); // Only count if unpaid
+      return sum + unpaidAmount;
     }
     return sum;
   }, 0);
 }
 
-export function totalPlannedVariableExpenses(): number {
-  const store = getStore();
-  return store.variablePlans.reduce((sum, plan) => sum + plan.planned, 0);
-}
 
-export function computeHealthSnapshot(today: Date, userId?: string): { remaining: number; category: HealthCategory } {
+
+export function computeHealthSnapshot(today: Date, userId: string): { remaining: number; category: HealthCategory } {
   // Get user's billing cycle preferences
-  const preferences = userId ? getUserPreferences(userId) : null;
+  const preferences = getUserPreferences(userId);
   const monthStartDay = preferences?.monthStartDay || 1;
-  const useProrated = preferences?.useProrated ?? false; // Default to false - simpler calculation
 
-  if (!userId) {
-    // Fallback for when userId is not provided (shouldn't happen in normal flow)
-    const income = totalIncomePerMonth();
-    const variable = totalPlannedVariableExpenses(); // Use full planned, not prorated
-    const fixed = totalFixedPerMonth();
-    const investments = totalActiveInvestmentsPerMonth();
-    const creditCardDues = unpaidCreditCardDues(today);
-    const remaining = income - fixed - variable - investments - creditCardDues;
-
-    let category: HealthCategory;
-    if (remaining > HEALTH_THRESHOLDS.good) category = "good";
-    else if (remaining >= HEALTH_THRESHOLDS.okMin && remaining <= HEALTH_THRESHOLDS.okMax) category = "ok";
-    else if (remaining < 0 && Math.abs(remaining) <= HEALTH_THRESHOLDS.notWellMax) category = "not_well";
-    else category = "worrisome";
-
-    return { remaining, category };
-  }
-
-  // SIMPLIFIED CALCULATION (default):
-  // Health = Available Funds - (Unpaid Fixed + Planned Variable + Unpaid Investments + Unpaid Credit Cards)
+  // CALCULATION:
+  // Health = Available Funds - (Unpaid Fixed + Unpaid Prorated Variable for remaining days + Unpaid Investments + Unpaid Credit Cards)
   // Where: Available Funds = Total Income - All Payments Made So Far
-  //
-  // ADVANCED CALCULATION (if useProrated enabled):
-  // Uses prorated variable expenses based on remaining days in billing cycle
 
-  const totalIncome = totalIncomePerMonth();
+  const totalIncome = totalIncomePerMonth(userId);
   const paymentsMade = totalPaymentsMadeThisMonth(userId, today);
   const availableFunds = totalIncome - paymentsMade;
 
   // Calculate unpaid obligations
   const unpaidFixed = unpaidFixedPerMonth(userId, today);
-  
-  // Variable expenses: use prorated or full planned based on user preference
-  const unpaidVariable = useProrated 
-    ? unpaidProratedVariableForRemainingDays(today, monthStartDay)
-    : totalPlannedVariableExpenses();
-    
+
+  // Variable expenses: use prorated based on user preference
+  const unpaidVariable = unpaidProratedVariableForRemainingDays(userId, today, monthStartDay);
+
   const unpaidInvestments = unpaidInvestmentsPerMonth(userId, today);
-  const unpaidCreditCards = unpaidCreditCardDues(today);
+  const unpaidCreditCards = unpaidCreditCardDues(userId, today);
 
   const remaining = availableFunds - unpaidFixed - unpaidVariable - unpaidInvestments - unpaidCreditCards;
 

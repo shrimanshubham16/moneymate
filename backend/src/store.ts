@@ -128,8 +128,8 @@ export function findUserByUsername(username: string) {
   return state.users.find(u => u.username === username);
 }
 
-export function addIncome(data: Omit<Income, "id">): Income {
-  const income = { ...data, id: randomUUID() };
+export function addIncome(userId: string, data: Omit<Income, "id" | "userId">): Income {
+  const income = { ...data, id: randomUUID(), userId };
   state.incomes.push(income);
   scheduleSave();
   return income;
@@ -143,16 +143,16 @@ export function updateIncome(id: string, data: Partial<Omit<Income, "id">>): Inc
   return state.incomes[idx];
 }
 
-export function deleteIncome(id: string): boolean {
+export function deleteIncome(userId: string, id: string): boolean {
   const prev = state.incomes.length;
-  state.incomes = state.incomes.filter((i) => i.id !== id);
+  state.incomes = state.incomes.filter((i) => i.id !== id || i.userId !== userId);
   const deleted = state.incomes.length < prev;
   if (deleted) scheduleSave();
   return deleted;
 }
 
-export function addFixedExpense(data: Omit<FixedExpense, "id">): FixedExpense {
-  const exp = { ...data, id: randomUUID() };
+export function addFixedExpense(userId: string, data: Omit<FixedExpense, "id" | "userId">): FixedExpense {
+  const exp = { ...data, id: randomUUID(), userId };
   state.fixedExpenses.push(exp);
   scheduleSave();
   return exp;
@@ -166,16 +166,16 @@ export function updateFixedExpense(id: string, data: Partial<Omit<FixedExpense, 
   return state.fixedExpenses[idx];
 }
 
-export function deleteFixedExpense(id: string): boolean {
+export function deleteFixedExpense(userId: string, id: string): boolean {
   const prev = state.fixedExpenses.length;
-  state.fixedExpenses = state.fixedExpenses.filter((f) => f.id !== id);
+  state.fixedExpenses = state.fixedExpenses.filter((f) => f.id !== id || f.userId !== userId);
   const deleted = state.fixedExpenses.length < prev;
   if (deleted) scheduleSave();
   return deleted;
 }
 
-export function addVariablePlan(data: Omit<VariableExpensePlan, "id">): VariableExpensePlan {
-  const plan = { ...data, id: randomUUID() };
+export function addVariablePlan(userId: string, data: Omit<VariableExpensePlan, "id" | "userId">): VariableExpensePlan {
+  const plan = { ...data, id: randomUUID(), userId };
   state.variablePlans.push(plan);
   return plan;
 }
@@ -190,21 +190,21 @@ export function updateVariablePlan(
   return state.variablePlans[idx];
 }
 
-export function deleteVariablePlan(id: string): boolean {
+export function deleteVariablePlan(userId: string, id: string): boolean {
   const prev = state.variablePlans.length;
-  state.variablePlans = state.variablePlans.filter((v) => v.id !== id);
+  state.variablePlans = state.variablePlans.filter((v) => v.id !== id || v.userId !== userId);
   state.variableActuals = state.variableActuals.filter((a) => a.planId !== id);
   return state.variablePlans.length < prev;
 }
 
-export function addVariableActual(data: Omit<VariableExpenseActual, "id">): VariableExpenseActual {
-  const actual = { ...data, id: randomUUID() };
+export function addVariableActual(userId: string, data: Omit<VariableExpenseActual, "id" | "userId">): VariableExpenseActual {
+  const actual = { ...data, id: randomUUID(), userId };
   state.variableActuals.push(actual);
   return actual;
 }
 
-export function addInvestment(data: Omit<Investment, "id">): Investment {
-  const inv = { ...data, id: randomUUID() };
+export function addInvestment(userId: string, data: Omit<Investment, "id" | "userId">): Investment {
+  const inv = { ...data, id: randomUUID(), userId };
   state.investments.push(inv);
   return inv;
 }
@@ -216,12 +216,13 @@ export function updateInvestment(id: string, data: Partial<Omit<Investment, "id"
   return state.investments[idx];
 }
 
-export function addFutureBomb(data: Omit<FutureBomb, "id" | "preparednessRatio" | "monthlyEquivalent">): FutureBomb {
+export function addFutureBomb(userId: string, data: Omit<FutureBomb, "id" | "userId" | "preparednessRatio" | "monthlyEquivalent">): FutureBomb {
   const months = monthsUntil(data.dueDate);
   const monthlyEquivalent = data.totalAmount / months;
   const fb: FutureBomb = {
     ...data,
     id: randomUUID(),
+    userId,
     monthlyEquivalent,
     preparednessRatio: data.totalAmount === 0 ? 0 : data.savedAmount / data.totalAmount
   };
@@ -337,8 +338,8 @@ export function listCreditCards() {
   return state.creditCards;
 }
 
-export function addCreditCard(data: Omit<CreditCard, "id" | "paidAmount">): CreditCard {
-  const card: CreditCard = { ...data, id: randomUUID(), paidAmount: 0 };
+export function addCreditCard(userId: string, data: Omit<CreditCard, "id" | "userId" | "paidAmount">): CreditCard {
+  const card: CreditCard = { ...data, id: randomUUID(), userId, paidAmount: 0 };
   state.creditCards.push(card);
   return card;
 }
@@ -355,17 +356,17 @@ export function listLoans() {
   const loanExpenses = state.fixedExpenses.filter(
     (exp) => exp.category?.toLowerCase() === "loan"
   );
-  
+
   // Convert fixed expenses to loan format
   const autoLoans = loanExpenses.map((exp) => {
-    const emi = exp.frequency === "monthly" ? exp.amount : 
-                exp.frequency === "quarterly" ? exp.amount / 3 : 
-                exp.amount / 12;
-    
+    const emi = exp.frequency === "monthly" ? exp.amount :
+      exp.frequency === "quarterly" ? exp.amount / 3 :
+        exp.amount / 12;
+
     const remainingMonths = exp.endDate ? Math.max(1, Math.ceil(
       (new Date(exp.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24 * 30)
     )) : 12;
-    
+
     return {
       id: exp.id,
       name: exp.name,
@@ -374,7 +375,7 @@ export function listLoans() {
       principal: (emi || 0) * remainingMonths
     };
   });
-  
+
   // Merge with manually added loans
   return [...state.loans, ...autoLoans];
 }
