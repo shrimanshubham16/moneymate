@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
-  FaWallet, FaChartLine, FaChartBar, FaUniversity, FaCreditCard, 
+import {
+  FaWallet, FaChartLine, FaChartBar, FaUniversity, FaCreditCard,
   FaBomb, FaClipboardList, FaClock, FaCalendar, FaBell, FaMoneyBillWave,
   FaExchangeAlt, FaHandHoldingUsd
 } from "react-icons/fa";
@@ -62,9 +62,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
   if (loading) {
     return (
       <div className="dashboard-page">
-        <div className="dashboard-header">
-          <div className="skeleton skeleton-text" style={{ width: 200, height: 32 }} />
-        </div>
         <SkeletonLoader type="widget" count={8} />
       </div>
     );
@@ -84,7 +81,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     );
   }
 
-  const hasNoFinances = 
+  const hasNoFinances =
     (!data.incomes || data.incomes.length === 0) &&
     (!data.fixedExpenses || data.fixedExpenses.length === 0) &&
     (!data.variablePlans || data.variablePlans.length === 0);
@@ -92,21 +89,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
   if (hasNoFinances) {
     return (
       <div className="dashboard-page">
-        <div className="dashboard-header">
-          <button 
-            className="logo-button" 
-            onClick={() => navigate("/dashboard")}
-            title="Go to Dashboard"
-          >
-            <span className="logo-icon"><MdAccountBalanceWallet size={32} /></span>
-            <span className="logo-text">MoneyMate</span>
-          </button>
-          <div className="header-actions">
-            <button className="settings-button" onClick={() => navigate("/settings")}>
-              <MdAccountBalanceWallet style={{ marginRight: 6 }} /> Settings
-            </button>
-          </div>
-        </div>
         <EmptyState
           icon={<FaChartLine size={80} />}
           title="No Financial Data Yet"
@@ -128,7 +110,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const investmentsTotal = data.investments?.reduce((sum: number, i: any) => sum + i.monthlyAmount, 0) || 0;
   const futureBombsCount = data.futureBombs?.length || 0;
   const alertsCount = data.alerts?.length || 0;
-  
+
   // Calculate unpaid dues only
   const unpaidFixed = data.fixedExpenses?.filter((f: any) => !f.paid).reduce((sum: number, f: any) => {
     const monthly = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
@@ -138,29 +120,12 @@ export function DashboardPage({ token }: DashboardPageProps) {
   // Loans are excluded from dues as they're auto-tracked from fixed expenses and not separately markable
   // const unpaidLoans = loans.filter((l: any) => !l.paid).reduce((sum, l) => sum + (l.emi || 0), 0);
   const creditCardDues = creditCards.reduce((sum, c) => sum + Math.max(0, c.billAmount - c.paidAmount), 0);
-  
+
   const duesTotal = unpaidFixed + unpaidInvestments + creditCardDues;
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-header">
-        <button 
-          className="logo-button" 
-          onClick={() => navigate("/dashboard")}
-          title="Go to Dashboard"
-        >
-          <span className="logo-icon"><MdAccountBalanceWallet size={32} /></span>
-          <span className="logo-text">MoneyMate</span>
-        </button>
-        <div className="header-actions">
-          <button className="export-button-mini" onClick={() => navigate("/export")}>
-            <FaHandHoldingUsd style={{ marginRight: 6 }} /> Export
-          </button>
-          <button className="settings-button" onClick={() => navigate("/settings")}>
-            <MdAccountBalanceWallet style={{ marginRight: 6 }} /> Settings
-          </button>
-        </div>
-      </div>
+
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -180,8 +145,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
           value={data.variablePlans?.length || 0}
           subtitle={
             <div style={{ marginTop: 8 }}>
-              <TrendIndicator 
-                value={variableTotal} 
+              <TrendIndicator
+                value={variableTotal}
                 format="currency"
                 size="small"
               />
@@ -204,8 +169,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
           value={data.investments?.length || 0}
           subtitle={
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <TrendIndicator 
-                value={investmentsTotal} 
+              <TrendIndicator
+                value={investmentsTotal}
                 format="currency"
                 size="small"
               />
