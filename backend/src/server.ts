@@ -480,9 +480,41 @@ app.put("/future-bombs/:id", requireAuth, (req, res) => {
 });
 
 app.get("/sharing/requests", requireAuth, (req, res) => {
-  const user = (req as any).user;
-  const { incoming, outgoing } = listRequestsForUser(user.id, user.username);
   res.json({ data: { incoming, outgoing } });
+});
+
+app.post("/login", async (req, res) => {
+  const schema = z.object({
+    username: z.string(),
+    password: z.string()
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.errors });
+  }
+
+  const { username, password } = parsed.data;
+  const user = store.users.find((u) => u.username === username);
+
+  if (!user) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+  if (!passwordMatch) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET);
+  res.json({
+    access_token: token,
+    user: {
+      id: user.id,
+      username: user.username,
+      salt: user.salt  // Return salt for client-side key derivation
+    }
+  });
 });
 
 app.post("/sharing/invite", requireAuth, (req, res) => {

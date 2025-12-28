@@ -1,5 +1,10 @@
 export type Frequency = "monthly" | "quarterly" | "yearly";
-export type User = { id: string; username: string; passwordHash: string };
+export interface User {
+  id: string;
+  username: string;
+  passwordHash: string;
+  salt?: string;  // For client-side encryption key derivation
+}
 export interface Income {
   id: string;
   userId: string;
