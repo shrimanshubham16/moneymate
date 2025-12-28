@@ -24,16 +24,27 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.logo:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .logo-icon {
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .logo-text {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: white;
   letter-spacing: -0.5px;
@@ -42,4 +53,15 @@
 /* Add top padding to all pages to account for fixed header */
 .app-content {
   padding-top: 60px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .logo-text {
+    font-size: 18px;
+  }
+
+  .logo-icon {
+    font-size: 20px;
+  }
 }

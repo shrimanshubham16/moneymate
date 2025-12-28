@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { login } from "../api";
 import "./AccountPage.css";
+
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
 
 interface AccountPageProps {
   token: string;
@@ -18,7 +19,7 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
     // Fetch user info from API
     const fetchUser = async () => {
       try {
-        const response = await fetch("http://localhost:12022/auth/me", {
+        const response = await fetch(`${BASE_URL}/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -82,7 +83,7 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
       >
         <h3>About Your Account</h3>
         <p>
-          Your username is <strong>immutable</strong> and cannot be changed after signup. 
+          Your username is <strong>immutable</strong> and cannot be changed after signup.
           This ensures consistency across shared accounts and activity logs.
         </p>
         <p>

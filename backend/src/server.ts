@@ -741,6 +741,11 @@ app.post("/admin/seed", (_req, res) => {
   });
 });
 
+// Health check
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 const dashboardCache: Map<string, { payload: any; expiresAt: number }> = new Map();
 
 if (require.main === module) {
