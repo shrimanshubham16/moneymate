@@ -1,7 +1,7 @@
 import "./StatusBadge.css";
 
 interface StatusBadgeProps {
-  status: "active" | "paused" | "paid" | "unpaid" | "overdue" | "pending" | "completed";
+  status: "active" | "paused" | "paid" | "unpaid" | "overdue" | "pending" | "completed" | "error";
   icon?: string;
   label?: string;
   size?: "small" | "medium" | "large";
@@ -15,7 +15,8 @@ export function StatusBadge({ status, icon, label, size = "medium" }: StatusBadg
     unpaid: { icon: "○", label: "Unpaid", color: "gray" },
     overdue: { icon: "!", label: "Overdue", color: "red" },
     pending: { icon: "⏱", label: "Pending", color: "blue" },
-    completed: { icon: "✓", label: "Completed", color: "green" }
+    completed: { icon: "✓", label: "Completed", color: "green" },
+    error: { icon: "⚠", label: "Error", color: "red" }
   };
 
   const { icon: defaultIcon, label: defaultLabel, color } = config[status];
