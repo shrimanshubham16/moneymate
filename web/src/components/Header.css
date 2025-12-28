@@ -7,6 +7,7 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 20px;
   z-index: 1000;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
@@ -54,6 +55,35 @@
   letter-spacing: -0.5px;
 }
 
+/* Header Actions */
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.header-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.header-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
 /* Add top padding to all pages to account for fixed header */
 .app-content {
   padding-top: 60px;
@@ -72,5 +102,13 @@
 
   .logo {
     padding: 6px 12px;
+  }
+
+  .button-text {
+    display: none;
+  }
+
+  .header-button {
+    padding: 10px 12px;
   }
 }
