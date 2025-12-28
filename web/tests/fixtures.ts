@@ -3,7 +3,7 @@
  * Provides reusable test data and helper functions
  */
 
-export const API_BASE = process.env.API_URL || 'https://moneymate-production.up.railway.app';
+export const API_BASE = process.env.API_URL || 'http://localhost:3000';
 
 // Test Accounts
 export const TEST_ACCOUNTS = {
