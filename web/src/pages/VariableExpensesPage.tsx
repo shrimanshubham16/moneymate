@@ -212,14 +212,12 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                 transition={{ delay: index * 0.05 }}
               >
                 <div className="plan-header">
-                  <h3>{plan.name}</h3>
-                  <div className="plan-actions">
-                    <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }}>
-                      Update
-                    </button>
-                    <button className="delete-btn" onClick={() => { if (confirm("Delete?")) deleteVariableExpensePlan(token, plan.id).then(loadPlans); }}>
-                      Delete
-                    </button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <h3>{plan.name}</h3>
+                    <div className="plan-actions">
+                      <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan">✏️</button>
+                      <button className="delete-btn" onClick={() => { if (confirm("Delete?")) deleteVariableExpensePlan(token, plan.id).then(loadPlans); }} title="Delete" aria-label="Delete plan">🗑️</button>
+                    </div>
                   </div>
                 </div>
                 <div className="plan-stats">

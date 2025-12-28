@@ -104,17 +104,35 @@
 }
 
 .plan-actions button {
-  padding: 8px 16px;
+  width: 36px;
+  height: 36px;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
   cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
 .plan-actions button:first-child {
+  background: #dbeafe;
+}
+
+.plan-actions button:first-child:hover {
   background: #3b82f6;
-  color: white;
+  transform: scale(1.1);
+}
+
+.plan-actions .delete-btn {
+  background: #fee2e2;
+}
+
+.plan-actions .delete-btn:hover {
+  background: #ef4444;
+  transform: scale(1.1);
 }
 
 .plan-stats {
