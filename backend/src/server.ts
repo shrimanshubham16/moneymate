@@ -553,8 +553,12 @@ app.get("/debts/loans", requireAuth, (_req, res) => {
   res.json({ data: listLoans() });
 });
 
-app.get("/activity", requireAuth, (_req, res) => {
-  res.json({ data: listActivities() });
+app.get("/activity", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const all = listActivities();
+  // Filter activities to show only user's own activities
+  const userActivities = all.filter(activity => activity.userId === userId);
+  res.json({ data: userActivities });
 });
 
 app.get("/alerts", requireAuth, (_req, res) => {
