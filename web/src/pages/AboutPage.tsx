@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaBullseye, FaCheckCircle, FaCircle, FaExclamationTriangle, FaTimesCircle, FaClipboardList, FaPalette, FaTheaterMasks } from "react-icons/fa";
+import { FaBullseye, FaCheckCircle, FaCircle, FaExclamationTriangle, FaTimesCircle, FaClipboardList, FaPalette, FaTheaterMasks, FaCodeBranch, FaHeart } from "react-icons/fa";
+import VERSION from "../version";
 import "./AboutPage.css";
 
 export function AboutPage() {
@@ -117,8 +118,28 @@ export function AboutPage() {
         </section>
 
         <section className="about-section">
-          <h2>📜 Version</h2>
-          <p>MoneyMate v1.1.1 (Dec 28, 2024) — Built with ❤️ for better financial planning</p>
+          <h2><FaCodeBranch style={{ marginRight: '8px', color: '#10b981' }} />Version & Build</h2>
+          <div className="version-info">
+            <div className="version-card">
+              <h3>Version {VERSION.full}</h3>
+              <p className="build-number">Build {VERSION.build}</p>
+              <p className="release-date">Released: {VERSION.releaseDate}</p>
+            </div>
+            
+            <div className="release-notes">
+              <h4>What's New in This Release:</h4>
+              <ul>
+                {VERSION.releaseNotes.map((note, index) => (
+                  <li key={index}>
+                    <FaCheckCircle style={{ marginRight: '8px', color: '#10b981', fontSize: '14px' }} />
+                    {note}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <p className="built-with">Built with <FaHeart style={{ color: '#ef4444', fontSize: '16px' }} /> for better financial planning</p>
+          </div>
         </section>
       </motion.div>
     </div>
