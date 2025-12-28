@@ -117,7 +117,7 @@ export function AboutPage() {
 
         <section className="about-section">
           <h2>📜 Version</h2>
-          <p>MoneyMate v1.0.0 — Built with ❤️ for better financial planning</p>
+          <p>MoneyMate v1.1.1 (Dec 28, 2024) — Built with ❤️ for better financial planning</p>
         </section>
       </motion.div>
     </div>
