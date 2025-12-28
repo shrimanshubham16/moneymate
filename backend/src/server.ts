@@ -480,6 +480,8 @@ app.put("/future-bombs/:id", requireAuth, (req, res) => {
 });
 
 app.get("/sharing/requests", requireAuth, (req, res) => {
+  const user = (req as any).user;
+  const { incoming, outgoing } = listRequestsForUser(user.id, user.username);
   res.json({ data: { incoming, outgoing } });
 });
 

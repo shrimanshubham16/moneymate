@@ -90,8 +90,7 @@ export function recordSuccessfulLogin(username: string): void {
 
 const signupSchema = z.object({
   username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
-  password: z.string().min(8),
-  salt: z.string().optional()
+  password: z.string().min(8)
 });
 
 const loginSchema = z.object({
@@ -103,7 +102,7 @@ export function authRoutes(app: any) {
   app.post("/auth/signup", (req: Request, res: Response) => {
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    const { username, password, salt } = parsed.data;
+    const { username, password } = parsed.data;
 
     // Validate password strength
     const passwordValidation = validatePasswordStrength(password);
@@ -113,9 +112,9 @@ export function authRoutes(app: any) {
 
     try {
       const passwordHash = hashPassword(password);
-      const user = createUser(username, passwordHash, salt); // Pass salt to createUser
+      const user = createUser(username, passwordHash);
       const token = issueToken(user.id, user.username);
-      res.status(201).json({ access_token: token, user: { id: user.id, username: user.username, salt: user.salt } }); // Return salt
+      res.status(201).json({ access_token: token, user: { id: user.id, username: user.username } });
     } catch (e: any) {
       res.status(409).json({ error: { message: e.message } });
     }
