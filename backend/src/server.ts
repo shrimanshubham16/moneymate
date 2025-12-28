@@ -556,8 +556,18 @@ app.get("/debts/loans", requireAuth, (_req, res) => {
 app.get("/activity", requireAuth, (req, res) => {
   const userId = (req as any).user.userId;
   const all = listActivities();
+  const store = getStore();
+
   // Filter activities to show only user's own activities (actorId is the user who performed the action)
-  const userActivities = all.filter(activity => activity.actorId === userId);
+  const userActivities = all.filter(activity => activity.actorId === userId).map(activity => {
+    // Find the username for this activity
+    const actor = store.users.find(u => u.id === activity.actorId);
+    return {
+      ...activity,
+      username: actor?.username || 'Unknown User'
+    };
+  });
+
   res.json({ data: userActivities });
 });
 
