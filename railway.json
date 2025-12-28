@@ -1,8 +1,9 @@
+```json
 {
     "$schema": "https://railway.app/railway.schema.json",
     "build": {
         "builder": "NIXPACKS",
-        "buildCommand": "cd backend && npm install && npm run build"
+        "buildCommand": "cd backend && npm install --include=dev && npm run build"
     },
     "deploy": {
         "startCommand": "cd backend && npm start",
@@ -10,3 +11,4 @@
         "restartPolicyMaxRetries": 10
     }
 }
+```
