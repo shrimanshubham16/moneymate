@@ -26,6 +26,7 @@ import { ExportPage } from "./pages/ExportPage";
 import { IncomePage } from "./pages/IncomePage";
 import { PreferencesPage } from "./pages/PreferencesPage";
 import { HealthDetailsPage } from "./pages/HealthDetailsPage";
+import { Header } from "./components/Header";
 import "./App.css";
 
 function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {

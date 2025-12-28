@@ -192,3 +192,28 @@ export async function fetchHealthDetails(token: string, asOf?: string) {
   const query = asOf ? `?today=${encodeURIComponent(asOf)}` : "";
   return request<{ data: any }>(`/health/details${query}`, { method: "GET" }, token);
 }
+
+// Sharing
+export async function fetchSharingRequests(token: string) {
+  return request<{ data: { incoming: any[]; outgoing: any[] } }>("/sharing/requests", { method: "GET" }, token);
+}
+
+export async function fetchSharingMembers(token: string) {
+  return request<{ data: { members: any[]; accounts: any[] } }>("/sharing/members", { method: "GET" }, token);
+}
+
+export async function sendInvite(token: string, data: { username: string; role: string; merge_finances: boolean }) {
+  return request("/sharing/invite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email_or_username: data.username, role: data.role, merge_finances: data.merge_finances })
+  }, token);
+}
+
+export async function approveRequest(token: string, id: string) {
+  return request(`/sharing/requests/${id}/approve`, { method: "POST" }, token);
+}
+
+export async function rejectRequest(token: string, id: string) {
+  return request(`/sharing/requests/${id}/reject`, { method: "POST" }, token);
+}

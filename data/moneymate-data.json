@@ -1,0 +1,141 @@
+{
+  "users": [
+    {
+      "id": "3510cd32-9111-4928-b9c9-6598fd00f0b3",
+      "username": "shriman_shubham",
+      "passwordHash": "124fef6a5a23ad3f7707169bd3eff0311095f9bcf87b259dff73cd642f5bf195",
+      "createdAt": "2025-12-28T04:08:04.107Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "425ac793-1c6a-403b-924c-b071e057c1d6",
+      "username": "shrimati_shivangi",
+      "passwordHash": "124fef6a5a23ad3f7707169bd3eff0311095f9bcf87b259dff73cd642f5bf195",
+      "createdAt": "2025-12-28T04:08:20.906Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "dda8e968-9754-4e05-9041-7cfdffe9633c",
+      "username": "testuser1",
+      "passwordHash": "597303b4f89822c96927433242d494153cbf43d3b8d6afc4afb591d335f0c2ec",
+      "createdAt": "2025-12-28T04:11:42.428Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "f87ee6f2-2534-451d-9025-f143fce7b60e",
+      "username": "testuser2",
+      "passwordHash": "072e7f306315c12657f00f8bdca9075cca4ee4ca2f45bb8dc3a5c5cc6adafd57",
+      "createdAt": "2025-12-28T04:11:42.485Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    }
+  ],
+  "incomes": [
+    {
+      "source": "salary",
+      "amount": 300000,
+      "frequency": "monthly",
+      "id": "fd484d86-905d-4230-a392-3b17350ead04"
+    },
+    {
+      "source": "User1 Salary",
+      "amount": 50000,
+      "frequency": "monthly",
+      "id": "a4c7725a-cae9-43f4-9eb0-2901244aeda3",
+      "userId": "dda8e968-9754-4e05-9041-7cfdffe9633c"
+    },
+    {
+      "source": "User2 Freelance",
+      "amount": 30000,
+      "frequency": "monthly",
+      "id": "6d1f0c5f-685a-4d97-a79c-99aa1f1e3159",
+      "userId": "f87ee6f2-2534-451d-9025-f143fce7b60e"
+    },
+    {
+      "source": "Salary",
+      "amount": 1000000,
+      "frequency": "monthly",
+      "id": "895cc63e-4ccd-4a5d-b339-3df2dcf7b778",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "source": "2000000",
+      "amount": 2000000,
+      "frequency": "monthly",
+      "id": "456e3c0c-3d0f-41f8-ac39-590215f4247f",
+      "userId": "425ac793-1c6a-403b-924c-b071e057c1d6"
+    }
+  ],
+  "fixedExpenses": [],
+  "variablePlans": [],
+  "variableActuals": [],
+  "constraint": {
+    "score": 95,
+    "tier": "red",
+    "recentOverspends": 0,
+    "decayAppliedAt": "2025-01-15T00:00:00.000Z"
+  },
+  "investments": [],
+  "futureBombs": [],
+  "sharedAccounts": [],
+  "sharedMembers": [],
+  "sharingRequests": [],
+  "creditCards": [],
+  "loans": [],
+  "activities": [
+    {
+      "id": "9b5a6bdb-ed77-4208-8a88-fd55bc4ee35c",
+      "actorId": "3510cd32-9111-4928-b9c9-6598fd00f0b3",
+      "entity": "income",
+      "action": "created",
+      "payload": {
+        "id": "fd484d86-905d-4230-a392-3b17350ead04"
+      },
+      "createdAt": "2025-12-28T04:08:36.094Z"
+    },
+    {
+      "id": "e5cd904c-91f6-4609-9e80-56b7b68bf7a5",
+      "actorId": "dda8e968-9754-4e05-9041-7cfdffe9633c",
+      "entity": "income",
+      "action": "created",
+      "payload": {
+        "id": "a4c7725a-cae9-43f4-9eb0-2901244aeda3"
+      },
+      "createdAt": "2025-12-28T04:11:42.465Z"
+    },
+    {
+      "id": "fd306809-2d37-49c4-83de-d1707f4a8cf9",
+      "actorId": "f87ee6f2-2534-451d-9025-f143fce7b60e",
+      "entity": "income",
+      "action": "created",
+      "payload": {
+        "id": "6d1f0c5f-685a-4d97-a79c-99aa1f1e3159"
+      },
+      "createdAt": "2025-12-28T04:11:42.529Z"
+    },
+    {
+      "id": "a38e9fd7-91a0-40e2-8494-6669beac79d3",
+      "actorId": "3510cd32-9111-4928-b9c9-6598fd00f0b3",
+      "entity": "income",
+      "action": "created",
+      "payload": {
+        "id": "895cc63e-4ccd-4a5d-b339-3df2dcf7b778"
+      },
+      "createdAt": "2025-12-28T04:13:42.358Z"
+    },
+    {
+      "id": "be08c846-05cb-4648-b3f0-3436bf3edbde",
+      "actorId": "425ac793-1c6a-403b-924c-b071e057c1d6",
+      "entity": "income",
+      "action": "created",
+      "payload": {
+        "id": "456e3c0c-3d0f-41f8-ac39-590215f4247f"
+      },
+      "createdAt": "2025-12-28T04:13:52.940Z"
+    }
+  ],
+  "themeStates": []
+}
