@@ -14,9 +14,11 @@
   },
   "dependencies": {
     "@types/cors": "^2.8.19",
+    "@types/jsonwebtoken": "^9.0.10",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.2.0",
+    "jsonwebtoken": "^9.0.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {

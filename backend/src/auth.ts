@@ -1,14 +1,16 @@
 import { NextFunction, Request, Response } from "express";
-import { randomUUID } from "crypto";
 import { z } from "zod";
 import { getStore } from "./store";
 import { createUser, getUserByUsername } from "./store";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 export type AuthToken = { userId: string; username: string };
 
-// In-memory token map for demo purposes only
-const tokens = new Map<string, AuthToken>();
+// JWT Secret - in production, use environment variable
+const JWT_SECRET = process.env.JWT_SECRET || "moneymate-secret-key-change-in-production-2024";
+
+// Remove in-memory token storage - use stateless JWT instead
 
 // Failed login tracking: username -> { attempts: number, lockedUntil: Date | null }
 const failedLogins = new Map<string, { attempts: number; lockedUntil: Date | null }>();
@@ -16,8 +18,9 @@ const failedLogins = new Map<string, { attempts: number; lockedUntil: Date | nul
 const MAX_FAILED_ATTEMPTS = 3;
 const LOCKOUT_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
+// No longer needed - JWT is stateless
 export function clearTokens() {
-  tokens.clear();
+  // Tokens are now stateless (JWT), nothing to clear
 }
 
 function hashPassword(password: string): string {
@@ -171,21 +174,38 @@ export function authRoutes(app: any) {
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) return res.status(401).json({ error: { message: "Unauthorized" } });
+  if (!header?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: { message: "Unauthorized" } });
+  }
+
   const token = header.slice("Bearer ".length);
-  const record = tokens.get(token);
-  if (!record) return res.status(401).json({ error: { message: "Unauthorized" } });
-  const store = getStore();
-  const user = store.users.find((u) => u.id === record.userId);
-  if (!user) return res.status(401).json({ error: { message: "Unauthorized" } });
-  // CRITICAL: Set both id and userId for compatibility
-  (req as any).user = { id: user.id, userId: user.id, username: user.username };
-  next();
+
+  try {
+    // Verify JWT signature (stateless - survives server restarts)
+    const decoded = jwt.verify(token, JWT_SECRET) as AuthToken;
+
+    // Verify user still exists
+    const store = getStore();
+    const user = store.users.find((u) => u.id === decoded.userId);
+    if (!user) {
+      return res.status(401).json({ error: { message: "Unauthorized" } });
+    }
+
+    // CRITICAL: Set both id and userId for compatibility
+    (req as any).user = { id: user.id, userId: user.id, username: user.username };
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: { message: "Invalid or expired token" } });
+  }
 }
 
 function issueToken(userId: string, username: string): string {
-  const token = randomUUID();
-  tokens.set(token, { userId, username });
+  // Generate stateless JWT token (survives server restarts)
+  const token = jwt.sign(
+    { userId, username },
+    JWT_SECRET,
+    { expiresIn: '30d' } // Token valid for 30 days
+  );
   return token;
 }
 
