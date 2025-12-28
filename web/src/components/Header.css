@@ -49,6 +49,8 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  filter: drop-shadow(0 0 8px rgba(0, 217, 255, 0.4));
+  font-size: 32px;
 }
 
 .logo-text {
@@ -80,11 +82,21 @@
   transition: all var(--transition-base);
 }
 
+.header-button svg {
+  font-size: 20px;
+  color: var(--accent-cyan);
+  filter: drop-shadow(0 0 4px rgba(0, 217, 255, 0.3));
+}
+
 .header-button:hover {
   background: rgba(0, 217, 255, 0.1);
   border-color: var(--accent-cyan);
   transform: translateY(-2px);
   box-shadow: var(--glow-cyan);
+}
+
+.header-button:hover svg {
+  filter: drop-shadow(0 0 8px rgba(0, 217, 255, 0.6));
 }
 
 .header-button:active {
