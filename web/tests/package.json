@@ -1,0 +1,12 @@
+{
+    "name": "moneymate-tests",
+    "scripts": {
+        "test": "playwright test",
+        "test:headed": "playwright test --headed",
+        "test:debug": "playwright test --debug",
+        "test:ui": "playwright test --ui",
+        "test:auth": "playwright test tests/e2e/01-auth.spec.ts",
+        "test:income": "playwright test tests/e2e/02-income.spec.ts",
+        "test:report": "playwright show-report"
+    }
+}
