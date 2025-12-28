@@ -125,6 +125,18 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   return (
     <div className="dashboard-page">
+      <IntroModal
+        isOpen={showIntro}
+        onClose={closeIntro}
+        title="📊 Welcome to Your Dashboard!"
+        description="Your financial command center. Track your health score, monitor income vs expenses, and get a quick overview of everything that matters."
+        tips={[
+          "Health score shows how much money you have left after all obligations",
+          "Green means you're doing great, yellow means be careful, red means urgent action needed",
+          "Click any widget to see detailed breakdowns",
+          "Your data updates in real-time as you add transactions"
+        ]}
+      />
 
 
       <motion.div
