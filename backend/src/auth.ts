@@ -99,7 +99,7 @@ export function authRoutes(app: any) {
   app.post("/auth/signup", (req: Request, res: Response) => {
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    const { username, password } = parsed.data;
+    const { username, password, salt } = parsed.data;
 
     // Validate password strength
     const passwordValidation = validatePasswordStrength(password);
@@ -109,9 +109,9 @@ export function authRoutes(app: any) {
 
     try {
       const passwordHash = hashPassword(password);
-      const user = createUser(username, passwordHash);
+      const user = createUser(username, passwordHash, salt); // Pass salt to createUser
       const token = issueToken(user.id, user.username);
-      res.status(201).json({ access_token: token, user: { id: user.id, username: user.username } });
+      res.status(201).json({ access_token: token, user: { id: user.id, username: user.username, salt: user.salt } }); // Return salt
     } catch (e: any) {
       res.status(409).json({ error: { message: e.message } });
     }
@@ -153,8 +153,15 @@ export function authRoutes(app: any) {
     }
 
     recordSuccessfulLogin(username);
-    const token = issueToken(user.id, user.username);
-    res.json({ access_token: token, user: { id: user.id, username: user.username } });
+    const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET);
+    res.json({
+      access_token: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        salt: user.salt  // Return salt for client-side key derivation
+      }
+    });
   });
 
   app.get("/auth/me", requireAuth, (req: Request, res: Response) => {
