@@ -267,12 +267,25 @@ function monthsUntil(date: string): number {
   return Math.max(months, 1);
 }
 
-export function getConstraint(): ConstraintScore {
-  return state.constraint;
+// User-scoped constraint scores
+const userConstraints = new Map<string, ConstraintScore>();
+
+const defaultConstraint: ConstraintScore = {
+  score: 0,
+  tier: "green",
+  recentOverspends: 0,
+  decayAppliedAt: new Date().toISOString()
+};
+
+export function getConstraint(userId: string): ConstraintScore {
+  if (!userConstraints.has(userId)) {
+    userConstraints.set(userId, { ...defaultConstraint });
+  }
+  return userConstraints.get(userId)!;
 }
 
-export function setConstraint(next: ConstraintScore) {
-  state.constraint = next;
+export function setConstraint(userId: string, next: ConstraintScore) {
+  userConstraints.set(userId, next);
 }
 
 export function createSharingRequest(inviterId: string, inviteeUsername: string, role: "editor" | "viewer", mergeFinances: boolean): SharingRequest {
@@ -372,7 +385,13 @@ export function listCreditCards() {
 }
 
 export function addCreditCard(userId: string, data: Omit<CreditCard, "id" | "userId" | "paidAmount">): CreditCard {
-  const card: CreditCard = { ...data, id: randomUUID(), userId, paidAmount: 0 };
+  const card: CreditCard = { 
+    ...data, 
+    id: randomUUID(), 
+    userId, 
+    paidAmount: 0,
+    statementDate: data.statementDate || new Date().toISOString().split('T')[0]
+  };
   state.creditCards.push(card);
   return card;
 }

@@ -135,9 +135,10 @@ const inviteSchema = z.object({
 
 const creditCardSchema = z.object({
   name: z.string(),
-  statementDate: z.string(),
+  statementDate: z.string().optional(),
   dueDate: z.string(),
-  billAmount: z.number().int().positive()
+  billAmount: z.number().int().positive(),
+  paidAmount: z.number().int().nonnegative().optional()
 });
 
 const paymentSchema = z.object({
@@ -214,9 +215,9 @@ app.get("/dashboard", requireAuth, (req, res) => {
   if (cached && cached.expiresAt > Date.now()) {
     return res.json({ data: cached.payload });
   }
-  const constraintDecayed = applyConstraintDecay(getConstraint(), today);
-  setConstraint(constraintDecayed);
   const userId = (req as any).user.userId;
+  const constraintDecayed = applyConstraintDecay(getConstraint(userId), today);
+  setConstraint(userId, constraintDecayed);
   const groupUserIds = getMergedFinanceGroupUserIds(userId);
   const health = computeHealthSnapshot(today, userId);
   const store = getStore();
@@ -253,7 +254,7 @@ app.get("/dashboard", requireAuth, (req, res) => {
     futureBombs: userFutureBombs,
     health,
     constraintScore: constraintDecayed,
-    alerts: listAlerts()
+    alerts: listAlerts(userId)
   };
   dashboardCache.set(cacheKey, { payload, expiresAt: Date.now() + 30 * 1000 });
   res.json({ data: payload });
@@ -404,7 +405,7 @@ app.post("/planning/variable-expenses/:id/actuals", requireAuth, (req, res) => {
   // Overspend check: if constraint is red and over plan, justification required
   const actualTotal = store.variableActuals.filter((a) => a.planId === plan.id && a.userId === userId).reduce((s, a) => s + a.amount, 0);
   const projected = actualTotal + parsed.data.amount;
-  const constraint = getConstraint();
+  const constraint = getConstraint(userId);
   if (constraint.tier === "red" && projected > plan.planned && !parsed.data.justification) {
     return res.status(400).json({ error: { message: "Justification required for overspend in red tier" } });
   }
@@ -424,7 +425,7 @@ app.post("/planning/variable-expenses/:id/actuals", requireAuth, (req, res) => {
   });
   // Update constraint score if overspend
   if (projected > plan.planned) {
-    recordOverspend(plan.name, projected, plan.planned, "2025-01");
+    recordOverspend(userId, plan.name, projected, plan.planned, "2025-01");
   }
   dashboardCache.clear();
   res.status(201).json({ data: created });
@@ -540,9 +541,9 @@ app.delete("/sharing/members/:id", requireAuth, (req, res) => {
 });
 
 app.get("/debts/credit-cards", requireAuth, (req, res) => {
-  const user = (req as any).user;
+  const userId = (req as any).user.userId;
   const store = getStore();
-  const userCards = store.creditCards.filter(c => c.userId === user.id);
+  const userCards = store.creditCards.filter(c => c.userId === userId);
   res.json({ data: userCards });
 });
 
@@ -550,7 +551,11 @@ app.post("/debts/credit-cards", requireAuth, (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = creditCardSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addCreditCard(userId, parsed.data);
+  const { paidAmount, ...cardData } = parsed.data;
+  const created = addCreditCard(userId, {
+    ...cardData,
+    statementDate: cardData.statementDate || new Date().toISOString().split('T')[0]
+  });
   addActivity((req as any).user.id, "credit_card", "created", { id: created.id });
   res.status(201).json({ data: created });
 });
@@ -587,8 +592,9 @@ app.get("/activity", requireAuth, (req, res) => {
   res.json({ data: userActivities });
 });
 
-app.get("/alerts", requireAuth, (_req, res) => {
-  res.json({ data: listAlerts() });
+app.get("/alerts", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  res.json({ data: listAlerts(userId) });
 });
 
 // Export finances as JSON
@@ -597,8 +603,8 @@ app.get("/export/finances", requireAuth, (req, res) => {
   const parsed = dateQuerySchema.safeParse(req.query);
   const today = parsed.data?.today ? new Date(parsed.data.today) : new Date();
 
-  const constraintDecayed = applyConstraintDecay(getConstraint(), today);
   const userId = (req as any).user?.userId;
+  const constraintDecayed = applyConstraintDecay(getConstraint(userId), today);
   const health = computeHealthSnapshot(today, userId);
   const store = getStore();
 
@@ -624,7 +630,7 @@ app.get("/export/finances", requireAuth, (req, res) => {
     creditCards: store.creditCards,
     loans: store.loans,
     activities: store.activities.slice(-50), // Last 50 activities
-    alerts: listAlerts(),
+    alerts: listAlerts(userId),
     summary: {
       totalIncome: store.incomes.reduce((sum, i) => sum + ((i.amount ?? 0) / (i.frequency === "monthly" ? 1 : i.frequency === "quarterly" ? 3 : 12)), 0),
       totalFixedExpenses: store.fixedExpenses.reduce((sum, e) => {
@@ -655,7 +661,7 @@ const themeStateSchema = z.object({
 app.get("/themes/state", requireAuth, (req, res) => {
   const user = (req as any).user;
   const theme = getThemeState(user.id);
-  const constraint = getConstraint();
+  const constraint = getConstraint(user.id);
   res.json({
     data: {
       mode: theme.mode,
@@ -676,7 +682,8 @@ app.patch("/themes/state", requireAuth, (req, res) => {
     selectedTheme: parsed.data.selected_theme,
     constraintTierEffect: parsed.data.constraint_tier_effect
   });
-  const constraint = getConstraint();
+  const userId = (req as any).user.userId;
+  const constraint = getConstraint(userId);
   res.json({
     data: {
       mode: updated.mode,
@@ -758,9 +765,11 @@ app.patch("/preferences", requireAuth, (req, res) => {
 });
 
 // Dev-only seed endpoint
-app.post("/admin/seed", (_req, res) => {
+app.post("/admin/seed", (req, res) => {
   loadFixtureStore();
-  clearAlerts();
+  // Clear alerts for all test users (admin endpoint)
+  const userId = (req as any).user?.userId || "admin";
+  clearAlerts(userId);
   res.json({
     data: {
       incomes: getStore().incomes.length,

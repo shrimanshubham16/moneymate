@@ -18,7 +18,7 @@ describe("MoneyMate Functional Tests (QA)", () => {
 
   beforeAll(async () => {
     resetStore();
-    clearAlerts();
+    // clearAlerts() now requires userId, will be called per-user in tests
     
     // Create two users for sharing tests
     const signup1 = await request(app)
@@ -36,7 +36,7 @@ describe("MoneyMate Functional Tests (QA)", () => {
 
   afterAll(() => {
     resetStore();
-    clearAlerts();
+    // clearAlerts() now requires userId, no need to clear in afterAll
   });
 
   describe("AUTH - Signup & Login", () => {
@@ -267,7 +267,7 @@ describe("MoneyMate Functional Tests (QA)", () => {
     it("should require justification for overspend in red tier", async () => {
       // Set constraint to red tier
       const store = getStore();
-      setConstraint({ score: 75, tier: "red", recentOverspends: 3, decayAppliedAt: today });
+      setConstraint("test-user-id", { score: 75, tier: "red", recentOverspends: 3, decayAppliedAt: today });
       
       // Try to add overspend without justification
       const res = await request(app)
@@ -572,7 +572,7 @@ describe("MoneyMate Functional Tests (QA)", () => {
       const token = signup.body.access_token;
 
       const store = getStore();
-      setConstraint({ score: 40, tier: "amber", recentOverspends: 8, decayAppliedAt: today });
+      setConstraint("test-user-id", { score: 40, tier: "amber", recentOverspends: 8, decayAppliedAt: today });
 
       const res = await request(app)
         .get("/dashboard")
@@ -589,7 +589,7 @@ describe("MoneyMate Functional Tests (QA)", () => {
       const token = signup.body.access_token;
 
       const store = getStore();
-      setConstraint({ score: 70, tier: "red", recentOverspends: 14, decayAppliedAt: today });
+      setConstraint("test-user-id", { score: 70, tier: "red", recentOverspends: 14, decayAppliedAt: today });
 
       const res = await request(app)
         .get("/dashboard")
@@ -608,7 +608,7 @@ describe("MoneyMate Functional Tests (QA)", () => {
       const store = getStore();
       // Set score 100 with decay applied in previous month
       const lastMonth = new Date("2024-12-15T00:00:00.000Z");
-      setConstraint({ score: 100, tier: "red", recentOverspends: 20, decayAppliedAt: lastMonth.toISOString() });
+      setConstraint("test-user-id", { score: 100, tier: "red", recentOverspends: 20, decayAppliedAt: lastMonth.toISOString() });
 
       const res = await request(app)
         .get("/dashboard")

@@ -127,6 +127,14 @@
       "createdAt": "2025-12-28T19:51:35.519Z",
       "failedLoginAttempts": 0,
       "accountLockedUntil": null
+    },
+    {
+      "id": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "username": "shrimati",
+      "passwordHash": "124fef6a5a23ad3f7707169bd3eff0311095f9bcf87b259dff73cd642f5bf195",
+      "createdAt": "2025-12-28T20:31:48.755Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
     }
   ],
   "incomes": [
@@ -163,6 +171,13 @@
       "frequency": "monthly",
       "id": "456e3c0c-3d0f-41f8-ac39-590215f4247f",
       "userId": "425ac793-1c6a-403b-924c-b071e057c1d6"
+    },
+    {
+      "source": "salary",
+      "amount": 300000,
+      "frequency": "monthly",
+      "id": "50adf171-c241-4f1d-865b-a00842404b85",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
     }
   ],
   "fixedExpenses": [
@@ -174,13 +189,92 @@
       "isSip": false,
       "id": "002dbeea-4602-40d9-ba81-04a36a98080d",
       "userId": "c936dc48-a6bd-4e2b-bd3f-9d451b461646"
+    },
+    {
+      "name": "HL EMI",
+      "amount": 80000,
+      "frequency": "monthly",
+      "category": "Loan",
+      "isSip": false,
+      "id": "3a9d7cdb-7bd3-489d-86b6-da7df4817742",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "name": "LIC",
+      "amount": 30000,
+      "frequency": "quarterly",
+      "category": "General",
+      "isSip": true,
+      "id": "7e236cfc-dd0b-4866-a82f-f4e9f6c7dc89",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "name": "Aesie",
+      "amount": 6000,
+      "frequency": "monthly",
+      "category": "General",
+      "isSip": false,
+      "id": "b7bc891b-427b-4c02-8fdc-7728bb615fcc",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "name": "venue EMI",
+      "amount": 20000,
+      "frequency": "monthly",
+      "category": "Loan",
+      "isSip": false,
+      "id": "c20c3ec7-7c27-4d28-9f0a-4bb0eaccec5d",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
     }
   ],
-  "variablePlans": [],
-  "variableActuals": [],
+  "variablePlans": [
+    {
+      "name": "grocery",
+      "planned": 21222,
+      "category": "Entertainment",
+      "startDate": "2025-12-28",
+      "endDate": "2030-12-27",
+      "id": "53a59cba-0fb0-4d66-8ce4-4f944cb9ca8e",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "name": "Food",
+      "planned": 12344,
+      "category": "Food",
+      "startDate": "2025-12-28",
+      "endDate": "2030-12-27",
+      "id": "49e93eeb-6421-475d-bc3f-20cca16b8bdd",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "name": "grocery",
+      "planned": 20000,
+      "category": "Groceries",
+      "startDate": "2025-12-28",
+      "endDate": "2030-12-27",
+      "id": "033162be-1df2-484a-ac5a-ffd79203fbd5",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    }
+  ],
+  "variableActuals": [
+    {
+      "planId": "49e93eeb-6421-475d-bc3f-20cca16b8bdd",
+      "amount": 2333,
+      "incurredAt": "2025-01-15T00:00:00Z",
+      "id": "86927582-11bb-47a5-8452-442283fed20c",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "planId": "53a59cba-0fb0-4d66-8ce4-4f944cb9ca8e",
+      "amount": 2300,
+      "incurredAt": "2025-01-15T00:00:00Z",
+      "id": "7beaea52-7e9a-4f01-933b-a54861cd926b",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    }
+  ],
   "constraint": {
-    "score": 87,
-    "tier": "red",
+    "score": 61,
+    "tier": "amber",
     "recentOverspends": 0,
     "decayAppliedAt": "2025-01-15T00:00:00.000Z"
   },
@@ -251,6 +345,40 @@
         "id": "3868749a-034b-4533-91af-20b371ba0bc9"
       },
       "createdAt": "2025-12-28T19:52:06.825Z"
+    },
+    {
+      "id": "3eabd4b0-eba0-4c99-af6d-76403203fcff",
+      "actorId": "3510cd32-9111-4928-b9c9-6598fd00f0b3",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "Food",
+        "amount": 2333,
+        "category": "Food"
+      },
+      "createdAt": "2025-12-28T20:28:32.785Z"
+    },
+    {
+      "id": "130e439a-2422-4bfd-825f-1d5285d548d7",
+      "actorId": "3510cd32-9111-4928-b9c9-6598fd00f0b3",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "grocery",
+        "amount": 2300,
+        "category": "Entertainment"
+      },
+      "createdAt": "2025-12-28T20:28:48.837Z"
+    },
+    {
+      "id": "0fb10405-841e-4e85-ae7c-f0301b313e43",
+      "actorId": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "entity": "income",
+      "action": "created",
+      "payload": {
+        "id": "50adf171-c241-4f1d-865b-a00842404b85"
+      },
+      "createdAt": "2025-12-28T20:32:00.675Z"
     }
   ],
   "themeStates": []
