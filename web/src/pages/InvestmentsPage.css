@@ -1,81 +1,125 @@
+/* Investments Page - CRED/Blissy Style */
+
 .investments-page {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: var(--space-10) var(--space-6);
+  min-height: calc(100vh - 72px);
 }
 
 .investments-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-6);
+  margin-top: var(--space-8);
 }
 
 .investment-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(184, 193, 236, 0.05);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: var(--shadow-md), var(--card-glow);
+  transition: all var(--transition-base);
+}
+
+.investment-card:hover {
+  border-color: rgba(0, 217, 255, 0.2);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg), var(--card-glow-hover);
 }
 
 .investment-info h3 {
-  margin: 0 0 8px 0;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3) 0;
 }
 
 .investment-details {
   display: flex;
-  gap: 16px;
-  color: #64748b;
-  font-size: 14px;
+  gap: var(--space-4);
+  font-size: var(--text-small);
+  color: var(--text-secondary);
+}
+
+.investment-amount {
+  font-size: var(--text-xl);
+  font-weight: var(--font-extrabold);
+  color: var(--accent-cyan);
+  margin-right: var(--space-4);
 }
 
 .status {
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 12px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-weight: var(--font-bold);
+  font-size: var(--text-tiny);
 }
 
 .status.active {
-  background: #d1fae5;
-  color: #065f46;
+  background: rgba(0, 255, 163, 0.1);
+  color: var(--accent-green);
 }
 
 .status.paused {
-  background: #fef3c7;
-  color: #92400e;
+  background: rgba(255, 184, 0, 0.1);
+  color: var(--accent-yellow);
 }
 
 .investment-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .investment-actions button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid rgba(184, 193, 236, 0.1);
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
+  font-weight: var(--font-semibold);
   cursor: pointer;
+  transition: all var(--transition-base);
 }
 
 .investment-actions button:first-child {
-  background: #3b82f6;
-  color: white;
+  background: rgba(0, 217, 255, 0.1);
+  color: var(--accent-cyan);
+  border-color: rgba(0, 217, 255, 0.3);
 }
 
-.investment-actions button:nth-child(2) {
-  background: #f59e0b;
-  color: white;
+.investment-actions button:first-child:hover {
+  background: rgba(0, 217, 255, 0.2);
+  box-shadow: var(--glow-cyan);
 }
 
 .investment-actions .delete-btn {
-  background: #ef4444;
-  color: white;
+  background: rgba(255, 0, 110, 0.1);
+  color: var(--accent-pink);
+  border-color: rgba(255, 0, 110, 0.3);
 }
 
+.investment-actions .delete-btn:hover {
+  background: rgba(255, 0, 110, 0.2);
+  box-shadow: var(--glow-pink);
+}
+
+@media (max-width: 768px) {
+  .investments-page {
+    padding: var(--space-8) var(--space-4);
+  }
+
+  .investment-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-6);
+  }
+
+  .investment-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
