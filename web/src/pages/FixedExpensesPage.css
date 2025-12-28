@@ -173,6 +173,8 @@
 .expense-actions {
   display: flex;
   gap: 8px;
+  align-self: flex-start;
+  /* Align to top of card */
 }
 
 .expense-actions button {
