@@ -41,7 +41,8 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
   const config = healthConfig[category];
   const HealthIcon = config.icon;
   const isPositive = remaining > 0;
-  const displayAmount = Math.abs(remaining);
+  // Ensure integer display (backend already returns integer, but round here for safety)
+  const displayAmount = Math.round(Math.abs(remaining));
 
   return (
     <motion.div

@@ -190,7 +190,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
               health.category === "not_well" ? "Not Well" : "Worrisome"}
         </h2>
         <div className="remaining-amount" style={{ color: (health?.remaining || 0) >= 0 ? "#10b981" : "#ef4444" }}>
-          {(health?.remaining || 0) >= 0 ? "+" : ""}₹{(health?.remaining || 0).toLocaleString("en-IN")}
+          {(health?.remaining || 0) >= 0 ? "+" : ""}₹{Math.round(health?.remaining || 0).toLocaleString("en-IN")}
         </div>
         <p className="health-description">{health?.description || "Loading..."}</p>
         <div className="health-advice">

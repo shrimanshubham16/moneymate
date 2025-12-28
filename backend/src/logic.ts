@@ -157,14 +157,17 @@ export function computeHealthSnapshot(today: Date, userId: string): { remaining:
   const unpaidCreditCards = unpaidCreditCardDues(userId, today);
 
   const remaining = availableFunds - unpaidFixed - unpaidVariable - unpaidInvestments - unpaidCreditCards;
+  
+  // Round to integer for display (health score should be whole rupees)
+  const remainingRounded = Math.round(remaining);
 
   let category: HealthCategory;
-  if (remaining > HEALTH_THRESHOLDS.good) category = "good";
-  else if (remaining >= HEALTH_THRESHOLDS.okMin && remaining <= HEALTH_THRESHOLDS.okMax) category = "ok";
-  else if (remaining < 0 && Math.abs(remaining) <= HEALTH_THRESHOLDS.notWellMax) category = "not_well";
+  if (remainingRounded > HEALTH_THRESHOLDS.good) category = "good";
+  else if (remainingRounded >= HEALTH_THRESHOLDS.okMin && remainingRounded <= HEALTH_THRESHOLDS.okMax) category = "ok";
+  else if (remainingRounded < 0 && Math.abs(remainingRounded) <= HEALTH_THRESHOLDS.notWellMax) category = "not_well";
   else category = "worrisome";
 
-  return { remaining, category };
+  return { remaining: remainingRounded, category };
 }
 
 export function applyConstraintDecay(state: ConstraintScore, asOf: Date): ConstraintScore {
