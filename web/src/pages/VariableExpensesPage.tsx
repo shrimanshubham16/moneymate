@@ -192,11 +192,11 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         <SkeletonLoader type="list" count={5} />
       ) : plans.length === 0 ? (
         <EmptyState
-          icon={<FaChartBar size={80} />}
-          title="No Variable Expense Plans Yet"
-          description="Track expenses that change monthly like groceries, entertainment, and shopping. Set budgets and monitor actual spending."
+          icon={<FaShoppingCart size={80} />}
+          title="No Variable Expense Plans"
+          description="Create plans to budget for groceries, dining, entertainment, and other variable monthly expenses"
           actionLabel="Create First Plan"
-          onAction={() => navigate("/settings/plan-finances/variable")}
+          onAction={() => setShowPlanForm(true)}
         />
       ) : (
         <div className="plans-list">

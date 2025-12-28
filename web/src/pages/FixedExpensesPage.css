@@ -156,7 +156,8 @@
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
-  color: #64748b;
+  color: dimgrey;
+  /* FIX: Visible on dark theme */
   font-size: 14px;
 }
 

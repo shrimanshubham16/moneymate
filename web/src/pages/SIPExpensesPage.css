@@ -29,6 +29,8 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
+  color: dimgrey;
+  /* FIX: Visible on dark theme */
 }
 
 .sip-badge {
@@ -62,7 +64,8 @@
 .detail-item .value {
   font-size: 16px;
   font-weight: 700;
-  color: #0f172a;
+  color: dimgrey;
+  /* FIX: Visible on dark theme */
 }
 
 .sip-growth-info {
@@ -78,4 +81,3 @@
   color: #92400e;
   line-height: 1.5;
 }
-

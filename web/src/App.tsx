@@ -163,8 +163,8 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/export" element={<ExportPage token={token} />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </ErrorBoundary>
-    </div >
+
+    </div>
     </>
   );
 }

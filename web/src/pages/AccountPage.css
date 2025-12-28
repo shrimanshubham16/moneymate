@@ -38,6 +38,8 @@
   margin: 0 0 8px 0;
   font-size: 28px;
   font-weight: 700;
+  color: dimgrey;
+  /* FIX: Visible on dark theme */
 }
 
 .profile-info p {
@@ -184,7 +186,8 @@
 .detail-item .value {
   font-size: 16px;
   font-weight: 700;
-  color: #0f172a;
+  color: dimgrey;
+  /* FIX: Visible on dark theme */
 }
 
 .logout-button {
