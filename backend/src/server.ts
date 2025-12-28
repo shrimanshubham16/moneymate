@@ -269,7 +269,7 @@ app.post("/planning/income", requireAuth, (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = incomeSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addIncome(userId, { source: parsed.data.source, amount: parsed.data.amount, frequency: parsed.data.frequency });
+  const created = addIncome(userId, { name: parsed.data.source, amount: parsed.data.amount, frequency: parsed.data.frequency, category: "employment", startDate: new Date().toISOString() });
   addActivity((req as any).user.id, "income", "created", { id: created.id });
   dashboardCache.clear();
   res.status(201).json({ data: created });
@@ -279,7 +279,7 @@ app.put("/planning/income/:id", requireAuth, (req, res) => {
   const parsed = incomeSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const updated = updateIncome(req.params.id, {
-    source: parsed.data.source,
+    name: parsed.data.source,
     amount: parsed.data.amount,
     frequency: parsed.data.frequency
   });
@@ -480,6 +480,8 @@ app.put("/future-bombs/:id", requireAuth, (req, res) => {
 });
 
 app.get("/sharing/requests", requireAuth, (req, res) => {
+  const user = (req as any).user;
+  const { incoming, outgoing } = listRequestsForUser(user.id, user.username);
   res.json({ data: { incoming, outgoing } });
 });
 
@@ -610,7 +612,7 @@ app.get("/export/finances", requireAuth, (req, res) => {
     activities: store.activities.slice(-50), // Last 50 activities
     alerts: listAlerts(),
     summary: {
-      totalIncome: store.incomes.reduce((sum, i) => sum + (i.frequency === "monthly" ? i.amount : i.amount / 12), 0),
+      totalIncome: store.incomes.reduce((sum, i) => sum + ((i.amount ?? 0) / (i.frequency === "monthly" ? 1 : i.frequency === "quarterly" ? 3 : 12)), 0),
       totalFixedExpenses: store.fixedExpenses.reduce((sum, e) => {
         const monthly = e.frequency === "monthly" ? e.amount : e.frequency === "quarterly" ? e.amount / 3 : e.amount / 12;
         return sum + monthly;

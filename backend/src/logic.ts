@@ -70,7 +70,7 @@ export function totalPaymentsMadeThisMonth(userId: string, today: Date): number 
 
 export function totalIncomePerMonth(userId: string): number {
   const store = getStore();
-  return store.incomes.filter(i => i.userId === userId).reduce((sum, inc) => sum + monthlyEquivalent(inc.amount, inc.frequency), 0);
+  return store.incomes.filter(i => i.userId === userId).reduce((sum, inc) => sum + monthlyEquivalent(inc.amount ?? 0, inc.frequency), 0);
 }
 
 export function totalFixedPerMonth(userId: string): number {
