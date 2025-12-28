@@ -14,9 +14,7 @@ export function SharingPage({ token }: SharingPageProps) {
   const [members, setMembers] = useState<{ members: any[]; accounts: any[] }>({ members: [], accounts: [] });
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteForm, setInviteForm] = useState({
-    username: "",
-    role: "viewer" as "editor" | "viewer",
-    merge_finances: false
+    username: ""
   });
 
   useEffect(() => {
@@ -39,9 +37,14 @@ export function SharingPage({ token }: SharingPageProps) {
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await sendInvite(token, inviteForm);
+      // Always merge finances when sharing (simplified model)
+      await sendInvite(token, {
+        username: inviteForm.username,
+        role: "viewer", // Role not used anymore, but backend still expects it
+        merge_finances: true
+      });
       setShowInviteForm(false);
-      setInviteForm({ username: "", role: "viewer", merge_finances: false });
+      setInviteForm({ username: "" });
       await loadData();
     } catch (e: any) {
       alert(e.message);
@@ -79,7 +82,10 @@ export function SharingPage({ token }: SharingPageProps) {
       {showInviteForm && (
         <motion.div className="modal-overlay" onClick={() => setShowInviteForm(false)}>
           <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Send Sharing Request</h2>
+            <h2>Share Your Finances</h2>
+            <p className="share-description">
+              Invite someone to merge finances with you. You'll share a combined view of income, expenses, and financial health.
+            </p>
             <form onSubmit={handleSendInvite}>
               <div className="form-group">
                 <label>Username *</label>
@@ -89,35 +95,6 @@ export function SharingPage({ token }: SharingPageProps) {
                   required
                   placeholder="their_username"
                 />
-              </div>
-              <div className="form-group">
-                <label>Role *</label>
-                <select
-                  value={inviteForm.role}
-                  onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as "editor" | "viewer" })}
-                >
-                  <option value="viewer">Viewer (read-only)</option>
-                  <option value="editor">Editor (can modify)</option>
-                </select>
-              </div>
-              <div className="form-group merge-finances-group">
-                <div className="toggle-container">
-                  <label className="toggle-label">
-                    <span className="toggle-text">
-                      <strong>Merge Finances</strong>
-                      <small>Combine income & expenses for a unified view (ideal for couples)</small>
-                    </span>
-                    <div className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={inviteForm.merge_finances}
-                        onChange={(e) => setInviteForm({ ...inviteForm, merge_finances: e.target.checked })}
-                        className="toggle-input"
-                      />
-                      <span className="toggle-slider"></span>
-                    </div>
-                  </label>
-                </div>
               </div>
               <div className="form-actions">
                 <button type="button" onClick={() => setShowInviteForm(false)}>Cancel</button>
