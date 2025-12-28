@@ -3,6 +3,7 @@ import cors from "cors";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { authRoutes, requireAuth } from "./auth";
+import { getMergedFinanceGroupUserIds } from "./mergedFinances";
 import { applyConstraintDecay, computeHealthSnapshot, tierFor, totalIncomePerMonth, totalPaymentsMadeThisMonth, unpaidFixedPerMonth, unpaidProratedVariableForRemainingDays, unpaidInvestmentsPerMonth, unpaidCreditCardDues, calculateMonthProgress } from "./logic";
 import { markAsPaid, markAsUnpaid, isPaid, getPaymentStatus, getUserPayments, getPaymentsSummary } from "./payments";
 import { getUserPreferences, updateUserPreferences } from "./preferences";
@@ -221,16 +222,16 @@ app.get("/dashboard", requireAuth, (req, res) => {
   // Get payment status for current month
   const paymentStatus = getPaymentStatus(userId);
 
-  // Filter all data by userId
-  const userIncomes = store.incomes.filter(i => i.userId === userId);
-  const userFixedExpenses = store.fixedExpenses.filter(f => f.userId === userId);
-  const userVariablePlans = store.variablePlans.filter(v => v.userId === userId);
-  const userInvestments = store.investments.filter(i => i.userId === userId);
-  const userFutureBombs = store.futureBombs.filter(fb => fb.userId === userId);
+  // Filter all data by group IDs (for merged finances) or just userId
+  const userIncomes = store.incomes.filter(i => groupUserIds.includes(i.userId));
+  const userFixedExpenses = store.fixedExpenses.filter(f => groupUserIds.includes(f.userId));
+  const userVariablePlans = store.variablePlans.filter(v => groupUserIds.includes(v.userId));
+  const userInvestments = store.investments.filter(i => groupUserIds.includes(i.userId));
+  const userFutureBombs = store.futureBombs.filter(fb => groupUserIds.includes(fb.userId));
 
   // Attach actuals and actualTotal to each variable plan
   const variablePlansWithActuals = userVariablePlans.map((plan) => {
-    const actuals = store.variableActuals.filter((a) => a.planId === plan.id && a.userId === userId);
+    const actuals = store.variableActuals.filter((a) => a.planId === plan.id && groupUserIds.includes(a.userId));
     const actualTotal = actuals.reduce((sum, a) => sum + a.amount, 0);
     return { ...plan, actuals, actualTotal };
   });
