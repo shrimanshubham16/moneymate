@@ -173,8 +173,6 @@ function PasswordResetCard({ token }: { token: string }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 }}
     >
-      <h3>Change Password</h3>
-
       {!showForm ? (
         <button
           className="change-password-button"

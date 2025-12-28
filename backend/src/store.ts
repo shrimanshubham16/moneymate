@@ -384,10 +384,16 @@ export function payCreditCard(id: string, amount: number): CreditCard | undefine
   return card;
 }
 
-export function listLoans() {
-  // Auto-fetch loans from fixed expenses with category "Loan"
+export function listLoans(userId?: string) {
+  // Auto-fetch loans from fixed expenses with category "Loan" (case-insensitive)
   const loanExpenses = state.fixedExpenses.filter(
-    (exp) => exp.category?.toLowerCase() === "loan"
+    (exp) => {
+      const matchesCategory = exp.category?.toLowerCase() === "loan";
+      if (userId) {
+        return matchesCategory && exp.userId === userId;
+      }
+      return matchesCategory;
+    }
   );
 
   // Convert fixed expenses to loan format

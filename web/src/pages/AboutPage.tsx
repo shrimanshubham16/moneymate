@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { FaBullseye, FaCheckCircle, FaCircle, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
 import "./AboutPage.css";
 
 export function AboutPage() {
@@ -18,7 +19,7 @@ export function AboutPage() {
         animate={{ opacity: 1, y: 0 }}
       >
         <section className="about-section">
-          <h2>🎯 Purpose</h2>
+          <h2><FaBullseye style={{ marginRight: '8px', color: '#3b82f6' }} /> Purpose</h2>
           <p>
             MoneyMate is your personal financial companion designed to help you plan, track, and optimize your finances.
             Whether you're managing monthly expenses, planning investments, or preparing for future liabilities, 
@@ -85,28 +86,28 @@ export function AboutPage() {
           <h2>🎭 Health Categories</h2>
           <div className="health-categories">
             <div className="health-item good">
-              <span className="emoji">🟢</span>
+              <span className="icon"><FaCheckCircle size={32} color="#10b981" /></span>
               <div>
                 <h4>Good</h4>
                 <p>You'll have &gt; ₹10,000 remaining after the month</p>
               </div>
             </div>
             <div className="health-item ok">
-              <span className="emoji">🟡</span>
+              <span className="icon"><FaCircle size={32} color="#f59e0b" /></span>
               <div>
                 <h4>OK</h4>
                 <p>You'll have ₹1,000 - ₹9,999 remaining</p>
               </div>
             </div>
             <div className="health-item not-well">
-              <span className="emoji">🟠</span>
+              <span className="icon"><FaExclamationTriangle size={32} color="#f97316" /></span>
               <div>
                 <h4>Not Well</h4>
                 <p>You'll be ₹1 - ₹3,000 short</p>
               </div>
             </div>
             <div className="health-item worrisome">
-              <span className="emoji">🔴</span>
+              <span className="icon"><FaTimesCircle size={32} color="#ef4444" /></span>
               <div>
                 <h4>Worrisome</h4>
                 <p>You'll be &gt; ₹3,000 short</p>

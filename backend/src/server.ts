@@ -566,9 +566,7 @@ app.post("/debts/credit-cards/:id/payments", requireAuth, (req, res) => {
 
 app.get("/debts/loans", requireAuth, (req, res) => {
   const user = (req as any).user;
-  const store = getStore();
-  const userLoans = store.loans.filter(l => l.userId === user.id);
-  res.json({ data: userLoans });
+  res.json({ data: listLoans(user.userId) });
 });
 
 app.get("/activity", requireAuth, (req, res) => {

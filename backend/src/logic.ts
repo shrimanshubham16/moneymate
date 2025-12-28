@@ -83,27 +83,32 @@ export function unpaidFixedPerMonth(userId: string, today: Date): number {
   const preferences = getUserPreferences(userId);
   const targetMonth = getBillingPeriodId(preferences.monthStartDay, today);
 
-  return store.fixedExpenses.reduce((sum, exp) => {
-    const paid = isItemPaid(userId, exp.id, 'fixed_expense', targetMonth);
-    if (paid) return sum; // Skip paid items
+  return store.fixedExpenses
+    .filter(exp => exp.userId === userId) // FIX: Only include user's own expenses
+    .reduce((sum, exp) => {
+      const paid = isItemPaid(userId, exp.id, 'fixed_expense', targetMonth);
+      if (paid) return sum; // Skip paid items
 
-    return sum + monthlyEquivalent(exp.amount, exp.frequency);
-  }, 0);
+      return sum + monthlyEquivalent(exp.amount, exp.frequency);
+    }, 0);
 }
 
 export function unpaidInvestmentsPerMonth(userId: string, today: Date): number {
   const store = getStore();
+  const preferences = getUserPreferences(userId);
+  const targetMonth = getBillingPeriodId(preferences.monthStartDay, today);
 
-  return store.investments.filter(inv => inv.userId === userId).reduce((sum, inv) => {
-    // Only count active investments
-    if (inv.status !== 'active') return sum;
+  return store.investments
+    .filter(inv => inv.userId === userId) // FIX: Only include user's own investments
+    .reduce((sum, inv) => {
+      // Only count active investments
+      if (inv.status !== 'active') return sum;
 
-    const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    const isInvestmentPaid = isItemPaid(userId, inv.id, 'investment', month);
-    if (isInvestmentPaid) return sum; // Skip paid investments
+      const isInvestmentPaid = isItemPaid(userId, inv.id, 'investment', targetMonth);
+      if (isInvestmentPaid) return sum; // Skip paid investments
 
-    return sum + inv.monthlyAmount;
-  }, 0);
+      return sum + inv.monthlyAmount;
+    }, 0);
 }
 
 export function totalActiveInvestmentsPerMonth(userId: string): number {

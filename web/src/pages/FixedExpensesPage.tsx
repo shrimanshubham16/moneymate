@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaMoneyBillWave } from "react-icons/fa";
+import { FaMoneyBillWave, FaEdit, FaTrashAlt } from "react-icons/fa";
 import { fetchDashboard, createFixedExpense, updateFixedExpense, deleteFixedExpense } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -291,8 +291,12 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                 </div>
               </div>
               <div className="expense-actions">
-                <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">✏️</button>
-                <button onClick={() => handleDelete(expense.id)} className="delete-btn" title="Delete" aria-label="Delete expense">🗑️</button>
+                <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">
+                  <FaEdit />
+                </button>
+                <button onClick={() => handleDelete(expense.id)} className="delete-btn" title="Delete" aria-label="Delete expense">
+                  <FaTrashAlt />
+                </button>
               </div>
             </motion.div>
           ))}
