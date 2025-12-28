@@ -53,6 +53,16 @@
   margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 700;
+  color: #1e293b;
+  /* FIX: Dark text instead of inheriting white */
+}
+
+.request-info p,
+.member-info p {
+  margin: 0;
+  color: #64748b;
+  /* FIX: Gray text for readability */
+  font-size: 14px;
 }
 
 .request-meta {
@@ -255,15 +265,14 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.toggle-input:checked + .toggle-slider {
+.toggle-input:checked+.toggle-slider {
   background-color: #8b5cf6;
 }
 
-.toggle-input:checked + .toggle-slider:before {
+.toggle-input:checked+.toggle-slider:before {
   transform: translateX(28px);
 }
 
-.toggle-input:focus + .toggle-slider {
+.toggle-input:focus+.toggle-slider {
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
 }
-

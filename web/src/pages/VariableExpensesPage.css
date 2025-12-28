@@ -94,6 +94,8 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
+  color: #1e293b;
+  /* FIX: Dark text for visibility */
 }
 
 .plan-actions {
@@ -175,4 +177,3 @@
   color: #64748b;
   font-style: italic;
 }
-

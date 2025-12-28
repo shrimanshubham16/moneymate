@@ -148,6 +148,8 @@
   margin: 0 0 8px 0;
   font-size: 20px;
   font-weight: 700;
+  color: #1e293b;
+  /* FIX: Dark text for visibility */
 }
 
 .expense-details {
@@ -271,4 +273,3 @@
 .toggle-button.active .toggle-slider {
   transform: translateX(24px);
 }
-
