@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+```
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { fetchActivity } from "../api";
-import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt } from "react-icons/fa";
+import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt, FaHistory } from "react-icons/fa";
 import { MdAccountBalanceWallet } from "react-icons/md";
+import { IntroModal } from "../components/IntroModal";
+import { useIntroModal } from "../hooks/useIntroModal";
 import "./ActivitiesPage.css";
 
 interface ActivitiesPageProps {
@@ -107,17 +110,17 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
               switch (activity.action) {
                 case 'created':
                 case 'added':
-                  return `${username} added ${entity}`;
+                  return `${ username } added ${ entity } `;
                 case 'updated':
-                  return `${username} updated ${entity}`;
+                  return `${ username } updated ${ entity } `;
                 case 'deleted':
-                  return `${username} deleted ${entity}`;
+                  return `${ username } deleted ${ entity } `;
                 case 'paid':
-                  return `${username} marked ${entity} as paid`;
+                  return `${ username } marked ${ entity } as paid`;
                 case 'unpaid':
-                  return `${username} unmarked ${entity} payment`;
+                  return `${ username } unmarked ${ entity } payment`;
                 default:
-                  return `${username} ${activity.action} ${entity}`;
+                  return `${ username } ${ activity.action } ${ entity } `;
               }
             };
 

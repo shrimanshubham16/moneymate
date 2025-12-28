@@ -147,8 +147,21 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     );
   }
 
+
   return (
     <div className="health-details-page">
+      <IntroModal
+        isOpen={showIntro}
+        onClose={closeIntro}
+        title="💊 Financial Health Score"
+        description="Deep dive into your financial health. See exactly how much money you'll have left after paying all bills, investments, and expenses. Understand every rupee that goes in and out."
+        tips={[
+          "Your health score = Available Funds - All Unpaid Obligations",
+          "Green (>₹10k) means you're safe, Yellow (₹5-10k) means caution, Red (<₹5k) means urgent",
+          "This page shows the complete calculation breakdown",
+          "Fixed expenses are monthly bills, Variable are categories like food/transport"
+        ]}
+      />
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>
           ← Back to Dashboard
