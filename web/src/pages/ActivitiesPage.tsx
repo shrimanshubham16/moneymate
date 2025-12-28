@@ -24,7 +24,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       console.log("🔍 Loading activities...");
       const res = await fetchActivity(token);
       console.log("✅ Activities loaded:", res.data);
-      
+
       // Ensure each activity has the required fields and sanitize payload
       const sanitizedActivities = (res.data || []).map((activity: any) => ({
         ...activity,
@@ -34,7 +34,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         createdAt: activity.createdAt || new Date().toISOString(),
         payload: activity.payload // Keep as-is, will stringify in render
       }));
-      
+
       console.log("📊 Sanitized activities:", sanitizedActivities);
       setActivities(sanitizedActivities);
     } catch (e) {
@@ -98,26 +98,50 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         </div>
       ) : (
         <div className="activities-timeline">
-          {activities.map((activity, index) => (
-            <motion.div
-              key={activity.id}
-              className="activity-item"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.03 }}
-            >
-              <div className="activity-icon">{getEntityIcon(activity.entity)}</div>
-              <div className="activity-content">
-                <div className="activity-action">[{activity.entity}] {activity.action}</div>
-                <div className="activity-time">{new Date(activity.createdAt).toLocaleString()}</div>
-                {activity.payload && typeof activity.payload === 'object' && (
-                  <div className="activity-payload">
-                    {JSON.stringify(activity.payload, null, 2)}
+          {activities.map((activity, index) => {
+            // Format the action message
+            const getActionMessage = () => {
+              const username = activity.username || 'Someone';
+              const entity = activity.entity.replace(/_/g, ' ');
+
+              switch (activity.action) {
+                case 'created':
+                case 'added':
+                  return `${username} added ${entity}`;
+                case 'updated':
+                  return `${username} updated ${entity}`;
+                case 'deleted':
+                  return `${username} deleted ${entity}`;
+                case 'paid':
+                  return `${username} marked ${entity} as paid`;
+                case 'unpaid':
+                  return `${username} unmarked ${entity} payment`;
+                default:
+                  return `${username} ${activity.action} ${entity}`;
+              }
+            };
+
+            return (
+              <motion.div
+                key={activity.id}
+                className="activity-item"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.03 }}
+              >
+                <div className="activity-icon">{getEntityIcon(activity.entity)}</div>
+                <div className="activity-content">
+                  <div className="activity-action">{getActionMessage()}</div>
+                  <div className="activity-time">
+                    {new Date(activity.createdAt).toLocaleString('en-IN', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short'
+                    })}
                   </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </div>
