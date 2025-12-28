@@ -144,35 +144,40 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
 
 function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void }) {
   return (
-    <Routes>
-      <Route path="/dashboard" element={<DashboardPage token={token} />} />
-      <Route path="/health" element={<HealthDetailsPage token={token} />} />
-      <Route path="/settings" element={<SettingsPage />} />
-      <Route path="/settings/plan-finances" element={<PlanFinancesPage token={token} />} />
-      <Route path="/settings/plan-finances/fixed" element={<FixedExpensesPage token={token} />} />
-      <Route path="/settings/plan-finances/variable" element={<VariableExpensesPage token={token} />} />
-      <Route path="/settings/plan-finances/investments" element={<InvestmentsManagementPage token={token} />} />
-      <Route path="/settings/plan-finances/income" element={<IncomePage token={token} />} />
-      <Route path="/fixed-expenses" element={<FixedExpensesPage token={token} />} />
-      <Route path="/settings/account" element={<AccountPage token={token} onLogout={onLogout} />} />
-      <Route path="/settings/about" element={<AboutPage />} />
-      <Route path="/settings/sharing" element={<SharingPage token={token} />} />
-      <Route path="/settings/support" element={<SupportPage />} />
-      <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />
-      <Route path="/settings/credit-cards" element={<CreditCardsManagementPage token={token} />} />
-      <Route path="/variable-expenses" element={<VariableExpensesPage token={token} />} />
-      <Route path="/investments" element={<InvestmentsPage token={token} />} />
-      <Route path="/credit-cards" element={<CreditCardsPage token={token} />} />
-      <Route path="/loans" element={<LoansPage token={token} />} />
-      <Route path="/future-bombs" element={<FutureBombsPage token={token} />} />
-      <Route path="/activities" element={<ActivitiesPage token={token} />} />
-      <Route path="/alerts" element={<AlertsPage token={token} />} />
-      <Route path="/dues" element={<DuesPage token={token} />} />
-      <Route path="/current-month-expenses" element={<CurrentMonthExpensesPage token={token} />} />
-      <Route path="/sip-expenses" element={<SIPExpensesPage token={token} />} />
-      <Route path="/export" element={<ExportPage token={token} />} />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+    <>
+      <Header />
+      <div className="app-content">
+        <Routes>
+          <Route path="/dashboard" element={<DashboardPage token={token} />} />
+          <Route path="/health" element={<HealthDetailsPage token={token} />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/plan-finances" element={<PlanFinancesPage token={token} />} />
+          <Route path="/settings/plan-finances/fixed" element={<FixedExpensesPage token={token} />} />
+          <Route path="/settings/plan-finances/variable" element={<VariableExpensesPage token={token} />} />
+          <Route path="/settings/plan-finances/investments" element={<InvestmentsManagementPage token={token} />} />
+          <Route path="/settings/plan-finances/income" element={<IncomePage token={token} />} />
+          <Route path="/fixed-expenses" element={<FixedExpensesPage token={token} />} />
+          <Route path="/settings/account" element={<AccountPage token={token} onLogout={onLogout} />} />
+          <Route path="/settings/about" element={<AboutPage />} />
+          <Route path="/settings/sharing" element={<SharingPage token={token} />} />
+          <Route path="/settings/support" element={<SupportPage />} />
+          <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />
+          <Route path="/settings/credit-cards" element={<CreditCardsManagementPage token={token} />} />
+          <Route path="/variable-expenses" element={<VariableExpensesPage token={token} />} />
+          <Route path="/investments" element={<InvestmentsPage token={token} />} />
+          <Route path="/credit-cards" element={<CreditCardsPage token={token} />} />
+          <Route path="/loans" element={<LoansPage token={token} />} />
+          <Route path="/future-bombs" element={<FutureBombsPage token={token} />} />
+          <Route path="/activities" element={<ActivitiesPage token={token} />} />
+          <Route path="/alerts" element={<AlertsPage token={token} />} />
+          <Route path="/dues" element={<DuesPage token={token} />} />
+          <Route path="/current-month-expenses" element={<CurrentMonthExpensesPage token={token} />} />
+          <Route path="/sip-expenses" element={<SIPExpensesPage token={token} />} />
+          <Route path="/export" element={<ExportPage token={token} />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </div>
+    </>
   );
 }
 

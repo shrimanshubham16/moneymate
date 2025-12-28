@@ -59,7 +59,13 @@ export async function fetchSharingMembers(token: string) {
 }
 
 export async function sendInvite(token: string, payload: { username: string; role: "editor" | "viewer"; merge_finances?: boolean }) {
-  return request<{ data: any }>("/sharing/invite", { method: "POST", body: JSON.stringify(payload) }, token);
+  // Map frontend 'username' field to backend 'email_or_username' field
+  const requestData = {
+    email_or_username: payload.username,
+    role: payload.role,
+    merge_finances: payload.merge_finances || false
+  };
+  return request<{ data: any }>("/sharing/invite", { method: "POST", body: JSON.stringify(requestData) }, token);
 }
 
 export async function approveRequest(token: string, id: string) {
