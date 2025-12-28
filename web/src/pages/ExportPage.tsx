@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { FaFileExcel, FaCheckCircle, FaLightbulb, FaTable } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import "./ExportPage.css";
@@ -206,21 +207,21 @@ export function ExportPage({ token }: ExportPageProps) {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="export-card">
-          <div className="export-icon">📊</div>
+          <div className="export-icon"><FaFileExcel size={80} color="#10b981" /></div>
           <h2>Export Your Complete Financial Data</h2>
           <p>
             Download a comprehensive Excel file with charts and analysis containing all your financial data including:
           </p>
           <ul className="export-features">
-            <li>✅ Income sources</li>
-            <li>✅ Fixed and variable expenses</li>
-            <li>✅ Investments and goals</li>
-            <li>✅ Credit cards and loans</li>
-            <li>✅ Future bombs and preparedness</li>
-            <li>✅ Activity log (last 50 entries)</li>
-            <li>✅ Health and constraint scores</li>
-            <li>✅ Alerts and notifications</li>
-            <li>✅ Financial summary with calculations</li>
+            <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Income sources</li>
+            <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Fixed and variable expenses</li>
+            <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Investments and goals</li>
+            <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Credit cards and loans</li>
+            <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Future bombs and preparedness</li>
+            <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Activity log (last 50 entries)</li>
+            <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Health and constraint scores</li>
+            <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Alerts and notifications</li>
+            <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Financial summary with calculations</li>
           </ul>
 
           <button
@@ -228,11 +229,12 @@ export function ExportPage({ token }: ExportPageProps) {
             disabled={exporting}
             className="export-button"
           >
-            {exporting ? "Exporting..." : "📊 Export to Excel"}
+            <FaFileExcel style={{ marginRight: '8px' }} />
+            {exporting ? "Exporting..." : "Export to Excel"}
           </button>
 
           <div className="export-info">
-            <h3>💡 What can you do with the export?</h3>
+            <h3><FaLightbulb style={{ marginRight: '8px', color: '#f59e0b' }} />What can you do with the export?</h3>
             <ul>
               <li><strong>Backup:</strong> Keep a backup of your financial data</li>
               <li><strong>Analysis:</strong> Import into Excel/Google Sheets for custom analysis</li>
@@ -243,17 +245,17 @@ export function ExportPage({ token }: ExportPageProps) {
           </div>
 
           <div className="export-format">
-            <h3>📊 Export Format</h3>
+            <h3><FaTable style={{ marginRight: '8px', color: '#3b82f6' }} />Export Format</h3>
             <p>
               The export is in Excel (.xlsx) format with:
             </p>
             <ul>
-              <li>✅ Multiple sheets for each category</li>
-              <li>✅ Automatic calculations and formulas</li>
-              <li>✅ Category-wise breakdown analysis</li>
-              <li>✅ Formatted tables with proper columns</li>
-              <li>✅ Summary sheet with key metrics</li>
-              <li>✅ Ready for charts and pivot tables</li>
+              <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Multiple sheets for each category</li>
+              <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Automatic calculations and formulas</li>
+              <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Category-wise breakdown analysis</li>
+              <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Formatted tables with proper columns</li>
+              <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Summary sheet with key metrics</li>
+              <li><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Ready for charts and pivot tables</li>
             </ul>
           </div>
         </div>

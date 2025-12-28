@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaUser, FaCreditCard, FaHandshake, FaPalette, FaInfoCircle, FaChartLine, FaCog } from "react-icons/fa";
+import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import "./SettingsPage.css";
@@ -12,7 +13,17 @@ export function SettingsPage() {
   const settingsItems = [
     { id: "account", title: "Account", icon: <FaUser size={32} />, description: "Manage username and profile" },
     { id: "preferences", title: "Billing Preferences", icon: <FaCog size={32} />, description: "Set month start day & currency" },
-    { id: "sharing", title: "Sharing", icon: <FaHandshake size={32} />, description: "Share account and manage members" },
+    { 
+      id: "sharing", 
+      title: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          Sharing
+          <StatusBadge status="error" size="small" label="BETA" />
+        </div>
+      ), 
+      icon: <FaHandshake size={32} />, 
+      description: "Share account and manage members" 
+    },
     { id: "plan-finances", title: "Plan Finances", icon: <FaChartLine size={32} />, description: "Plan income, expenses, and investments" },
     { id: "credit-cards", title: "Credit Cards", icon: <FaCreditCard size={32} />, description: "Manage credit card bills" },
     { id: "support", title: "Support", icon: <FaPalette size={32} />, description: "Get help and contact support" },

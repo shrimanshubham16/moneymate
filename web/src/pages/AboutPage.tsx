@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaBullseye, FaCheckCircle, FaCircle, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
+import { FaBullseye, FaCheckCircle, FaCircle, FaExclamationTriangle, FaTimesCircle, FaClipboardList, FaPalette, FaTheaterMasks } from "react-icons/fa";
 import "./AboutPage.css";
 
 export function AboutPage() {
@@ -28,7 +28,7 @@ export function AboutPage() {
         </section>
 
         <section className="about-section">
-          <h2>📋 Key Features</h2>
+          <h2><FaClipboardList style={{ marginRight: '8px', color: '#3b82f6' }} />Key Features</h2>
           <ul>
             <li><strong>Health-Based Insights:</strong> Visual indicators showing your financial health (Good, OK, Not Well, Worrisome)</li>
             <li><strong>Smart Planning:</strong> Plan fixed expenses, variable expenses, and investments with ease</li>
@@ -42,7 +42,7 @@ export function AboutPage() {
         </section>
 
         <section className="about-section">
-          <h2>🎨 Usage Guide</h2>
+          <h2><FaPalette style={{ marginRight: '8px', color: '#8b5cf6' }} />Usage Guide</h2>
           <div className="usage-steps">
             <div className="step">
               <span className="step-number">1</span>
@@ -83,7 +83,7 @@ export function AboutPage() {
         </section>
 
         <section className="about-section">
-          <h2>🎭 Health Categories</h2>
+          <h2><FaTheaterMasks style={{ marginRight: '8px', color: '#10b981' }} />Health Categories</h2>
           <div className="health-categories">
             <div className="health-item good">
               <span className="icon"><FaCheckCircle size={32} color="#10b981" /></span>
