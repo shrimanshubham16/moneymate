@@ -135,6 +135,46 @@
       "createdAt": "2025-12-28T20:31:48.755Z",
       "failedLoginAttempts": 0,
       "accountLockedUntil": null
+    },
+    {
+      "id": "aad7439c-ebb0-4c5b-9051-79f2d2165267",
+      "username": "testuser_1766955716",
+      "passwordHash": "724936cd9b665b34b178904d938970b9fffede7f6fcbae3e0f61b87170c06feb",
+      "createdAt": "2025-12-28T21:01:56.420Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "72ba8c78-d2f9-4f4b-a925-8d05887bf6e6",
+      "username": "testuser999",
+      "passwordHash": "724936cd9b665b34b178904d938970b9fffede7f6fcbae3e0f61b87170c06feb",
+      "createdAt": "2025-12-28T21:02:00.485Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "4fe0e5a1-acb7-4cbe-86a5-a49a9f9ad3f8",
+      "username": "testuser_1766955726",
+      "passwordHash": "724936cd9b665b34b178904d938970b9fffede7f6fcbae3e0f61b87170c06feb",
+      "createdAt": "2025-12-28T21:02:06.676Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "b5a417ea-fb60-4270-bfec-65f7280b633b",
+      "username": "testinv123",
+      "passwordHash": "724936cd9b665b34b178904d938970b9fffede7f6fcbae3e0f61b87170c06feb",
+      "createdAt": "2025-12-28T21:02:14.088Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "629d50e2-c1a5-4ad1-a9e8-56a528bec831",
+      "username": "testuser_1766955747",
+      "passwordHash": "724936cd9b665b34b178904d938970b9fffede7f6fcbae3e0f61b87170c06feb",
+      "createdAt": "2025-12-28T21:02:27.559Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
     }
   ],
   "incomes": [
@@ -178,6 +218,24 @@
       "frequency": "monthly",
       "id": "50adf171-c241-4f1d-865b-a00842404b85",
       "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "Test Salary",
+      "amount": 100000,
+      "frequency": "monthly",
+      "category": "employment",
+      "startDate": "2025-12-28T21:02:06.694Z",
+      "id": "5c8ad882-5779-4ad0-aa0b-a6f2da603aa3",
+      "userId": "4fe0e5a1-acb7-4cbe-86a5-a49a9f9ad3f8"
+    },
+    {
+      "name": "Test Salary",
+      "amount": 100000,
+      "frequency": "monthly",
+      "category": "employment",
+      "startDate": "2025-12-28T21:02:27.575Z",
+      "id": "7b6b2aa9-6c84-4c67-9e39-01ac7087b86f",
+      "userId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831"
     }
   ],
   "fixedExpenses": [
@@ -261,6 +319,24 @@
       "isSip": false,
       "id": "4439fb76-04d8-43b0-b0d8-d55ff2f0d7de",
       "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "Test Rent",
+      "amount": 25000,
+      "frequency": "monthly",
+      "category": "Housing",
+      "isSip": false,
+      "id": "6e174857-7ffa-436f-8d35-a9f691e0b0d7",
+      "userId": "4fe0e5a1-acb7-4cbe-86a5-a49a9f9ad3f8"
+    },
+    {
+      "name": "Test Rent",
+      "amount": 25000,
+      "frequency": "monthly",
+      "category": "Housing",
+      "isSip": false,
+      "id": "55e2a88b-f014-431b-91a1-8c3b48a5b2ec",
+      "userId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831"
     }
   ],
   "variablePlans": [
@@ -299,6 +375,24 @@
       "endDate": "2030-12-27",
       "id": "63b6820c-fb75-4d3b-ba7f-1af33b0cc060",
       "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "Test Groceries",
+      "planned": 10000,
+      "category": "Food",
+      "startDate": "2025-01-01",
+      "endDate": "2025-12-31",
+      "id": "d22b48b8-1d9b-413a-a101-b4498a374eee",
+      "userId": "4fe0e5a1-acb7-4cbe-86a5-a49a9f9ad3f8"
+    },
+    {
+      "name": "Test Groceries",
+      "planned": 10000,
+      "category": "Food",
+      "startDate": "2025-01-01",
+      "endDate": "2025-12-31",
+      "id": "34be9bd3-a371-4f1e-9d49-f74bf3eee5eb",
+      "userId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831"
     }
   ],
   "variableActuals": [
@@ -338,6 +432,14 @@
       "status": "active",
       "id": "b904994d-f1bb-49ea-8506-44db86ba52d3",
       "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "Test MF",
+      "goal": "Retirement",
+      "monthlyAmount": 15000,
+      "status": "active",
+      "id": "04a5ac4a-e558-493f-bc0c-d858e8134a68",
+      "userId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831"
     }
   ],
   "futureBombs": [],
@@ -472,6 +574,90 @@
         "id": "9f8e92a2-fbe5-46e0-9cea-829dd2f6b8ff"
       },
       "createdAt": "2025-12-28T20:50:57.002Z"
+    },
+    {
+      "id": "01f58549-31a3-4ec3-94d8-70be6bcaf238",
+      "actorId": "4fe0e5a1-acb7-4cbe-86a5-a49a9f9ad3f8",
+      "entity": "income",
+      "action": "added income source",
+      "payload": {
+        "name": "Test Salary",
+        "amount": 100000,
+        "frequency": "monthly"
+      },
+      "createdAt": "2025-12-28T21:02:06.694Z"
+    },
+    {
+      "id": "53cd078d-82a5-4ebf-b1b1-fefaf5f590de",
+      "actorId": "4fe0e5a1-acb7-4cbe-86a5-a49a9f9ad3f8",
+      "entity": "fixed_expense",
+      "action": "added fixed expense",
+      "payload": {
+        "name": "Test Rent",
+        "amount": 25000,
+        "frequency": "monthly",
+        "category": "Housing"
+      },
+      "createdAt": "2025-12-28T21:02:06.703Z"
+    },
+    {
+      "id": "e1b511d3-1360-48e8-a4f7-9d58a2e89111",
+      "actorId": "4fe0e5a1-acb7-4cbe-86a5-a49a9f9ad3f8",
+      "entity": "variable_expense_plan",
+      "action": "added variable expense plan",
+      "payload": {
+        "name": "Test Groceries",
+        "planned": 10000,
+        "category": "Food"
+      },
+      "createdAt": "2025-12-28T21:02:06.712Z"
+    },
+    {
+      "id": "b949582f-a0bd-4fe7-91a8-4e508016a109",
+      "actorId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831",
+      "entity": "income",
+      "action": "added income source",
+      "payload": {
+        "name": "Test Salary",
+        "amount": 100000,
+        "frequency": "monthly"
+      },
+      "createdAt": "2025-12-28T21:02:27.575Z"
+    },
+    {
+      "id": "fe7aca7b-62ca-42b0-829a-0693a1e42c65",
+      "actorId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831",
+      "entity": "fixed_expense",
+      "action": "added fixed expense",
+      "payload": {
+        "name": "Test Rent",
+        "amount": 25000,
+        "frequency": "monthly",
+        "category": "Housing"
+      },
+      "createdAt": "2025-12-28T21:02:27.583Z"
+    },
+    {
+      "id": "06f231d3-5ee5-4e29-8a1c-ac9be112fbfe",
+      "actorId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831",
+      "entity": "variable_expense_plan",
+      "action": "added variable expense plan",
+      "payload": {
+        "name": "Test Groceries",
+        "planned": 10000,
+        "category": "Food"
+      },
+      "createdAt": "2025-12-28T21:02:27.591Z"
+    },
+    {
+      "id": "8dbb446b-d55e-4060-b6ef-e8b4236837b0",
+      "actorId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831",
+      "entity": "investment",
+      "action": "added investment",
+      "payload": {
+        "name": "Test MF"
+      },
+      "createdAt": "2025-12-28T21:02:27.600Z"
     }
   ],
   "themeStates": []
