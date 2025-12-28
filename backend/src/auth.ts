@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { z } from "zod";
 import { getStore } from "./store";
-import { createUser, getUserByUsername } from "./store";
+import { createUser, getUserByUsername, getUserById, updateUserPassword } from "./store";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
