@@ -1,0 +1,81 @@
+.investments-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.investments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.investment-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.investment-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.investment-details {
+  display: flex;
+  gap: 16px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.status {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.status.active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status.paused {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.investment-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.investment-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.investment-actions button:first-child {
+  background: #3b82f6;
+  color: white;
+}
+
+.investment-actions button:nth-child(2) {
+  background: #f59e0b;
+  color: white;
+}
+
+.investment-actions .delete-btn {
+  background: #ef4444;
+  color: white;
+}
+

@@ -1,0 +1,55 @@
+.loans-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-subtitle {
+  color: #64748b;
+  font-size: 14px;
+  margin: 8px 0 0 0;
+}
+
+.loans-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.loan-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.loan-card h3 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.loan-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-item .label {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.detail-item .value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+

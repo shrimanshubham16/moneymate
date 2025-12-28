@@ -1,0 +1,104 @@
+.dues-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.dues-summary {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border-radius: 20px;
+  padding: 32px;
+  text-align: center;
+  color: white;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+}
+
+.dues-summary h2 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.total-amount {
+  font-size: 48px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.dues-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.due-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.due-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.paid-checkbox {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.paid-checkbox:checked {
+  accent-color: #10b981;
+}
+
+.due-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.due-type {
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.due-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-item .label {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.detail-item .value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.detail-item .value.paid {
+  color: #10b981;
+}
+

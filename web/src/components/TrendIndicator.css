@@ -1,0 +1,54 @@
+.trend-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trend-indicator.small {
+  font-size: 12px;
+}
+
+.trend-indicator.medium {
+  font-size: 16px;
+}
+
+.trend-indicator.large {
+  font-size: 20px;
+}
+
+.trend-value {
+  font-weight: 700;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-change {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 0.85em;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.trend-change.up {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.trend-change.down {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+.trend-change.neutral {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.trend-arrow {
+  font-size: 1.2em;
+  font-weight: 700;
+}
+
