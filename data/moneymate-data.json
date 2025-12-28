@@ -175,6 +175,22 @@
       "createdAt": "2025-12-28T21:02:27.559Z",
       "failedLoginAttempts": 0,
       "accountLockedUntil": null
+    },
+    {
+      "id": "419fb156-fd36-472a-b5ac-1efa688be9be",
+      "username": "healthtest999",
+      "passwordHash": "724936cd9b665b34b178904d938970b9fffede7f6fcbae3e0f61b87170c06feb",
+      "createdAt": "2025-12-28T21:16:44.903Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
+    },
+    {
+      "id": "36d73ed7-768e-489a-b00e-c9d650e86b0e",
+      "username": "healthtest_final",
+      "passwordHash": "724936cd9b665b34b178904d938970b9fffede7f6fcbae3e0f61b87170c06feb",
+      "createdAt": "2025-12-28T21:16:52.223Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
     }
   ],
   "incomes": [
@@ -236,6 +252,15 @@
       "startDate": "2025-12-28T21:02:27.575Z",
       "id": "7b6b2aa9-6c84-4c67-9e39-01ac7087b86f",
       "userId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831"
+    },
+    {
+      "name": "Salary",
+      "amount": 160000,
+      "frequency": "monthly",
+      "category": "employment",
+      "startDate": "2025-12-28T21:16:52.233Z",
+      "id": "9cd27334-0085-4dd7-a7cc-ac568eb46797",
+      "userId": "36d73ed7-768e-489a-b00e-c9d650e86b0e"
     }
   ],
   "fixedExpenses": [
@@ -337,6 +362,24 @@
       "isSip": false,
       "id": "55e2a88b-f014-431b-91a1-8c3b48a5b2ec",
       "userId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831"
+    },
+    {
+      "name": "njjhb",
+      "amount": 6555,
+      "frequency": "monthly",
+      "category": "Utilities",
+      "isSip": false,
+      "id": "28c9bba3-a099-4081-ba0f-35e480450af1",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "Rent",
+      "amount": 35000,
+      "frequency": "monthly",
+      "category": "Housing",
+      "isSip": false,
+      "id": "ad267eb0-d563-449b-9fa2-81d8304a3d3e",
+      "userId": "36d73ed7-768e-489a-b00e-c9d650e86b0e"
     }
   ],
   "variablePlans": [
@@ -440,6 +483,14 @@
       "status": "active",
       "id": "04a5ac4a-e558-493f-bc0c-d858e8134a68",
       "userId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831"
+    },
+    {
+      "name": "SIP",
+      "goal": "Retirement",
+      "monthlyAmount": 15000,
+      "status": "active",
+      "id": "cdbf9d9f-4796-40ab-b4fc-f2ed9a63f259",
+      "userId": "36d73ed7-768e-489a-b00e-c9d650e86b0e"
     }
   ],
   "futureBombs": [],
@@ -454,6 +505,15 @@
       "statementDate": "2025-12-28",
       "id": "9f8e92a2-fbe5-46e0-9cea-829dd2f6b8ff",
       "userId": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "paidAmount": 0
+    },
+    {
+      "name": "HDFC",
+      "dueDate": "2025-12-15",
+      "billAmount": 25000,
+      "statementDate": "2025-12-28",
+      "id": "9990537a-e855-4f84-a6b7-3e8a8efe2f9f",
+      "userId": "36d73ed7-768e-489a-b00e-c9d650e86b0e",
       "paidAmount": 0
     }
   ],
@@ -658,6 +718,67 @@
         "name": "Test MF"
       },
       "createdAt": "2025-12-28T21:02:27.600Z"
+    },
+    {
+      "id": "2b7df172-0496-4e15-9928-8a0a978797d0",
+      "actorId": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "entity": "fixed_expense",
+      "action": "added fixed expense",
+      "payload": {
+        "name": "njjhb",
+        "amount": 6555,
+        "frequency": "monthly",
+        "category": "Utilities"
+      },
+      "createdAt": "2025-12-28T21:11:00.882Z"
+    },
+    {
+      "id": "2e35ef99-ff76-44e3-9334-60b177c977e2",
+      "actorId": "36d73ed7-768e-489a-b00e-c9d650e86b0e",
+      "entity": "income",
+      "action": "added income source",
+      "payload": {
+        "name": "Salary",
+        "amount": 160000,
+        "frequency": "monthly"
+      },
+      "createdAt": "2025-12-28T21:16:52.233Z"
+    },
+    {
+      "id": "82c0fee4-68e6-4adb-a61e-05704193c8cc",
+      "actorId": "36d73ed7-768e-489a-b00e-c9d650e86b0e",
+      "entity": "fixed_expense",
+      "action": "added fixed expense",
+      "payload": {
+        "name": "Rent",
+        "amount": 35000,
+        "frequency": "monthly",
+        "category": "Housing"
+      },
+      "createdAt": "2025-12-28T21:16:52.242Z"
+    },
+    {
+      "id": "b8f14d3f-4c18-4b79-a3f4-be51d6c1e319",
+      "actorId": "36d73ed7-768e-489a-b00e-c9d650e86b0e",
+      "entity": "investment",
+      "action": "added investment",
+      "payload": {
+        "name": "SIP",
+        "amount": 15000,
+        "goal": "Retirement",
+        "status": "active"
+      },
+      "createdAt": "2025-12-28T21:16:52.250Z"
+    },
+    {
+      "id": "c66d0019-a969-4cad-9e3b-8314fb05e0d8",
+      "actorId": "36d73ed7-768e-489a-b00e-c9d650e86b0e",
+      "entity": "credit_card",
+      "action": "created",
+      "payload": {
+        "id": "9990537a-e855-4f84-a6b7-3e8a8efe2f9f"
+      },
+      "createdAt": "2025-12-28T21:16:52.259Z"
     }
   ],
   "themeStates": []

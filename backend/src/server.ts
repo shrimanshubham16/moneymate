@@ -213,12 +213,11 @@ app.get("/health", (_req, res) => {
 app.get("/dashboard", requireAuth, (req, res) => {
   const parsed = dateQuerySchema.safeParse(req.query);
   const today = parsed.data?.today ? new Date(parsed.data.today) : new Date();
-  const cacheKey = `${(req as any).user.id}-${today.toISOString().slice(0, 10)}`;
-  const cached = dashboardCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return res.json({ data: cached.payload });
-  }
   const userId = (req as any).user.userId;
+  
+  // FIX: Removed caching to ensure health scores are always fresh and consistent
+  // Previous caching caused dashboard and /health/details to show different values
+  
   const constraintDecayed = applyConstraintDecay(getConstraint(userId), today);
   setConstraint(userId, constraintDecayed);
   const groupUserIds = getMergedFinanceGroupUserIds(userId);
@@ -259,7 +258,8 @@ app.get("/dashboard", requireAuth, (req, res) => {
     constraintScore: constraintDecayed,
     alerts: listAlerts(userId)
   };
-  dashboardCache.set(cacheKey, { payload, expiresAt: Date.now() + 30 * 1000 });
+  
+  // FIX: Caching removed - always return fresh data
   res.json({ data: payload });
 });
 
@@ -460,11 +460,12 @@ app.post("/investments", requireAuth, (req, res) => {
   const parsed = investmentSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const created = addInvestment(userId, parsed.data);
-  // FIX: Add activity logging for investment creation
+  // FIX: Add activity logging for investment creation with correct amount field
   addActivity(userId, "investment", "added investment", { 
     name: created.name, 
-    amount: created.amount, 
-    type: created.type 
+    amount: created.monthlyAmount,  // FIX: Use monthlyAmount not amount
+    goal: created.goal,
+    status: created.status
   });
   dashboardCache.clear();
   res.status(201).json({ data: created });
