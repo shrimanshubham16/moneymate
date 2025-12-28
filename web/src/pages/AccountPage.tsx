@@ -75,11 +75,14 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
         </button>
       </motion.div>
 
+      {/* Password Reset Section */}
+      <PasswordResetCard token={token} />
+
       <motion.div
         className="info-card"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.2 }}
       >
         <h3>About Your Account</h3>
         <p>
@@ -94,3 +97,153 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
   );
 }
 
+// Password Reset Component
+function PasswordResetCard({ token }: { token: string }) {
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+
+    // Validation
+    if (formData.newPassword !== formData.confirmPassword) {
+      setMessage({ type: "error", text: "New passwords do not match" });
+      return;
+    }
+
+    if (formData.newPassword.length < 8) {
+      setMessage({ type: "error", text: "New password must be at least 8 characters" });
+      return;
+    }
+
+    if (formData.newPassword === formData.currentPassword) {
+      setMessage({ type: "error", text: "New password must be different from current password" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${BASE_URL}/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage({ type: "success", text: "Password updated successfully! Please log in again." });
+        setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setShowForm(false);
+
+        // Auto-logout after 2 seconds
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      } else {
+        setMessage({
+          type: "error",
+          text: data.error?.message || "Failed to update password"
+        });
+      }
+    } catch (e) {
+      setMessage({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      className="account-card"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.1 }}
+    >
+      <h3>Change Password</h3>
+
+      {!showForm ? (
+        <button
+          className="change-password-button"
+          onClick={() => setShowForm(true)}
+        >
+          Change Password
+        </button>
+      ) : (
+        <form onSubmit={handleSubmit} className="password-reset-form">
+          <div className="form-group">
+            <label>Current Password *</label>
+            <input
+              type="password"
+              value={formData.currentPassword}
+              onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>New Password *</label>
+            <input
+              type="password"
+              value={formData.newPassword}
+              onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+              required
+              minLength={8}
+              disabled={loading}
+            />
+            <small>Minimum 8 characters</small>
+          </div>
+
+          <div className="form-group">
+            <label>Confirm New Password *</label>
+            <input
+              type="password"
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              required
+              minLength={8}
+              disabled={loading}
+            />
+          </div>
+
+          {message && (
+            <div className={`message ${message.type}`}>
+              {message.text}
+            </div>
+          )}
+
+          <div className="form-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                setMessage(null);
+              }}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button type="submit" disabled={loading}>
+              {loading ? "Updating..." : "Update Password"}
+            </button>
+          </div>
+        </form>
+      )}
+    </motion.div>
+  );
+}
