@@ -196,11 +196,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           title="No Variable Expense Plans Yet"
           description="Track expenses that change monthly like groceries, entertainment, and shopping. Set budgets and monitor actual spending."
           actionLabel="Create First Plan"
-          onAction={() => {
-            setEditingId(null);
-            setFormData({ name: "", planned: "", category: "General", start_date: "", end_date: "" });
-            setShowForm(true);
-          }}
+          onAction={() => navigate("/settings/plan-finances/variable")}
         />
       ) : (
         <div className="plans-list">

@@ -12,25 +12,28 @@ interface ExportPageProps {
 export function ExportPage({ token }: ExportPageProps) {
   const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null); // Added error state
 
-  const handleExportExcel = async () => {
+  const handleExport = async () => { // Renamed function
     setExporting(true);
+    setError(null); // Reset error state
     try {
-      const response = await fetch("http://localhost:12022/export/finances", {
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022"; // Added BASE_URL
+      const response = await fetch(`${BASE_URL}/export/finances`, { // Used BASE_URL
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) {
         throw new Error("Export failed");
       }
-      
-      const data = await response.json();
-      
+
+      const data = await response.json(); // Keep this line as the server returns JSON data for client-side XLSX processing
+
       // Create workbook
       const wb = XLSX.utils.book_new();
-      
+
       // Summary Sheet with calculations
       const summaryData = [
         ["MoneyMate Financial Report"],
@@ -51,7 +54,7 @@ export function ExportPage({ token }: ExportPageProps) {
       const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
       wsSummary["!cols"] = [{ wch: 25 }, { wch: 20 }];
       XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
-      
+
       // Income Sheet
       if (data.incomes && data.incomes.length > 0) {
         const incomeData = data.incomes.map((inc: any) => ({
@@ -64,7 +67,7 @@ export function ExportPage({ token }: ExportPageProps) {
         wsIncome["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 18 }];
         XLSX.utils.book_append_sheet(wb, wsIncome, "Income");
       }
-      
+
       // Fixed Expenses Sheet
       if (data.fixedExpenses && data.fixedExpenses.length > 0) {
         const fixedData = data.fixedExpenses.map((exp: any) => ({
@@ -79,7 +82,7 @@ export function ExportPage({ token }: ExportPageProps) {
         wsFixed["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 18 }, { wch: 12 }];
         XLSX.utils.book_append_sheet(wb, wsFixed, "Fixed Expenses");
       }
-      
+
       // Variable Expenses Sheet
       if (data.variableExpenses && data.variableExpenses.length > 0) {
         const variableData = data.variableExpenses.map((exp: any) => ({
@@ -95,7 +98,7 @@ export function ExportPage({ token }: ExportPageProps) {
         wsVariable["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }];
         XLSX.utils.book_append_sheet(wb, wsVariable, "Variable Expenses");
       }
-      
+
       // Investments Sheet
       if (data.investments && data.investments.length > 0) {
         const investmentData = data.investments.map((inv: any) => ({
@@ -109,7 +112,7 @@ export function ExportPage({ token }: ExportPageProps) {
         wsInvestments["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
         XLSX.utils.book_append_sheet(wb, wsInvestments, "Investments");
       }
-      
+
       // Future Bombs Sheet
       if (data.futureBombs && data.futureBombs.length > 0) {
         const bombData = data.futureBombs.map((bomb: any) => ({
@@ -125,7 +128,7 @@ export function ExportPage({ token }: ExportPageProps) {
         wsBombs["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
         XLSX.utils.book_append_sheet(wb, wsBombs, "Future Bombs");
       }
-      
+
       // Credit Cards Sheet
       if (data.creditCards && data.creditCards.length > 0) {
         const cardData = data.creditCards.map((card: any) => ({
@@ -140,7 +143,7 @@ export function ExportPage({ token }: ExportPageProps) {
         wsCards["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }];
         XLSX.utils.book_append_sheet(wb, wsCards, "Credit Cards");
       }
-      
+
       // Loans Sheet
       if (data.loans && data.loans.length > 0) {
         const loanData = data.loans.map((loan: any) => ({
@@ -154,7 +157,7 @@ export function ExportPage({ token }: ExportPageProps) {
         wsLoans["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
         XLSX.utils.book_append_sheet(wb, wsLoans, "Loans");
       }
-      
+
       // Category-wise Breakdown Sheet
       const categoryMap = new Map<string, number>();
       data.fixedExpenses?.forEach((exp: any) => {
@@ -165,7 +168,7 @@ export function ExportPage({ token }: ExportPageProps) {
         const current = categoryMap.get(exp.category) || 0;
         categoryMap.set(exp.category, current + exp.actualTotal);
       });
-      
+
       if (categoryMap.size > 0) {
         const categoryData = Array.from(categoryMap.entries()).map(([category, amount]) => ({
           Category: category,
@@ -176,12 +179,12 @@ export function ExportPage({ token }: ExportPageProps) {
         wsCategory["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }];
         XLSX.utils.book_append_sheet(wb, wsCategory, "Category Breakdown");
       }
-      
+
       // Write file
       const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
       const blob = new Blob([wbout], { type: "application/octet-stream" });
       saveAs(blob, `moneymate-export-${new Date().toISOString().split('T')[0]}.xlsx`);
-      
+
       alert("Excel export successful! Check your downloads folder.");
     } catch (e: any) {
       alert("Export failed: " + e.message);
@@ -219,15 +222,15 @@ export function ExportPage({ token }: ExportPageProps) {
             <li>✅ Alerts and notifications</li>
             <li>✅ Financial summary with calculations</li>
           </ul>
-          
-          <button 
-            onClick={handleExportExcel} 
+
+          <button
+            onClick={handleExportExcel}
             disabled={exporting}
             className="export-button"
           >
             {exporting ? "Exporting..." : "📊 Export to Excel"}
           </button>
-          
+
           <div className="export-info">
             <h3>💡 What can you do with the export?</h3>
             <ul>
@@ -238,7 +241,7 @@ export function ExportPage({ token }: ExportPageProps) {
               <li><strong>Archiving:</strong> Keep historical records for tax purposes</li>
             </ul>
           </div>
-          
+
           <div className="export-format">
             <h3>📊 Export Format</h3>
             <p>

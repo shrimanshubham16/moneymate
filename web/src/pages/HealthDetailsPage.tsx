@@ -21,15 +21,16 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
 
   useEffect(() => {
     loadHealthDetails();
-  }, []);
+  }, [token]);
 
   const loadHealthDetails = async () => {
     try {
       // Use new /health/details endpoint which returns backend's calculation
-      const [healthRes, dashRes, cardsRes, loansRes] = await Promise.all([
-        fetch(`http://localhost:12022/health/details`, {
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
+      const [healthResRaw, dashRes, cardsRes, loansRes] = await Promise.all([
+        fetch(`${BASE_URL}/health/details`, {
           headers: { Authorization: `Bearer ${token}` }
-        }).then(res => res.json()),
+        }),
         fetchDashboard(token, new Date().toISOString()),
         fetchCreditCards(token),
         fetchLoans(token)
