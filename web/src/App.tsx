@@ -152,6 +152,19 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/dashboard" element={<DashboardPage token={token} />} />
           <Route path="/health" element={<HealthDetailsPage token={token} />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/plan-finances" element={<PlanFinancesPage token={token} />} />
+          <Route path="/settings/plan-finances/fixed" element={<FixedExpensesPage token={token} />} />
+          <Route path="/settings/plan-finances/variable" element={<VariableExpensesPage token={token} />} />
+          <Route path="/settings/plan-finances/investments" element={<InvestmentsManagementPage token={token} />} />
+          <Route path="/settings/plan-finances/income" element={<IncomePage token={token} />} />
+          <Route path="/settings/account" element={<AccountPage token={token} onLogout={onLogout} />} />
+          <Route path="/settings/about" element={<AboutPage />} />
+          <Route path="/settings/sharing" element={<SharingPage token={token} />} />
+          <Route path="/settings/support" element={<SupportPage />} />
+          <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />
+          <Route path="/settings/manage-debts/credit-cards" element={<CreditCardsManagementPage token={token} />} />
+          <Route path="/investments" element={<InvestmentsPage token={token} />} />
+          <Route path="/alerts" element={<AlertsPage token={token} />} />
           <Route path="/credit-cards" element={<CreditCardsPage token={token} />} />
           <Route path="/loans" element={<LoansPage token={token} />} />
           <Route path="/future-bombs" element={<FutureBombsPage token={token} />} />
