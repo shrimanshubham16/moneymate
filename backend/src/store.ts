@@ -109,17 +109,22 @@ export function saveState() {
 export { scheduleSave };
 
 // User management
-export function createUser(username: string, passwordHash: string): User {
+export function createUser(username: string, passwordHash: string) {
   const existing = state.users.find(u => u.username === username);
   if (existing) {
     throw new Error("Username already exists");
   }
-  const user: User = { id: randomUUID(), username, passwordHash };
+  const user = { id: randomUUID(), username, passwordHash, createdAt: new Date().toISOString(), failedLoginAttempts: 0, accountLockedUntil: null };
   state.users.push(user);
+  scheduleSave();
   return user;
 }
 
-export function getUserByUsername(username: string): User | undefined {
+export function getUserByUsername(username: string) {
+  return state.users.find(u => u.username === username);
+}
+
+export function findUserByUsername(username: string) {
   return state.users.find(u => u.username === username);
 }
 
@@ -357,9 +362,9 @@ export function listLoans() {
                 exp.frequency === "quarterly" ? exp.amount / 3 : 
                 exp.amount / 12;
     
-    const remainingMonths = Math.max(1, Math.ceil(
+    const remainingMonths = exp.endDate ? Math.max(1, Math.ceil(
       (new Date(exp.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24 * 30)
-    ));
+    )) : 12;
     
     return {
       id: exp.id,

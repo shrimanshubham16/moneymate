@@ -1,7 +1,7 @@
 export type Frequency = "monthly" | "quarterly" | "yearly";
 export type User = { id: string; username: string; passwordHash: string };
 export type Income = { id: string; source: string; amount: number; frequency: Frequency };
-export type FixedExpense = { id: string; name: string; amount: number; frequency: Frequency; category: string; isSip?: boolean };
+export type FixedExpense = { id: string; name: string; amount: number; frequency: Frequency; category: string; isSip?: boolean; startDate?: string; endDate?: string };
 export type VariableExpensePlan = { id: string; name: string; planned: number; category: string; startDate: string; endDate?: string };
 export type VariableExpenseActual = { id: string; planId: string; amount: number; incurredAt: string; justification?: string };
 export type ConstraintScore = { score: number; tier: "green" | "amber" | "red"; recentOverspends: number; decayAppliedAt: string };

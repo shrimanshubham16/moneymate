@@ -46,6 +46,9 @@ import { listAlerts, recordOverspend, clearAlerts } from "./alerts";
 export const app = express();
 
 // CORS configuration for production
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173'];
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
@@ -394,7 +397,7 @@ app.post("/planning/variable-expenses/:id/actuals", requireAuth, (req, res) => {
   });
   // Log activity
   const user = (req as any).user;
-  addActivity(user.id, "variable_actual_added", {
+  addActivity(user.userId, "variable_expense", "added actual expense", {
     plan: plan.name,
     amount: parsed.data.amount,
     category: plan.category,
@@ -713,6 +716,7 @@ app.post("/admin/seed", (_req, res) => {
 const dashboardCache: Map<string, { payload: any; expiresAt: number }> = new Map();
 
 if (require.main === module) {
+  const PORT = process.env.PORT || 12022;
   const server = app.listen(PORT, () => {
     console.log(`🚀 MoneyMate backend listening on port ${PORT}`);
     console.log(`📊 Environment: ${NODE_ENV}`);

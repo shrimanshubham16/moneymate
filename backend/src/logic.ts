@@ -1,7 +1,7 @@
 import { getStore } from "./store";
 import { ConstraintScore, Frequency } from "./mockData";
-import { getUserPreferences, getBillingPeriod } from "./preferences";
-import { getUserPayments, isPaid as getPaymentStatusForItem } from "./payments";
+import { getUserPreferences, getCurrentBillingPeriod, getBillingPeriodId } from "./preferences";
+import { getUserPayments, isPaid as isItemPaid } from "./payments";
 
 const HEALTH_THRESHOLDS = {
   good: 10000,
@@ -14,9 +14,20 @@ export type HealthCategory = "good" | "ok" | "not_well" | "worrisome";
 
 export function calculateMonthProgress(today: Date, monthStartDay: number = 1): number {
   // Calculate progress based on user's billing cycle, not calendar month
-  const { start, end } = getBillingPeriod(today, monthStartDay);
+  const currentDay = today.getDate();
   
-  const progress = (today.getTime() - start.getTime()) / (end.getTime() - start.getTime());
+  let startDate: Date;
+  let endDate: Date;
+  
+  if (currentDay >= monthStartDay) {
+    startDate = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+    endDate = new Date(today.getFullYear(), today.getMonth() + 1, monthStartDay - 1);
+  } else {
+    startDate = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+    endDate = new Date(today.getFullYear(), today.getMonth(), monthStartDay - 1);
+  }
+  
+  const progress = (today.getTime() - startDate.getTime()) / (endDate.getTime() - startDate.getTime());
   return Math.min(Math.max(progress, 0), 1);
 }
 
@@ -69,10 +80,12 @@ export function totalFixedPerMonth(): number {
 
 export function unpaidFixedPerMonth(userId: string, today: Date): number {
   const store = getStore();
+  const preferences = getUserPreferences(userId);
+  const targetMonth = getBillingPeriodId(preferences.monthStartDay, today);
 
   return store.fixedExpenses.reduce((sum, exp) => {
-    const isPaid = getPaymentStatusForItem(userId, exp.id, 'fixed_expense', today);
-    if (isPaid) return sum; // Skip paid items
+    const paid = isItemPaid(userId, exp.id, 'fixed_expense', targetMonth);
+    if (paid) return sum; // Skip paid items
 
     return sum + monthlyEquivalent(exp.amount, exp.frequency);
   }, 0);
@@ -80,13 +93,15 @@ export function unpaidFixedPerMonth(userId: string, today: Date): number {
 
 export function unpaidInvestmentsPerMonth(userId: string, today: Date): number {
   const store = getStore();
+  const preferences = getUserPreferences(userId);
+  const targetMonth = getBillingPeriodId(preferences.monthStartDay, today);
 
   return store.investments.reduce((sum, inv) => {
     // Only count active investments
     if (inv.status !== 'active') return sum;
 
-    const isPaid = getPaymentStatusForItem(userId, inv.id, 'investment', today);
-    if (isPaid) return sum; // Skip paid investments
+    const paid = isItemPaid(userId, inv.id, 'investment', targetMonth);
+    if (paid) return sum; // Skip paid investments
 
     return sum + inv.monthlyAmount;
   }, 0);
