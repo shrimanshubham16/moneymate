@@ -120,7 +120,52 @@ export function authRoutes(app: any) {
     }
   });
 
-  app.post("/auth/login", (req: Request, res: Response) => {
+  // Password Reset Endpoint
+  app.post("/auth/change-password", requireAuth, async (req: Request, res: Response) => {
+    const schema = z.object({
+      currentPassword: z.string(),
+      newPassword: z.string().min(8)
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten() });
+    }
+
+    const { currentPassword, newPassword } = parsed.data;
+    const userId = (req as any).user.userId;
+
+    try {
+      const user = getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: { message: "User not found" } });
+      }
+
+      // Verify current password
+      const isValid = verifyPassword(currentPassword, user.passwordHash);
+      if (!isValid) {
+        return res.status(401).json({ error: { message: "Current password is incorrect" } });
+      }
+
+      // Validate new password strength
+      const passwordValidation = validatePasswordStrength(newPassword);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({
+          error: { message: "Weak password", details: passwordValidation.errors }
+        });
+      }
+
+      // Hash and update password
+      const newPasswordHash = hashPassword(newPassword);
+      updateUserPassword(userId, newPasswordHash);
+
+      res.json({ message: "Password updated successfully" });
+    } catch (e: any) {
+      res.status(500).json({ error: { message: e.message } });
+    }
+  });
+
+  app.post("/auth/login", async (req: Request, res: Response) => {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
     const { username, password } = parsed.data;

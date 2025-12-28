@@ -124,6 +124,17 @@ export function getUserByUsername(username: string) {
   return state.users.find(u => u.username === username);
 }
 
+export function getUserById(userId: string) {
+  return state.users.find(u => u.id === userId);
+}
+
+export function updateUserPassword(userId: string, newPasswordHash: string) {
+  const user = state.users.find(u => u.id === userId);
+  if (!user) throw new Error("User not found");
+  user.passwordHash = newPasswordHash;
+  scheduleSave();
+}
+
 export function findUserByUsername(username: string) {
   return state.users.find(u => u.username === username);
 }
