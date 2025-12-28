@@ -30,7 +30,7 @@ function verifyPassword(password: string, hash: string): boolean {
 
 export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   if (password.length < 8) {
     errors.push("Password must be at least 8 characters long");
   }
@@ -46,7 +46,7 @@ export function validatePasswordStrength(password: string): { valid: boolean; er
   if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
     errors.push("Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)");
   }
-  
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -55,13 +55,13 @@ export function isAccountLocked(username: string): { locked: boolean; remainingT
   if (!record || !record.lockedUntil) {
     return { locked: false };
   }
-  
+
   const now = new Date();
   if (now < record.lockedUntil) {
     const remainingMs = record.lockedUntil.getTime() - now.getTime();
     return { locked: true, remainingTime: Math.ceil(remainingMs / 1000) };
   }
-  
+
   // Lock expired, reset attempts
   failedLogins.delete(username);
   return { locked: false };
@@ -70,13 +70,13 @@ export function isAccountLocked(username: string): { locked: boolean; remainingT
 export function recordFailedLogin(username: string): { locked: boolean; remainingAttempts?: number; lockoutTime?: number } {
   const record = failedLogins.get(username) || { attempts: 0, lockedUntil: null };
   record.attempts += 1;
-  
+
   if (record.attempts >= MAX_FAILED_ATTEMPTS) {
     record.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
     failedLogins.set(username, record);
     return { locked: true, lockoutTime: LOCKOUT_DURATION_MS / 1000 };
   }
-  
+
   failedLogins.set(username, record);
   return { locked: false, remainingAttempts: MAX_FAILED_ATTEMPTS - record.attempts };
 }
@@ -100,13 +100,13 @@ export function authRoutes(app: any) {
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
     const { username, password } = parsed.data;
-    
+
     // Validate password strength
     const passwordValidation = validatePasswordStrength(password);
     if (!passwordValidation.valid) {
       return res.status(400).json({ error: { message: "Weak password", details: passwordValidation.errors } });
     }
-    
+
     try {
       const passwordHash = hashPassword(password);
       const user = createUser(username, passwordHash);
@@ -121,37 +121,37 @@ export function authRoutes(app: any) {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
     const { username, password } = parsed.data;
-    
+
     // Check if account is locked
     const lockStatus = isAccountLocked(username);
     if (lockStatus.locked) {
-      return res.status(423).json({ 
-        error: { 
-          message: "Account temporarily locked due to too many failed login attempts", 
-          remainingTime: lockStatus.remainingTime 
-        } 
+      return res.status(423).json({
+        error: {
+          message: "Account temporarily locked due to too many failed login attempts",
+          remainingTime: lockStatus.remainingTime
+        }
       });
     }
-    
+
     const user = getUserByUsername(username);
     if (!user || !verifyPassword(password, user.passwordHash)) {
       const failureResult = recordFailedLogin(username);
       if (failureResult.locked) {
-        return res.status(423).json({ 
-          error: { 
-            message: "Account locked due to too many failed login attempts. Please try again in 10 minutes.", 
-            lockoutTime: failureResult.lockoutTime 
-          } 
+        return res.status(423).json({
+          error: {
+            message: "Account locked due to too many failed login attempts. Please try again in 10 minutes.",
+            lockoutTime: failureResult.lockoutTime
+          }
         });
       }
-      return res.status(401).json({ 
-        error: { 
-          message: "Invalid credentials", 
-          remainingAttempts: failureResult.remainingAttempts 
-        } 
+      return res.status(401).json({
+        error: {
+          message: "Invalid credentials",
+          remainingAttempts: failureResult.remainingAttempts
+        }
       });
     }
-    
+
     recordSuccessfulLogin(username);
     const token = issueToken(user.id, user.username);
     res.json({ access_token: token, user: { id: user.id, username: user.username } });
@@ -171,7 +171,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const store = getStore();
   const user = store.users.find((u) => u.id === record.userId);
   if (!user) return res.status(401).json({ error: { message: "Unauthorized" } });
-  (req as any).user = { id: user.id, username: user.username };
+  // CRITICAL: Set both id and userId for compatibility
+  (req as any).user = { id: user.id, userId: user.id, username: user.username };
   next();
 }
 
