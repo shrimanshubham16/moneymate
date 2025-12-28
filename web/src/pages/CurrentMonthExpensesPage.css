@@ -1,104 +1,148 @@
+/* Current Month Expenses Page - CRED/Blissy Style */
+
 .current-month-expenses-page {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: var(--space-10) var(--space-6);
+  min-height: calc(100vh - 72px);
+}
+
+.page-subtitle {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  margin-top: var(--space-2);
 }
 
 .expenses-by-category {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-6);
+  margin-top: var(--space-8);
 }
 
 .category-group {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-md), var(--card-glow);
+  border: 1px solid rgba(184, 193, 236, 0.05);
 }
 
 .category-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid rgba(184, 193, 236, 0.1);
 }
 
 .category-header h2 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-extrabold);
+  color: var(--text-primary);
   margin: 0;
-  font-size: 24px;
-  font-weight: 700;
 }
 
 .category-total {
-  font-size: 28px;
-  font-weight: 800;
-  color: #3b82f6;
+  font-size: var(--text-3xl);
+  font-weight: var(--font-extrabold);
+  color: var(--accent-cyan);
+  text-shadow: var(--glow-cyan);
 }
 
 .category-items {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-4);
 }
 
 .expense-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 12px;
-  transition: all 0.3s ease;
+  padding: var(--space-5);
+  background: rgba(184, 193, 236, 0.03);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(184, 193, 236, 0.05);
+  transition: all var(--transition-base);
 }
 
 .expense-item:hover {
-  background: #f1f5f9;
+  background: rgba(184, 193, 236, 0.05);
+  border-color: rgba(0, 217, 255, 0.2);
   transform: translateX(4px);
 }
 
 .expense-info h3 {
-  margin: 0 0 8px 0;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
 }
 
 .expense-meta {
   display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: #64748b;
+  gap: var(--space-4);
+  font-size: var(--text-small);
+  color: var(--text-secondary);
 }
 
 .expense-type {
-  background: #e2e8f0;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.expense-planned {
-  font-style: italic;
+  padding: var(--space-1) var(--space-3);
+  background: rgba(0, 217, 255, 0.1);
+  border-radius: var(--radius-full);
+  font-weight: var(--font-semibold);
+  color: var(--accent-cyan);
 }
 
 .expense-amount-status {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
 .expense-amount {
-  font-size: 20px;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: var(--text-xl);
+  font-weight: var(--font-extrabold);
+  color: var(--text-primary);
 }
 
 .expense-status {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-size: var(--text-tiny);
+  font-weight: var(--font-bold);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: rgba(255, 184, 0, 0.1);
 }
 
+.empty-state {
+  text-align: center;
+  padding: var(--space-16);
+  color: var(--text-secondary);
+  font-size: var(--text-lg);
+}
+
+@media (max-width: 768px) {
+  .current-month-expenses-page {
+    padding: var(--space-8) var(--space-4);
+  }
+
+  .expense-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+
+  .expense-amount-status {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .category-total {
+    font-size: var(--text-2xl);
+  }
+}
