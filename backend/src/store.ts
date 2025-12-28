@@ -281,36 +281,54 @@ export function listRequestsForUser(userId: string, username: string) {
 }
 
 export function approveRequest(reqId: string, approverUsername: string): { sharedAccount: SharedAccount; members: SharedMember[] } | undefined {
-  const req = state.sharingRequests.find((r) => r.id === reqId);
-  if (!req || req.status !== "pending" || req.inviteeEmail !== approverUsername) return undefined; // inviteeEmail field contains username
+  const reqIndex = state.sharingRequests.findIndex((r) => r.id === reqId);
+  if (reqIndex === -1) return undefined;
+
+  const req = state.sharingRequests[reqIndex];
+  if (req.status !== "pending" || req.inviteeEmail !== approverUsername) return undefined;
+
   req.status = "approved";
   const inviter = state.users.find((u) => u.id === req.inviterId);
-  const invitee = state.users.find((u) => u.username === req.inviteeEmail); // inviteeEmail field contains username
+  const invitee = state.users.find((u) => u.username === req.inviteeEmail);
   if (!inviter || !invitee) return undefined;
+
   const sharedAccount: SharedAccount = { id: randomUUID(), name: `Shared-${inviter.username}-${invitee.username}` };
   state.sharedAccounts.push(sharedAccount);
+
   const owner: SharedMember = {
     id: randomUUID(),
     sharedAccountId: sharedAccount.id,
     userId: inviter.id,
     role: "owner",
-    mergeFinances: true
+    mergeFinances: true  // Always merge finances
   };
   const member: SharedMember = {
     id: randomUUID(),
     sharedAccountId: sharedAccount.id,
     userId: invitee.id,
-    role: req.role,
-    mergeFinances: req.mergeFinances
+    role: "editor",  // Changed from req.role - always editor for merged finances
+    mergeFinances: true  // Always merge finances
   };
   state.sharedMembers.push(owner, member);
+
+  // CRITICAL FIX: Remove the request after approval
+  state.sharingRequests.splice(reqIndex, 1);
+  scheduleSave();
+
   return { sharedAccount, members: [owner, member] };
 }
 
-export function rejectRequest(reqId: string, approverUsername: string): boolean {
-  const req = state.sharingRequests.find((r) => r.id === reqId);
-  if (!req || req.status !== "pending" || req.inviteeEmail !== approverUsername) return false; // inviteeEmail field contains username
-  req.status = "rejected";
+export function rejectRequest(reqId: string): boolean {
+  const reqIndex = state.sharingRequests.findIndex((r) => r.id === reqId);
+  if (reqIndex === -1) return false;
+
+  const req = state.sharingRequests[reqIndex];
+  if (req.status !== "pending") return false;
+
+  // CRITICAL FIX: Remove the request after rejection
+  state.sharingRequests.splice(reqIndex, 1);
+  scheduleSave();
+
   return true;
 }
 

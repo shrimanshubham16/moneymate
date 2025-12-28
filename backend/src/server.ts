@@ -17,6 +17,7 @@ import {
   deleteVariablePlan,
   getConstraint,
   getStore,
+  scheduleSave,
   setConstraint,
   updateFixedExpense,
   updateIncome,
@@ -454,6 +455,18 @@ app.put("/investments/:id", requireAuth, (req, res) => {
   res.json({ data: updated });
 });
 
+// ADD: Investment DELETE endpoint
+app.delete("/investments/:id", requireAuth, (req, res) => {
+  const user = (req as any).user;
+  const store = getStore();
+  const index = store.investments.findIndex(i => i.id === req.params.id && i.userId === user.id);
+  if (index === -1) return res.status(404).json({ error: { message: "Not found" } });
+  store.investments.splice(index, 1);
+  scheduleSave();  // Save data after deletion
+  dashboardCache.clear();
+  res.json({ data: { deleted: true } });
+});
+
 app.get("/future-bombs", requireAuth, (req, res) => {
   const userId = (req as any).user.userId;
   const store = getStore();
@@ -507,8 +520,8 @@ app.post("/sharing/requests/:id/approve", requireAuth, (req, res) => {
 
 app.post("/sharing/requests/:id/reject", requireAuth, (req, res) => {
   const user = (req as any).user;
-  const ok = rejectRequest(req.params.id, user.username);
-  if (!ok) return res.status(404).json({ error: { message: "Not found or not authorized" } });
+  const ok = rejectRequest(req.params.id);  // Removed username param
+  if (!ok) return res.status(404).json({ error: { message: "Request not found" } });
   res.json({ data: { rejected: true } });
 });
 
@@ -527,9 +540,9 @@ app.delete("/sharing/members/:id", requireAuth, (req, res) => {
 });
 
 app.get("/debts/credit-cards", requireAuth, (req, res) => {
-  const userId = (req as any).user.userId;
+  const user = (req as any).user;
   const store = getStore();
-  const userCards = store.creditCards.filter(c => c.userId === userId);
+  const userCards = store.creditCards.filter(c => c.userId === user.id);
   res.json({ data: userCards });
 });
 
@@ -551,8 +564,11 @@ app.post("/debts/credit-cards/:id/payments", requireAuth, (req, res) => {
   res.json({ data: updated });
 });
 
-app.get("/debts/loans", requireAuth, (_req, res) => {
-  res.json({ data: listLoans() });
+app.get("/debts/loans", requireAuth, (req, res) => {
+  const user = (req as any).user;
+  const store = getStore();
+  const userLoans = store.loans.filter(l => l.userId === user.id);
+  res.json({ data: userLoans });
 });
 
 app.get("/activity", requireAuth, (req, res) => {
