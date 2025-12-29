@@ -686,6 +686,18 @@
       "paidAmount": 20000,
       "currentExpenses": 0,
       "needsBillUpdate": false
+    },
+    {
+      "name": "TestCard",
+      "dueDate": "2025-12-29",
+      "billAmount": 30000,
+      "billingDate": 1,
+      "statementDate": "2025-12-29",
+      "id": "6bbc2b2e-35d7-4939-a3b4-14051c1543b9",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "paidAmount": 0,
+      "currentExpenses": 0,
+      "needsBillUpdate": false
     }
   ],
   "loans": [],
@@ -1214,6 +1226,16 @@
         "amount": 20000
       },
       "createdAt": "2025-12-29T10:20:30.168Z"
+    },
+    {
+      "id": "b29d17ae-cf6f-4d13-9bd3-5243f44feee8",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "created",
+      "payload": {
+        "id": "6bbc2b2e-35d7-4939-a3b4-14051c1543b9"
+      },
+      "createdAt": "2025-12-29T10:23:30.288Z"
     }
   ],
   "themeStates": []
