@@ -44,7 +44,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const loadData = async () => {
     try {
       const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
-        fetchDashboard(token, "2025-01-15T00:00:00Z"),
+        fetchDashboard(token, new Date().toISOString()),
         fetchCreditCards(token),
         fetchLoans(token),
         fetchActivity(token),

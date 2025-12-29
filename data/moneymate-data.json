@@ -191,6 +191,14 @@
       "createdAt": "2025-12-28T21:16:52.223Z",
       "failedLoginAttempts": 0,
       "accountLockedUntil": null
+    },
+    {
+      "id": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "username": "shrimanshubham",
+      "passwordHash": "124fef6a5a23ad3f7707169bd3eff0311095f9bcf87b259dff73cd642f5bf195",
+      "createdAt": "2025-12-28T21:50:15.213Z",
+      "failedLoginAttempts": 0,
+      "accountLockedUntil": null
     }
   ],
   "incomes": [
@@ -261,6 +269,15 @@
       "startDate": "2025-12-28T21:16:52.233Z",
       "id": "9cd27334-0085-4dd7-a7cc-ac568eb46797",
       "userId": "36d73ed7-768e-489a-b00e-c9d650e86b0e"
+    },
+    {
+      "name": "salary",
+      "amount": 247000,
+      "frequency": "monthly",
+      "category": "employment",
+      "startDate": "2025-12-29T05:01:14.446Z",
+      "id": "49b8cc3f-7f8e-412b-a0b7-c2acb47c698d",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
     }
   ],
   "fixedExpenses": [
@@ -380,6 +397,33 @@
       "isSip": false,
       "id": "ad267eb0-d563-449b-9fa2-81d8304a3d3e",
       "userId": "36d73ed7-768e-489a-b00e-c9d650e86b0e"
+    },
+    {
+      "name": "LIC",
+      "amount": 30000,
+      "frequency": "quarterly",
+      "category": "General",
+      "isSip": true,
+      "id": "bec2ebd8-669a-4e1a-9c95-a2e023394a6d",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "name": "500022",
+      "amount": 300000,
+      "frequency": "monthly",
+      "category": "Loan",
+      "isSip": false,
+      "id": "05703c8d-e6c1-462b-979d-37a24b496fa3",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3"
+    },
+    {
+      "name": "EMI",
+      "amount": 80000,
+      "frequency": "monthly",
+      "category": "Loan",
+      "isSip": false,
+      "id": "d0e5eae7-aaa6-4a0c-b0fc-870ebdc81f24",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
     }
   ],
   "variablePlans": [
@@ -436,6 +480,24 @@
       "endDate": "2025-12-31",
       "id": "34be9bd3-a371-4f1e-9d49-f74bf3eee5eb",
       "userId": "629d50e2-c1a5-4ad1-a9e8-56a528bec831"
+    },
+    {
+      "name": "food",
+      "planned": 8000,
+      "category": "Food",
+      "startDate": "2025-12-29",
+      "endDate": "2030-12-28",
+      "id": "cd558267-3be8-4d3e-a1db-0d949c2e59ec",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
+    },
+    {
+      "name": "grocery",
+      "planned": 100000,
+      "category": "Groceries",
+      "startDate": "2025-12-29",
+      "endDate": "2030-12-28",
+      "id": "0f4457fe-ebe2-4aa2-8240-e60c6061269a",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
     }
   ],
   "variableActuals": [
@@ -459,6 +521,20 @@
       "incurredAt": "2025-01-15T00:00:00Z",
       "id": "3a9101e3-ee8c-4aff-af8e-2b07c4a6a2b9",
       "userId": "3cb11c33-56be-469a-ba25-21f07decd627"
+    },
+    {
+      "planId": "cd558267-3be8-4d3e-a1db-0d949c2e59ec",
+      "amount": 2000,
+      "incurredAt": "2025-01-15T00:00:00Z",
+      "id": "f540bd01-c513-4ded-aa2e-f670ae734f7c",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
+    },
+    {
+      "planId": "0f4457fe-ebe2-4aa2-8240-e60c6061269a",
+      "amount": 2000,
+      "incurredAt": "2025-01-15T00:00:00Z",
+      "id": "0f520e3f-b8ec-4f16-8162-1351dd602bb9",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
     }
   ],
   "constraint": {
@@ -494,8 +570,28 @@
     }
   ],
   "futureBombs": [],
-  "sharedAccounts": [],
-  "sharedMembers": [],
+  "sharedAccounts": [
+    {
+      "id": "162ef95c-e03e-4003-9587-61f284949157",
+      "name": "Shared-shriman_shubham-shrimati"
+    }
+  ],
+  "sharedMembers": [
+    {
+      "id": "a88a74d4-b91f-4c0c-bf52-3681eccad1c3",
+      "sharedAccountId": "162ef95c-e03e-4003-9587-61f284949157",
+      "userId": "3510cd32-9111-4928-b9c9-6598fd00f0b3",
+      "role": "owner",
+      "mergeFinances": true
+    },
+    {
+      "id": "956b19d6-b17c-486c-b716-d05b347040ff",
+      "sharedAccountId": "162ef95c-e03e-4003-9587-61f284949157",
+      "userId": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "role": "editor",
+      "mergeFinances": true
+    }
+  ],
   "sharingRequests": [],
   "creditCards": [
     {
@@ -779,6 +875,118 @@
         "id": "9990537a-e855-4f84-a6b7-3e8a8efe2f9f"
       },
       "createdAt": "2025-12-28T21:16:52.259Z"
+    },
+    {
+      "id": "df710c77-32d3-4921-a50b-d825701ce10f",
+      "actorId": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "entity": "fixed_expense",
+      "action": "added fixed expense",
+      "payload": {
+        "name": "uuuu",
+        "amount": 3000,
+        "frequency": "monthly",
+        "category": "Shopping"
+      },
+      "createdAt": "2025-12-28T21:20:34.433Z"
+    },
+    {
+      "id": "23cfa912-2405-472f-8d3a-b6ef4cc3e9e3",
+      "actorId": "3cb11c33-56be-469a-ba25-21f07decd627",
+      "entity": "fixed_expense",
+      "action": "added fixed expense",
+      "payload": {
+        "name": "LIC",
+        "amount": 30000,
+        "frequency": "quarterly",
+        "category": "General"
+      },
+      "createdAt": "2025-12-28T21:39:43.655Z"
+    },
+    {
+      "id": "0aac1691-0ea2-46db-9afa-589c45f2bdb3",
+      "actorId": "3510cd32-9111-4928-b9c9-6598fd00f0b3",
+      "entity": "fixed_expense",
+      "action": "added fixed expense",
+      "payload": {
+        "name": "500022",
+        "amount": 300000,
+        "frequency": "monthly",
+        "category": "Loan"
+      },
+      "createdAt": "2025-12-28T21:47:39.245Z"
+    },
+    {
+      "id": "039e6eb5-2a4d-4543-9ef2-98574b5a1d65",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "income",
+      "action": "added income source",
+      "payload": {
+        "name": "salary",
+        "amount": 247000,
+        "frequency": "monthly"
+      },
+      "createdAt": "2025-12-29T05:01:14.447Z"
+    },
+    {
+      "id": "5c710c79-03fe-4602-82ea-27d5fdceba23",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "variable_expense_plan",
+      "action": "added variable expense plan",
+      "payload": {
+        "name": "food",
+        "planned": 8000,
+        "category": "Food"
+      },
+      "createdAt": "2025-12-29T05:01:30.859Z"
+    },
+    {
+      "id": "79c95d30-3a67-4852-ae6b-280a33e309dc",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "food",
+        "amount": 2000,
+        "category": "Food"
+      },
+      "createdAt": "2025-12-29T05:01:49.895Z"
+    },
+    {
+      "id": "79b1e5e3-045b-4e26-a77b-e51ba09fdee9",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "variable_expense_plan",
+      "action": "added variable expense plan",
+      "payload": {
+        "name": "grocery",
+        "planned": 100000,
+        "category": "Groceries"
+      },
+      "createdAt": "2025-12-29T05:02:17.174Z"
+    },
+    {
+      "id": "c298657d-9704-4b88-aa67-b043adecf6b9",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "grocery",
+        "amount": 2000,
+        "category": "Groceries"
+      },
+      "createdAt": "2025-12-29T05:02:28.528Z"
+    },
+    {
+      "id": "d94b766c-ad05-4033-8588-3608c80b6cab",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "fixed_expense",
+      "action": "added fixed expense",
+      "payload": {
+        "name": "EMI",
+        "amount": 80000,
+        "frequency": "monthly",
+        "category": "Loan"
+      },
+      "createdAt": "2025-12-29T05:10:01.993Z"
     }
   ],
   "themeStates": []

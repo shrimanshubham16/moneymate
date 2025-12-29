@@ -115,7 +115,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             items: loansRes.data
           }
         },
-        totalOutflow: breakdown.totalObligations
+        totalOutflow: breakdown.totalObligations,
+        monthProgress: breakdown.monthProgress // FIX: Include monthProgress for variable expense calculations
       });
 
     } catch (e) {
@@ -202,13 +203,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       <div className="calculation-section">
         <h2><FaChartLine style={{ marginRight: 8 }} />How We Calculated Your Health</h2>
         <div className="calculation-explanation">
-          <p><strong>Health Score = Income - (Unpaid Fixed + Variable + Active Unpaid Investments)</strong></p>
-          <ul>
-            <li>✅ <strong>Included:</strong> All income, <u>only unpaid</u> fixed expenses, variable expenses (prorated or actual, whichever is higher), <u>only unpaid active</u> investments</li>
-            <li>❌ <strong>Excluded:</strong> Paid items, credit cards & loans (tracked separately), paused investments</li>
-            <li>📅 <strong>Note:</strong> Variable expenses use "higher of actual spent OR prorated planned" to account for month progress</li>
-            <li>💡 <strong>Why?</strong> Paid items don't affect your remaining balance, so only unpaid obligations count</li>
-          </ul>
+          <p><strong>Health Score = Funds Available - (Unpaid Fixed + Prorated Variable + Active Unpaid Investments + Credit card bill)</strong></p>
+          
         </div>
 
         {/* Income */}
@@ -239,7 +235,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
 
         {/* Expenses */}
         <motion.div
-          className="breakdown-card expense-card"
+          className="breakdown-card debt-card info-only"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
@@ -271,7 +267,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         </motion.div>
 
         <motion.div
-          className="breakdown-card expense-card"
+          className="breakdown-card debt-card info-only"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
@@ -281,23 +277,26 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             <span className="amount negative">-₹{Math.round(breakdown.expenses.variable.total).toLocaleString("en-IN")}</span>
           </div>
           <div className="sub-note">
-            <small>Uses higher of: actual spent OR prorated planned based on month progress</small>
+            <small>Prorated amount for remaining days of billing cycle (plan.planned × remaining days ratio)</small>
           </div>
           <div className="items-list">
             {breakdown.expenses.variable.items.map((plan: any) => {
-              const actualTotal = plan.actualTotal || 0;
-              const monthProgress = new Date().getDate() / new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-              const proratedPlanned = plan.planned * monthProgress;
-              const considered = Math.max(proratedPlanned, actualTotal);
+              // FIX: Backend uses remainingDaysRatio = 1 - monthProgress for remaining days calculation
+              // This matches unpaidProratedVariableForRemainingDays() in backend which calculates:
+              // proratedForRemainingDays = plan.planned * remainingDaysRatio
+              const monthProgress = breakdown.monthProgress || (new Date().getDate() / new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate());
+              const remainingDaysRatio = 1 - monthProgress;
+              // Backend calculates: plan.planned * remainingDaysRatio (for remaining days only)
+              const proratedForRemainingDays = plan.planned * remainingDaysRatio;
               return (
                 <div key={plan.id} className="item-row">
                   <span>
                     {plan.name}
                     <div className="item-details">
-                      <small>Actual: ₹{Math.round(actualTotal)} | Prorated: ₹{Math.round(proratedPlanned)}</small>
+                      <small>Planned: ₹{Math.round(plan.planned)} | Prorated for remaining days: ₹{Math.round(proratedForRemainingDays)}</small>
                     </div>
                   </span>
-                  <span>-₹{Math.round(considered).toLocaleString("en-IN")}</span>
+                  <span>-₹{Math.round(proratedForRemainingDays).toLocaleString("en-IN")}</span>
                 </div>
               );
             })}
@@ -334,51 +333,41 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           </motion.div>
         )}
 
-        <div className="section-divider">
-          <h3><FaChartLine style={{ marginRight: 8 }} />Health Calculation Summary</h3>
-          <p>Your financial health: Income - Unpaid Fixed - Prorated Variable - Active Unpaid Investments</p>
-        </div>
-
-        {/* Debts - Shown separately, NOT included in health */}
-        {(breakdown.debts.creditCards.total > 0 || breakdown.debts.loans.total > 0) && (
+        
+        {/* Credit Cards - FIX: Display in breakdown */}
+        {breakdown.debts.creditCards.total > 0 && (
           <motion.div
-            className="breakdown-card debt-card info-only"
+            className="breakdown-card debt-card"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.5 }}
           >
             <div className="card-header">
-              <h3><FaCreditCard style={{ marginRight: 8 }} />Credit Cards & Loans <span className="info-badge">Not included in health</span></h3>
-              <span className="amount negative">
-                -₹{(breakdown.debts.creditCards.total + breakdown.debts.loans.total).toLocaleString("en-IN")}
-              </span>
+              <h3><FaCreditCard style={{ marginRight: 8 }} />Unpaid Credit Card Bills</h3>
+              <span className="amount negative">-₹{Math.round(breakdown.debts.creditCards.total).toLocaleString("en-IN")}</span>
             </div>
             <div className="sub-note">
-              <small>Debts are tracked separately and managed through their own pages</small>
+              <small>Only unpaid credit card bills for current month are counted in your health</small>
             </div>
             <div className="items-list">
-              {breakdown.debts.creditCards.items.map((card: any) => {
-                const remaining = card.billAmount - card.paidAmount;
-                if (remaining > 0) {
+              {breakdown.debts.creditCards.items.length === 0 ? (
+                <div className="item-row"><span>All credit card bills are paid! 🎉</span></div>
+              ) : (
+                breakdown.debts.creditCards.items.map((card: any) => {
+                  const remaining = card.billAmount - card.paidAmount;
                   return (
                     <div key={card.id} className="item-row">
-                      <span>{card.name} (Due: {new Date(card.dueDate).toLocaleDateString()})</span>
-                      <span>-₹{remaining.toLocaleString("en-IN")}</span>
+                      <span>{card.name}</span>
+                      <span>-₹{Math.round(remaining).toLocaleString("en-IN")}</span>
                     </div>
                   );
-                }
-                return null;
-              })}
-              {breakdown.debts.loans.items.map((loan: any) => (
-                <div key={loan.id} className="item-row">
-                  <span>{loan.name} EMI</span>
-                  <span>-₹{loan.emi.toLocaleString("en-IN")}</span>
-                </div>
-              ))}
+                })
+              )}
             </div>
           </motion.div>
         )}
 
+        
         {/* Total Summary */}
         <motion.div
           className="total-summary"

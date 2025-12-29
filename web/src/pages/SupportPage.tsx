@@ -1,10 +1,15 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaQuestionCircle, FaEnvelope, FaComments, FaBug, FaLightbulb } from "react-icons/fa";
+import { FaQuestionCircle, FaEnvelope, FaBug, FaLightbulb } from "react-icons/fa";
 import "./SupportPage.css";
 
 export function SupportPage() {
   const navigate = useNavigate();
+  const [showBugForm, setShowBugForm] = useState(false);
+  const [showFeatureForm, setShowFeatureForm] = useState(false);
+  const [bugForm, setBugForm] = useState({ title: "", description: "" });
+  const [featureForm, setFeatureForm] = useState({ title: "", description: "" });
 
   return (
     <div className="support-page">
@@ -19,20 +24,18 @@ export function SupportPage() {
         animate={{ opacity: 1, y: 0 }}
       >
         <section className="support-section">
-          <h2><FaComments style={{ marginRight: 8 }} />Get Help</h2>
+          <h2><FaEnvelope style={{ marginRight: 8 }} />Get Help</h2>
           <p>Need assistance with MoneyMate? We're here to help!</p>
           <div className="contact-options">
             <div className="contact-card">
               <FaEnvelope size={32} className="contact-icon" />
               <h3>Email Support</h3>
-              <p>support@moneymate.app</p>
+              <p>
+                <a href="mailto:shriman.shubham@gmail.com" style={{ color: "#3b82f6", textDecoration: "none" }}>
+                  shriman.shubham@gmail.com
+                </a>
+              </p>
               <p className="response-time">Response within 24 hours</p>
-            </div>
-            <div className="contact-card">
-              <FaComments size={32} className="contact-icon" />
-              <h3>Live Chat</h3>
-              <p>Available 9 AM - 6 PM IST</p>
-              <button className="chat-button">Start Chat</button>
             </div>
           </div>
         </section>
@@ -90,13 +93,101 @@ export function SupportPage() {
         <section className="support-section">
           <h2><FaBug style={{ marginRight: 8 }} />Report a Bug</h2>
           <p>Found an issue? Help us improve MoneyMate!</p>
-          <button className="report-button">Report Bug</button>
+          {!showBugForm ? (
+            <button className="report-button" onClick={() => setShowBugForm(true)}>Report Bug</button>
+          ) : (
+            <motion.div
+              className="report-form"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const subject = encodeURIComponent(`Bug Report: ${bugForm.title}`);
+                const body = encodeURIComponent(`Bug Description:\n${bugForm.description}\n\nPlease provide steps to reproduce and any error messages.`);
+                window.location.href = `mailto:shriman.shubham@gmail.com?subject=${subject}&body=${body}`;
+                setShowBugForm(false);
+                setBugForm({ title: "", description: "" });
+              }}>
+                <div className="form-group">
+                  <label>Bug Title *</label>
+                  <input
+                    type="text"
+                    value={bugForm.title}
+                    onChange={(e) => setBugForm({ ...bugForm, title: e.target.value })}
+                    required
+                    placeholder="Brief description of the bug"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description *</label>
+                  <textarea
+                    value={bugForm.description}
+                    onChange={(e) => setBugForm({ ...bugForm, description: e.target.value })}
+                    required
+                    rows={5}
+                    placeholder="Describe the bug, steps to reproduce, and any error messages..."
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="button" onClick={() => { setShowBugForm(false); setBugForm({ title: "", description: "" }); }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="primary">Send Report</button>
+                </div>
+              </form>
+            </motion.div>
+          )}
         </section>
 
         <section className="support-section">
           <h2><FaLightbulb style={{ marginRight: 8 }} />Feature Request</h2>
           <p>Have an idea for a new feature? We'd love to hear it!</p>
-          <button className="feature-button">Suggest Feature</button>
+          {!showFeatureForm ? (
+            <button className="feature-button" onClick={() => setShowFeatureForm(true)}>Suggest Feature</button>
+          ) : (
+            <motion.div
+              className="report-form"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const subject = encodeURIComponent(`Feature Request: ${featureForm.title}`);
+                const body = encodeURIComponent(`Feature Description:\n${featureForm.description}\n\nPlease explain how this feature would help you.`);
+                window.location.href = `mailto:shriman.shubham@gmail.com?subject=${subject}&body=${body}`;
+                setShowFeatureForm(false);
+                setFeatureForm({ title: "", description: "" });
+              }}>
+                <div className="form-group">
+                  <label>Feature Title *</label>
+                  <input
+                    type="text"
+                    value={featureForm.title}
+                    onChange={(e) => setFeatureForm({ ...featureForm, title: e.target.value })}
+                    required
+                    placeholder="Brief description of the feature"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description *</label>
+                  <textarea
+                    value={featureForm.description}
+                    onChange={(e) => setFeatureForm({ ...featureForm, description: e.target.value })}
+                    required
+                    rows={5}
+                    placeholder="Describe the feature and how it would help you..."
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="button" onClick={() => { setShowFeatureForm(false); setFeatureForm({ title: "", description: "" }); }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="primary">Send Request</button>
+                </div>
+              </form>
+            </motion.div>
+          )}
         </section>
       </motion.div>
     </div>

@@ -400,7 +400,16 @@ export function payCreditCard(id: string, amount: number): CreditCard | undefine
   const card = state.creditCards.find((c) => c.id === id);
   if (!card) return undefined;
   card.paidAmount += amount;
+  scheduleSave();
   return card;
+}
+
+export function deleteCreditCard(userId: string, id: string): boolean {
+  const prev = state.creditCards.length;
+  state.creditCards = state.creditCards.filter((c) => c.id !== id || c.userId !== userId);
+  const deleted = state.creditCards.length < prev;
+  if (deleted) scheduleSave();
+  return deleted;
 }
 
 export function listLoans(userId?: string) {

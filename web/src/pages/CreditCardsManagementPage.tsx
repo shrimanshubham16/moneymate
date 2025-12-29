@@ -166,8 +166,9 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       type="number"
                       value={form.paidAmount}
                       onChange={(e) => setForm({ ...form, paidAmount: e.target.value })}
+                      onFocus={(e) => { if (e.target.value === "0") e.target.value = ""; }}
                       min="0"
-                      placeholder="0"
+                      placeholder=""
                     />
                   </div>
                   <div className="form-group">

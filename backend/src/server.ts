@@ -37,6 +37,7 @@ import {
   listCreditCards,
   addCreditCard,
   payCreditCard,
+  deleteCreditCard,
   listLoans,
   addActivity,
   listActivities,
@@ -591,6 +592,14 @@ app.post("/debts/credit-cards/:id/payments", requireAuth, (req, res) => {
   if (!updated) return res.status(404).json({ error: { message: "Not found" } });
   addActivity((req as any).user.id, "credit_card", "payment", { id: updated.id, amount: parsed.data.amount });
   res.json({ data: updated });
+});
+
+app.delete("/debts/credit-cards/:id", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const deleted = deleteCreditCard(userId, req.params.id);
+  if (!deleted) return res.status(404).json({ error: { message: "Not found" } });
+  addActivity((req as any).user.id, "credit_card", "deleted", { id: req.params.id });
+  res.json({ data: { deleted: true } });
 });
 
 app.get("/debts/loans", requireAuth, (req, res) => {

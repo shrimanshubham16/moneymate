@@ -105,21 +105,56 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
             const getActionMessage = () => {
               const username = activity.username || 'Someone';
               const entity = activity.entity.replace(/_/g, ' ');
+              const payload = activity.payload || {};
+
+              // Helper to format currency
+              const formatCurrency = (amount: number) => {
+                return new Intl.NumberFormat('en-IN', {
+                  style: 'currency',
+                  currency: 'INR',
+                  maximumFractionDigits: 0
+                }).format(amount);
+              };
 
               switch (activity.action) {
                 case 'created':
                 case 'added':
-                  return `${username} added ${entity} `;
+                case 'added income source':
+                case 'added fixed expense':
+                case 'added variable expense plan':
+                case 'added investment':
+                  // Build detailed message based on entity type and payload
+                  let details = '';
+                  
+                  if (activity.entity === 'income' && payload.name && payload.amount) {
+                    details = `${formatCurrency(payload.amount)} for ${payload.name}`;
+                  } else if (activity.entity === 'fixed_expense' && payload.name && payload.amount) {
+                    details = `${formatCurrency(payload.amount)} for ${payload.name}`;
+                  } else if (activity.entity === 'variable_expense_plan' && payload.name && payload.planned) {
+                    details = `${formatCurrency(payload.planned)} for ${payload.name}`;
+                  } else if (activity.entity === 'investment' && payload.name && payload.monthlyAmount) {
+                    details = `${formatCurrency(payload.monthlyAmount)}/month for ${payload.name}`;
+                  } else if (payload.name) {
+                    // Fallback: just use name if available
+                    details = `for ${payload.name}`;
+                  } else if (payload.amount) {
+                    // Fallback: just use amount if available
+                    details = formatCurrency(payload.amount);
+                  }
+                  
+                  return details 
+                    ? `${username} added ${entity} ${details}`
+                    : `${username} added ${entity}`;
                 case 'updated':
-                  return `${username} updated ${entity} `;
+                  return `${username} updated ${entity} ${payload.name || ''}`.trim();
                 case 'deleted':
-                  return `${username} deleted ${entity} `;
+                  return `${username} deleted ${entity} ${payload.name || ''}`.trim();
                 case 'paid':
                   return `${username} marked ${entity} as paid`;
                 case 'unpaid':
                   return `${username} unmarked ${entity} payment`;
                 default:
-                  return `${username} ${activity.action} ${entity} `;
+                  return `${username} ${activity.action} ${entity} ${payload.name || ''}`.trim();
               }
             };
 
