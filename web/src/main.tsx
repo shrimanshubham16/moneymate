@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./design-system.css";
 import "./styles.css";
 
@@ -17,12 +18,17 @@ try {
   console.log("Creating React root...");
   ReactDOM.createRoot(rootEl).render(
     <React.StrictMode>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </React.StrictMode>
   );
   console.log("Render initiated!");
 } catch (error) {
   console.error("Error in main.tsx:", error);
-  document.body.innerHTML = `<div style="padding: 20px; color: red;"><h1>Error loading app</h1><pre>${error}</pre></div>`;
+  const errorDiv = document.createElement("div");
+  errorDiv.style.cssText = "padding: 20px; color: red; background: white;";
+  errorDiv.innerHTML = `<h1>Error loading app</h1><pre>${error}</pre>`;
+  document.body.appendChild(errorDiv);
 }
 
