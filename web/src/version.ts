@@ -15,7 +15,7 @@ export const VERSION = {
   major: 1,
   minor: 2,
   patch: 0,
-  build: 15,
+  build: 16, // Incremented for v1.2 feature branch
   
   // Formatted version string
   get full(): string {

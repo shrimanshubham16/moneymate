@@ -16,8 +16,10 @@
 ### 3. **Credit Card Current Expenses**
 - When user selects "Credit Card" payment mode, expense is added to card's `currentExpenses`
 - Each credit card has a `billingDate` (day of month, e.g., 5th)
-- On billing date, `currentExpenses` → `billAmount`, then `currentExpenses` resets to 0
-- User can manually trigger billing or it can auto-bill
+- On billing date: Alert user that billing is due
+- User manually triggers "Reset for Billing" (resets `currentExpenses` to 0)
+- User manually updates `billAmount` with actual bill (may include fees, friend's usage, redemptions)
+- Alert system notifies when billing is due or bill needs update
 
 ### 4. **Enhanced Current Month Expenses Page**
 - Beautiful visualization showing:
