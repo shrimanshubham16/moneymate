@@ -574,6 +574,16 @@
       "creditCardId": "58aa7206-0615-4c34-90b0-9841b99ccae6",
       "id": "192ddbca-b5fb-4b0e-8d8a-9f48924e72ce",
       "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
+    },
+    {
+      "planId": "0f4457fe-ebe2-4aa2-8240-e60c6061269a",
+      "amount": 22333,
+      "incurredAt": "2025-12-29T10:31:16.489Z",
+      "subcategory": "Zomato",
+      "paymentMode": "CreditCard",
+      "creditCardId": "c8a09dd3-3d50-4ba7-810e-3eac5b26a1b1",
+      "id": "274c5a28-bd07-44d5-aa95-c43558a9d957",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
     }
   ],
   "constraint": {
@@ -652,42 +662,6 @@
       "paidAmount": 0
     },
     {
-      "name": "HDFC",
-      "dueDate": "2026-01-18",
-      "billAmount": 2000,
-      "billingDate": 14,
-      "statementDate": "2025-12-29",
-      "id": "58aa7206-0615-4c34-90b0-9841b99ccae6",
-      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
-      "paidAmount": 2000,
-      "currentExpenses": 0,
-      "needsBillUpdate": true
-    },
-    {
-      "name": "Amex2",
-      "dueDate": "2025-12-29",
-      "billAmount": 10000,
-      "billingDate": 1,
-      "statementDate": "2025-12-29",
-      "id": "dd6925cc-582a-4ba9-b0a3-fb9fcc78a1af",
-      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
-      "paidAmount": 10000,
-      "currentExpenses": 0,
-      "needsBillUpdate": false
-    },
-    {
-      "name": "Amex4",
-      "dueDate": "2025-12-26",
-      "billAmount": 20000,
-      "billingDate": 10,
-      "statementDate": "2025-12-29",
-      "id": "6c581377-d6c9-4fea-85ba-c9b43735a8fe",
-      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
-      "paidAmount": 20000,
-      "currentExpenses": 0,
-      "needsBillUpdate": false
-    },
-    {
       "name": "TestCard",
       "dueDate": "2025-12-29",
       "billAmount": 30000,
@@ -697,6 +671,18 @@
       "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
       "paidAmount": 0,
       "currentExpenses": 0,
+      "needsBillUpdate": false
+    },
+    {
+      "name": "HDFC Black",
+      "dueDate": "2025-12-29",
+      "billAmount": 20000,
+      "billingDate": 1,
+      "statementDate": "2025-12-29",
+      "id": "c8a09dd3-3d50-4ba7-810e-3eac5b26a1b1",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "paidAmount": 0,
+      "currentExpenses": 22333,
       "needsBillUpdate": false
     }
   ],
@@ -1257,6 +1243,58 @@
         "id": "58aa7206-0615-4c34-90b0-9841b99ccae6"
       },
       "createdAt": "2025-12-29T10:25:43.505Z"
+    },
+    {
+      "id": "63f12240-7e7b-4c7d-ae9f-c3c6c44bf957",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "deleted",
+      "payload": {
+        "id": "58aa7206-0615-4c34-90b0-9841b99ccae6"
+      },
+      "createdAt": "2025-12-29T10:29:56.129Z"
+    },
+    {
+      "id": "d6547115-a814-4da4-a40d-156bf7656c74",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "deleted",
+      "payload": {
+        "id": "dd6925cc-582a-4ba9-b0a3-fb9fcc78a1af"
+      },
+      "createdAt": "2025-12-29T10:29:58.529Z"
+    },
+    {
+      "id": "54141d9d-aa1c-4dba-83ba-9c66e965eb4b",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "deleted",
+      "payload": {
+        "id": "6c581377-d6c9-4fea-85ba-c9b43735a8fe"
+      },
+      "createdAt": "2025-12-29T10:30:02.092Z"
+    },
+    {
+      "id": "4eb5c2d8-c5af-4506-9e32-1f9d7cc498fc",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "created",
+      "payload": {
+        "id": "c8a09dd3-3d50-4ba7-810e-3eac5b26a1b1"
+      },
+      "createdAt": "2025-12-29T10:30:17.759Z"
+    },
+    {
+      "id": "894fe130-e26f-4c4e-b084-6d5d910d0431",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "grocery",
+        "amount": 22333,
+        "category": "Groceries"
+      },
+      "createdAt": "2025-12-29T10:31:16.494Z"
     }
   ],
   "themeStates": []

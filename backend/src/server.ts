@@ -624,19 +624,27 @@ app.post("/debts/credit-cards", requireAuth, (req, res) => {
 
 // v1.2: Get credit card usage (must come before /:id routes to avoid route conflicts)
 app.get("/debts/credit-cards/:id/usage", requireAuth, (req, res) => {
-  const userId = (req as any).user.userId;
-  const store = getStore();
-  const card = store.creditCards.find(c => c.id === req.params.id && c.userId === userId);
-  if (!card) return res.status(404).json({ error: { message: "Not found" } });
-  
-  // Get all variable expense actuals for this credit card
-  const usage = store.variableActuals.filter(
-    a => a.userId === userId && 
-         a.paymentMode === "CreditCard" && 
-         a.creditCardId === card.id
-  );
-  
-  res.json({ data: usage });
+  try {
+    const userId = (req as any).user.userId;
+    const cardId = req.params.id;
+    const store = getStore();
+    const card = store.creditCards.find(c => c.id === cardId && c.userId === userId);
+    if (!card) {
+      return res.status(404).json({ error: { message: "Credit card not found" } });
+    }
+    
+    // Get all variable expense actuals for this credit card
+    const usage = store.variableActuals.filter(
+      a => a.userId === userId && 
+           a.paymentMode === "CreditCard" && 
+           a.creditCardId === card.id
+    );
+    
+    res.json({ data: usage });
+  } catch (error: any) {
+    console.error("Error fetching credit card usage:", error);
+    res.status(500).json({ error: { message: error.message || "Internal server error" } });
+  }
 });
 
 app.post("/debts/credit-cards/:id/payments", requireAuth, (req, res) => {
@@ -667,23 +675,32 @@ app.delete("/debts/credit-cards/:id", requireAuth, (req, res) => {
 
 // v1.2: Update credit card bill amount
 app.patch("/debts/credit-cards/:id", requireAuth, (req, res) => {
-  const userId = (req as any).user.userId;
-  // Accept any nonnegative number (int or float)
-  const parsed = z.object({ billAmount: z.number().nonnegative() }).safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.flatten() });
+  try {
+    const userId = (req as any).user.userId;
+    const cardId = req.params.id;
+    
+    // Accept any nonnegative number (int or float)
+    const parsed = z.object({ billAmount: z.number().nonnegative() }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    
+    const store = getStore();
+    const card = store.creditCards.find(c => c.id === cardId && c.userId === userId);
+    if (!card) {
+      return res.status(404).json({ error: { message: "Credit card not found" } });
+    }
+    
+    card.billAmount = Math.round(parsed.data.billAmount * 100) / 100; // Round to 2 decimal places
+    card.needsBillUpdate = false;
+    scheduleSave();
+    
+    addActivity((req as any).user.id, "credit_card", "updated_bill", { id: card.id, billAmount: card.billAmount });
+    res.json({ data: card });
+  } catch (error: any) {
+    console.error("Error updating credit card bill:", error);
+    res.status(500).json({ error: { message: error.message || "Internal server error" } });
   }
-  
-  const store = getStore();
-  const card = store.creditCards.find(c => c.id === req.params.id && c.userId === userId);
-  if (!card) return res.status(404).json({ error: { message: "Not found" } });
-  
-  card.billAmount = Math.round(parsed.data.billAmount * 100) / 100; // Round to 2 decimal places
-  card.needsBillUpdate = false;
-  scheduleSave();
-  
-  addActivity((req as any).user.id, "credit_card", "updated_bill", { id: card.id, billAmount: card.billAmount });
-  res.json({ data: card });
 });
 
 // v1.2: Get user subcategories
