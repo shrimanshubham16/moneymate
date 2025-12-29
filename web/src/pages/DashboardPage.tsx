@@ -10,7 +10,7 @@ import { MdAccountBalanceWallet, MdSavings, MdTrendingUp } from "react-icons/md"
 import { fetchDashboard, fetchCreditCards, fetchLoans, fetchActivity, fetchSharingMembers } from "../api";
 import { DashboardWidget } from "../components/DashboardWidget";
 import { HealthIndicator } from "../components/HealthIndicator";
-import { SkeletonLoader } from "../components/SkeletonLoader";
+import { MatrixLoader } from "../components/MatrixLoader";
 import { EmptyState } from "../components/EmptyState";
 import { TrendIndicator } from "../components/TrendIndicator";
 import { StatusBadge } from "../components/StatusBadge";
@@ -63,11 +63,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   };
 
   if (loading) {
-    return (
-      <div className="dashboard-page">
-        <SkeletonLoader type="widget" count={8} />
-      </div>
-    );
+    return <MatrixLoader message="Loading your financial data..." fullScreen={false} />;
   }
 
   if (!data) {
