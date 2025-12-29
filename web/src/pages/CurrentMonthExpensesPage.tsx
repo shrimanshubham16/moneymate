@@ -190,7 +190,8 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     return { paymentModeChartData, categoryChartData, subcategoryChartData };
   };
 
-  const { paymentModeChartData, categoryChartData, subcategoryChartData } = expenses.length > 0 ? prepareChartData() : { paymentModeChartData: [], categoryChartData: [], subcategoryChartData: [] };
+  const chartData = expenses.length > 0 ? prepareChartData() : { paymentModeChartData: [], categoryChartData: [], subcategoryChartData: [] };
+  const { paymentModeChartData, categoryChartData, subcategoryChartData } = chartData;
 
   return (
     <div className="current-month-expenses-page">
