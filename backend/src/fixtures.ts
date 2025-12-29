@@ -53,6 +53,7 @@ export function loadFixtures(): Store {
         userId: FIXTURE_USER_ID,
         planId,
         amount: v.actual,
+        paymentMode: "Cash",  // v1.2: Default payment mode for fixtures
         incurredAt: v.date ?? "2025-01-01T00:00:00Z",
         justification: v.notes ?? undefined
       });

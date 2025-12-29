@@ -56,9 +56,19 @@ export function unpaidProratedVariableForRemainingDays(userId: string, today: Da
   const remainingDaysRatio = 1 - monthProgress;
 
   return store.variablePlans.filter(p => p.userId === userId).reduce((sum, plan) => {
-    // Calculate prorated amount for remaining days of billing cycle
+    // v1.2: Get actuals for this plan, excluding ExtraCash and CreditCard (they don't reduce available funds)
+    const actuals = store.variableActuals.filter(
+      a => a.planId === plan.id && 
+           a.userId === userId &&
+           a.paymentMode !== "ExtraCash" &&
+           a.paymentMode !== "CreditCard"
+    );
+    
+    const actualTotal = actuals.reduce((s, a) => s + a.amount, 0);
     const proratedForRemainingDays = plan.planned * remainingDaysRatio;
-    return sum + proratedForRemainingDays;
+    
+    // Use higher of actual (excluding non-fund-deducting modes) or prorated
+    return sum + Math.max(proratedForRemainingDays, actualTotal);
   }, 0);
 }
 

@@ -212,9 +212,54 @@ export function deleteVariablePlan(userId: string, id: string): boolean {
   return deleted;
 }
 
+// v1.2: User subcategories storage
+const userSubcategories = new Map<string, string[]>();
+
+export function getUserSubcategories(userId: string): string[] {
+  if (!userSubcategories.has(userId)) {
+    userSubcategories.set(userId, ["Unspecified"]);
+  }
+  return userSubcategories.get(userId)!;
+}
+
+export function addUserSubcategory(userId: string, subcategory: string): void {
+  const subs = getUserSubcategories(userId);
+  if (!subs.includes(subcategory) && subcategory.trim() !== "") {
+    subs.push(subcategory.trim());
+    scheduleSave();
+  }
+}
+
 export function addVariableActual(userId: string, data: Omit<VariableExpenseActual, "id" | "userId">): VariableExpenseActual {
-  const actual = { ...data, id: randomUUID(), userId };
+  // v1.2: Set default subcategory if not provided
+  const subcategory = data.subcategory || "Unspecified";
+  
+  const actual: VariableExpenseActual = { 
+    ...data, 
+    id: randomUUID(), 
+    userId,
+    subcategory,
+    // Ensure paymentMode is set (required field)
+    paymentMode: data.paymentMode || "Cash"
+  };
+  
   state.variableActuals.push(actual);
+  
+  // v1.2: If payment mode is CreditCard, update credit card's currentExpenses
+  if (actual.paymentMode === "CreditCard" && actual.creditCardId) {
+    const card = state.creditCards.find(c => c.id === actual.creditCardId && c.userId === userId);
+    if (card) {
+      card.currentExpenses = (card.currentExpenses || 0) + actual.amount;
+      scheduleSave();
+    }
+  }
+  
+  // v1.2: If new subcategory, add to user's subcategories
+  if (subcategory && subcategory !== "Unspecified") {
+    addUserSubcategory(userId, subcategory);
+  }
+  
+  scheduleSave();
   return actual;
 }
 
@@ -390,9 +435,14 @@ export function addCreditCard(userId: string, data: Omit<CreditCard, "id" | "use
     id: randomUUID(), 
     userId, 
     paidAmount: 0,
-    statementDate: data.statementDate || new Date().toISOString().split('T')[0]
+    statementDate: data.statementDate || new Date().toISOString().split('T')[0],
+    // v1.2: Initialize new fields with defaults
+    currentExpenses: data.currentExpenses || 0,
+    billingDate: data.billingDate || 1,  // Default to 1st of month
+    needsBillUpdate: data.needsBillUpdate || false
   };
   state.creditCards.push(card);
+  scheduleSave();
   return card;
 }
 
@@ -410,6 +460,60 @@ export function deleteCreditCard(userId: string, id: string): boolean {
   const deleted = state.creditCards.length < prev;
   if (deleted) scheduleSave();
   return deleted;
+}
+
+// v1.2: Reset credit card current expenses (prepare for billing)
+// NOTE: Does NOT auto-update billAmount - user must manually update bill
+// This allows for additional charges (fees, friend's usage) or redemptions
+export function resetCreditCardCurrentExpenses(cardId: string, userId: string): CreditCard | undefined {
+  const card = state.creditCards.find(c => c.id === cardId && c.userId === userId);
+  if (!card) return undefined;
+  
+  // Only reset currentExpenses to 0, don't touch billAmount
+  // User will manually update billAmount with actual bill amount
+  card.currentExpenses = 0;
+  card.statementDate = new Date().toISOString().split('T')[0];
+  
+  // Calculate new due date (billingDate + payment terms, e.g., 20 days)
+  const billingDate = new Date(card.statementDate);
+  billingDate.setDate(billingDate.getDate() + 20); // 20 days payment window
+  card.dueDate = billingDate.toISOString().split('T')[0];
+  
+  // Mark card as needing bill update
+  card.needsBillUpdate = true;
+  
+  scheduleSave();
+  return card;
+}
+
+// v1.2: Check and return alerts for billing dates
+export function checkAndAlertBillingDates(today: Date): Array<{ cardId: string; cardName: string; message: string }> {
+  const alerts: Array<{ cardId: string; cardName: string; message: string }> = [];
+  
+  state.creditCards.forEach(card => {
+    const todayDay = today.getDate();
+    const billingDate = card.billingDate || 1;
+    
+    // Alert if billing date arrived and currentExpenses > 0
+    if (todayDay === billingDate && (card.currentExpenses || 0) > 0) {
+      alerts.push({
+        cardId: card.id,
+        cardName: card.name,
+        message: `${card.name}: ₹${(card.currentExpenses || 0).toLocaleString("en-IN")} pending billing. Please reset and update bill.`
+      });
+    }
+    
+    // Alert if card needs bill update
+    if (card.needsBillUpdate) {
+      alerts.push({
+        cardId: card.id,
+        cardName: card.name,
+        message: `${card.name}: Bill needs to be updated with actual amount.`
+      });
+    }
+  });
+  
+  return alerts;
 }
 
 export function listLoans(userId?: string) {

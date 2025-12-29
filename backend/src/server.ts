@@ -38,6 +38,10 @@ import {
   addCreditCard,
   payCreditCard,
   deleteCreditCard,
+  resetCreditCardCurrentExpenses,
+  checkAndAlertBillingDates,
+  getUserSubcategories,
+  addUserSubcategory,
   listLoans,
   addActivity,
   listActivities,
@@ -108,10 +112,23 @@ const variablePlanSchema = z.object({
   end_date: z.string().optional()
 });
 
+// v1.2: Updated schema with subcategory and payment mode
 const variableActualSchema = z.object({
   amount: z.number().int().positive(),
   incurred_at: z.string(),
-  justification: z.string().optional()
+  justification: z.string().optional(),
+  subcategory: z.string().optional(),
+  payment_mode: z.enum(["UPI", "Cash", "ExtraCash", "CreditCard"]),
+  credit_card_id: z.string().optional()
+}).superRefine((data, ctx) => {
+  // Validate that credit_card_id is required when payment_mode is CreditCard
+  if (data.payment_mode === "CreditCard" && !data.credit_card_id) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Credit card ID is required when payment mode is CreditCard",
+      path: ["credit_card_id"]
+    });
+  }
 });
 
 const investmentSchema = z.object({
@@ -134,12 +151,16 @@ const inviteSchema = z.object({
   merge_finances: z.boolean().optional()
 });
 
+// v1.2: Updated credit card schema with new fields
 const creditCardSchema = z.object({
   name: z.string(),
   statementDate: z.string().optional(),
   dueDate: z.string(),
-  billAmount: z.number().int().positive(),
-  paidAmount: z.number().int().nonnegative().optional()
+  billAmount: z.number().int().nonnegative().default(0),  // v1.2: Default to 0, can be set later
+  paidAmount: z.number().int().nonnegative().optional(),
+  currentExpenses: z.number().int().nonnegative().optional(),  // v1.2: New field
+  billingDate: z.number().int().min(1).max(31).optional(),  // v1.2: New field (day of month)
+  needsBillUpdate: z.boolean().optional()  // v1.2: New field
 });
 
 const paymentSchema = z.object({
@@ -427,11 +448,15 @@ app.post("/planning/variable-expenses/:id/actuals", requireAuth, (req, res) => {
   if (constraint.tier === "red" && projected > plan.planned && !parsed.data.justification) {
     return res.status(400).json({ error: { message: "Justification required for overspend in red tier" } });
   }
+  // v1.2: Include new fields (subcategory, paymentMode, creditCardId)
   const created = addVariableActual(userId, {
     planId: plan.id,
     amount: parsed.data.amount,
     incurredAt: parsed.data.incurred_at,
-    justification: parsed.data.justification
+    justification: parsed.data.justification,
+    subcategory: parsed.data.subcategory,
+    paymentMode: parsed.data.payment_mode,
+    creditCardId: parsed.data.credit_card_id
   });
   // Log activity
   const user = (req as any).user;
@@ -579,7 +604,8 @@ app.post("/debts/credit-cards", requireAuth, (req, res) => {
   const { paidAmount, ...cardData } = parsed.data;
   const created = addCreditCard(userId, {
     ...cardData,
-    statementDate: cardData.statementDate || new Date().toISOString().split('T')[0]
+    statementDate: cardData.statementDate || new Date().toISOString().split('T')[0],
+    billAmount: cardData.billAmount ?? 0  // v1.2: Default to 0 if not provided
   });
   addActivity((req as any).user.id, "credit_card", "created", { id: created.id });
   res.status(201).json({ data: created });
@@ -600,6 +626,38 @@ app.delete("/debts/credit-cards/:id", requireAuth, (req, res) => {
   if (!deleted) return res.status(404).json({ error: { message: "Not found" } });
   addActivity((req as any).user.id, "credit_card", "deleted", { id: req.params.id });
   res.json({ data: { deleted: true } });
+});
+
+// v1.2: Reset credit card current expenses (prepare for billing)
+app.post("/debts/credit-cards/:id/reset-billing", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const updated = resetCreditCardCurrentExpenses(req.params.id, userId);
+  if (!updated) return res.status(404).json({ error: { message: "Not found" } });
+  addActivity((req as any).user.id, "credit_card", "reset_billing", { id: updated.id });
+  res.json({ data: updated });
+});
+
+// v1.2: Get billing alerts
+app.get("/debts/credit-cards/billing-alerts", requireAuth, (req, res) => {
+  const today = new Date();
+  const alerts = checkAndAlertBillingDates(today);
+  res.json({ data: alerts });
+});
+
+// v1.2: Get user subcategories
+app.get("/user/subcategories", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  res.json({ data: getUserSubcategories(userId) });
+});
+
+// v1.2: Add new subcategory
+app.post("/user/subcategories", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const parsed = z.object({ subcategory: z.string().min(1).max(50) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  
+  addUserSubcategory(userId, parsed.data.subcategory);
+  res.json({ data: { subcategory: parsed.data.subcategory, subcategories: getUserSubcategories(userId) } });
 });
 
 app.get("/debts/loans", requireAuth, (req, res) => {
