@@ -27,6 +27,7 @@ import { ExportPage } from "./pages/ExportPage";
 import { IncomePage } from "./pages/IncomePage";
 import { PreferencesPage } from "./pages/PreferencesPage";
 import { HealthDetailsPage } from "./pages/HealthDetailsPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
 import { Header } from "./components/Header";
 import "./App.css";
 
@@ -78,6 +79,10 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
         <div className="auth-header">
           <h1>FinFlow</h1>
           <p>Your Financial Companion</p>
+          <div className="privacy-badge">
+            <FaShieldAlt size={14} />
+            <span>Your data is protected. Same privacy level as Mint & YNAB.</span>
+          </div>
         </div>
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
@@ -159,6 +164,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/settings/plan-finances/income" element={<IncomePage token={token} />} />
           <Route path="/settings/account" element={<AccountPage token={token} onLogout={onLogout} />} />
           <Route path="/settings/about" element={<AboutPage />} />
+          <Route path="/settings/privacy" element={<PrivacyPage />} />
           <Route path="/settings/sharing" element={<SharingPage token={token} />} />
           <Route path="/settings/support" element={<SupportPage />} />
           <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />

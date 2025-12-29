@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaBullseye, FaCheckCircle, FaCircle, FaExclamationTriangle, FaTimesCircle, FaClipboardList, FaPalette, FaTheaterMasks, FaCodeBranch, FaHeart } from "react-icons/fa";
+import { FaBullseye, FaCheckCircle, FaCircle, FaExclamationTriangle, FaTimesCircle, FaClipboardList, FaPalette, FaTheaterMasks, FaCodeBranch, FaHeart, FaShieldAlt } from "react-icons/fa";
 import VERSION from "../version";
 import "./AboutPage.css";
 
@@ -114,6 +114,43 @@ export function AboutPage() {
                 <p>You'll be &gt; ₹3,000 short</p>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="about-section">
+          <h2><FaShieldAlt style={{ marginRight: '8px', color: '#667eea' }} />Privacy & Security</h2>
+          <div className="privacy-summary">
+            <p>
+              <strong>Your privacy matters.</strong> We protect your financial data with the same security level as trusted apps like Mint and YNAB.
+            </p>
+            <div className="privacy-points">
+              <div className="privacy-point">
+                <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
+                <span>Passwords are hashed (never stored in plain text)</span>
+              </div>
+              <div className="privacy-point">
+                <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
+                <span>Data is isolated per user (only you can access yours)</span>
+              </div>
+              <div className="privacy-point">
+                <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
+                <span>HTTPS encryption for all connections</span>
+              </div>
+              <div className="privacy-point">
+                <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
+                <span>Same privacy level as Mint, YNAB, Personal Capital</span>
+              </div>
+            </div>
+            <div className="privacy-coming-soon">
+              <strong>Coming Soon:</strong> Server-side encryption (v1.3) • End-to-end encryption option (v2.0)
+            </div>
+            <button 
+              className="privacy-button"
+              onClick={() => navigate('/settings/privacy')}
+            >
+              <FaShieldAlt style={{ marginRight: '8px' }} />
+              View Full Privacy Policy
+            </button>
           </div>
         </section>
 
