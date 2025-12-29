@@ -674,27 +674,50 @@ function validateData(data: any): boolean {
 
 ## 🚀 Migration Strategy
 
+**⚠️ See [DATA-MIGRATION-STRATEGY.md](DATA-MIGRATION-STRATEGY.md) for complete zero-data-loss migration plan.**
+
 ### From v1.2 to v2.0
 
-#### Step 1: Dual Write
-- Write to both old and new format
-- Read from old format
-- Validate both formats match
+#### Step 1: Full Backup
+- Create complete backup of `data/finflow-data.json`
+- Store in separate location
+- Keep for 90 days minimum
 
-#### Step 2: Gradual Migration
-- Migrate users in batches
-- Test with small user group first
+#### Step 2: Dual Write Period (1-2 weeks)
+- Write to both old and new format
+- Read from old format (source of truth)
+- Validate both formats match
 - Monitor for errors
 
-#### Step 3: Encryption Migration
-- For existing users: Re-encrypt on next login
-- For new users: Encrypt from start
-- Provide migration tool
+#### Step 3: Gradual Migration (User-by-User)
+- Migrate users on login (automatic)
+- Validate each migration
+- Can rollback per user if needed
+- No downtime for users
 
-#### Step 4: Rollback Plan
-- Keep v1.2 code for 1 month
-- Ability to rollback per user
-- Data format compatibility
+#### Step 4: Encryption Migration
+- For existing users: Encrypt on next login
+- For new users: Encrypt from start
+- Key derived from user password
+- Original data kept until encryption verified
+
+#### Step 5: Cutover
+- Switch read to new format (gradual)
+- Stop writing to old format (after 95%+ migrated)
+- Monitor for issues
+
+#### Step 6: Cleanup
+- Archive old data (keep for 90 days)
+- Remove old format code (after 30 days)
+- Final validation
+
+### Rollback Strategy
+- Per-user rollback capability
+- Full system rollback if needed
+- Old data archived (not deleted)
+- Can restore from backup anytime
+
+**GUARANTEE: Zero data loss - all existing user data will be safely migrated.**
 
 ---
 

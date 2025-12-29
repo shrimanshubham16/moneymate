@@ -19,6 +19,7 @@
 ## 📚 Planning Documents
 
 - **[ARCHITECTURE-PLAN.md](ARCHITECTURE-PLAN.md)** - System design, zero data loss strategy
+- **[DATA-MIGRATION-STRATEGY.md](DATA-MIGRATION-STRATEGY.md)** - **Complete zero-data-loss migration plan** ⭐
 - **[FUTURE-BOMB-UX-DESIGN.md](FUTURE-BOMB-UX-DESIGN.md)** - User-first UX design
 - **[SHARING-UX-DESIGN.md](SHARING-UX-DESIGN.md)** - Sharing feature design
 - **[PERFORMANCE-OPTIMIZATION.md](PERFORMANCE-OPTIMIZATION.md)** - Load time optimization
