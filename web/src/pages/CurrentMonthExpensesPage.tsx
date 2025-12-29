@@ -299,15 +299,32 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                     <Bar 
                       dataKey="amount" 
                       fill={selectedCategory ? "#8b5cf6" : "#3b82f6"}
-                      onClick={(data: any, index: number) => {
-                        if (!selectedCategory && data && data.payload) {
-                          const categoryName = data.payload.name;
-                          console.log('Clicked category:', categoryName);
-                          setSelectedCategory(categoryName);
+                      onClick={(data: any) => {
+                        if (!selectedCategory) {
+                          console.log('Bar click data:', data);
+                          // Try different ways to access the category name
+                          const categoryName = data?.payload?.name || data?.name || (data?.activePayload && data.activePayload[0]?.payload?.name);
+                          if (categoryName) {
+                            console.log('Setting category to:', categoryName);
+                            setSelectedCategory(categoryName);
+                          }
                         }
                       }}
-                      style={{ cursor: selectedCategory ? 'default' : 'pointer' }}
-                    />
+                    >
+                      {(selectedCategory ? subcategoryChartData : categoryChartData).map((entry: any, index: number) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={selectedCategory ? "#8b5cf6" : "#3b82f6"}
+                          style={{ cursor: selectedCategory ? 'default' : 'pointer' }}
+                          onClick={() => {
+                            if (!selectedCategory && entry.name) {
+                              console.log('Cell clicked:', entry.name);
+                              setSelectedCategory(entry.name);
+                            }
+                          }}
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
                 {!selectedCategory && (
