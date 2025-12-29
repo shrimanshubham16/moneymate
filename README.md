@@ -1,66 +1,94 @@
-# MoneyMate
+# FinFlow
 
-A comprehensive personal finance management application with backend API, web frontend, and mobile app.
+**Know Your Financial Health in One Number**
 
-## Project Structure
+FinFlow is a free, simple personal finance app that shows you your financial health at a glance. Add your income, expenses, and investments, and get a real-time health score that tells you exactly what you'll have left at month-end.
 
-- `backend/` - Node.js/Express backend API
-- `web/` - React/Vite web frontend
-- `mobile/` - Flutter mobile application
+## 🌟 Features
 
-## Deployment
+- **Financial Health Score** - One number that shows what you'll have left at month-end
+- **Free Forever** - No subscriptions, no ads, no hidden costs
+- **Simple Interface** - No learning curve, just works
+- **Privacy First** - Your data stays yours
+- **Cross-Platform** - Works on mobile, tablet, and desktop
+- **Real-Time Updates** - See your health score update as you add expenses
 
-### Backend (Railway)
-The backend is deployed on Railway. Railway automatically detects the `backend/railway.json` configuration.
+## 🚀 Try It Free
 
-**Environment Variables Required:**
-- `PORT` - Railway sets this automatically
-- `NODE_ENV=production`
+**Live App:** https://freefinflow.vercel.app/
 
-### Frontend (Vercel)
-The web frontend is deployed on Vercel using the `web/vercel.json` configuration.
+No signup required to explore. No credit card. No catch.
 
-**Build Configuration:**
-- Build Command: `npm run build`
-- Output Directory: `dist`
-- Install Command: `npm install`
+## 📚 Documentation
 
-## Local Development
+- **[User Guide](USER-GUIDE.md)** - Complete guide to using FinFlow
+- **[Quick Start](QUICK-START.md)** - Get started in 5 minutes
+- **[Privacy Policy](PRIVACY-POLICY.md)** - How we protect your data
 
-### Backend
+## 🛠️ For Developers
+
+### Tech Stack
+
+- **Frontend:** React, Vite, TypeScript
+- **Backend:** Node.js, Express, TypeScript
+- **Deployment:** Vercel (Frontend), Railway (Backend)
+
+### Local Development
+
+#### Backend
 ```bash
 cd backend
 npm install
 npm run dev
+# Runs on http://localhost:12022
 ```
 
-### Web
+#### Frontend
 ```bash
 cd web
 npm install
 npm run dev
+# Runs on http://localhost:5173
 ```
 
-### Mobile
-```bash
-cd mobile
-flutter pub get
-flutter run
+### Environment Variables
+
+**Backend (.env):**
+```
+PORT=12022
+NODE_ENV=development
+JWT_SECRET=your-secret-key
+ALLOWED_ORIGINS=http://localhost:5173
 ```
 
-## Features
+**Frontend (.env):**
+```
+VITE_API_URL=http://localhost:12022
+```
 
-- Health Score Calculation
-- Income & Expense Tracking
-- Investment Management
-- Credit Card & Loan Tracking
-- Financial Planning
-- Data Export
-- Multi-user Support with Sharing
+## 📖 Project Structure
 
-## Tech Stack
+```
+FinFlow/
+├── backend/          # Node.js/Express API
+├── web/              # React frontend
+├── presentation/     # Marketing materials
+└── README.md         # This file
+```
 
-- **Backend**: Node.js, Express, TypeScript
-- **Web**: React, Vite, TypeScript
-- **Mobile**: Flutter, Dart
-- **Deployment**: Railway (backend), Vercel (web)
+## 🤝 Contributing
+
+This is a personal project, but feedback and suggestions are welcome!
+
+## 📄 License
+
+Private project - All rights reserved
+
+## 🔗 Links
+
+- **Live App:** https://freefinflow.vercel.app/
+- **Privacy Policy:** [PRIVACY-POLICY.md](PRIVACY-POLICY.md)
+
+---
+
+**Built with ❤️ for simple financial clarity**
