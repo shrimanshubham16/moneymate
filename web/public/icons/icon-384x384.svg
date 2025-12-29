@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="384" height="384" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="384" height="384" fill="#0a0a0a" rx="57.599999999999994"/>
+  
+  <!-- Chart/Flow Icon (simplified) -->
+  <g transform="translate(192, 192)">
+    <!-- Upward trending line -->
+    <path d="M -69.11999999999999 46.08 L -34.559999999999995 23.04 L 0 34.559999999999995 L 34.559999999999995 11.52 L 69.11999999999999 -23.04" 
+          stroke="url(#grad)" 
+          stroke-width="30.72" 
+          fill="none" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"/>
+    
+    <!-- Data points -->
+    <circle cx="-69.11999999999999" cy="46.08" r="15.36" fill="#00d4ff"/>
+    <circle cx="-34.559999999999995" cy="23.04" r="15.36" fill="#00d4ff"/>
+    <circle cx="0" cy="34.559999999999995" r="15.36" fill="#00d4ff"/>
+    <circle cx="34.559999999999995" cy="11.52" r="15.36" fill="#00d4ff"/>
+    <circle cx="69.11999999999999" cy="-23.04" r="15.36" fill="#00d4ff"/>
+  </g>
+  
+  <!-- FinFlow text (only for larger icons) -->
+  
+  <text x="192" y="326.4" 
+        font-family="Arial, sans-serif" 
+        font-size="115.19999999999999" 
+        font-weight="bold" 
+        fill="#ffffff" 
+        text-anchor="middle" 
+        opacity="0.9">FF</text>
+  
+</svg>

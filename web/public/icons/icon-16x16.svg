@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="16" height="16" fill="#0a0a0a" rx="2.4"/>
+  
+  <!-- Chart/Flow Icon (simplified) -->
+  <g transform="translate(8, 8)">
+    <!-- Upward trending line -->
+    <path d="M -2.88 1.92 L -1.44 0.96 L 0 1.44 L 1.44 0.48 L 2.88 -0.96" 
+          stroke="url(#grad)" 
+          stroke-width="1.28" 
+          fill="none" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"/>
+    
+    <!-- Data points -->
+    <circle cx="-2.88" cy="1.92" r="0.64" fill="#00d4ff"/>
+    <circle cx="-1.44" cy="0.96" r="0.64" fill="#00d4ff"/>
+    <circle cx="0" cy="1.44" r="0.64" fill="#00d4ff"/>
+    <circle cx="1.44" cy="0.48" r="0.64" fill="#00d4ff"/>
+    <circle cx="2.88" cy="-0.96" r="0.64" fill="#00d4ff"/>
+  </g>
+  
+  <!-- FinFlow text (only for larger icons) -->
+  
+</svg>
