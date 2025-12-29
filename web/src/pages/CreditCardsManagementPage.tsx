@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle } from "react-icons/fa";
-import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts } from "../api";
+import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory } from "react-icons/fa";
+import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts, getCreditCardUsage, fetchDashboard } from "../api";
 import "./CreditCardsManagementPage.css";
 
 interface CreditCardsManagementPageProps {
@@ -22,11 +22,28 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
     billingDate: "1"  // v1.2: Default to 1st of month
   });
   const [billingAlerts, setBillingAlerts] = useState<any[]>([]);  // v1.2: Billing alerts
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);  // v1.2: Selected card for usage view
+  const [cardUsage, setCardUsage] = useState<any[]>([]);  // v1.2: Credit card usage
+  const [showUsageModal, setShowUsageModal] = useState(false);  // v1.2: Show usage modal
+  const [showUpdateBillModal, setShowUpdateBillModal] = useState(false);  // v1.2: Show update bill modal
+  const [updateBillForm, setUpdateBillForm] = useState({ billAmount: "" });  // v1.2: Update bill form
+  const [plans, setPlans] = useState<any[]>([]);  // v1.2: Variable expense plans for usage display
 
   useEffect(() => {
     loadCards();
     loadBillingAlerts();  // v1.2: Load billing alerts
+    loadPlans();  // v1.2: Load plans for usage display
   }, []);
+
+  // v1.2: Load variable expense plans
+  const loadPlans = async () => {
+    try {
+      const res = await fetchDashboard(token, new Date().toISOString());
+      setPlans(res.data.variablePlans || []);
+    } catch (e) {
+      console.error("Failed to load plans:", e);
+    }
+  };
 
   const loadCards = async () => {
     try {
@@ -140,13 +157,55 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                   <div key={card.id} className="card-item">
                     <div className="card-header">
                       <h3>{card.name}</h3>
-                      <button
-                        className="delete-btn"
-                        onClick={() => handleDelete(card.id)}
-                        title="Delete card"
-                      >
-                        ✕
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {/* v1.2: Update Bill Button */}
+                        <button
+                          onClick={() => {
+                            setSelectedCardId(card.id);
+                            setUpdateBillForm({ billAmount: (card.billAmount || 0).toString() });
+                            setShowUpdateBillModal(true);
+                          }}
+                          title="Update bill amount"
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#3b82f6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <FaEdit size={14} />
+                        </button>
+                        {/* v1.2: View Usage Button */}
+                        <button
+                          onClick={() => loadCardUsage(card.id)}
+                          title="View credit card usage"
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <FaHistory size={14} />
+                        </button>
+                        <button
+                          className="delete-btn"
+                          onClick={() => handleDelete(card.id)}
+                          title="Delete card"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                     <div className="card-details">
                       {/* v1.2: Current Expenses */}

@@ -283,96 +283,80 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
               <div className="form-group">
                 <label>Payment Mode *</label>
                 <div className="payment-mode-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '8px' }}>
-                  <label className="payment-mode-option" style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px', 
-                    padding: '12px', 
-                    border: `2px solid ${actualForm.paymentMode === "UPI" ? '#3b82f6' : '#e5e7eb'}`,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    backgroundColor: actualForm.paymentMode === "UPI" ? '#eff6ff' : 'transparent',
-                    transition: 'all 0.2s'
-                  }}>
-                    <input
-                      type="radio"
-                      name="paymentMode"
-                      value="UPI"
-                      checked={actualForm.paymentMode === "UPI"}
-                      onChange={(e) => setActualForm({ ...actualForm, paymentMode: e.target.value as any, creditCardId: "" })}
-                      style={{ margin: 0 }}
-                    />
+                  <div 
+                    className="payment-mode-option" 
+                    onClick={() => setActualForm({ ...actualForm, paymentMode: "UPI", creditCardId: "" })}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      padding: '12px', 
+                      border: `2px solid ${actualForm.paymentMode === "UPI" ? '#3b82f6' : '#e5e7eb'}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      backgroundColor: actualForm.paymentMode === "UPI" ? '#eff6ff' : 'transparent',
+                      transition: 'all 0.2s'
+                    }}
+                  >
                     <FaMobileAlt size={20} />
                     <span>UPI</span>
-                  </label>
-                  <label className="payment-mode-option" style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px', 
-                    padding: '12px', 
-                    border: `2px solid ${actualForm.paymentMode === "Cash" ? '#3b82f6' : '#e5e7eb'}`,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    backgroundColor: actualForm.paymentMode === "Cash" ? '#eff6ff' : 'transparent',
-                    transition: 'all 0.2s'
-                  }}>
-                    <input
-                      type="radio"
-                      name="paymentMode"
-                      value="Cash"
-                      checked={actualForm.paymentMode === "Cash"}
-                      onChange={(e) => setActualForm({ ...actualForm, paymentMode: e.target.value as any, creditCardId: "" })}
-                      style={{ margin: 0 }}
-                    />
+                  </div>
+                  <div 
+                    className="payment-mode-option" 
+                    onClick={() => setActualForm({ ...actualForm, paymentMode: "Cash", creditCardId: "" })}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      padding: '12px', 
+                      border: `2px solid ${actualForm.paymentMode === "Cash" ? '#3b82f6' : '#e5e7eb'}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      backgroundColor: actualForm.paymentMode === "Cash" ? '#eff6ff' : 'transparent',
+                      transition: 'all 0.2s'
+                    }}
+                  >
                     <FaMoneyBillWave size={20} />
                     <span>Cash</span>
-                  </label>
-                  <label className="payment-mode-option" style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px', 
-                    padding: '12px', 
-                    border: `2px solid ${actualForm.paymentMode === "ExtraCash" ? '#3b82f6' : '#e5e7eb'}`,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    backgroundColor: actualForm.paymentMode === "ExtraCash" ? '#eff6ff' : 'transparent',
-                    transition: 'all 0.2s'
-                  }}>
-                    <input
-                      type="radio"
-                      name="paymentMode"
-                      value="ExtraCash"
-                      checked={actualForm.paymentMode === "ExtraCash"}
-                      onChange={(e) => setActualForm({ ...actualForm, paymentMode: e.target.value as any, creditCardId: "" })}
-                      style={{ margin: 0 }}
-                    />
+                  </div>
+                  <div 
+                    className="payment-mode-option" 
+                    onClick={() => setActualForm({ ...actualForm, paymentMode: "ExtraCash", creditCardId: "" })}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      padding: '12px', 
+                      border: `2px solid ${actualForm.paymentMode === "ExtraCash" ? '#3b82f6' : '#e5e7eb'}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      backgroundColor: actualForm.paymentMode === "ExtraCash" ? '#eff6ff' : 'transparent',
+                      transition: 'all 0.2s'
+                    }}
+                  >
                     <FaWallet size={20} />
                     <span>Extra Cash</span>
                     <small style={{ fontSize: '10px', color: '#6b7280' }}>(Doesn't affect funds)</small>
-                  </label>
-                  <label className="payment-mode-option" style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px', 
-                    padding: '12px', 
-                    border: `2px solid ${actualForm.paymentMode === "CreditCard" ? '#3b82f6' : '#e5e7eb'}`,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    backgroundColor: actualForm.paymentMode === "CreditCard" ? '#eff6ff' : 'transparent',
-                    transition: 'all 0.2s'
-                  }}>
-                    <input
-                      type="radio"
-                      name="paymentMode"
-                      value="CreditCard"
-                      checked={actualForm.paymentMode === "CreditCard"}
-                      onChange={(e) => setActualForm({ ...actualForm, paymentMode: e.target.value as any })}
-                      style={{ margin: 0 }}
-                    />
+                  </div>
+                  <div 
+                    className="payment-mode-option" 
+                    onClick={() => setActualForm({ ...actualForm, paymentMode: "CreditCard" })}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      padding: '12px', 
+                      border: `2px solid ${actualForm.paymentMode === "CreditCard" ? '#3b82f6' : '#e5e7eb'}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      backgroundColor: actualForm.paymentMode === "CreditCard" ? '#eff6ff' : 'transparent',
+                      transition: 'all 0.2s'
+                    }}
+                  >
                     <FaCreditCard size={20} />
                     <span>Credit Card</span>
                     <small style={{ fontSize: '10px', color: '#6b7280' }}>(Billed later)</small>
-                  </label>
+                  </div>
                 </div>
               </div>
 
@@ -480,13 +464,42 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                 {plan.actuals && plan.actuals.length > 0 && (
                   <div className="actuals-list">
                     <h4>Actual Expenses:</h4>
-                    {plan.actuals.map((actual: any) => (
-                      <div key={actual.id} className="actual-item">
-                        <span>₹{actual.amount.toLocaleString("en-IN")}</span>
-                        <span>{new Date(actual.incurredAt).toLocaleDateString()}</span>
-                        {actual.justification && <span className="justification">{actual.justification}</span>}
-                      </div>
-                    ))}
+                    {plan.actuals.map((actual: any) => {
+                      const paymentInfo = actual.paymentMode === "UPI" ? { icon: <FaMobileAlt size={12} />, label: "UPI", color: "#3b82f6" } :
+                                        actual.paymentMode === "Cash" ? { icon: <FaMoneyBillWave size={12} />, label: "Cash", color: "#10b981" } :
+                                        actual.paymentMode === "ExtraCash" ? { icon: <FaWallet size={12} />, label: "Extra Cash", color: "#8b5cf6" } :
+                                        actual.paymentMode === "CreditCard" ? { icon: <FaCreditCard size={12} />, label: "Credit Card", color: "#f59e0b" } :
+                                        { icon: <FaMoneyBillWave size={12} />, label: actual.paymentMode || "Cash", color: "#64748b" };
+                      return (
+                        <div key={actual.id} className="actual-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 'bold' }}>₹{actual.amount.toLocaleString("en-IN")}</span>
+                          <span>{new Date(actual.incurredAt).toLocaleDateString()}</span>
+                          {actual.subcategory && actual.subcategory !== "Unspecified" && (
+                            <span style={{ 
+                              backgroundColor: '#f3f4f6', 
+                              padding: '2px 8px', 
+                              borderRadius: '4px', 
+                              fontSize: '12px',
+                              color: '#4b5563'
+                            }}>
+                              {actual.subcategory}
+                            </span>
+                          )}
+                          <span style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '4px',
+                            color: paymentInfo.color,
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            {paymentInfo.icon}
+                            {paymentInfo.label}
+                          </span>
+                          {actual.justification && <span className="justification">{actual.justification}</span>}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </motion.div>

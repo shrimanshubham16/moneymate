@@ -119,6 +119,11 @@ export async function getBillingAlerts(token: string) {
   return request<{ data: Array<{ cardId: string; cardName: string; message: string }> }>("/debts/credit-cards/billing-alerts", { method: "GET" }, token);
 }
 
+// v1.2: Get credit card usage
+export async function getCreditCardUsage(token: string, cardId: string) {
+  return request<{ data: any[] }>(`/debts/credit-cards/${cardId}/usage`, { method: "GET" }, token);
+}
+
 export async function fetchLoans(token: string) {
   return request<{ data: any[] }>("/debts/loans", { method: "GET" }, token);
 }

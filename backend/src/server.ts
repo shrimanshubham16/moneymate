@@ -607,6 +607,10 @@ app.post("/debts/credit-cards", requireAuth, (req, res) => {
     statementDate: cardData.statementDate || new Date().toISOString().split('T')[0],
     billAmount: cardData.billAmount ?? 0  // v1.2: Default to 0 if not provided
   });
+  // v1.2: If paidAmount provided, update it
+  if (paidAmount !== undefined && paidAmount > 0) {
+    payCreditCard(created.id, paidAmount);
+  }
   addActivity((req as any).user.id, "credit_card", "created", { id: created.id });
   res.status(201).json({ data: created });
 });
@@ -628,6 +632,24 @@ app.delete("/debts/credit-cards/:id", requireAuth, (req, res) => {
   res.json({ data: { deleted: true } });
 });
 
+// v1.2: Update credit card bill amount
+app.patch("/debts/credit-cards/:id", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const parsed = z.object({ billAmount: z.number().int().nonnegative() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  
+  const store = getStore();
+  const card = store.creditCards.find(c => c.id === req.params.id && c.userId === userId);
+  if (!card) return res.status(404).json({ error: { message: "Not found" } });
+  
+  card.billAmount = parsed.data.billAmount;
+  card.needsBillUpdate = false;
+  scheduleSave();
+  
+  addActivity((req as any).user.id, "credit_card", "updated_bill", { id: card.id, billAmount: parsed.data.billAmount });
+  res.json({ data: card });
+});
+
 // v1.2: Reset credit card current expenses (prepare for billing)
 app.post("/debts/credit-cards/:id/reset-billing", requireAuth, (req, res) => {
   const userId = (req as any).user.userId;
@@ -642,6 +664,23 @@ app.get("/debts/credit-cards/billing-alerts", requireAuth, (req, res) => {
   const today = new Date();
   const alerts = checkAndAlertBillingDates(today);
   res.json({ data: alerts });
+});
+
+// v1.2: Get credit card usage (variable expense actuals)
+app.get("/debts/credit-cards/:id/usage", requireAuth, (req, res) => {
+  const userId = (req as any).user.userId;
+  const store = getStore();
+  const card = store.creditCards.find(c => c.id === req.params.id && c.userId === userId);
+  if (!card) return res.status(404).json({ error: { message: "Not found" } });
+  
+  // Get all variable expense actuals for this credit card
+  const usage = store.variableActuals.filter(
+    a => a.userId === userId && 
+         a.paymentMode === "CreditCard" && 
+         a.creditCardId === card.id
+  );
+  
+  res.json({ data: usage });
 });
 
 // v1.2: Get user subcategories

@@ -535,6 +535,35 @@
       "incurredAt": "2025-01-15T00:00:00Z",
       "id": "0f520e3f-b8ec-4f16-8162-1351dd602bb9",
       "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
+    },
+    {
+      "planId": "0f4457fe-ebe2-4aa2-8240-e60c6061269a",
+      "amount": 20000,
+      "incurredAt": "2025-12-29T09:14:03.198Z",
+      "subcategory": "Zomato",
+      "paymentMode": "UPI",
+      "id": "1f51c842-308a-40b3-9b50-df9ec8ccc859",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
+    },
+    {
+      "planId": "cd558267-3be8-4d3e-a1db-0d949c2e59ec",
+      "amount": 2000,
+      "incurredAt": "2025-12-29T09:18:51.174Z",
+      "justification": "ddd",
+      "subcategory": "Zomato",
+      "paymentMode": "UPI",
+      "id": "2a855cab-82c1-46ba-b081-395da38a8f22",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
+    },
+    {
+      "planId": "0f4457fe-ebe2-4aa2-8240-e60c6061269a",
+      "amount": 2300,
+      "incurredAt": "2025-12-29T09:23:30.025Z",
+      "subcategory": "Fun",
+      "paymentMode": "CreditCard",
+      "creditCardId": "58aa7206-0615-4c34-90b0-9841b99ccae6",
+      "id": "d6b3c540-e44d-4f77-8d64-973b437718fb",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
     }
   ],
   "constraint": {
@@ -611,6 +640,42 @@
       "id": "9990537a-e855-4f84-a6b7-3e8a8efe2f9f",
       "userId": "36d73ed7-768e-489a-b00e-c9d650e86b0e",
       "paidAmount": 0
+    },
+    {
+      "name": "HDFC",
+      "dueDate": "2026-01-03",
+      "billAmount": 2000,
+      "billingDate": 14,
+      "statementDate": "2025-12-29",
+      "id": "58aa7206-0615-4c34-90b0-9841b99ccae6",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "paidAmount": 2000,
+      "currentExpenses": 2300,
+      "needsBillUpdate": false
+    },
+    {
+      "name": "Amex1",
+      "dueDate": "2025-12-29",
+      "billAmount": 0,
+      "billingDate": 8,
+      "statementDate": "2025-12-29",
+      "id": "6998beda-10fb-455c-b70c-0f29062b68ef",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "paidAmount": 0,
+      "currentExpenses": 0,
+      "needsBillUpdate": false
+    },
+    {
+      "name": "Amex2",
+      "dueDate": "2025-12-29",
+      "billAmount": 10000,
+      "billingDate": 1,
+      "statementDate": "2025-12-29",
+      "id": "dd6925cc-582a-4ba9-b0a3-fb9fcc78a1af",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "paidAmount": 0,
+      "currentExpenses": 0,
+      "needsBillUpdate": false
     }
   ],
   "loans": [],
@@ -987,6 +1052,84 @@
         "category": "Loan"
       },
       "createdAt": "2025-12-29T05:10:01.993Z"
+    },
+    {
+      "id": "a2e424b5-332b-47f5-9209-a1cd7599c097",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "grocery",
+        "amount": 20000,
+        "category": "Groceries"
+      },
+      "createdAt": "2025-12-29T09:14:03.206Z"
+    },
+    {
+      "id": "8cb752bb-f2ac-4f40-b930-2a39dd24d3c4",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "food",
+        "amount": 2000,
+        "category": "Food",
+        "justification": "ddd"
+      },
+      "createdAt": "2025-12-29T09:18:51.187Z"
+    },
+    {
+      "id": "07b9dc2c-35b3-4993-ade1-95e731575184",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "created",
+      "payload": {
+        "id": "58aa7206-0615-4c34-90b0-9841b99ccae6"
+      },
+      "createdAt": "2025-12-29T09:22:27.195Z"
+    },
+    {
+      "id": "93e42367-f6c6-44f0-b3af-57c1e907916a",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "created",
+      "payload": {
+        "id": "6998beda-10fb-455c-b70c-0f29062b68ef"
+      },
+      "createdAt": "2025-12-29T09:22:55.555Z"
+    },
+    {
+      "id": "ab1f7a35-91f4-4184-91f9-e8746dd25101",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "grocery",
+        "amount": 2300,
+        "category": "Groceries"
+      },
+      "createdAt": "2025-12-29T09:23:30.035Z"
+    },
+    {
+      "id": "35cfa4cd-7212-41db-acb1-77f8d08d68b3",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "payment",
+      "payload": {
+        "id": "58aa7206-0615-4c34-90b0-9841b99ccae6",
+        "amount": 2000
+      },
+      "createdAt": "2025-12-29T09:27:02.207Z"
+    },
+    {
+      "id": "efdbda9c-e777-4ce3-990e-e263bcd4febe",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "created",
+      "payload": {
+        "id": "dd6925cc-582a-4ba9-b0a3-fb9fcc78a1af"
+      },
+      "createdAt": "2025-12-29T09:27:47.300Z"
     }
   ],
   "themeStates": []

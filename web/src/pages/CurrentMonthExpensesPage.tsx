@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard } from "react-icons/fa";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { fetchDashboard } from "../api";
 import "./CurrentMonthExpensesPage.css";
 
@@ -152,18 +153,110 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     }
   };
 
+  // v1.2: Prepare chart data
+  const prepareChartData = () => {
+    // Payment mode distribution
+    const paymentModeData: any = {};
+    expenses.forEach(categoryGroup => {
+      categoryGroup.subcategories.forEach((subcategoryGroup: any) => {
+        subcategoryGroup.modes.forEach((modeGroup: any) => {
+          const mode = modeGroup.paymentMode;
+          paymentModeData[mode] = (paymentModeData[mode] || 0) + modeGroup.total;
+        });
+      });
+    });
+
+    const paymentModeChartData = Object.entries(paymentModeData).map(([name, value]) => ({
+      name: getPaymentModeInfo(name).label,
+      value: value as number,
+      color: getPaymentModeInfo(name).color
+    }));
+
+    // Category breakdown
+    const categoryChartData = expenses.map(categoryGroup => ({
+      name: categoryGroup.category,
+      amount: categoryGroup.total
+    }));
+
+    return { paymentModeChartData, categoryChartData };
+  };
+
+  const { paymentModeChartData, categoryChartData } = expenses.length > 0 ? prepareChartData() : { paymentModeChartData: [], categoryChartData: [] };
+
   return (
     <div className="current-month-expenses-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
         <h1>Current Month Expenses</h1>
-        <p className="page-subtitle">Category-wise breakdown with payment status</p>
       </div>
 
       {loading ? <div>Loading...</div> : expenses.length === 0 ? (
         <div className="empty-state">No expenses for the current month.</div>
       ) : (
-        <div className="expenses-by-category">
+        <>
+          {/* v1.2: Charts Section */}
+          {paymentModeChartData.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
+              {/* Payment Mode Distribution Pie Chart */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                style={{
+                  backgroundColor: 'white',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+              >
+                <h3 style={{ marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>Payment Mode Distribution</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={paymentModeChartData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {paymentModeChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => `₹${value.toLocaleString("en-IN")}`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </motion.div>
+
+              {/* Category Breakdown Bar Chart */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1 }}
+                style={{
+                  backgroundColor: 'white',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+              >
+                <h3 style={{ marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>Category Breakdown</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={categoryChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                    <YAxis />
+                    <Tooltip formatter={(value: number) => `₹${value.toLocaleString("en-IN")}`} />
+                    <Bar dataKey="amount" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </motion.div>
+            </div>
+          )}
+
+          <div className="expenses-by-category">
           {expenses.map((categoryGroup, categoryIndex) => (
             <motion.div
               key={categoryGroup.category}
@@ -238,6 +331,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
             </motion.div>
           ))}
         </div>
+        </>
       )}
     </div>
   );
