@@ -1130,6 +1130,26 @@
         "id": "dd6925cc-582a-4ba9-b0a3-fb9fcc78a1af"
       },
       "createdAt": "2025-12-29T09:27:47.300Z"
+    },
+    {
+      "id": "3b81c7a6-5edb-4bfd-87f6-15f4411d3a49",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "created",
+      "payload": {
+        "id": "70085866-ce89-4d73-93cb-18d50277a715"
+      },
+      "createdAt": "2025-12-29T10:13:36.521Z"
+    },
+    {
+      "id": "4e765f87-64bb-4e96-80e0-3acb4d32f76a",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "deleted",
+      "payload": {
+        "id": "70085866-ce89-4d73-93cb-18d50277a715"
+      },
+      "createdAt": "2025-12-29T10:13:51.703Z"
     }
   ],
   "themeStates": []

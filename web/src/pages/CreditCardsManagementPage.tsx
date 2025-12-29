@@ -79,6 +79,51 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
     }
   };
 
+  // v1.2: Load credit card usage
+  const loadCardUsage = async (cardId: string) => {
+    try {
+      const res = await getCreditCardUsage(token, cardId);
+      setCardUsage(res.data || []);
+      setSelectedCardId(cardId);
+      setShowUsageModal(true);
+    } catch (e: any) {
+      alert(e.message || "Failed to load credit card usage");
+    }
+  };
+
+  // v1.2: Handle update bill
+  const handleUpdateBill = async (cardId: string) => {
+    try {
+      const amount = Number(updateBillForm.billAmount);
+      if (isNaN(amount) || amount < 0) {
+        alert("Please enter a valid bill amount");
+        return;
+      }
+      // Update bill amount via API
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
+      const res = await fetch(`${BASE_URL}/debts/credit-cards/${cardId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ billAmount: amount })
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error?.message || "Failed to update bill");
+      }
+      await loadCards();
+      await loadBillingAlerts();
+      setShowUpdateBillModal(false);
+      setUpdateBillForm({ billAmount: "" });
+      setSelectedCardId(null);
+      alert("Bill amount updated successfully");
+    } catch (e: any) {
+      alert(e.message || "Failed to update bill");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -365,6 +410,84 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
             </motion.div>
           )}
         </>
+      )}
+
+      {/* v1.2: Usage Modal */}
+      {showUsageModal && selectedCardId && (
+        <motion.div className="modal-overlay" onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}>
+          <motion.div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'auto' }}>
+            <div className="modal-header">
+              <h2>Credit Card Usage</h2>
+              <button onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}>✕</button>
+            </div>
+            {cardUsage.length === 0 ? (
+              <p style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>No expenses charged to this card yet.</p>
+            ) : (
+              <div style={{ padding: '20px' }}>
+                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '8px' }}>
+                  <strong>Total: ₹{cardUsage.reduce((sum, u) => sum + u.amount, 0).toLocaleString("en-IN")}</strong>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {cardUsage.map((usage: any) => {
+                    const plan = plans.find((p: any) => p.id === usage.planId);
+                    return (
+                      <div key={usage.id} style={{ 
+                        padding: '12px', 
+                        border: '1px solid #e5e7eb', 
+                        borderRadius: '8px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: 'bold' }}>₹{usage.amount.toLocaleString("en-IN")}</div>
+                          <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                            {plan?.name || 'Unknown Plan'} - {usage.subcategory || 'Unspecified'}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+                            {new Date(usage.incurredAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* v1.2: Update Bill Modal */}
+      {showUpdateBillModal && selectedCardId && (
+        <motion.div className="modal-overlay" onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}>
+          <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Update Bill Amount</h2>
+              <button onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}>✕</button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); handleUpdateBill(selectedCardId); }}>
+              <div className="form-group">
+                <label>Bill Amount *</label>
+                <input
+                  type="number"
+                  value={updateBillForm.billAmount}
+                  onChange={(e) => setUpdateBillForm({ billAmount: e.target.value })}
+                  required
+                  min="0"
+                  step="0.01"
+                />
+                <small style={{ color: '#6b7280', display: 'block', marginTop: '4px' }}>
+                  Update the bill amount with actual charges (including fees, friend's usage, etc.)
+                </small>
+              </div>
+              <div className="form-actions">
+                <button type="button" onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}>Cancel</button>
+                <button type="submit" className="primary">Update Bill</button>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );
