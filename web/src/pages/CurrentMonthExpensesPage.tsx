@@ -291,19 +291,23 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart 
                     data={selectedCategory ? subcategoryChartData : categoryChartData}
-                    onClick={(data: any) => {
-                      if (!selectedCategory && data && data.activePayload && data.activePayload[0]) {
-                        const categoryName = data.activePayload[0].payload.name;
-                        setSelectedCategory(categoryName);
-                      }
-                    }}
-                    style={{ cursor: selectedCategory ? 'default' : 'pointer' }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
                     <YAxis />
                     <Tooltip formatter={(value: number) => `₹${value.toLocaleString("en-IN")}`} />
-                    <Bar dataKey="amount" fill={selectedCategory ? "#8b5cf6" : "#3b82f6"} />
+                    <Bar 
+                      dataKey="amount" 
+                      fill={selectedCategory ? "#8b5cf6" : "#3b82f6"}
+                      onClick={(data: any, index: number) => {
+                        if (!selectedCategory && data && data.payload) {
+                          const categoryName = data.payload.name;
+                          console.log('Clicked category:', categoryName);
+                          setSelectedCategory(categoryName);
+                        }
+                      }}
+                      style={{ cursor: selectedCategory ? 'default' : 'pointer' }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
                 {!selectedCategory && (
