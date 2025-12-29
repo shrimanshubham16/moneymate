@@ -653,15 +653,15 @@
     },
     {
       "name": "HDFC",
-      "dueDate": "2026-01-03",
+      "dueDate": "2026-01-18",
       "billAmount": 2000,
       "billingDate": 14,
       "statementDate": "2025-12-29",
       "id": "58aa7206-0615-4c34-90b0-9841b99ccae6",
       "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
       "paidAmount": 2000,
-      "currentExpenses": 3522,
-      "needsBillUpdate": false
+      "currentExpenses": 0,
+      "needsBillUpdate": true
     },
     {
       "name": "Amex2",
@@ -1236,6 +1236,27 @@
         "id": "6bbc2b2e-35d7-4939-a3b4-14051c1543b9"
       },
       "createdAt": "2025-12-29T10:23:30.288Z"
+    },
+    {
+      "id": "d0b8fca2-0b47-4040-aaef-4406b306682c",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "fixed_expense",
+      "action": "paid",
+      "payload": {
+        "id": "d0e5eae7-aaa6-4a0c-b0fc-870ebdc81f24",
+        "amount": 80000
+      },
+      "createdAt": "2025-12-29T10:24:53.373Z"
+    },
+    {
+      "id": "d02a32b0-e3c7-404d-8d45-024d7b932959",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "reset_billing",
+      "payload": {
+        "id": "58aa7206-0615-4c34-90b0-9841b99ccae6"
+      },
+      "createdAt": "2025-12-29T10:25:43.505Z"
     }
   ],
   "themeStates": []

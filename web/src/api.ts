@@ -124,6 +124,14 @@ export async function getCreditCardUsage(token: string, cardId: string) {
   return request<{ data: any[] }>(`/debts/credit-cards/${cardId}/usage`, { method: "GET" }, token);
 }
 
+// v1.2: Update credit card bill amount
+export async function updateCreditCardBill(token: string, cardId: string, billAmount: number) {
+  return request<{ data: any }>(`/debts/credit-cards/${cardId}`, { 
+    method: "PATCH", 
+    body: JSON.stringify({ billAmount: Math.round(billAmount * 100) / 100 }) 
+  }, token);
+}
+
 export async function fetchLoans(token: string) {
   return request<{ data: any[] }>("/debts/loans", { method: "GET" }, token);
 }

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory } from "react-icons/fa";
-import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts, getCreditCardUsage, fetchDashboard } from "../api";
+import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts, getCreditCardUsage, fetchDashboard, updateCreditCardBill } from "../api";
 import "./CreditCardsManagementPage.css";
 
 interface CreditCardsManagementPageProps {
@@ -99,21 +99,8 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         alert("Please enter a valid bill amount");
         return;
       }
-      // Update bill amount via API - use the request helper from api.ts
-      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
-      const res = await fetch(`${BASE_URL}/debts/credit-cards/${cardId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ billAmount: Math.round(amount * 100) / 100 }) // Round to 2 decimal places
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        const errorMessage = errorData?.error?.message || errorData?.error?._errors?.[0] || `Request failed: ${res.status}`;
-        throw new Error(errorMessage);
-      }
+      // Update bill amount via API helper
+      await updateCreditCardBill(token, cardId, amount);
       await loadCards();
       await loadBillingAlerts();
       setShowUpdateBillModal(false);
