@@ -155,7 +155,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
   };
 
   // v1.2: Prepare chart data
-  const prepareChartData = () => {
+  const prepareChartData = (selectedCat: string | null) => {
     // Payment mode distribution
     const paymentModeData: any = {};
     expenses.forEach(categoryGroup => {
@@ -180,8 +180,8 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     }));
 
     // Subcategory breakdown for selected category
-    const subcategoryChartData = selectedCategory 
-      ? expenses.find(cg => cg.category === selectedCategory)?.subcategories.map((sub: any) => ({
+    const subcategoryChartData = selectedCat 
+      ? expenses.find(cg => cg.category === selectedCat)?.subcategories.map((sub: any) => ({
           name: sub.subcategory,
           amount: sub.total
         })) || []
@@ -190,7 +190,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     return { paymentModeChartData, categoryChartData, subcategoryChartData };
   };
 
-  const chartData = expenses.length > 0 ? prepareChartData() : { paymentModeChartData: [], categoryChartData: [], subcategoryChartData: [] };
+  const chartData = expenses.length > 0 ? prepareChartData(selectedCategory) : { paymentModeChartData: [], categoryChartData: [], subcategoryChartData: [] };
   const { paymentModeChartData, categoryChartData, subcategoryChartData } = chartData;
 
   return (
