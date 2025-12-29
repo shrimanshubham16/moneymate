@@ -15,6 +15,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
   const navigate = useNavigate();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     loadExpenses();
