@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import "./AccountPage.css";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
@@ -107,6 +107,23 @@ function PasswordResetCard({ token }: { token: string }) {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [passwordStrength, setPasswordStrength] = useState<string[]>([]);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+
+  const handlePasswordChange = (newPassword: string) => {
+    setFormData({ ...formData, newPassword });
+    if (newPassword.length > 0) {
+      const requirements = [];
+      if (newPassword.length < 8) requirements.push("At least 8 characters");
+      if (!/[A-Z]/.test(newPassword)) requirements.push("One uppercase letter");
+      if (!/[a-z]/.test(newPassword)) requirements.push("One lowercase letter");
+      if (!/[0-9]/.test(newPassword)) requirements.push("One number");
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) requirements.push("One special character");
+      setPasswordStrength(requirements);
+    } else {
+      setPasswordStrength([]);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -118,8 +135,8 @@ function PasswordResetCard({ token }: { token: string }) {
       return;
     }
 
-    if (formData.newPassword.length < 8) {
-      setMessage({ type: "error", text: "New password must be at least 8 characters" });
+    if (passwordStrength.length > 0) {
+      setMessage({ type: "error", text: "Password does not meet all requirements" });
       return;
     }
 
@@ -145,14 +162,15 @@ function PasswordResetCard({ token }: { token: string }) {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage({ type: "success", text: "Password updated successfully! Please log in again." });
+        setShowSuccessToast(true);
         setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setPasswordStrength([]);
         setShowForm(false);
 
-        // Auto-logout after 2 seconds
+        // Auto-logout after 3 seconds
         setTimeout(() => {
           window.location.href = "/";
-        }, 2000);
+        }, 3000);
       } else {
         setMessage({
           type: "error",
@@ -198,12 +216,21 @@ function PasswordResetCard({ token }: { token: string }) {
             <input
               type="password"
               value={formData.newPassword}
-              onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+              onChange={(e) => handlePasswordChange(e.target.value)}
               required
               minLength={8}
               disabled={loading}
             />
-            <small>Minimum 8 characters</small>
+            {passwordStrength.length > 0 && (
+              <div className="password-requirements">
+                <small>Password must have:</small>
+                <ul>
+                  {passwordStrength.map((req, i) => (
+                    <li key={i}>{req}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -242,6 +269,24 @@ function PasswordResetCard({ token }: { token: string }) {
           </div>
         </form>
       )}
+
+      {/* Success Toast */}
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div
+            className="success-toast"
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="toast-content">
+              <span className="toast-icon">✓</span>
+              <span className="toast-message">Password updated successfully!</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

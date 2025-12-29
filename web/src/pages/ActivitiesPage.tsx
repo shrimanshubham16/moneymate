@@ -38,6 +38,13 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         payload: activity.payload // Keep as-is, will stringify in render
       }));
 
+      // Sort by most recent first (newest at top)
+      sanitizedActivities.sort((a: any, b: any) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA; // Descending order (newest first)
+      });
+
       console.log("📊 Sanitized activities:", sanitizedActivities);
       setActivities(sanitizedActivities);
     } catch (e) {
@@ -135,41 +142,67 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                 case 'created':
                 case 'added':
                 case 'added income source':
-                case 'added fixed expense':
-                case 'added variable expense plan':
-                case 'added investment':
-                  // Build detailed message based on entity type and payload
-                  let details = '';
-                  
                   if (activity.entity === 'income' && payload.name && payload.amount) {
-                    details = `${formatCurrency(payload.amount)} for ${payload.name}`;
-                  } else if (activity.entity === 'fixed_expense' && payload.name && payload.amount) {
-                    details = `${formatCurrency(payload.amount)} for ${payload.name}`;
-                  } else if (activity.entity === 'variable_expense_plan' && payload.name && payload.planned) {
-                    details = `${formatCurrency(payload.planned)} for ${payload.name}`;
-                  } else if (activity.entity === 'investment' && payload.name && payload.monthlyAmount) {
-                    details = `${formatCurrency(payload.monthlyAmount)}/month for ${payload.name}`;
-                  } else if (payload.name) {
-                    // Fallback: just use name if available
-                    details = `for ${payload.name}`;
-                  } else if (payload.amount) {
-                    // Fallback: just use amount if available
-                    details = formatCurrency(payload.amount);
+                    const frequency = payload.frequency ? ` (${payload.frequency})` : '';
+                    return `${username} added income source ${formatCurrency(payload.amount)}${frequency} for ${payload.name}`;
                   }
-                  
-                  return details 
-                    ? `${username} added ${entity} ${details}`
-                    : `${username} added ${entity}`;
+                  return `${username} added ${entity}`;
+                case 'added fixed expense':
+                  if (payload.name && payload.amount) {
+                    const frequency = payload.frequency ? ` (${payload.frequency})` : '';
+                    const category = payload.category ? ` in ${payload.category}` : '';
+                    return `${username} added fixed expense ${formatCurrency(payload.amount)}${frequency} for ${payload.name}${category}`;
+                  }
+                  return `${username} added fixed expense`;
+                case 'added variable expense plan':
+                  if (payload.name && payload.planned) {
+                    const category = payload.category ? ` in ${payload.category}` : '';
+                    return `${username} added variable expense plan ${formatCurrency(payload.planned)} for ${payload.name}${category}`;
+                  }
+                  return `${username} added variable expense plan`;
+                case 'added investment':
+                  if (payload.monthlyAmount) {
+                    const goal = payload.goal ? ` (Goal: ${payload.goal})` : '';
+                    const status = payload.status ? ` [${payload.status}]` : '';
+                    return `${username} added investment ${formatCurrency(payload.monthlyAmount)}/month${goal}${status}`;
+                  }
+                  return `${username} added investment`;
+                case 'payment':
+                  if (activity.entity === 'credit_card' && payload.id && payload.amount) {
+                    const cardName = payload.cardName || 'credit card';
+                    return `${username} paid ${formatCurrency(payload.amount)} on ${cardName}`;
+                  }
+                  return `${username} made payment ${payload.amount ? formatCurrency(payload.amount) : ''}`.trim();
+                case 'updated_bill':
+                  if (activity.entity === 'credit_card' && payload.id && payload.billAmount) {
+                    const cardName = payload.cardName || 'credit card';
+                    return `${username} updated bill amount to ${formatCurrency(payload.billAmount)} for ${cardName}`;
+                  }
+                  return `${username} updated ${entity} bill`;
                 case 'updated':
-                  return `${username} updated ${entity} ${payload.name || ''}`.trim();
+                  if (payload.name) {
+                    return `${username} updated ${entity} ${payload.name}`;
+                  }
+                  return `${username} updated ${entity}`;
                 case 'deleted':
-                  return `${username} deleted ${entity} ${payload.name || ''}`.trim();
+                  if (payload.name) {
+                    return `${username} deleted ${entity} ${payload.name}`;
+                  }
+                  return `${username} deleted ${entity}`;
                 case 'paid':
+                  if (payload.amount) {
+                    return `${username} marked ${entity} as paid (${formatCurrency(payload.amount)})`;
+                  }
                   return `${username} marked ${entity} as paid`;
                 case 'unpaid':
                   return `${username} unmarked ${entity} payment`;
                 default:
-                  return `${username} ${activity.action} ${entity} ${payload.name || ''}`.trim();
+                  // Enhanced default message with available payload data
+                  let defaultDetails = '';
+                  if (payload.name) defaultDetails += ` ${payload.name}`;
+                  if (payload.amount) defaultDetails += ` (${formatCurrency(payload.amount)})`;
+                  if (payload.planned) defaultDetails += ` (Planned: ${formatCurrency(payload.planned)})`;
+                  return `${username} ${activity.action} ${entity}${defaultDetails}`.trim();
               }
             };
 

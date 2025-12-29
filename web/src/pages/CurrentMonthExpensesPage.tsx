@@ -26,7 +26,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
       const today = new Date();
       const expensesList: any[] = [];
 
-      // Fixed expenses
+      // Fixed expenses - check payment status
       res.data.fixedExpenses?.forEach((exp: any) => {
         const monthly = exp.frequency === "monthly" ? exp.amount : 
                        exp.frequency === "quarterly" ? exp.amount / 3 : 
@@ -37,7 +37,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
           category: exp.category,
           type: "Fixed",
           amount: Math.round(monthly),
-          status: "pending",
+          status: exp.paid ? "completed" : "pending",  // v1.2: Use actual payment status
           dueDate: today.toISOString().split("T")[0],
           subcategory: "Unspecified",  // v1.2: Fixed expenses default
           paymentMode: "Cash"  // v1.2: Fixed expenses default
@@ -179,10 +179,18 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
       amount: categoryGroup.total
     }));
 
-    return { paymentModeChartData, categoryChartData };
+    // Subcategory breakdown for selected category
+    const subcategoryChartData = selectedCategory 
+      ? expenses.find(cg => cg.category === selectedCategory)?.subcategories.map((sub: any) => ({
+          name: sub.subcategory,
+          amount: sub.total
+        })) || []
+      : [];
+
+    return { paymentModeChartData, categoryChartData, subcategoryChartData };
   };
 
-  const { paymentModeChartData, categoryChartData } = expenses.length > 0 ? prepareChartData() : { paymentModeChartData: [], categoryChartData: [] };
+  const { paymentModeChartData, categoryChartData, subcategoryChartData } = expenses.length > 0 ? prepareChartData() : { paymentModeChartData: [], categoryChartData: [], subcategoryChartData: [] };
 
   return (
     <div className="current-month-expenses-page">
@@ -245,7 +253,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                 </ResponsiveContainer>
               </motion.div>
 
-              {/* Category Breakdown Bar Chart */}
+              {/* Category Breakdown Bar Chart - Clickable */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -257,16 +265,50 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                   boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                 }}
               >
-                <h3 style={{ marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>Category Breakdown</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>
+                    {selectedCategory ? `Subcategory Breakdown: ${selectedCategory}` : 'Category Breakdown'}
+                  </h3>
+                  {selectedCategory && (
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      style={{
+                        padding: '6px 12px',
+                        background: '#f3f4f6',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      ← Back to Categories
+                    </button>
+                  )}
+                </div>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={categoryChartData}>
+                  <BarChart 
+                    data={selectedCategory ? subcategoryChartData : categoryChartData}
+                    onClick={(data: any) => {
+                      if (!selectedCategory && data && data.activePayload && data.activePayload[0]) {
+                        const categoryName = data.activePayload[0].payload.name;
+                        setSelectedCategory(categoryName);
+                      }
+                    }}
+                    style={{ cursor: selectedCategory ? 'default' : 'pointer' }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
                     <YAxis />
                     <Tooltip formatter={(value: number) => `₹${value.toLocaleString("en-IN")}`} />
-                    <Bar dataKey="amount" fill="#3b82f6" />
+                    <Bar dataKey="amount" fill={selectedCategory ? "#8b5cf6" : "#3b82f6"} />
                   </BarChart>
                 </ResponsiveContainer>
+                {!selectedCategory && (
+                  <p style={{ marginTop: '8px', fontSize: '12px', color: '#6b7280', textAlign: 'center' }}>
+                    Click on a category bar to see subcategory breakdown
+                  </p>
+                )}
               </motion.div>
             </div>
           )}

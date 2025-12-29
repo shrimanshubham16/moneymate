@@ -231,3 +231,59 @@
 .info-card p:last-child {
   margin-bottom: 0;
 }
+
+/* Password Requirements */
+.password-requirements {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fef3c7;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.password-requirements small {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #92400e;
+}
+
+.password-requirements ul {
+  margin: 4px 0 0 0;
+  padding-left: 20px;
+  color: #92400e;
+}
+
+.password-requirements li {
+  margin-bottom: 2px;
+}
+
+/* Success Toast */
+.success-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+  min-width: 300px;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toast-icon {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.toast-message {
+  font-size: 16px;
+  font-weight: 600;
+}
