@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory } from "react-icons/fa";
 import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts, getCreditCardUsage, fetchDashboard, updateCreditCardBill } from "../api";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./CreditCardsManagementPage.css";
 
 interface CreditCardsManagementPageProps {
@@ -147,7 +148,22 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
           ← Back
         </button>
         <div className="header-content">
-          <h1><FaCreditCard style={{ marginRight: 8, verticalAlign: 'middle' }} />Manage Credit Cards</h1>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <h1><FaCreditCard style={{ marginRight: 8, verticalAlign: 'middle' }} />Manage Credit Cards</h1>
+            <PageInfoButton
+              title="Credit Card Management"
+              description="Manage your credit cards, track bills, payments, and usage. Monitor your credit card expenses and stay on top of due dates."
+              impact="Credit card bills use the FULL bill amount in health score calculations (not unpaid amount). Paying bills doesn't improve health score until you pay MORE than the bill amount. Only overpayments reduce available funds."
+              howItWorks={[
+                "Add credit cards with bill amount, due date, and billing date",
+                "Track current expenses from variable expenses paid via credit card",
+                "Update bill amounts manually when statements arrive",
+                "Reset billing cycle to zero out current expenses",
+                "View usage to see all expenses charged to each card",
+                "Get alerts when bills need updating"
+              ]}
+            />
+          </div>
           <button className="add-card-btn" onClick={() => setShowForm(true)}>
             <FaPlus style={{ marginRight: 6 }} />
             Add Card

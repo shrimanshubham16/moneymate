@@ -6,6 +6,7 @@ import { fetchDashboard } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./InvestmentsPage.css";
 
 interface InvestmentsPageProps {
@@ -36,7 +37,21 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
     <div className="investments-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <h1>Investments</h1>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h1>Investments</h1>
+          <PageInfoButton
+            title="Investments"
+            description="Track your investments like SIPs, mutual funds, stocks, fixed deposits, and other savings plans. Monitor your wealth-building journey."
+            impact="Active investments are considered as monthly obligations and reduce your available funds. Unpaid investments negatively impact your health score, so it's important to mark them as paid when you invest."
+            howItWorks={[
+              "Add investments with monthly amount, goal, and status (active/paused/completed)",
+              "Mark investments as paid when you make monthly contributions",
+              "Active investments are automatically included in health score calculations",
+              "Track your investment goals and progress over time",
+              "Paused or completed investments don't affect your health score"
+            ]}
+          />
+        </div>
         <button className="add-button" onClick={() => navigate("/settings/plan-finances/investments")}>
           + Add Investment
         </button>

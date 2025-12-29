@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard } from "react-icons/fa";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { fetchDashboard } from "../api";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./CurrentMonthExpensesPage.css";
 
 interface CurrentMonthExpensesPageProps {
@@ -187,7 +188,21 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     <div className="current-month-expenses-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <h1>Current Month Expenses</h1>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h1>Current Month Expenses</h1>
+          <PageInfoButton
+            title="Current Month Expenses"
+            description="View all your expenses for the current month, organized by category, subcategory, and payment mode. Analyze your spending patterns with interactive charts."
+            impact="This page helps you understand where your money is going. Expenses are grouped by category and payment mode, helping you identify spending patterns and make informed financial decisions."
+            howItWorks={[
+              "Expenses are grouped by Category → Subcategory → Payment Mode",
+              "Payment modes: UPI/Cash (reduces available funds), Extra Cash (doesn't reduce funds), Credit Card (billed later)",
+              "View payment mode distribution with pie chart",
+              "See category breakdown with bar chart",
+              "All expenses from fixed expenses and variable expense actuals are included"
+            ]}
+          />
+        </div>
       </div>
 
       {loading ? <div>Loading...</div> : expenses.length === 0 ? (

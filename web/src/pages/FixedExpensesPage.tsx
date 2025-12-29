@@ -7,6 +7,7 @@ import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import { ProgressBar } from "../components/ProgressBar";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./FixedExpensesPage.css";
 
 interface FixedExpensesPageProps {
@@ -126,7 +127,21 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
         <button className="back-button" onClick={() => navigate("/settings/plan-finances")}>
           ← Back
         </button>
-        <h1>Fixed Expenses</h1>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h1>Fixed Expenses</h1>
+          <PageInfoButton
+            title="Fixed Expenses"
+            description="Track your recurring monthly expenses like rent, subscriptions, insurance, and other regular payments. These are expenses that remain constant each month."
+            impact="Fixed expenses are automatically deducted from your available funds and directly impact your health score. Unpaid fixed expenses reduce your financial health, so it's important to mark them as paid when you make payments."
+            howItWorks={[
+              "Add fixed expenses with amount, frequency, and category",
+              "Mark expenses as paid when you make payments to update your available funds",
+              "Expenses with 'Loan' category automatically appear in your Loans widget",
+              "Use SIP flag for expenses that are Systematic Investment Plans",
+              "Set start and end dates for time-bound expenses"
+            ]}
+          />
+        </div>
         <button className="add-button" onClick={() => {
           setEditingId(null);
           setFormData({

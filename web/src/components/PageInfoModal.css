@@ -1,0 +1,190 @@
+/* Page Info Modal - CRED/Blissy Dark Theme */
+
+.page-info-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 14, 39, 0.95);
+  backdrop-filter: var(--blur-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: var(--space-6);
+}
+
+.page-info-modal-content {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-2xl);
+  max-width: 640px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl), 0 0 80px rgba(0, 217, 255, 0.3);
+  border: 1px solid rgba(0, 217, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.page-info-modal-header {
+  padding: var(--space-6) var(--space-8);
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.15), rgba(167, 139, 250, 0.15));
+  border-bottom: 1px solid rgba(184, 193, 236, 0.1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.page-info-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(6, 182, 212, 0.1));
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: var(--color-info);
+  box-shadow: 0 0 30px rgba(6, 182, 212, 0.3);
+}
+
+.page-info-modal-header h2 {
+  font-size: var(--text-xl);
+  font-weight: var(--font-extrabold);
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.page-info-close-btn {
+  background: rgba(184, 193, 236, 0.05);
+  border: 1px solid rgba(184, 193, 236, 0.1);
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.page-info-close-btn:hover {
+  background: rgba(255, 0, 110, 0.1);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+  transform: rotate(90deg);
+}
+
+.page-info-modal-body {
+  padding: var(--space-8);
+  flex: 1;
+  overflow-y: auto;
+}
+
+.page-info-description {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  margin: 0 0 var(--space-6) 0;
+}
+
+.page-info-section {
+  background: rgba(0, 217, 255, 0.05);
+  border-left: 3px solid var(--accent-cyan);
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-5);
+}
+
+.page-info-section h3 {
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--accent-cyan);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.page-info-section p {
+  font-size: var(--text-small);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+}
+
+.page-info-section ul {
+  margin: 0;
+  padding-left: var(--space-6);
+  list-style: none;
+}
+
+.page-info-section li {
+  font-size: var(--text-small);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+  line-height: var(--leading-relaxed);
+  position: relative;
+}
+
+.page-info-section li::before {
+  content: '→';
+  position: absolute;
+  left: calc(-1 * var(--space-6));
+  color: var(--accent-cyan);
+  font-weight: var(--font-bold);
+}
+
+.page-info-modal-footer {
+  padding: var(--space-6) var(--space-8);
+  background: rgba(184, 193, 236, 0.03);
+  border-top: 1px solid rgba(184, 193, 236, 0.05);
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.page-info-got-it-btn {
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+  color: var(--bg-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  box-shadow: var(--glow-cyan);
+  transition: all var(--transition-base);
+}
+
+.page-info-got-it-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px rgba(0, 217, 255, 0.6);
+}
+
+.page-info-got-it-btn:active {
+  transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-info-modal-overlay {
+    padding: var(--space-4);
+  }
+
+  .page-info-modal-header {
+    padding: var(--space-5) var(--space-6);
+  }
+
+  .page-info-modal-body {
+    padding: var(--space-6);
+  }
+
+  .page-info-description {
+    font-size: var(--text-small);
+  }
+}
+

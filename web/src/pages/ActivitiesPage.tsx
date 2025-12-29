@@ -6,6 +6,7 @@ import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, Fa
 import { MdAccountBalanceWallet } from "react-icons/md";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./ActivitiesPage.css";
 
 interface ActivitiesPageProps {
@@ -87,7 +88,21 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
 
       {/* Page Header */}
       <div className="page-header">
-        <h1><FaClipboardList style={{ marginRight: 12, verticalAlign: "middle" }} />Activity Log</h1>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h1><FaClipboardList style={{ marginRight: 12, verticalAlign: "middle" }} />Activity Log</h1>
+          <PageInfoButton
+            title="Activity Log"
+            description="View a complete history of all your financial activities including income additions, expense tracking, investments, credit card transactions, and more."
+            impact="The activity log helps you track all changes to your financial data. Every action you take is recorded with details like amounts, categories, and timestamps for full transparency."
+            howItWorks={[
+              "All financial actions are automatically logged with timestamps",
+              "View detailed information including amounts, categories, and payment modes",
+              "Filter activities by type (income, expenses, investments, credit cards, etc.)",
+              "See who performed each action (useful for shared accounts)",
+              "Activity log helps you audit and understand your financial history"
+            ]}
+          />
+        </div>
       </div>
 
       {/* Content */}

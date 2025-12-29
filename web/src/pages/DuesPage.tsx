@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { fetchCreditCards, fetchLoans, fetchDashboard, markAsPaid, markAsUnpaid } from "../api";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./DuesPage.css";
 
 interface DuesPageProps {
@@ -141,7 +142,21 @@ export function DuesPage({ token }: DuesPageProps) {
     <div className="dues-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <h1>Current Month Dues</h1>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h1>Current Month Dues</h1>
+          <PageInfoButton
+            title="Current Month Dues"
+            description="View all your financial obligations due this month including fixed expenses, investments, and loans. Mark them as paid to update your available funds and health score."
+            impact="Unpaid dues reduce your available funds and negatively impact your health score. Marking dues as paid updates your financial status in real-time and improves your health score."
+            howItWorks={[
+              "All fixed expenses, investments, and loans due this month are listed here",
+              "Toggle payment status to mark items as paid or unpaid",
+              "Paid items don't reduce your available funds",
+              "Unpaid items are automatically included in health score calculations",
+              "Credit card payments must be made through the Credit Cards page"
+            ]}
+          />
+        </div>
       </div>
 
       {loading ? <div>Loading...</div> : (

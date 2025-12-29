@@ -6,6 +6,7 @@ import { fetchDashboard, createVariableExpensePlan, updateVariableExpensePlan, d
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ProgressBar } from "../components/ProgressBar";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./VariableExpensesPage.css";
 
 interface VariableExpensesPageProps {
@@ -168,7 +169,21 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     <div className="variable-expenses-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <h1>Variable Expenses</h1>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <h1>Variable Expenses</h1>
+          <PageInfoButton
+            title="Variable Expenses"
+            description="Plan and track your variable expenses like groceries, dining, entertainment, and shopping. These expenses can vary each month based on your spending habits."
+            impact="Variable expenses are prorated based on remaining days in your billing cycle and directly affect your health score. Tracking actual expenses helps you stay within your planned budget and maintain financial health."
+            howItWorks={[
+              "Create expense plans with a planned amount and category",
+              "Add actual expenses as you spend, with subcategory and payment mode",
+              "Payment modes: UPI/Cash (reduces available funds), Extra Cash (doesn't reduce funds), Credit Card (billed later)",
+              "The app calculates prorated amounts for remaining days in your billing cycle",
+              "Track your spending against plans to stay within budget"
+            ]}
+          />
+        </div>
         <button className="add-button" onClick={() => { setShowPlanForm(true); setEditingId(null); }}>
           + Add New Plan
         </button>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaMoneyBillWave, FaPlus } from "react-icons/fa";
 import { fetchDashboard, createIncome, deleteIncome } from "../api";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./IncomePage.css";
 
 interface IncomePageProps {
@@ -74,7 +75,20 @@ export function IncomePage({ token }: IncomePageProps) {
           ← Back
         </button>
         <div className="header-content">
-          <h1><FaMoneyBillWave style={{ marginRight: 8, verticalAlign: 'middle' }} />Income Sources</h1>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <h1><FaMoneyBillWave style={{ marginRight: 8, verticalAlign: 'middle' }} />Income Sources</h1>
+            <PageInfoButton
+              title="Income Sources"
+              description="Track all your income sources including salary, freelance work, investments, and other earnings. This is the foundation of your financial planning."
+              impact="Your total monthly income directly affects your available funds and health score. Higher income means more money available for expenses, investments, and savings."
+              howItWorks={[
+                "Add income sources with their amounts and frequency (monthly, quarterly, yearly)",
+                "The app automatically converts all incomes to monthly equivalents for calculations",
+                "Your total monthly income is used to calculate available funds and health score",
+                "You can edit or delete income sources anytime as your situation changes"
+              ]}
+            />
+          </div>
           <button className="add-income-btn" onClick={() => setShowForm(true)}>
             <FaPlus style={{ marginRight: 6 }} />
             Add Income
