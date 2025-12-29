@@ -1,6 +1,19 @@
 export type LoginResponse = { access_token: string; user: { id: string; username: string } };
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
+// Ensure BASE_URL has protocol, default to localhost for development
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl) return "http://localhost:12022";
+  
+  // If URL doesn't start with http:// or https://, add https://
+  if (!envUrl.startsWith("http://") && !envUrl.startsWith("https://")) {
+    return `https://${envUrl}`;
+  }
+  
+  return envUrl;
+};
+
+const BASE_URL = getBaseUrl();
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
