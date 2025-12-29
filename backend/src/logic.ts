@@ -131,12 +131,34 @@ export function unpaidCreditCardDues(userId: string, today: Date): number {
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
 
+  // v1.2: Design: Health score considers FULL bill amount, not unpaid amount
+  // This way, paying credit card bill doesn't affect health score until overpaid
   return store.creditCards.filter(c => c.userId === userId).reduce((sum, card) => {
     const dueDate = new Date(card.dueDate);
     // Only count cards due in current month
     if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
-      const unpaidAmount = card.billAmount - card.paidAmount;
-      return sum + unpaidAmount;
+      // Use full bill amount (not unpaid amount)
+      // This ensures paying the bill doesn't improve health score
+      // Only overpayment (paidAmount > billAmount) would affect available funds
+      return sum + (card.billAmount || 0);
+    }
+    return sum;
+  }, 0);
+}
+
+// v1.2: Calculate credit card overpayments (paidAmount > billAmount)
+// These should reduce available funds
+export function getCreditCardOverpayments(userId: string, today: Date): number {
+  const store = getStore();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+
+  return store.creditCards.filter(c => c.userId === userId).reduce((sum, card) => {
+    const dueDate = new Date(card.dueDate);
+    // Only count cards due in current month
+    if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
+      const overpayment = Math.max(0, (card.paidAmount || 0) - (card.billAmount || 0));
+      return sum + overpayment;
     }
     return sum;
   }, 0);
@@ -155,7 +177,9 @@ export function computeHealthSnapshot(today: Date, userId: string): { remaining:
 
   const totalIncome = totalIncomePerMonth(userId);
   const paymentsMade = totalPaymentsMadeThisMonth(userId, today);
-  const availableFunds = totalIncome - paymentsMade;
+  // v1.2: Credit card overpayments (paidAmount > billAmount) reduce available funds
+  const creditCardOverpaymentsAmount = getCreditCardOverpayments(userId, today);
+  const availableFunds = totalIncome - paymentsMade - creditCardOverpaymentsAmount;
 
   // Calculate unpaid obligations
   const unpaidFixed = unpaidFixedPerMonth(userId, today);
@@ -164,6 +188,7 @@ export function computeHealthSnapshot(today: Date, userId: string): { remaining:
   const unpaidVariable = unpaidProratedVariableForRemainingDays(userId, today, monthStartDay);
 
   const unpaidInvestments = unpaidInvestmentsPerMonth(userId, today);
+  // v1.2: Use full bill amount (not unpaid amount) for health calculation
   const unpaidCreditCards = unpaidCreditCardDues(userId, today);
 
   const remaining = availableFunds - unpaidFixed - unpaidVariable - unpaidInvestments - unpaidCreditCards;

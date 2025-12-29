@@ -4,7 +4,7 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { authRoutes, requireAuth } from "./auth";
 import { getMergedFinanceGroupUserIds } from "./mergedFinances";
-import { applyConstraintDecay, computeHealthSnapshot, tierFor, totalIncomePerMonth, totalPaymentsMadeThisMonth, unpaidFixedPerMonth, unpaidProratedVariableForRemainingDays, unpaidInvestmentsPerMonth, unpaidCreditCardDues, calculateMonthProgress } from "./logic";
+import { applyConstraintDecay, computeHealthSnapshot, tierFor, totalIncomePerMonth, totalPaymentsMadeThisMonth, unpaidFixedPerMonth, unpaidProratedVariableForRemainingDays, unpaidInvestmentsPerMonth, unpaidCreditCardDues, getCreditCardOverpayments, calculateMonthProgress } from "./logic";
 import { markAsPaid, markAsUnpaid, isPaid, getPaymentStatus, getUserPayments, getPaymentsSummary } from "./payments";
 import { getUserPreferences, updateUserPreferences } from "./preferences";
 import {
@@ -181,11 +181,14 @@ app.get("/health/details", requireAuth, (req, res) => {
   // Get components
   const totalIncome = totalIncomePerMonth(userId);
   const paymentsMade = totalPaymentsMadeThisMonth(userId, today);
-  const availableFunds = totalIncome - paymentsMade;
+  // v1.2: Credit card overpayments reduce available funds
+  const creditCardOverpaymentsAmount = getCreditCardOverpayments(userId, today);
+  const availableFunds = totalIncome - paymentsMade - creditCardOverpaymentsAmount;
 
   const unpaidFixed = unpaidFixedPerMonth(userId, today);
   const unpaidVariable = unpaidProratedVariableForRemainingDays(userId, today, monthStartDay);
   const unpaidInvestments = unpaidInvestmentsPerMonth(userId, today);
+  // v1.2: Use full bill amount (not unpaid amount) for health calculation
   const unpaidCreditCards = unpaidCreditCardDues(userId, today);
 
   const monthProgress = calculateMonthProgress(today, monthStartDay);

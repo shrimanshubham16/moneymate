@@ -664,7 +664,7 @@
     {
       "name": "TestCard",
       "dueDate": "2025-12-29",
-      "billAmount": 30000,
+      "billAmount": 32334,
       "billingDate": 1,
       "statementDate": "2025-12-29",
       "id": "6bbc2b2e-35d7-4939-a3b4-14051c1543b9",
@@ -1295,6 +1295,17 @@
         "category": "Groceries"
       },
       "createdAt": "2025-12-29T10:31:16.494Z"
+    },
+    {
+      "id": "afd8cfd0-6198-497f-ab7a-b6b33e41267b",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "updated_bill",
+      "payload": {
+        "id": "6bbc2b2e-35d7-4939-a3b4-14051c1543b9",
+        "billAmount": 32334
+      },
+      "createdAt": "2025-12-29T10:36:27.303Z"
     }
   ],
   "themeStates": []
