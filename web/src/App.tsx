@@ -166,7 +166,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/settings/manage-debts/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/investments" element={<InvestmentsPage token={token} />} />
           <Route path="/alerts" element={<AlertsPage token={token} />} />
-          <Route path="/credit-cards" element={<CreditCardsPage token={token} />} />
+          <Route path="/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/loans" element={<LoansPage token={token} />} />
           <Route path="/future-bombs" element={<FutureBombsPage token={token} />} />
           <Route path="/activities" element={<ActivitiesPage token={token} />} />

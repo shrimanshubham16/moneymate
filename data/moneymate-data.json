@@ -564,6 +564,16 @@
       "creditCardId": "58aa7206-0615-4c34-90b0-9841b99ccae6",
       "id": "d6b3c540-e44d-4f77-8d64-973b437718fb",
       "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
+    },
+    {
+      "planId": "cd558267-3be8-4d3e-a1db-0d949c2e59ec",
+      "amount": 1222,
+      "incurredAt": "2025-12-29T10:19:49.052Z",
+      "subcategory": "Fun",
+      "paymentMode": "CreditCard",
+      "creditCardId": "58aa7206-0615-4c34-90b0-9841b99ccae6",
+      "id": "192ddbca-b5fb-4b0e-8d8a-9f48924e72ce",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442"
     }
   ],
   "constraint": {
@@ -650,19 +660,7 @@
       "id": "58aa7206-0615-4c34-90b0-9841b99ccae6",
       "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
       "paidAmount": 2000,
-      "currentExpenses": 2300,
-      "needsBillUpdate": false
-    },
-    {
-      "name": "Amex1",
-      "dueDate": "2025-12-29",
-      "billAmount": 0,
-      "billingDate": 8,
-      "statementDate": "2025-12-29",
-      "id": "6998beda-10fb-455c-b70c-0f29062b68ef",
-      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
-      "paidAmount": 0,
-      "currentExpenses": 0,
+      "currentExpenses": 3522,
       "needsBillUpdate": false
     },
     {
@@ -673,7 +671,19 @@
       "statementDate": "2025-12-29",
       "id": "dd6925cc-582a-4ba9-b0a3-fb9fcc78a1af",
       "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
-      "paidAmount": 0,
+      "paidAmount": 10000,
+      "currentExpenses": 0,
+      "needsBillUpdate": false
+    },
+    {
+      "name": "Amex4",
+      "dueDate": "2025-12-26",
+      "billAmount": 20000,
+      "billingDate": 10,
+      "statementDate": "2025-12-29",
+      "id": "6c581377-d6c9-4fea-85ba-c9b43735a8fe",
+      "userId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "paidAmount": 20000,
       "currentExpenses": 0,
       "needsBillUpdate": false
     }
@@ -1150,6 +1160,60 @@
         "id": "70085866-ce89-4d73-93cb-18d50277a715"
       },
       "createdAt": "2025-12-29T10:13:51.703Z"
+    },
+    {
+      "id": "9061aebf-6e68-4679-860b-72d3da21ae34",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "deleted",
+      "payload": {
+        "id": "6998beda-10fb-455c-b70c-0f29062b68ef"
+      },
+      "createdAt": "2025-12-29T10:17:55.820Z"
+    },
+    {
+      "id": "39699e25-a49c-4c57-a5b0-8daf02db6f4d",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "created",
+      "payload": {
+        "id": "6c581377-d6c9-4fea-85ba-c9b43735a8fe"
+      },
+      "createdAt": "2025-12-29T10:18:19.222Z"
+    },
+    {
+      "id": "c245146a-f9f8-4426-9d33-e7359c8c7e58",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "variable_expense",
+      "action": "added actual expense",
+      "payload": {
+        "plan": "food",
+        "amount": 1222,
+        "category": "Food"
+      },
+      "createdAt": "2025-12-29T10:19:49.058Z"
+    },
+    {
+      "id": "12299bb6-b2e5-4210-a9d0-1906a5833b2c",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "payment",
+      "payload": {
+        "id": "dd6925cc-582a-4ba9-b0a3-fb9fcc78a1af",
+        "amount": 10000
+      },
+      "createdAt": "2025-12-29T10:20:24.390Z"
+    },
+    {
+      "id": "cf8a10af-d001-4847-b81e-5e069683c428",
+      "actorId": "8c85a181-bfef-4a3f-97e9-2d8db3834442",
+      "entity": "credit_card",
+      "action": "payment",
+      "payload": {
+        "id": "6c581377-d6c9-4fea-85ba-c9b43735a8fe",
+        "amount": 20000
+      },
+      "createdAt": "2025-12-29T10:20:30.168Z"
     }
   ],
   "themeStates": []
