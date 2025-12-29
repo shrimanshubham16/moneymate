@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaCreditCard, FaPlus } from "react-icons/fa";
-import { fetchCreditCards, createCreditCard, deleteCreditCard } from "../api";
+import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle } from "react-icons/fa";
+import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts } from "../api";
 import "./CreditCardsManagementPage.css";
 
 interface CreditCardsManagementPageProps {
@@ -16,13 +16,16 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    billAmount: "",
+    billAmount: "0",  // v1.2: Default to 0, can be set later
     paidAmount: "0",
-    dueDate: new Date().toISOString().split('T')[0]
+    dueDate: new Date().toISOString().split('T')[0],
+    billingDate: "1"  // v1.2: Default to 1st of month
   });
+  const [billingAlerts, setBillingAlerts] = useState<any[]>([]);  // v1.2: Billing alerts
 
   useEffect(() => {
     loadCards();
+    loadBillingAlerts();  // v1.2: Load billing alerts
   }, []);
 
   const loadCards = async () => {
@@ -36,17 +39,41 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
     }
   };
 
+  // v1.2: Load billing alerts
+  const loadBillingAlerts = async () => {
+    try {
+      const res = await getBillingAlerts(token);
+      setBillingAlerts(res.data || []);
+    } catch (e) {
+      console.error("Failed to load billing alerts:", e);
+    }
+  };
+
+  // v1.2: Handle reset billing
+  const handleResetBilling = async (cardId: string, cardName: string) => {
+    if (!confirm(`Reset current expenses for ${cardName}? You'll need to manually update the bill amount.`)) return;
+    try {
+      await resetCreditCardBilling(token, cardId);
+      await loadCards();
+      await loadBillingAlerts();
+      alert("Current expenses reset. Please update the bill amount manually.");
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await createCreditCard(token, {
         name: form.name,
-        billAmount: Number(form.billAmount),
-        paidAmount: Number(form.paidAmount),
-        dueDate: form.dueDate
+        billAmount: Number(form.billAmount) || 0,  // v1.2: Default to 0
+        paidAmount: Number(form.paidAmount) || 0,
+        dueDate: form.dueDate,
+        billingDate: Number(form.billingDate)  // v1.2: Billing date
       });
       setShowForm(false);
-      setForm({ name: "", billAmount: "", paidAmount: "0", dueDate: new Date().toISOString().split('T')[0] });
+      setForm({ name: "", billAmount: "0", paidAmount: "0", dueDate: new Date().toISOString().split('T')[0], billingDate: "1" });
       await loadCards();
     } catch (e: any) {
       alert(e.message);
@@ -78,6 +105,22 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         </div>
       </div>
 
+      {/* v1.2: Billing Alerts */}
+      {billingAlerts.length > 0 && (
+        <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <FaBell color="#f59e0b" />
+            <strong>Billing Alerts</strong>
+          </div>
+          {billingAlerts.map((alert, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <FaExclamationTriangle size={14} color="#f59e0b" />
+              <span>{alert.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="loading">Loading...</div>
       ) : (
@@ -106,9 +149,18 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       </button>
                     </div>
                     <div className="card-details">
+                      {/* v1.2: Current Expenses */}
+                      {(card.currentExpenses || 0) > 0 && (
+                        <div className="detail-row" style={{ backgroundColor: '#fef3c7', padding: '8px', borderRadius: '4px', marginBottom: '8px' }}>
+                          <span><strong>Current Expenses:</strong></span>
+                          <span className="amount" style={{ color: '#f59e0b', fontWeight: 'bold' }}>
+                            ₹{(card.currentExpenses || 0).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                      )}
                       <div className="detail-row">
                         <span>Bill Amount:</span>
-                        <span className="amount">₹{card.billAmount.toLocaleString("en-IN")}</span>
+                        <span className="amount">₹{(card.billAmount || 0).toLocaleString("en-IN")}</span>
                       </div>
                       <div className="detail-row">
                         <span>Paid Amount:</span>
@@ -124,7 +176,43 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                         <span>Due Date:</span>
                         <span>{new Date(card.dueDate).toLocaleDateString()}</span>
                       </div>
+                      {/* v1.2: Billing Date */}
+                      <div className="detail-row">
+                        <span>Billing Date:</span>
+                        <span>Day {card.billingDate || 1} of each month</span>
+                      </div>
+                      {/* v1.2: Needs Bill Update Alert */}
+                      {card.needsBillUpdate && (
+                        <div className="detail-row" style={{ backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px', marginTop: '8px' }}>
+                          <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
+                            ⚠️ Bill needs to be updated with actual amount
+                          </span>
+                        </div>
+                      )}
                     </div>
+                    {/* v1.2: Reset Billing Button */}
+                    {(card.currentExpenses || 0) > 0 && (
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
+                        <button
+                          onClick={() => handleResetBilling(card.id, card.name)}
+                          style={{
+                            width: '100%',
+                            padding: '8px',
+                            backgroundColor: '#f59e0b',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          Reset for Billing (₹{(card.currentExpenses || 0).toLocaleString("en-IN")})
+                        </button>
+                        <small style={{ display: 'block', marginTop: '4px', color: '#6b7280' }}>
+                          This will reset current expenses to 0. You'll need to manually update the bill amount.
+                        </small>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -150,15 +238,17 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                     />
                   </div>
                   <div className="form-group">
-                    <label>Bill Amount *</label>
+                    <label>Bill Amount</label>
                     <input
                       type="number"
                       value={form.billAmount}
                       onChange={(e) => setForm({ ...form, billAmount: e.target.value })}
-                      required
                       min="0"
-                      placeholder="15000"
+                      placeholder="0 (can be set later)"
                     />
+                    <small style={{ color: '#6b7280', display: 'block', marginTop: '4px' }}>
+                      Leave as 0 if no current bill. You can update it later when bill is generated.
+                    </small>
                   </div>
                   <div className="form-group">
                     <label>Paid Amount</label>
@@ -171,14 +261,37 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       placeholder=""
                     />
                   </div>
-                  <div className="form-group">
-                    <label>Due Date *</label>
-                    <input
-                      type="date"
-                      value={form.dueDate}
-                      onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                      required
-                    />
+                  <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-group">
+                      <label>Due Date *</label>
+                      <input
+                        type="date"
+                        value={form.dueDate}
+                        onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                        required
+                      />
+                    </div>
+                    {/* v1.2: Billing Date */}
+                    <div className="form-group">
+                      <label>Billing Date (Day of Month) *</label>
+                      <input
+                        type="number"
+                        value={form.billingDate}
+                        onChange={(e) => {
+                          const day = parseInt(e.target.value);
+                          if (day >= 1 && day <= 31) {
+                            setForm({ ...form, billingDate: e.target.value });
+                          }
+                        }}
+                        min="1"
+                        max="31"
+                        required
+                        placeholder="1"
+                      />
+                      <small style={{ color: '#6b7280', display: 'block', marginTop: '4px' }}>
+                        Day of month when bill is generated (1-31)
+                      </small>
+                    </div>
                   </div>
                   <div className="form-actions">
                     <button type="button" onClick={() => setShowForm(false)}>

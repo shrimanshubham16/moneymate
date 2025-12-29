@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaChartBar, FaShoppingCart } from "react-icons/fa";
-import { fetchDashboard, createVariableExpensePlan, updateVariableExpensePlan, deleteVariableExpensePlan, addVariableActual } from "../api";
+import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard } from "react-icons/fa";
+import { fetchDashboard, createVariableExpensePlan, updateVariableExpensePlan, deleteVariableExpensePlan, addVariableActual, getUserSubcategories, addUserSubcategory, fetchCreditCards } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ProgressBar } from "../components/ProgressBar";
@@ -29,11 +29,20 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   });
   const [actualForm, setActualForm] = useState({
     amount: "",
-    justification: ""
+    justification: "",
+    subcategory: "Unspecified",  // v1.2: Default subcategory
+    paymentMode: "Cash" as "UPI" | "Cash" | "ExtraCash" | "CreditCard",  // v1.2: Default payment mode
+    creditCardId: "",  // v1.2: Credit card selection
+    showNewSubcategory: false,  // v1.2: Show new subcategory input
+    newSubcategory: ""  // v1.2: New subcategory input
   });
+  const [userSubcategories, setUserSubcategories] = useState<string[]>(["Unspecified"]);  // v1.2: User's subcategories
+  const [creditCards, setCreditCards] = useState<any[]>([]);  // v1.2: User's credit cards
 
   useEffect(() => {
     loadPlans();
+    loadSubcategories();  // v1.2: Load subcategories
+    loadCreditCards();  // v1.2: Load credit cards
   }, []);
 
   const loadPlans = async () => {
@@ -44,6 +53,26 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       console.error("Failed to load plans:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // v1.2: Load user subcategories
+  const loadSubcategories = async () => {
+    try {
+      const res = await getUserSubcategories(token);
+      setUserSubcategories(res.data || ["Unspecified"]);
+    } catch (e) {
+      console.error("Failed to load subcategories:", e);
+    }
+  };
+
+  // v1.2: Load credit cards
+  const loadCreditCards = async () => {
+    try {
+      const res = await fetchCreditCards(token);
+      setCreditCards(res.data || []);
+    } catch (e) {
+      console.error("Failed to load credit cards:", e);
     }
   };
 
@@ -75,18 +104,56 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     }
   };
 
+  // v1.2: Handle adding new subcategory
+  const handleAddSubcategory = async () => {
+    if (actualForm.newSubcategory.trim()) {
+      try {
+        const res = await addUserSubcategory(token, actualForm.newSubcategory.trim());
+        setUserSubcategories(res.data.subcategories);
+        setActualForm({ 
+          ...actualForm, 
+          subcategory: actualForm.newSubcategory.trim(), 
+          showNewSubcategory: false,
+          newSubcategory: "" 
+        });
+      } catch (e: any) {
+        alert(e.message);
+      }
+    }
+  };
+
   const handleActualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlanId) return;
+    
+    // v1.2: Validate credit card selection
+    if (actualForm.paymentMode === "CreditCard" && !actualForm.creditCardId) {
+      alert("Please select a credit card");
+      return;
+    }
+    
     try {
       await addVariableActual(token, selectedPlanId, {
         amount: Number(actualForm.amount),
-        incurred_at: "2025-01-15T00:00:00Z",
-        justification: actualForm.justification || undefined
+        incurred_at: new Date().toISOString(),  // Use current date
+        justification: actualForm.justification || undefined,
+        subcategory: actualForm.subcategory,
+        payment_mode: actualForm.paymentMode,
+        credit_card_id: actualForm.paymentMode === "CreditCard" ? actualForm.creditCardId : undefined
       });
       setShowActualForm(false);
-      setActualForm({ amount: "", justification: "" });
+      setActualForm({ 
+        amount: "", 
+        justification: "",
+        subcategory: "Unspecified",
+        paymentMode: "Cash",
+        creditCardId: "",
+        showNewSubcategory: false,
+        newSubcategory: ""
+      });
+      setSelectedPlanId(null);
       await loadPlans();
+      await loadCreditCards();  // Reload to get updated currentExpenses
     } catch (e: any) {
       alert(e.message);
     }
@@ -167,8 +234,172 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
               </div>
               <div className="form-group">
                 <label>Amount *</label>
-                <input type="number" value={actualForm.amount} onChange={(e) => setActualForm({ ...actualForm, amount: e.target.value })} required />
+                <input type="number" value={actualForm.amount} onChange={(e) => setActualForm({ ...actualForm, amount: e.target.value })} required min="0" step="0.01" />
               </div>
+
+              {/* v1.2: Subcategory Selection */}
+              <div className="form-group">
+                <label>Subcategory</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <select
+                    value={actualForm.subcategory}
+                    onChange={(e) => {
+                      if (e.target.value === "__NEW__") {
+                        setActualForm({ ...actualForm, showNewSubcategory: true, subcategory: "" });
+                      } else {
+                        setActualForm({ ...actualForm, subcategory: e.target.value, showNewSubcategory: false });
+                      }
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    {userSubcategories.map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                    <option value="__NEW__">+ Add New Subcategory</option>
+                  </select>
+                  {actualForm.showNewSubcategory && (
+                    <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+                      <input
+                        type="text"
+                        placeholder="Enter new subcategory"
+                        value={actualForm.newSubcategory}
+                        onChange={(e) => setActualForm({ ...actualForm, newSubcategory: e.target.value })}
+                        onBlur={handleAddSubcategory}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddSubcategory();
+                          }
+                        }}
+                        style={{ flex: 1 }}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* v1.2: Payment Mode Selection */}
+              <div className="form-group">
+                <label>Payment Mode *</label>
+                <div className="payment-mode-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '8px' }}>
+                  <label className="payment-mode-option" style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    padding: '12px', 
+                    border: `2px solid ${actualForm.paymentMode === "UPI" ? '#3b82f6' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: actualForm.paymentMode === "UPI" ? '#eff6ff' : 'transparent',
+                    transition: 'all 0.2s'
+                  }}>
+                    <input
+                      type="radio"
+                      name="paymentMode"
+                      value="UPI"
+                      checked={actualForm.paymentMode === "UPI"}
+                      onChange={(e) => setActualForm({ ...actualForm, paymentMode: e.target.value as any, creditCardId: "" })}
+                      style={{ margin: 0 }}
+                    />
+                    <FaMobileAlt size={20} />
+                    <span>UPI</span>
+                  </label>
+                  <label className="payment-mode-option" style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    padding: '12px', 
+                    border: `2px solid ${actualForm.paymentMode === "Cash" ? '#3b82f6' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: actualForm.paymentMode === "Cash" ? '#eff6ff' : 'transparent',
+                    transition: 'all 0.2s'
+                  }}>
+                    <input
+                      type="radio"
+                      name="paymentMode"
+                      value="Cash"
+                      checked={actualForm.paymentMode === "Cash"}
+                      onChange={(e) => setActualForm({ ...actualForm, paymentMode: e.target.value as any, creditCardId: "" })}
+                      style={{ margin: 0 }}
+                    />
+                    <FaMoneyBillWave size={20} />
+                    <span>Cash</span>
+                  </label>
+                  <label className="payment-mode-option" style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    padding: '12px', 
+                    border: `2px solid ${actualForm.paymentMode === "ExtraCash" ? '#3b82f6' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: actualForm.paymentMode === "ExtraCash" ? '#eff6ff' : 'transparent',
+                    transition: 'all 0.2s'
+                  }}>
+                    <input
+                      type="radio"
+                      name="paymentMode"
+                      value="ExtraCash"
+                      checked={actualForm.paymentMode === "ExtraCash"}
+                      onChange={(e) => setActualForm({ ...actualForm, paymentMode: e.target.value as any, creditCardId: "" })}
+                      style={{ margin: 0 }}
+                    />
+                    <FaWallet size={20} />
+                    <span>Extra Cash</span>
+                    <small style={{ fontSize: '10px', color: '#6b7280' }}>(Doesn't affect funds)</small>
+                  </label>
+                  <label className="payment-mode-option" style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px', 
+                    padding: '12px', 
+                    border: `2px solid ${actualForm.paymentMode === "CreditCard" ? '#3b82f6' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: actualForm.paymentMode === "CreditCard" ? '#eff6ff' : 'transparent',
+                    transition: 'all 0.2s'
+                  }}>
+                    <input
+                      type="radio"
+                      name="paymentMode"
+                      value="CreditCard"
+                      checked={actualForm.paymentMode === "CreditCard"}
+                      onChange={(e) => setActualForm({ ...actualForm, paymentMode: e.target.value as any })}
+                      style={{ margin: 0 }}
+                    />
+                    <FaCreditCard size={20} />
+                    <span>Credit Card</span>
+                    <small style={{ fontSize: '10px', color: '#6b7280' }}>(Billed later)</small>
+                  </label>
+                </div>
+              </div>
+
+              {/* v1.2: Credit Card Selection (conditional) */}
+              {actualForm.paymentMode === "CreditCard" && (
+                <div className="form-group">
+                  <label>Select Credit Card *</label>
+                  <select
+                    value={actualForm.creditCardId}
+                    onChange={(e) => setActualForm({ ...actualForm, creditCardId: e.target.value })}
+                    required
+                  >
+                    <option value="">Select credit card</option>
+                    {creditCards.map(card => (
+                      <option key={card.id} value={card.id}>
+                        {card.name} {card.currentExpenses ? `(Current: ₹${card.currentExpenses.toLocaleString("en-IN")})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {creditCards.length === 0 && (
+                    <small style={{ color: '#ef4444', display: 'block', marginTop: '4px' }}>
+                      No credit cards available. Add a credit card in Settings → Credit Cards first.
+                    </small>
+                  )}
+                </div>
+              )}
+
               <div className="form-group">
                 <label>Justification (if overspend)</label>
                 <textarea value={actualForm.justification} onChange={(e) => setActualForm({ ...actualForm, justification: e.target.value })} rows={3} />

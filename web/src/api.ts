@@ -42,12 +42,29 @@ export async function createVariablePlan(
   return request<{ data: any }>("/planning/variable-expenses", { method: "POST", body: JSON.stringify(payload) }, token);
 }
 
+// v1.2: Updated to include subcategory and payment mode
 export async function addVariableActual(
   token: string,
   id: string,
-  payload: { amount: number; incurred_at: string; justification?: string }
+  payload: { 
+    amount: number; 
+    incurred_at: string; 
+    justification?: string;
+    subcategory?: string;
+    payment_mode: "UPI" | "Cash" | "ExtraCash" | "CreditCard";
+    credit_card_id?: string;
+  }
 ) {
   return request<{ data: any }>(`/planning/variable-expenses/${id}/actuals`, { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+// v1.2: Subcategory management
+export async function getUserSubcategories(token: string) {
+  return request<{ data: string[] }>("/user/subcategories", { method: "GET" }, token);
+}
+
+export async function addUserSubcategory(token: string, subcategory: string) {
+  return request<{ data: { subcategory: string; subcategories: string[] } }>("/user/subcategories", { method: "POST", body: JSON.stringify({ subcategory }) }, token);
 }
 
 export async function fetchSharingRequests(token: string) {
@@ -80,7 +97,8 @@ export async function fetchCreditCards(token: string) {
   return request<{ data: any[] }>("/debts/credit-cards", { method: "GET" }, token);
 }
 
-export async function createCreditCard(token: string, payload: { name: string; billAmount: number; paidAmount: number; dueDate: string }) {
+// v1.2: Updated to include billingDate
+export async function createCreditCard(token: string, payload: { name: string; billAmount?: number; paidAmount?: number; dueDate: string; billingDate?: number }) {
   return request<{ data: any }>("/debts/credit-cards", { method: "POST", body: JSON.stringify(payload) }, token);
 }
 
@@ -90,6 +108,15 @@ export async function deleteCreditCard(token: string, id: string) {
 
 export async function payCreditCard(token: string, id: string, amount: number) {
   return request<{ data: any }>(`/debts/credit-cards/${id}/payments`, { method: "POST", body: JSON.stringify({ amount }) }, token);
+}
+
+// v1.2: Credit card billing functions
+export async function resetCreditCardBilling(token: string, id: string) {
+  return request<{ data: any }>(`/debts/credit-cards/${id}/reset-billing`, { method: "POST" }, token);
+}
+
+export async function getBillingAlerts(token: string) {
+  return request<{ data: Array<{ cardId: string; cardName: string; message: string }> }>("/debts/credit-cards/billing-alerts", { method: "GET" }, token);
 }
 
 export async function fetchLoans(token: string) {
