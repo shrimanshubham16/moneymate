@@ -8,7 +8,7 @@ const TEST_USER = {
     password: 'c0nsT@nt'
 };
 
-describe('MoneyMate PRD Compliance Tests - Backend API', () => {
+describe('FinFlow PRD Compliance Tests - Backend API', () => {
     let authToken: string;
     let userId: string;
 

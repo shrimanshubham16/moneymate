@@ -1,6 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { MdAccountBalanceWallet } from "react-icons/md";
-import { FaCog } from "react-icons/fa";
+import { FaChartLine, FaCog } from "react-icons/fa";
 import "./AppHeader.css";
 
 interface AppHeaderProps {
@@ -20,8 +19,8 @@ export function AppHeader({ onLogout }: AppHeaderProps) {
           onClick={() => navigate("/dashboard")}
           title="Go to Dashboard"
         >
-          <MdAccountBalanceWallet size={32} className="logo-icon" />
-          <span className="logo-text">MoneyMate</span>
+          <FaChartLine size={32} className="logo-icon" />
+          <span className="logo-text">FinFlow</span>
         </button>
       </div>
       

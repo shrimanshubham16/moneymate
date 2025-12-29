@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { FaLightbulb } from "react-icons/fa";
 import { fetchDashboard } from "../api";
 import "./SIPExpensesPage.css";
 
@@ -76,7 +77,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
                   </div>
                 </div>
                 <div className="sip-growth-info">
-                  <p>💡 Funds are accumulated monthly with potential growth until the due date.</p>
+                  <p><FaLightbulb style={{ marginRight: 6, verticalAlign: 'middle' }} />Funds are accumulated monthly with potential growth until the due date.</p>
                 </div>
               </motion.div>
             );

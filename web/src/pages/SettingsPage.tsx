@@ -28,7 +28,7 @@ export function SettingsPage() {
     { id: "plan-finances", title: "Plan Finances", icon: <FaChartLine size={32} />, description: "Plan income, expenses, and investments" },
     { id: "credit-cards", title: "Credit Cards", icon: <FaCreditCard size={32} />, description: "Manage credit card bills" },
     { id: "support", title: "Support", icon: <FaPalette size={32} />, description: "Get help and contact support" },
-    { id: "about", title: "About", icon: <FaInfoCircle size={32} />, description: "About MoneyMate and usage guide" }
+    { id: "about", title: "About", icon: <FaInfoCircle size={32} />, description: "About FinFlow and usage guide" }
   ];
 
   return (
@@ -36,8 +36,8 @@ export function SettingsPage() {
       <IntroModal
         isOpen={showIntro}
         onClose={closeIntro}
-        title="⚙️ Settings & Configuration"
-        description="Customize your MoneyMate experience. Manage your account, set financial preferences, share with family, and configure everything to match your needs."
+        title="Settings & Configuration"
+        description="Customize your FinFlow experience. Manage your account, set financial preferences, share with family, and configure everything to match your needs."
         tips={[
           "Account settings let you update your profile and password",
           "Billing Preferences sets your month start day for calculations",

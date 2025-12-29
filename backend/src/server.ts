@@ -801,7 +801,7 @@ app.get("/export/finances", requireAuth, (req, res) => {
   };
 
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', `attachment; filename = "moneymate-export-${new Date().toISOString().split('T')[0]}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename = "finflow-export-${new Date().toISOString().split('T')[0]}.json"`);
   res.json(exportData);
 });
 
@@ -943,7 +943,7 @@ const dashboardCache: Map<string, { payload: any; expiresAt: number }> = new Map
 if (require.main === module) {
   const PORT = process.env.PORT || 12022;
   const server = app.listen(PORT, () => {
-    console.log(`🚀 MoneyMate backend listening on port ${PORT} `);
+    console.log(`🚀 FinFlow backend listening on port ${PORT} `);
     console.log(`📊 Environment: ${NODE_ENV} `);
     console.log(`🔒 CORS origins: ${ALLOWED_ORIGINS.join(', ')} `);
   });

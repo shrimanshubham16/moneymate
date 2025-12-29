@@ -1,5 +1,5 @@
 /**
- * MoneyMate Version Information
+ * FinFlow Version Information
  * 
  * Versioning follows Semantic Versioning (https://semver.org/)
  * Format: MAJOR.MINOR.PATCH

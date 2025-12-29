@@ -61,7 +61,7 @@ function mockFetchFactory() {
   });
 }
 
-describe("MoneyMate web mock dashboard", () => {
+describe("FinFlow web mock dashboard", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });

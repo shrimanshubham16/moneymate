@@ -37,7 +37,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
   const loadExpenses = async () => {
     try {
       const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
-      console.log("📊 Dashboard response fixedExpenses:", res.data.fixedExpenses);
+      console.log(" Dashboard response fixedExpenses:", res.data.fixedExpenses);
       setExpenses(res.data.fixedExpenses || []);
     } catch (e) {
       console.error("Failed to load expenses:", e);
@@ -91,7 +91,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
   };
 
   const handleEdit = (expense: any) => {
-    console.log("✏️ Editing expense:", expense);
+    console.log(" Editing expense:", expense);
     console.log("🔧 is_sip_flag value:", expense.is_sip_flag);
     setEditingId(expense.id);
     setFormData({

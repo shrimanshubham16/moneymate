@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard } from "react-icons/fa";
+import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash } from "react-icons/fa";
 import { fetchDashboard, createVariableExpensePlan, updateVariableExpensePlan, deleteVariableExpensePlan, addVariableActual, getUserSubcategories, addUserSubcategory, fetchCreditCards } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -445,8 +445,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <h3>{plan.name}</h3>
                     <div className="plan-actions">
-                      <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan">✏️</button>
-                      <button className="delete-btn" onClick={() => { if (confirm("Delete?")) deleteVariableExpensePlan(token, plan.id).then(loadPlans); }} title="Delete" aria-label="Delete plan">🗑️</button>
+                      <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
+                      <button className="delete-btn" onClick={() => { if (confirm("Delete?")) deleteVariableExpensePlan(token, plan.id).then(loadPlans); }} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
                     </div>
                   </div>
                 </div>

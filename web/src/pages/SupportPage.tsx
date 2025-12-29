@@ -25,7 +25,7 @@ export function SupportPage() {
       >
         <section className="support-section">
           <h2><FaEnvelope style={{ marginRight: 8 }} />Get Help</h2>
-          <p>Need assistance with MoneyMate? We're here to help!</p>
+          <p>Need assistance with FinFlow? We're here to help!</p>
           <div className="contact-options">
             <div className="contact-card">
               <FaEnvelope size={32} className="contact-icon" />
@@ -92,7 +92,7 @@ export function SupportPage() {
 
         <section className="support-section">
           <h2><FaBug style={{ marginRight: 8 }} />Report a Bug</h2>
-          <p>Found an issue? Help us improve MoneyMate!</p>
+          <p>Found an issue? Help us improve FinFlow!</p>
           {!showBugForm ? (
             <button className="report-button" onClick={() => setShowBugForm(true)}>Report Bug</button>
           ) : (

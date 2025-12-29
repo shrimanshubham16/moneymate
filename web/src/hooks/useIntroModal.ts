@@ -1,7 +1,7 @@
 // Hook to manage first-time intro modals
 import { useState, useEffect } from "react";
 
-const INTRO_PREFIX = "moneymate_intro_";
+const INTRO_PREFIX = "finflow_intro_";
 
 export function useIntroModal(pageKey: string) {
     const [showIntro, setShowIntro] = useState(false);

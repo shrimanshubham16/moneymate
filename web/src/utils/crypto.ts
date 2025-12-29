@@ -1,5 +1,5 @@
 /**
- * MoneyMate - End-to-End Encryption Utilities
+ * FinFlow - End-to-End Encryption Utilities
  * 
  * Uses Web Crypto API for production-grade encryption:
  * - AES-256-GCM for authenticated encryption

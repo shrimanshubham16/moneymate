@@ -161,7 +161,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       <IntroModal
         isOpen={showIntro}
         onClose={closeIntro}
-        title="💊 Financial Health Score"
+        title=" Financial Health Score"
         description="Deep dive into your financial health. See exactly how much money you'll have left after paying all bills, investments, and expenses. Understand every rupee that goes in and out."
         tips={[
           "Your health score = Available Funds - All Unpaid Obligations",
@@ -249,7 +249,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           </div>
           <div className="items-list">
             {breakdown.expenses.fixed.items.length === 0 ? (
-              <div className="item-row"><span>All fixed expenses are paid! 🎉</span></div>
+              <div className="item-row"><span>All fixed expenses are paid! </span></div>
             ) : (
               breakdown.expenses.fixed.items.map((exp: any) => {
                 const monthly = exp.frequency === "monthly" ? exp.amount :
@@ -338,7 +338,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             </div>
             <div className="items-list">
               {breakdown.investments.items.length === 0 ? (
-                <div className="item-row"><span>All investments are paid or paused! 🎉</span></div>
+                <div className="item-row"><span>All investments are paid or paused! </span></div>
               ) : (
                 breakdown.investments.items.map((inv: any) => (
                   <div key={inv.id} className="item-row">
@@ -369,7 +369,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             </div>
             <div className="items-list">
               {breakdown.debts.creditCards.items.length === 0 ? (
-                <div className="item-row"><span>All credit card bills are paid! 🎉</span></div>
+                <div className="item-row"><span>All credit card bills are paid! </span></div>
               ) : (
                 breakdown.debts.creditCards.items.map((card: any) => {
                   const remaining = card.billAmount - card.paidAmount;

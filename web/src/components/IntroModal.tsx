@@ -44,7 +44,7 @@ export function IntroModal({ isOpen, onClose, title, description, tips }: IntroM
 
                         {tips && tips.length > 0 && (
                             <div className="intro-tips">
-                                <h3>💡 Quick Tips:</h3>
+                                <h3><FaLightbulb style={{ marginRight: 8, verticalAlign: 'middle' }} />Quick Tips:</h3>
                                 <ul>
                                     {tips.map((tip, index) => (
                                         <li key={index}>{tip}</li>

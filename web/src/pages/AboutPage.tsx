@@ -11,7 +11,7 @@ export function AboutPage() {
     <div className="about-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/settings")}>← Back</button>
-        <h1>About MoneyMate</h1>
+        <h1>About FinFlow</h1>
       </div>
 
       <motion.div
@@ -22,9 +22,9 @@ export function AboutPage() {
         <section className="about-section">
           <h2><FaBullseye style={{ marginRight: '8px', color: '#3b82f6' }} /> Purpose</h2>
           <p>
-            MoneyMate is your personal financial companion designed to help you plan, track, and optimize your finances.
+            FinFlow is your personal financial companion designed to help you plan, track, and optimize your finances.
             Whether you're managing monthly expenses, planning investments, or preparing for future liabilities, 
-            MoneyMate provides intelligent insights and tools to keep your finances healthy.
+            FinFlow provides intelligent insights and tools to keep your finances healthy.
           </p>
         </section>
 

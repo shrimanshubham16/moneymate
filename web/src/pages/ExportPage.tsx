@@ -37,7 +37,7 @@ export function ExportPage({ token }: ExportPageProps) {
 
       // Summary Sheet with calculations
       const summaryData = [
-        ["MoneyMate Financial Report"],
+        ["FinFlow Financial Report"],
         ["Export Date", new Date().toLocaleDateString()],
         ["Username", data.user.username],
         [],
@@ -184,7 +184,7 @@ export function ExportPage({ token }: ExportPageProps) {
       // Write file
       const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
       const blob = new Blob([wbout], { type: "application/octet-stream" });
-      saveAs(blob, `moneymate-export-${new Date().toISOString().split('T')[0]}.xlsx`);
+      saveAs(blob, `finflow-export-${new Date().toISOString().split('T')[0]}.xlsx`);
 
       alert("Excel export successful! Check your downloads folder.");
     } catch (e: any) {

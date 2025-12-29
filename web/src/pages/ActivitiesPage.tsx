@@ -45,7 +45,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         return dateB - dateA; // Descending order (newest first)
       });
 
-      console.log("📊 Sanitized activities:", sanitizedActivities);
+      console.log(" Sanitized activities:", sanitizedActivities);
       setActivities(sanitizedActivities);
     } catch (e) {
       console.error("❌ Failed to load activities:", e);
@@ -83,7 +83,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
             title="Go to Dashboard"
           >
             <span className="logo-icon"><MdAccountBalanceWallet size={28} /></span>
-            <span className="logo-text">MoneyMate</span>
+            <span className="logo-text">FinFlow</span>
           </button>
         </div>
         <div className="header-right">

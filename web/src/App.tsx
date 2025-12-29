@@ -76,7 +76,7 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
         transition={{ duration: 0.5 }}
       >
         <div className="auth-header">
-          <h1>MoneyMate</h1>
+          <h1>FinFlow</h1>
           <p>Your Financial Companion</p>
         </div>
         <form onSubmit={handleSubmit} className="auth-form">

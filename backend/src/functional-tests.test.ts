@@ -5,11 +5,11 @@ import { resetStore, getStore, setConstraint } from "./store";
 import { clearAlerts } from "./alerts";
 
 /**
- * Comprehensive Functional Test Suite for MoneyMate
+ * Comprehensive Functional Test Suite for FinFlow
  * Based on PRD requirements from Phase 0-4
  */
 
-describe("MoneyMate Functional Tests (QA)", () => {
+describe("FinFlow Functional Tests (QA)", () => {
   let token1: string;
   let token2: string;
   let userId1: string;

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { FaTimes, FaInfoCircle } from "react-icons/fa";
+import { FaTimes, FaInfoCircle, FaChartBar, FaCog } from "react-icons/fa";
 import "./PageInfoModal.css";
 
 interface PageInfoModalProps {
@@ -52,14 +52,14 @@ export function PageInfoModal({
 
             {impact && (
               <div className="page-info-section">
-                <h3>📊 Impact on Your Finances</h3>
+                <h3><FaChartBar style={{ marginRight: 8, verticalAlign: 'middle' }} />Impact on Your Finances</h3>
                 <p>{impact}</p>
               </div>
             )}
 
             {howItWorks && howItWorks.length > 0 && (
               <div className="page-info-section">
-                <h3>⚙️ How It Works</h3>
+                <h3><FaCog style={{ marginRight: 8, verticalAlign: 'middle' }} />How It Works</h3>
                 <ul>
                   {howItWorks.map((item, index) => (
                     <li key={index}>{item}</li>

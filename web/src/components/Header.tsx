@@ -19,7 +19,7 @@ export function Header({ showLogo = true }: HeaderProps) {
                     <span className="logo-icon">
                         <MdAccountBalanceWallet size={32} />
                     </span>
-                    <span className="logo-text">MoneyMate</span>
+                    <span className="logo-text">FinFlow</span>
                 </div>
             </Link>
 

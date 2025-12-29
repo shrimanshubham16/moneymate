@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { app } from "./server";
 import { resetStore, getStore, loadFixtureStore } from "./store";
 
-describe("MoneyMate backend APIs (M1)", () => {
+describe("FinFlow backend APIs (M1)", () => {
   const today = "2025-01-15T00:00:00.000Z";
   let token: string;
 

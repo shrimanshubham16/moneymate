@@ -1,5 +1,5 @@
 /**
- * Comprehensive PRD Tests for MoneyMate Web Application
+ * Comprehensive PRD Tests for FinFlow Web Application
  * 
  * This test suite covers all requirements from the PRD:
  * 1. Login/Signup page
@@ -131,7 +131,7 @@ describe("PRD Requirement 1: Login/Signup Page", () => {
 
   it("should display signup form by default", () => {
     render(<BrowserRouter><App /></BrowserRouter>);
-    expect(screen.getByText("MoneyMate")).toBeInTheDocument();
+    expect(screen.getByText("FinFlow")).toBeInTheDocument();
     expect(screen.getByText("Your Financial Companion")).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();

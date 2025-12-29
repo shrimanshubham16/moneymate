@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 export type AuthToken = { userId: string; username: string };
 
 // JWT Secret - in production, use environment variable
-const JWT_SECRET = process.env.JWT_SECRET || "moneymate-secret-key-change-in-production-2024";
+const JWT_SECRET = process.env.JWT_SECRET || "finflow-secret-key-change-in-production-2024";
 
 // Remove in-memory token storage - use stateless JWT instead
 

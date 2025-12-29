@@ -69,7 +69,7 @@ export function AlertsPage({ token }: AlertsPageProps) {
           title="Go to Dashboard"
         >
           <span className="logo-icon"><MdAccountBalanceWallet size={32} /></span>
-          <span className="logo-text">MoneyMate</span>
+          <span className="logo-text">FinFlow</span>
         </button>
         <div className="header-actions">
           <button className="settings-button" onClick={() => navigate("/settings")}>

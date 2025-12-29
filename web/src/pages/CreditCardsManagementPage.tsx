@@ -293,7 +293,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       {card.needsBillUpdate && (
                         <div className="detail-row" style={{ backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px', marginTop: '8px' }}>
                           <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
-                            ⚠️ Bill needs to be updated with actual amount
+                            Bill needs to be updated with actual amount
                           </span>
                         </div>
                       )}

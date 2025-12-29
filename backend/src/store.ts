@@ -22,7 +22,7 @@ import {
 import { loadFixtures } from "./fixtures";
 
 // Data persistence file path
-const DATA_FILE = path.join(__dirname, "../../data/moneymate-data.json");
+const DATA_FILE = path.join(__dirname, "../../data/finflow-data.json");
 
 // Load state from disk on startup
 function loadStateFromDisk(): Store {

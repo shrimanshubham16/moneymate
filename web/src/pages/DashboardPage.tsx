@@ -75,7 +75,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       <div className="dashboard-page">
         <EmptyState
           icon={<FaWallet size={80} />}
-          title="Welcome to MoneyMate!"
+          title="Welcome to FinFlow!"
           description="Start your financial journey by planning your income and expenses"
           actionLabel="Plan Your Finances"
           onAction={() => navigate("/settings/plan-finances")}
@@ -131,7 +131,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       <IntroModal
         isOpen={showIntro}
         onClose={closeIntro}
-        title="📊 Welcome to Your Dashboard!"
+        title="Welcome to Your Dashboard!"
         description="Your financial command center. Track your health score, monitor income vs expenses, and get a quick overview of everything that matters."
         tips={[
           "Health score shows how much money you have left after all obligations",

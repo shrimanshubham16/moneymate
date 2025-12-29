@@ -9,7 +9,7 @@ const TEST_USER = {
     password: 'c0nsT@nt'
 };
 
-describe('MoneyMate PRD Compliance Tests - Web UI', () => {
+describe('FinFlow PRD Compliance Tests - Web UI', () => {
 
     beforeEach(() => {
         // Reset localStorage

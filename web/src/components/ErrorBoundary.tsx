@@ -1,4 +1,5 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
+import { FaExclamationTriangle } from 'react-icons/fa';
 
 interface Props {
     children: ReactNode;
@@ -62,7 +63,7 @@ export class ErrorBoundary extends Component<Props, State> {
                         maxWidth: '500px',
                         boxShadow: 'var(--shadow-xl)'
                     }}>
-                        <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</h1>
+                        <FaExclamationTriangle size={48} color="#ef4444" style={{ marginBottom: '1rem' }} />
                         <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Oops! Something went wrong</h2>
                         <p style={{
                             color: 'var(--text-secondary)',
