@@ -281,40 +281,22 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           </div>
           <div className="items-list">
             {breakdown.expenses.variable.items.map((plan: any) => {
-              // FIX: Match backend logic exactly from unpaidProratedVariableForRemainingDays()
-              // Backend: 1. Get actuals excluding ExtraCash and CreditCard
-              //          2. Calculate actualTotal
-              //          3. Calculate proratedForRemainingDays = plan.planned * remainingDaysRatio
-              //          4. Use Math.max(proratedForRemainingDays, actualTotal)
-              
-              const monthProgress = breakdown.monthProgress || 0;
+              // FIX: Backend uses remainingDaysRatio = 1 - monthProgress for remaining days calculation
+              // This matches unpaidProratedVariableForRemainingDays() in backend which calculates:
+              // proratedForRemainingDays = plan.planned * remainingDaysRatio
+              const monthProgress = breakdown.monthProgress || (new Date().getDate() / new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate());
               const remainingDaysRatio = 1 - monthProgress;
-              
-              // Get actuals for this plan, excluding ExtraCash and CreditCard (they don't reduce available funds)
-              const actuals = (plan.actuals || []).filter((a: any) => 
-                a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
-              );
-              
-              const actualTotal = actuals.reduce((sum: number, a: any) => sum + (a.amount || 0), 0);
-              const proratedForRemainingDays = (plan.planned || 0) * remainingDaysRatio;
-              
-              // Use higher of actual (excluding non-fund-deducting modes) or prorated
-              const amountToShow = Math.max(proratedForRemainingDays, actualTotal);
-              
+              // Backend calculates: plan.planned * remainingDaysRatio (for remaining days only)
+              const proratedForRemainingDays = plan.planned * remainingDaysRatio;
               return (
                 <div key={plan.id} className="item-row">
                   <span>
                     {plan.name}
                     <div className="item-details">
-                      <small>
-                        Planned: ₹{Math.round(plan.planned || 0)} | 
-                        Prorated for remaining days: ₹{Math.round(proratedForRemainingDays)} | 
-                        Actual (fund-deducting): ₹{Math.round(actualTotal)}
-                        {actualTotal > proratedForRemainingDays && <span style={{ color: '#f59e0b' }}> (using actual)</span>}
-                      </small>
+                      <small>Planned: ₹{Math.round(plan.planned)} | Prorated for remaining days: ₹{Math.round(proratedForRemainingDays)}</small>
                     </div>
                   </span>
-                  <span>-₹{Math.round(amountToShow).toLocaleString("en-IN")}</span>
+                  <span>-₹{Math.round(proratedForRemainingDays).toLocaleString("en-IN")}</span>
                 </div>
               );
             })}
