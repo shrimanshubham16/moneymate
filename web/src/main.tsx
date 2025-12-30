@@ -57,10 +57,23 @@ function registerServiceWorker() {
 // Register service worker
 registerServiceWorker();
 
+// Extend window type to include our fallback function
+declare global {
+  interface Window {
+    __hideAppFallback__?: () => void;
+    __APP_LOADED__?: boolean;
+  }
+}
+
 function Root() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Hide the HTML fallback loading screen immediately when React mounts
+    if (typeof window.__hideAppFallback__ === 'function') {
+      window.__hideAppFallback__();
+    }
+    
     // Show Matrix loader for 1.5 seconds
     const timer = setTimeout(() => {
       setIsLoading(false);
