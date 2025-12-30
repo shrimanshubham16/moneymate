@@ -185,6 +185,12 @@ serve(async (req) => {
     if (!user) return error('Unauthorized', 401);
     const userId = user.userId;
 
+    // HEALTH DETAILS - Full health calculation with breakdown
+    if (path === '/health/details' && method === 'GET') {
+      const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
+      return json({ data: healthData });
+    }
+
     // DASHBOARD
     if (path === '/dashboard' && method === 'GET') {
       const { data } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
@@ -192,49 +198,14 @@ serve(async (req) => {
       // Get constraint score
       const { data: constraint } = await supabase.from('constraint_scores').select('*').eq('user_id', userId).single();
       
+      // Get health from PostgreSQL function (matches /health/details exactly)
+      const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
+      
       // Format response
       const variablePlans = (data?.variablePlans || []).map((plan: any) => {
         const actuals = (data?.variableActuals || []).filter((a: any) => a.planId === plan.id);
         return { ...plan, actuals, actualTotal: actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0) };
       });
-
-      // ============ HEALTH CALCULATION (matching Railway logic) ============
-      // Monthly equivalent helper
-      const monthlyEquiv = (amount: number, freq: string) => {
-        if (freq === 'monthly') return amount;
-        if (freq === 'quarterly') return amount / 3;
-        if (freq === 'yearly') return amount / 12;
-        return amount;
-      };
-
-      // Total monthly income
-      const totalIncome = (data?.incomes || []).reduce((sum: number, i: any) => 
-        sum + monthlyEquiv(i.amount || 0, i.frequency), 0);
-
-      // Total monthly fixed expenses
-      const totalFixed = (data?.fixedExpenses || []).reduce((sum: number, e: any) => 
-        sum + monthlyEquiv(e.amount || 0, e.frequency), 0);
-
-      // Total monthly investments  
-      const totalInvestments = (data?.investments || []).reduce((sum: number, i: any) => 
-        sum + (i.monthlyAmount || 0), 0);
-
-      // Total variable actuals this month
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const totalVariableActuals = (data?.variableActuals || [])
-        .filter((a: any) => new Date(a.incurredAt) >= monthStart)
-        .reduce((sum: number, a: any) => sum + (a.amount || 0), 0);
-
-      // Health = Income - Fixed - Investments - Variable Actuals
-      const remaining = Math.round(totalIncome - totalFixed - totalInvestments - totalVariableActuals);
-      
-      // Category thresholds (matching Railway)
-      let healthCategory: string;
-      if (remaining > 10000) healthCategory = 'good';
-      else if (remaining >= 0) healthCategory = 'ok';
-      else if (remaining >= -3000) healthCategory = 'not_well';
-      else healthCategory = 'worrisome';
 
       return json({
         data: {
@@ -243,7 +214,7 @@ serve(async (req) => {
           variablePlans,
           investments: data?.investments || [],
           futureBombs: data?.futureBombs || [],
-          health: { remaining, category: healthCategory },
+          health: healthData?.health || { remaining: 0, category: 'ok' },
           constraintScore: constraint || { score: 0, tier: 'green' },
           alerts: []
         }
