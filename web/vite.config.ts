@@ -8,9 +8,15 @@ function getCommitId(): string {
   if (process.env.VERCEL_GIT_COMMIT_SHA) {
     return process.env.VERCEL_GIT_COMMIT_SHA.substring(0, 7);
   }
-  // For local builds, try to get from git
+  // For local builds or CI, try to get from git
+  // Try from current directory first, then parent (for Vercel builds)
   try {
-    return execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+    try {
+      return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', cwd: process.cwd() }).trim();
+    } catch {
+      // Try from parent directory (Vercel builds from repo root)
+      return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', cwd: process.cwd() + '/..' }).trim();
+    }
   } catch {
     return 'dev';
   }
