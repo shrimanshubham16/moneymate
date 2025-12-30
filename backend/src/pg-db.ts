@@ -1780,6 +1780,171 @@ export async function deletePayment(paymentId: string): Promise<boolean> {
 }
 
 // ============================================================================
+// COMBINED DASHBOARD DATA (Single Query Optimization)
+// ============================================================================
+
+export interface DashboardData {
+  groupUserIds: string[];
+  incomes: Income[];
+  fixedExpenses: FixedExpense[];
+  variablePlans: VariablePlan[];
+  variableActuals: VariableActual[];
+  investments: Investment[];
+  futureBombs: FutureBomb[];
+  loans: Loan[];
+  creditCards: CreditCard[];
+  preferences: { userId: string; monthStartDay: number; currency: string; timezone: string; useProrated: boolean } | null;
+  constraintScore: { userId: string; score: number; tier: string; recentOverspends: number; decayAppliedAt: string; updatedAt: string } | null;
+  healthCache: {
+    availableFunds: number;
+    healthCategory: string;
+    healthPercentage: number | null;
+    constraintScore: number;
+    constraintTier: string;
+    computedAt: string;
+    isStale: boolean;
+  } | null;
+}
+
+/**
+ * Fetches ALL dashboard data in a single database round-trip.
+ * This dramatically reduces latency compared to 10+ separate queries.
+ */
+export async function getDashboardData(userId: string, billingPeriodId?: string): Promise<DashboardData> {
+  const result = await queryOne<any>(
+    `SELECT get_dashboard_data($1, $2) as data`,
+    [userId, billingPeriodId || null]
+  );
+  
+  if (!result?.data) {
+    // Return empty dashboard if function fails
+    return {
+      groupUserIds: [userId],
+      incomes: [],
+      fixedExpenses: [],
+      variablePlans: [],
+      variableActuals: [],
+      investments: [],
+      futureBombs: [],
+      loans: [],
+      creditCards: [],
+      preferences: null,
+      constraintScore: null,
+      healthCache: null
+    };
+  }
+  
+  const data = result.data;
+  
+  return {
+    groupUserIds: data.groupUserIds || [userId],
+    incomes: (data.incomes || []).map((i: any) => ({
+      id: i.id,
+      userId: i.userId,
+      name: i.name,
+      amount: parseFloat(i.amount) || 0,
+      category: i.category,
+      frequency: i.frequency,
+      startDate: i.startDate,
+      endDate: i.endDate
+    })),
+    fixedExpenses: (data.fixedExpenses || []).map((fe: any) => ({
+      id: fe.id,
+      userId: fe.userId,
+      name: fe.name,
+      amount: parseFloat(fe.amount) || 0,
+      category: fe.category,
+      frequency: fe.frequency,
+      startDate: fe.startDate,
+      endDate: fe.endDate,
+      isSip: fe.isSipFlag
+    })),
+    variablePlans: (data.variablePlans || []).map((vp: any) => ({
+      id: vp.id,
+      userId: vp.userId,
+      name: vp.name,
+      planned: parseFloat(vp.planned) || 0,
+      category: vp.category,
+      startDate: vp.startDate,
+      endDate: vp.endDate
+    })),
+    variableActuals: (data.variableActuals || []).map((va: any) => ({
+      id: va.id,
+      planId: va.planId,
+      userId: va.userId,
+      amount: parseFloat(va.amount) || 0,
+      incurredAt: va.incurredAt,
+      justification: va.justification,
+      subcategory: va.subcategory,
+      paymentMode: va.paymentMode,
+      creditCardId: va.creditCardId
+    })),
+    investments: (data.investments || []).map((inv: any) => ({
+      id: inv.id,
+      userId: inv.userId,
+      name: inv.name,
+      monthlyAmount: parseFloat(inv.monthlyAmount) || 0,
+      goal: inv.goal,
+      status: inv.status || 'active'
+    })),
+    futureBombs: (data.futureBombs || []).map((fb: any) => ({
+      id: fb.id,
+      userId: fb.userId,
+      name: fb.name,
+      dueDate: fb.dueDate,
+      totalAmount: parseFloat(fb.totalAmount) || 0,
+      savedAmount: parseFloat(fb.savedAmount) || 0,
+      monthlyEquivalent: parseFloat(fb.monthlyEquivalent) || 0,
+      preparednessRatio: parseFloat(fb.preparednessRatio) || 0
+    })),
+    loans: (data.loans || []).map((l: any) => ({
+      id: l.id,
+      userId: l.userId,
+      name: l.name,
+      principal: parseFloat(l.principal) || 0,
+      remainingTenureMonths: l.remainingTenureMonths || 0,
+      emi: parseFloat(l.emi) || 0
+    })),
+    creditCards: (data.creditCards || []).map((cc: any) => ({
+      id: cc.id,
+      userId: cc.userId,
+      name: cc.name,
+      statementDate: cc.statementDate,
+      dueDate: cc.dueDate,
+      billAmount: parseFloat(cc.billAmount) || 0,
+      paidAmount: parseFloat(cc.paidAmount) || 0,
+      currentExpenses: parseFloat(cc.currentExpenses) || 0,
+      billingDate: cc.billingDate,
+      needsBillUpdate: cc.needsBillUpdate
+    })),
+    preferences: data.preferences ? {
+      userId: data.preferences.userId,
+      monthStartDay: data.preferences.monthStartDay || 1,
+      currency: data.preferences.currency || 'INR',
+      timezone: data.preferences.timezone || 'Asia/Kolkata',
+      useProrated: data.preferences.useProrated || false
+    } : null,
+    constraintScore: data.constraintScore ? {
+      userId: data.constraintScore.userId,
+      score: parseFloat(data.constraintScore.score) || 0,
+      tier: data.constraintScore.tier || 'green',
+      recentOverspends: data.constraintScore.recentOverspends || 0,
+      decayAppliedAt: data.constraintScore.decayAppliedAt,
+      updatedAt: data.constraintScore.updatedAt
+    } : null,
+    healthCache: data.healthCache ? {
+      availableFunds: parseFloat(data.healthCache.availableFunds) || 0,
+      healthCategory: data.healthCache.healthCategory || 'ok',
+      healthPercentage: data.healthCache.healthPercentage ? parseFloat(data.healthCache.healthPercentage) : null,
+      constraintScore: parseFloat(data.healthCache.constraintScore) || 0,
+      constraintTier: data.healthCache.constraintTier || 'green',
+      computedAt: data.healthCache.computedAt,
+      isStale: data.healthCache.isStale === true
+    } : null
+  };
+}
+
+// ============================================================================
 // CONNECTION TEST
 // ============================================================================
 

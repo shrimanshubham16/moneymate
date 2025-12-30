@@ -209,41 +209,53 @@ app.get("/dashboard", requireAuth, async (req, res) => {
   const today = parsed.data?.today ? new Date(parsed.data.today) : new Date();
   const userId = (req as any).user.userId;
   
-  // Billing period for cache scoping
-  const preferences = await getUserPreferences(userId);
-  const monthStartDay = preferences?.monthStartDay || 1;
+  // Calculate billing period ID for cache scoping
+  // We need monthStartDay first - get it from a quick preferences fetch or default
+  let monthStartDay = 1;
+  
+  // OPTIMIZED: Single database query for ALL dashboard data
   const billingPeriodId = getBillingPeriodId(monthStartDay, today);
+  const dashboardData = await db.getDashboardData(userId, billingPeriodId);
+  
+  // Update monthStartDay from fetched preferences
+  if (dashboardData.preferences?.monthStartDay) {
+    monthStartDay = dashboardData.preferences.monthStartDay;
+  }
+  
+  // Constraint score with decay (still need to update this)
+  let constraintDecayed = dashboardData.constraintScore 
+    ? applyConstraintDecay(dashboardData.constraintScore as any, today)
+    : { score: 0, tier: 'green' as const, lastUpdated: new Date().toISOString() };
+  
+  // Update constraint score if it changed
+  if (dashboardData.constraintScore && constraintDecayed.score !== dashboardData.constraintScore.score) {
+    await db.updateConstraintScore(userId, constraintDecayed);
+  }
 
-  // Constraint score (always updated fresh)
-  const constraint = await db.getConstraintScore(userId);
-  const constraintDecayed = applyConstraintDecay(constraint as any, today);
-  await db.updateConstraintScore(userId, constraintDecayed);
-
-  // Health calculation with Redis -> PG cache -> fresh compute
+  // Health calculation with cache hierarchy
   let health: { remaining: number; category: string } | null = null;
 
-  // 1) Redis cache
-  try {
-    const cached = await getCachedHealth(userId, billingPeriodId);
-    if (cached && typeof cached === "object" && (cached as any).health) {
-      health = (cached as any).health;
-    }
-  } catch (err) {
-    console.error("Redis cache read failed", err);
+  // 1) Check if we got valid health from the combined query's healthCache
+  if (dashboardData.healthCache && !dashboardData.healthCache.isStale) {
+    health = {
+      remaining: dashboardData.healthCache.availableFunds,
+      category: dashboardData.healthCache.healthCategory
+    };
   }
 
-  // 2) PostgreSQL cache if Redis miss
+  // 2) Redis cache check (if PG cache was stale/missing)
   if (!health) {
-    const pgCache = await db.getHealthCache(userId, billingPeriodId);
-    if (pgCache && pgCache.isStale === false) {
-      health = {
-        remaining: Number(pgCache.availableFunds ?? 0),
-        category: pgCache.healthCategory ?? "ok"
-      };
+    try {
+      const cached = await getCachedHealth(userId, billingPeriodId);
+      if (cached && typeof cached === "object" && (cached as any).health) {
+        health = (cached as any).health;
+      }
+    } catch (err) {
+      console.error("Redis cache read failed", err);
     }
   }
 
-  // 3) Compute fresh if caches are stale/missing
+  // 3) Compute fresh if all caches miss
   if (!health) {
     health = await computeHealthSnapshot(today, userId);
     await db.upsertHealthCache({
@@ -259,54 +271,41 @@ app.get("/dashboard", requireAuth, async (req, res) => {
     });
   }
 
-  // Warm Redis for next request
-  try {
-    await setCachedHealth(userId, billingPeriodId, { health, constraint: constraintDecayed });
-  } catch (err) {
+  // Warm Redis for next request (async, don't wait)
+  setCachedHealth(userId, billingPeriodId, { health, constraint: constraintDecayed }).catch(err => {
     console.error("Redis cache write failed", err);
-  }
+  });
 
-  const groupUserIds = await getMergedFinanceGroupUserIds(userId);
-  
-  // Get payment status for current month
+  // Get payment status for current month (in-memory)
   const paymentStatus = getPaymentStatus(userId);
 
-  // Fetch all data from Supabase
-  const [userIncomes, userFixedExpenses, userVariablePlans, userInvestments, userFutureBombs, allVariableActuals] = await Promise.all([
-    db.getIncomesByUserIds(groupUserIds),
-    db.getFixedExpensesByUserIds(groupUserIds),
-    db.getVariablePlansByUserIds(groupUserIds),
-    db.getInvestmentsByUserIds(groupUserIds),
-    db.getFutureBombsByUserIds(groupUserIds),
-    db.getVariableActualsByUserIds(groupUserIds)
-  ]);
-
   // Attach actuals and actualTotal to each variable plan
-  const variablePlansWithActuals = userVariablePlans.map((plan) => {
-    const actuals = allVariableActuals.filter((a) => a.planId === plan.id && groupUserIds.includes(a.userId));
+  const variablePlansWithActuals = dashboardData.variablePlans.map((plan) => {
+    const actuals = dashboardData.variableActuals.filter((a) => 
+      a.planId === plan.id && dashboardData.groupUserIds.includes(a.userId)
+    );
     const actualTotal = actuals.reduce((sum, a) => sum + a.amount, 0);
     return { ...plan, actuals, actualTotal };
   });
 
   const payload = {
-    incomes: userIncomes,
-    fixedExpenses: userFixedExpenses.map((e) => ({
+    incomes: dashboardData.incomes,
+    fixedExpenses: dashboardData.fixedExpenses.map((e) => ({
       ...e,
       is_sip_flag: e.isSip,
       paid: paymentStatus[`fixed_expense:${e.id}`] || false
     })),
     variablePlans: variablePlansWithActuals,
-    investments: userInvestments.map((i) => ({
+    investments: dashboardData.investments.map((i) => ({
       ...i,
       paid: paymentStatus[`investment:${i.id}`] || false
     })),
-    futureBombs: userFutureBombs,
+    futureBombs: dashboardData.futureBombs,
     health,
     constraintScore: constraintDecayed,
     alerts: listAlerts(userId)
   };
   
-  // FIX: Caching removed - always return fresh data
   res.json({ data: payload });
 });
 
