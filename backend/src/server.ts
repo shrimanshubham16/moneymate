@@ -17,14 +17,21 @@ export const app = express();
 // CORS configuration for production
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173'];
+const isVercelOrigin = (origin?: string) =>
+  origin ? origin.endsWith('.vercel.app') : false;
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
 
-    // Check if origin is in allowed list or allow all in development
-    if (NODE_ENV === 'development' || ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(origin)) {
+    // Check if origin is in allowed list, any vercel.app host, or allow all in development
+    if (
+      NODE_ENV === 'development' ||
+      ALLOWED_ORIGINS.includes('*') ||
+      ALLOWED_ORIGINS.includes(origin) ||
+      isVercelOrigin(origin)
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
