@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { z } from "zod";
-import { getStore } from "./store";
-import { createUser, getUserByUsername, getUserById, updateUserPassword } from "./store";
+import * as db from "./supabase-db";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
@@ -99,7 +98,7 @@ const loginSchema = z.object({
 });
 
 export function authRoutes(app: any) {
-  app.post("/auth/signup", (req: Request, res: Response) => {
+  app.post("/auth/signup", async (req: Request, res: Response) => {
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
     const { username, password } = parsed.data;
@@ -112,7 +111,7 @@ export function authRoutes(app: any) {
 
     try {
       const passwordHash = hashPassword(password);
-      const user = createUser(username, passwordHash);
+      const user = await db.createUser({ username, passwordHash });
       const token = issueToken(user.id, user.username);
       res.status(201).json({ access_token: token, user: { id: user.id, username: user.username } });
     } catch (e: any) {
@@ -136,7 +135,7 @@ export function authRoutes(app: any) {
     const userId = (req as any).user.userId;
 
     try {
-      const user = getUserById(userId);
+      const user = await db.getUserById(userId);
       if (!user) {
         return res.status(404).json({ error: { message: "User not found" } });
       }
@@ -157,7 +156,7 @@ export function authRoutes(app: any) {
 
       // Hash and update password
       const newPasswordHash = hashPassword(newPassword);
-      updateUserPassword(userId, newPasswordHash);
+      await db.updateUser(userId, { passwordHash: newPasswordHash });
 
       res.json({ message: "Password updated successfully" });
     } catch (e: any) {
@@ -181,7 +180,7 @@ export function authRoutes(app: any) {
       });
     }
 
-    const user = getUserByUsername(username);
+    const user = await db.getUserByUsername(username);
     if (!user || !verifyPassword(password, user.passwordHash)) {
       const failureResult = recordFailedLogin(username);
       if (failureResult.locked) {
@@ -217,7 +216,7 @@ export function authRoutes(app: any) {
   });
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     return res.status(401).json({ error: { message: "Unauthorized" } });
@@ -229,9 +228,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     // Verify JWT signature (stateless - survives server restarts)
     const decoded = jwt.verify(token, JWT_SECRET) as AuthToken;
 
-    // Verify user still exists
-    const store = getStore();
-    const user = store.users.find((u) => u.id === decoded.userId);
+    // Verify user still exists in Supabase
+    const user = await db.getUserById(decoded.userId);
     if (!user) {
       return res.status(401).json({ error: { message: "Unauthorized" } });
     }
