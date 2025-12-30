@@ -947,15 +947,8 @@ app.post("/admin/seed", (req, res) => {
 // TEMPORARY: Admin endpoint to export full store data for migration
 // TODO: Remove this after migration to Supabase is complete
 app.get("/admin/export-full-store", requireAuth, (req, res) => {
-  const user = (req as any).user;
-  
-  // Security: Only allow if you're the admin user
-  // Change 'admin' to your actual username or remove this check if you trust your auth
-  // For production, use a more secure method (e.g., environment variable)
-  if (user.username !== 'admin' && process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: 'Forbidden: Admin access required' });
-  }
-  
+  // For migration: Allow any authenticated user to export
+  // This is temporary and will be removed after migration
   const store = getStore();
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Content-Disposition', 'attachment; filename="finflow-data-export.json"');
