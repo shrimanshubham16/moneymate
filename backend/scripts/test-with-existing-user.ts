@@ -1,5 +1,5 @@
 // Test with existing migrated user (avoids signup issues)
-// Run with: npx tsx scripts/test-with-existing-user.ts
+// Run with: npx tsx scripts/test-with-existing-user.ts [username] [password]
 
 import * as dotenv from 'dotenv';
 import path from 'path';
@@ -8,15 +8,18 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const BASE_URL = process.env.VITE_API_URL || 'http://localhost:12022';
 
-// Use an existing user from migrated data
-// You can find usernames in Supabase dashboard → users table
-const TEST_USERNAME = 'shubham'; // Change this to an existing username
-const TEST_PASSWORD = 'YourPassword123!'; // Change this to the actual password
+// Get username and password from command line or use defaults
+const TEST_USERNAME = process.argv[2] || 'testuser'; // Default: testuser
+const TEST_PASSWORD = process.argv[3] || 'Test123!@#'; // Default: Test123!@#
 
 async function testWithExistingUser() {
   console.log('🧪 Testing with Existing User\n');
   console.log(`📍 Testing against: ${BASE_URL}\n`);
-  console.log(`👤 Using username: ${TEST_USERNAME}\n`);
+  console.log(`👤 Using username: ${TEST_USERNAME}`);
+  console.log(`🔐 Using password: ${'*'.repeat(TEST_PASSWORD.length)}\n`);
+  
+  console.log('💡 Tip: You can pass username and password as arguments:');
+  console.log('   npm run test-existing-user <username> <password>\n');
 
   try {
     // 1. Test Login
