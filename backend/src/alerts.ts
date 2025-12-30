@@ -1,4 +1,4 @@
-import { addVariableActual, getConstraint, getStore, setConstraint } from "./store";
+import * as store from "./store-supabase";
 import { tierFor } from "./logic";
 
 type Alert = { id: string; type: string; severity: "info" | "warn" | "critical"; message: string; period: string };
@@ -23,13 +23,13 @@ export function addOverspendAlert(userId: string, planName: string, overAmount: 
   userAlerts.set(userId, alerts);
 }
 
-export function recordOverspend(userId: string, planName: string, projected: number, planned: number, period: string) {
+export async function recordOverspend(userId: string, planName: string, projected: number, planned: number, period: string) {
   if (projected <= planned) return;
   const overPct = (projected - planned) / planned;
-  const constraint = getConstraint(userId);
+  const constraint = await store.getConstraint(userId);
   addOverspendAlert(userId, planName, overPct, constraint.tier, period);
   const nextScore = constraint.score + 5;
-  setConstraint(userId, { ...constraint, score: nextScore, tier: tierFor(nextScore), recentOverspends: constraint.recentOverspends + 1 });
+  await store.setConstraint(userId, { ...constraint, score: nextScore, tier: tierFor(nextScore), recentOverspends: constraint.recentOverspends + 1 });
 }
 
 export function clearAlerts(userId: string) {

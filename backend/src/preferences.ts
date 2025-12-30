@@ -1,79 +1,23 @@
 // User preferences for billing cycle and payment tracking
 
-import { getStore, scheduleSave } from "./store";
+import * as db from "./supabase-db";
+import type { UserPreferences } from "./supabase-db";
 
-export type UserPreferences = {
-  userId: string;
-  monthStartDay: number; // 1-28, day of month when billing cycle starts
-  currency: string;
-  timezone: string;
-  useProrated?: boolean; // Whether to use prorated variable expenses (default: false)
-};
+export type { UserPreferences };
 
-// Initialize preferences from store on module load
-function getPreferencesFromStore(): UserPreferences[] {
-  const store = getStore();
-  return store.preferences || [];
+export async function getUserPreferences(userId: string): Promise<UserPreferences> {
+  return await db.getUserPreferences(userId);
 }
 
-let preferences: UserPreferences[] = getPreferencesFromStore();
-
-export function getUserPreferences(userId: string): UserPreferences {
-  // Reload from store in case it was updated elsewhere
-  preferences = getPreferencesFromStore();
-  
-  let pref = preferences.find(p => p.userId === userId);
-  if (!pref) {
-    // Create default preferences
-    pref = {
-      userId,
-      monthStartDay: 1, // Default: 1st of month
-      currency: "INR",
-      timezone: "Asia/Kolkata",
-      useProrated: false // Disabled by default - simpler calculation
-    };
-    preferences.push(pref);
-    
-    // Persist new default preferences to store and disk
-    const store = getStore();
-    store.preferences = preferences;
-    scheduleSave();
-  }
-  return pref;
-}
-
-export function updateUserPreferences(
+export async function updateUserPreferences(
   userId: string,
   updates: Partial<Omit<UserPreferences, 'userId'>>
-): UserPreferences {
-  let pref = preferences.find(p => p.userId === userId);
-  
-  if (!pref) {
-    pref = {
-      userId,
-      monthStartDay: updates.monthStartDay ?? 1,
-      currency: updates.currency ?? "INR",
-      timezone: updates.timezone ?? "Asia/Kolkata",
-      useProrated: updates.useProrated ?? false
-    };
-    preferences.push(pref);
-  } else {
-    if (updates.monthStartDay !== undefined) pref.monthStartDay = updates.monthStartDay;
-    if (updates.currency !== undefined) pref.currency = updates.currency;
-    if (updates.timezone !== undefined) pref.timezone = updates.timezone;
-    if (updates.useProrated !== undefined) pref.useProrated = updates.useProrated;
-  }
-  
-  // Persist preferences to store and disk
-  const store = getStore();
-  store.preferences = preferences;
-  scheduleSave();
-  
-  return pref;
+): Promise<UserPreferences> {
+  return await db.updateUserPreferences(userId, updates);
 }
 
 export function clearPreferences(): void {
-  preferences = [];
+  // No-op: Preferences are stored in Supabase, no need to clear
 }
 
 // Helper to get billing period for a specific date based on user's month start day

@@ -13,12 +13,20 @@ import {
   Loan,
   Activity,
   ConstraintScore,
-  UserPreferences,
   ThemeState,
   SharedAccount,
   SharedMember,
   SharingRequest
 } from './mockData';
+
+// UserPreferences type (from preferences.ts)
+export type UserPreferences = {
+  userId: string;
+  monthStartDay: number;
+  currency: string;
+  timezone: string;
+  useProrated?: boolean;
+};
 
 // ============================================================================
 // USERS
@@ -1206,22 +1214,21 @@ export async function getSharingRequestsByInviterId(inviterId: string): Promise<
   return (data || []).map(row => ({
     id: row.id,
     inviterId: row.inviter_id,
-    inviteeEmail: row.invitee_email,
-    inviteeId: row.invitee_id,
+    inviteeEmail: row.invitee_email || '', // Database has invitee_id, but type uses inviteeEmail
     role: row.role,
     mergeFinances: row.merge_finances,
     status: row.status
   }));
 }
 
-export async function createSharingRequest(request: Omit<SharingRequest, 'id'> & { id?: string }): Promise<SharingRequest> {
+export async function createSharingRequest(request: Omit<SharingRequest, 'id'> & { id?: string; inviteeId?: string }): Promise<SharingRequest> {
   const { data, error } = await supabase
     .from('sharing_requests')
     .insert({
       id: request.id,
       inviter_id: request.inviterId,
       invitee_email: request.inviteeEmail,
-      invitee_id: request.inviteeId,
+      invitee_id: (request as any).inviteeId || null, // Optional field from database
       role: request.role,
       merge_finances: request.mergeFinances,
       status: request.status || 'pending'
@@ -1234,18 +1241,17 @@ export async function createSharingRequest(request: Omit<SharingRequest, 'id'> &
   return {
     id: data.id,
     inviterId: data.inviter_id,
-    inviteeEmail: data.invitee_email,
-    inviteeId: data.invitee_id,
+    inviteeEmail: data.invitee_email || '',
     role: data.role,
     mergeFinances: data.merge_finances,
     status: data.status
   };
 }
 
-export async function updateSharingRequest(requestId: string, updates: Partial<SharingRequest>): Promise<void> {
+export async function updateSharingRequest(requestId: string, updates: Partial<SharingRequest & { inviteeId?: string }>): Promise<void> {
   const updateData: any = {};
   if (updates.status !== undefined) updateData.status = updates.status;
-  if (updates.inviteeId !== undefined) updateData.invitee_id = updates.inviteeId;
+  if ((updates as any).inviteeId !== undefined) updateData.invitee_id = (updates as any).inviteeId;
   
   const { error } = await supabase
     .from('sharing_requests')

@@ -16,19 +16,19 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_username ON users(username);
 
--- 2. Constraint scores (global, single row)
+-- 2. Constraint scores (per-user)
 CREATE TABLE constraint_scores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   score INTEGER NOT NULL CHECK (score >= 0 AND score <= 100),
   tier VARCHAR(20) CHECK (tier IN ('green', 'amber', 'red')) NOT NULL,
   recent_overspends INTEGER DEFAULT 0,
   decay_applied_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id) -- One constraint score per user
 );
 
--- Insert initial constraint score
-INSERT INTO constraint_scores (score, tier, recent_overspends) 
-VALUES (100, 'green', 0);
+CREATE INDEX idx_constraint_scores_user_id ON constraint_scores(user_id);
 
 -- 3. Incomes table
 CREATE TABLE incomes (

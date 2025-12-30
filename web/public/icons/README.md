@@ -45,3 +45,4 @@ convert source-icon.png -resize 512x512 icon-512x512.png
 For now, you can use a simple colored square or the FinFlow logo as a placeholder.
 The icons will be generated properly before production deployment.
 
+

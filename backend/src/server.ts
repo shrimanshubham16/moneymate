@@ -7,47 +7,9 @@ import { getMergedFinanceGroupUserIds } from "./mergedFinances";
 import { applyConstraintDecay, computeHealthSnapshot, tierFor, totalIncomePerMonth, totalPaymentsMadeThisMonth, unpaidFixedPerMonth, unpaidProratedVariableForRemainingDays, unpaidInvestmentsPerMonth, unpaidCreditCardDues, getCreditCardOverpayments, calculateMonthProgress } from "./logic";
 import { markAsPaid, markAsUnpaid, isPaid, getPaymentStatus, getUserPayments, getPaymentsSummary } from "./payments";
 import { getUserPreferences, updateUserPreferences } from "./preferences";
-import {
-  addFixedExpense,
-  addIncome,
-  addVariableActual,
-  addVariablePlan,
-  deleteFixedExpense,
-  deleteIncome,
-  deleteVariablePlan,
-  getConstraint,
-  getStore,
-  scheduleSave,
-  setConstraint,
-  updateFixedExpense,
-  updateIncome,
-  updateVariablePlan,
-  loadFixtureStore,
-  addInvestment,
-  updateInvestment,
-  addFutureBomb,
-  updateFutureBomb,
-  createSharingRequest,
-  listRequestsForUser,
-  approveRequest,
-  rejectRequest,
-  listMembers,
-  listSharedAccountsFor,
-  removeMember,
-  listCreditCards,
-  addCreditCard,
-  payCreditCard,
-  deleteCreditCard,
-  resetCreditCardCurrentExpenses,
-  checkAndAlertBillingDates,
-  getUserSubcategories,
-  addUserSubcategory,
-  listLoans,
-  addActivity,
-  listActivities,
-  getThemeState,
-  updateThemeState
-} from "./store";
+// Import Supabase database functions
+import * as db from "./supabase-db";
+import * as store from "./store-supabase";
 import { listAlerts, recordOverspend, clearAlerts } from "./alerts";
 
 export const app = express();
@@ -168,13 +130,13 @@ const paymentSchema = z.object({
 });
 
 // Detailed health breakdown endpoint
-app.get("/health/details", requireAuth, (req, res) => {
+app.get("/health/details", requireAuth, async (req, res) => {
   const parsed = dateQuerySchema.safeParse(req.query);
   const today = parsed.data?.today ? new Date(parsed.data.today) : new Date();
   const userId = (req as any).user.userId;
 
   // Get user's preferences
-  const preferences = getUserPreferences(userId);
+  const preferences = await getUserPreferences(userId);
   const monthStartDay = preferences?.monthStartDay || 1;
   const useProrated = preferences?.useProrated ?? false;
 
@@ -235,7 +197,7 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-app.get("/dashboard", requireAuth, (req, res) => {
+app.get("/dashboard", requireAuth, async (req, res) => {
   const parsed = dateQuerySchema.safeParse(req.query);
   const today = parsed.data?.today ? new Date(parsed.data.today) : new Date();
   const userId = (req as any).user.userId;
@@ -243,25 +205,28 @@ app.get("/dashboard", requireAuth, (req, res) => {
   // FIX: Removed caching to ensure health scores are always fresh and consistent
   // Previous caching caused dashboard and /health/details to show different values
   
-  const constraintDecayed = applyConstraintDecay(getConstraint(userId), today);
-  setConstraint(userId, constraintDecayed);
+  const constraint = await store.getConstraint(userId);
+  const constraintDecayed = applyConstraintDecay(constraint, today);
+  await store.setConstraint(userId, constraintDecayed);
   const groupUserIds = getMergedFinanceGroupUserIds(userId);
   const health = computeHealthSnapshot(today, userId);
-  const store = getStore();
-
+  
   // Get payment status for current month
   const paymentStatus = getPaymentStatus(userId);
 
-  // Filter all data by group IDs (for merged finances) or just userId
-  const userIncomes = store.incomes.filter(i => groupUserIds.includes(i.userId));
-  const userFixedExpenses = store.fixedExpenses.filter(f => groupUserIds.includes(f.userId));
-  const userVariablePlans = store.variablePlans.filter(v => groupUserIds.includes(v.userId));
-  const userInvestments = store.investments.filter(i => groupUserIds.includes(i.userId));
-  const userFutureBombs = store.futureBombs.filter(fb => groupUserIds.includes(fb.userId));
+  // Fetch all data from Supabase
+  const [userIncomes, userFixedExpenses, userVariablePlans, userInvestments, userFutureBombs, allVariableActuals] = await Promise.all([
+    db.getIncomesByUserIds(groupUserIds),
+    db.getFixedExpensesByUserIds(groupUserIds),
+    db.getVariablePlansByUserIds(groupUserIds),
+    db.getInvestmentsByUserIds(groupUserIds),
+    db.getFutureBombsByUserIds(groupUserIds),
+    db.getVariableActualsByUserIds(groupUserIds)
+  ]);
 
   // Attach actuals and actualTotal to each variable plan
   const variablePlansWithActuals = userVariablePlans.map((plan) => {
-    const actuals = store.variableActuals.filter((a) => a.planId === plan.id && groupUserIds.includes(a.userId));
+    const actuals = allVariableActuals.filter((a) => a.planId === plan.id && groupUserIds.includes(a.userId));
     const actualTotal = actuals.reduce((sum, a) => sum + a.amount, 0);
     return { ...plan, actuals, actualTotal };
   });
@@ -288,57 +253,54 @@ app.get("/dashboard", requireAuth, (req, res) => {
   res.json({ data: payload });
 });
 
-app.get("/planning/income", requireAuth, (req, res) => {
+app.get("/planning/income", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const store = getStore();
-  const userIncomes = store.incomes.filter(i => i.userId === userId);
+  const userIncomes = await db.getIncomesByUserId(userId);
   res.json({ data: userIncomes });
 });
 
-app.post("/planning/income", requireAuth, (req, res) => {
+app.post("/planning/income", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = incomeSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addIncome(userId, { name: parsed.data.source, amount: parsed.data.amount, frequency: parsed.data.frequency, category: "employment", startDate: new Date().toISOString() });
+  const created = await store.addIncome(userId, { name: parsed.data.source, amount: parsed.data.amount, frequency: parsed.data.frequency, category: "employment", startDate: new Date().toISOString() });
   // FIX: Use userId instead of user.id for activity logging
-  addActivity(userId, "income", "added income source", { name: created.name, amount: created.amount, frequency: created.frequency });
-  dashboardCache.clear();
+  await store.addActivity(userId, "income", "added income source", { name: created.name, amount: created.amount, frequency: created.frequency });
   res.status(201).json({ data: created });
 });
 
-app.put("/planning/income/:id", requireAuth, (req, res) => {
+app.put("/planning/income/:id", requireAuth, async (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = incomeSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const updated = updateIncome(req.params.id, {
-    name: parsed.data.source,
-    amount: parsed.data.amount,
-    frequency: parsed.data.frequency
-  });
+  const updateData: any = {};
+  if (parsed.data.source !== undefined) updateData.name = parsed.data.source;
+  if (parsed.data.amount !== undefined) updateData.amount = parsed.data.amount;
+  if (parsed.data.frequency !== undefined) updateData.frequency = parsed.data.frequency;
+  updateData.userId = userId; // Needed for fetching updated record
+  const updated = await store.updateIncome(req.params.id, updateData);
   if (!updated) return res.status(404).json({ error: { message: "Not found" } });
-  dashboardCache.clear();
   res.json({ data: updated });
 });
 
-app.delete("/planning/income/:id", requireAuth, (req, res) => {
+app.delete("/planning/income/:id", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const ok = deleteIncome(userId, req.params.id);
+  const ok = await store.deleteIncome(userId, req.params.id);
   if (!ok) return res.status(404).json({ error: { message: "Not found" } });
-  dashboardCache.clear();
   res.status(200).json({ data: { deleted: true } });
 });
 
-app.get("/planning/fixed-expenses", requireAuth, (req, res) => {
+app.get("/planning/fixed-expenses", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const store = getStore();
-  const userExpenses = store.fixedExpenses.filter(f => f.userId === userId).map((e) => ({ ...e, is_sip_flag: e.isSip }));
-  res.json({ data: userExpenses });
+  const userExpenses = await db.getFixedExpensesByUserId(userId);
+  res.json({ data: userExpenses.map((e) => ({ ...e, is_sip_flag: e.isSip })) });
 });
 
-app.post("/planning/fixed-expenses", requireAuth, (req, res) => {
+app.post("/planning/fixed-expenses", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = fixedSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addFixedExpense(userId, {
+  const created = await store.addFixedExpense(userId, {
     name: parsed.data.name,
     amount: parsed.data.amount,
     frequency: parsed.data.frequency,
@@ -346,58 +308,57 @@ app.post("/planning/fixed-expenses", requireAuth, (req, res) => {
     isSip: parsed.data.is_sip_flag
   });
   // FIX: Add activity logging for fixed expense creation
-  addActivity(userId, "fixed_expense", "added fixed expense", { 
+  await store.addActivity(userId, "fixed_expense", "added fixed expense", { 
     name: created.name, 
     amount: created.amount, 
     frequency: created.frequency, 
     category: created.category 
   });
-  dashboardCache.clear();
   // Return with snake_case field name for API consistency
   res.status(201).json({ data: { ...created, is_sip_flag: created.isSip } });
 });
 
-app.put("/planning/fixed-expenses/:id", requireAuth, (req, res) => {
+app.put("/planning/fixed-expenses/:id", requireAuth, async (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = fixedSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const updated = updateFixedExpense(req.params.id, {
-    name: parsed.data.name,
-    amount: parsed.data.amount,
-    frequency: parsed.data.frequency,
-    category: parsed.data.category,
-    isSip: parsed.data.is_sip_flag
-  });
+  const updateData: any = {};
+  if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+  if (parsed.data.amount !== undefined) updateData.amount = parsed.data.amount;
+  if (parsed.data.frequency !== undefined) updateData.frequency = parsed.data.frequency;
+  if (parsed.data.category !== undefined) updateData.category = parsed.data.category;
+  if (parsed.data.is_sip_flag !== undefined) updateData.isSip = parsed.data.is_sip_flag;
+  updateData.userId = userId; // Needed for fetching updated record
+  const updated = await store.updateFixedExpense(req.params.id, updateData);
   if (!updated) return res.status(404).json({ error: { message: "Not found" } });
-  dashboardCache.clear();
   // Return with snake_case field name for API consistency
   res.json({ data: { ...updated, is_sip_flag: updated.isSip } });
 });
 
-app.delete("/planning/fixed-expenses/:id", requireAuth, (req, res) => {
+app.delete("/planning/fixed-expenses/:id", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const ok = deleteFixedExpense(userId, req.params.id);
+  const ok = await store.deleteFixedExpense(userId, req.params.id);
   if (!ok) return res.status(404).json({ error: { message: "Not found" } });
-  dashboardCache.clear();
   res.status(200).json({ data: { deleted: true } });
 });
 
-app.get("/planning/variable-expenses", requireAuth, (req, res) => {
+app.get("/planning/variable-expenses", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const store = getStore();
-  const userPlans = store.variablePlans.filter(p => p.userId === userId);
+  const userPlans = await db.getVariablePlansByUserId(userId);
+  const allActuals = await db.getVariableActualsByUserId(userId);
   const plans = userPlans.map((p) => {
-    const actual = store.variableActuals.filter((a) => a.planId === p.id && a.userId === userId);
+    const actual = allActuals.filter((a) => a.planId === p.id && a.userId === userId);
     const actualTotal = actual.reduce((s, a) => s + a.amount, 0);
     return { ...p, actualTotal, actuals: actual };
   });
   res.json({ data: plans });
 });
 
-app.post("/planning/variable-expenses", requireAuth, (req, res) => {
+app.post("/planning/variable-expenses", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = variablePlanSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addVariablePlan(userId, {
+  const created = await store.addVariablePlan(userId, {
     name: parsed.data.name,
     planned: parsed.data.planned,
     category: parsed.data.category,
@@ -405,54 +366,53 @@ app.post("/planning/variable-expenses", requireAuth, (req, res) => {
     endDate: parsed.data.end_date
   });
   // FIX: Add activity logging for variable expense plan creation
-  addActivity(userId, "variable_expense_plan", "added variable expense plan", { 
+  await store.addActivity(userId, "variable_expense_plan", "added variable expense plan", { 
     name: created.name, 
     planned: created.planned, 
     category: created.category 
   });
-  dashboardCache.clear();
   res.status(201).json({ data: created });
 });
 
-app.put("/planning/variable-expenses/:id", requireAuth, (req, res) => {
+app.put("/planning/variable-expenses/:id", requireAuth, async (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = variablePlanSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const updated = updateVariablePlan(req.params.id, {
-    name: parsed.data.name,
-    planned: parsed.data.planned,
-    category: parsed.data.category,
-    startDate: parsed.data.start_date,
-    endDate: parsed.data.end_date
-  });
+  const updateData: any = {};
+  if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+  if (parsed.data.planned !== undefined) updateData.planned = parsed.data.planned;
+  if (parsed.data.category !== undefined) updateData.category = parsed.data.category;
+  if (parsed.data.start_date !== undefined) updateData.startDate = parsed.data.start_date;
+  if (parsed.data.end_date !== undefined) updateData.endDate = parsed.data.end_date;
+  updateData.userId = userId; // Needed for fetching updated record
+  const updated = await store.updateVariablePlan(req.params.id, updateData);
   if (!updated) return res.status(404).json({ error: { message: "Not found" } });
-  dashboardCache.clear();
   res.json({ data: updated });
 });
 
-app.delete("/planning/variable-expenses/:id", requireAuth, (req, res) => {
+app.delete("/planning/variable-expenses/:id", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const ok = deleteVariablePlan(userId, req.params.id);
+  const ok = await store.deleteVariablePlan(userId, req.params.id);
   if (!ok) return res.status(404).json({ error: { message: "Not found" } });
-  dashboardCache.clear();
   res.status(200).json({ data: { deleted: true } });
 });
 
-app.post("/planning/variable-expenses/:id/actuals", requireAuth, (req, res) => {
+app.post("/planning/variable-expenses/:id/actuals", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = variableActualSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const store = getStore();
-  const plan = store.variablePlans.find((p) => p.id === req.params.id && p.userId === userId);
+  const plan = await db.getVariablePlansByUserId(userId).then(plans => plans.find(p => p.id === req.params.id));
   if (!plan) return res.status(404).json({ error: { message: "Plan not found" } });
   // Overspend check: if constraint is red and over plan, justification required
-  const actualTotal = store.variableActuals.filter((a) => a.planId === plan.id && a.userId === userId).reduce((s, a) => s + a.amount, 0);
+  const allActuals = await db.getVariableActualsByPlanId(plan.id);
+  const actualTotal = allActuals.filter(a => a.userId === userId).reduce((s, a) => s + a.amount, 0);
   const projected = actualTotal + parsed.data.amount;
-  const constraint = getConstraint(userId);
+  const constraint = await store.getConstraint(userId);
   if (constraint.tier === "red" && projected > plan.planned && !parsed.data.justification) {
     return res.status(400).json({ error: { message: "Justification required for overspend in red tier" } });
   }
   // v1.2: Include new fields (subcategory, paymentMode, creditCardId)
-  const created = addVariableActual(userId, {
+  const created = await store.addVariableActual(userId, {
     planId: plan.id,
     amount: parsed.data.amount,
     incurredAt: parsed.data.incurred_at,
@@ -463,7 +423,7 @@ app.post("/planning/variable-expenses/:id/actuals", requireAuth, (req, res) => {
   });
   // Log activity
   const user = (req as any).user;
-  addActivity(user.userId, "variable_expense", "added actual expense", {
+  await store.addActivity(user.userId, "variable_expense", "added actual expense", {
     plan: plan.name,
     amount: parsed.data.amount,
     category: plan.category,
@@ -473,174 +433,167 @@ app.post("/planning/variable-expenses/:id/actuals", requireAuth, (req, res) => {
   if (projected > plan.planned) {
     recordOverspend(userId, plan.name, projected, plan.planned, "2025-01");
   }
-  dashboardCache.clear();
   res.status(201).json({ data: created });
 });
 
-app.get("/investments", requireAuth, (req, res) => {
+app.get("/investments", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const store = getStore();
-  const userInvestments = store.investments.filter(i => i.userId === userId);
+  const userInvestments = await db.getInvestmentsByUserId(userId);
   res.json({ data: userInvestments });
 });
 
-app.post("/investments", requireAuth, (req, res) => {
+app.post("/investments", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = investmentSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addInvestment(userId, parsed.data);
+  const created = await store.addInvestment(userId, parsed.data);
   // FIX: Add activity logging for investment creation with correct amount field
-  addActivity(userId, "investment", "added investment", { 
+  await store.addActivity(userId, "investment", "added investment", { 
     name: created.name, 
     amount: created.monthlyAmount,  // FIX: Use monthlyAmount not amount
     goal: created.goal,
     status: created.status
   });
-  dashboardCache.clear();
   res.status(201).json({ data: created });
 });
 
-app.put("/investments/:id", requireAuth, (req, res) => {
+app.put("/investments/:id", requireAuth, async (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = investmentSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const updated = updateInvestment(req.params.id, parsed.data);
+  const updateData: any = { ...parsed.data, userId }; // Needed for fetching updated record
+  const updated = await store.updateInvestment(req.params.id, updateData);
   if (!updated) return res.status(404).json({ error: { message: "Not found" } });
-  dashboardCache.clear();
   res.json({ data: updated });
 });
 
 // ADD: Investment DELETE endpoint
-app.delete("/investments/:id", requireAuth, (req, res) => {
-  const user = (req as any).user;
-  const store = getStore();
-  const index = store.investments.findIndex(i => i.id === req.params.id && i.userId === user.id);
-  if (index === -1) return res.status(404).json({ error: { message: "Not found" } });
-  store.investments.splice(index, 1);
-  scheduleSave();  // Save data after deletion
-  dashboardCache.clear();
-  res.json({ data: { deleted: true } });
+app.delete("/investments/:id", requireAuth, async (req, res) => {
+  const userId = (req as any).user.userId;
+  try {
+    await db.deleteInvestment(req.params.id);
+    res.json({ data: { deleted: true } });
+  } catch {
+    return res.status(404).json({ error: { message: "Not found" } });
+  }
 });
 
-app.get("/future-bombs", requireAuth, (req, res) => {
+app.get("/future-bombs", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const store = getStore();
-  const userFutureBombs = store.futureBombs.filter(fb => fb.userId === userId);
+  const userFutureBombs = await db.getFutureBombsByUserId(userId);
   res.json({ data: userFutureBombs });
 });
 
-app.post("/future-bombs", requireAuth, (req, res) => {
+app.post("/future-bombs", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = futureBombSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = addFutureBomb(userId, parsed.data);
-  dashboardCache.clear();
+  const created = await store.addFutureBomb(userId, parsed.data);
   res.status(201).json({ data: created });
 });
 
-app.put("/future-bombs/:id", requireAuth, (req, res) => {
+app.put("/future-bombs/:id", requireAuth, async (req, res) => {
+  const userId = (req as any).user.userId;
   const parsed = futureBombSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const updated = updateFutureBomb(req.params.id, parsed.data);
+  const updateData: any = { ...parsed.data, userId }; // Needed for fetching updated record
+  const updated = await store.updateFutureBomb(req.params.id, updateData);
   if (!updated) return res.status(404).json({ error: { message: "Not found" } });
-  dashboardCache.clear();
   res.json({ data: updated });
 });
 
-app.get("/sharing/requests", requireAuth, (req, res) => {
+app.get("/sharing/requests", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const { incoming, outgoing } = listRequestsForUser(user.id, user.username);
+  const { incoming, outgoing } = await store.listRequestsForUser(user.id, user.username);
   res.json({ data: { incoming, outgoing } });
 });
 
-app.post("/sharing/invite", requireAuth, (req, res) => {
+app.post("/sharing/invite", requireAuth, async (req, res) => {
   const user = (req as any).user;
   const parsed = inviteSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   // Look up by username (email removed from system)
-  const store = getStore();
-  const invitee = store.users.find((u) => u.username === parsed.data.email_or_username);
+  const invitee = await db.getUserByUsername(parsed.data.email_or_username);
   if (!invitee) return res.status(404).json({ error: { message: "User not found" } });
   // Use username instead of email for sharing
-  const reqCreated = createSharingRequest(user.id, invitee.username, parsed.data.role, !!parsed.data.merge_finances);
+  const reqCreated = await store.createSharingRequest(user.id, invitee.username, parsed.data.role, !!parsed.data.merge_finances);
   res.status(201).json({ data: reqCreated });
 });
 
-app.post("/sharing/requests/:id/approve", requireAuth, (req, res) => {
+app.post("/sharing/requests/:id/approve", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const result = approveRequest(req.params.id, user.username);
+  const result = await store.approveRequest(req.params.id, user.username);
   if (!result) return res.status(404).json({ error: { message: "Not found or not authorized" } });
   res.json({ data: result });
 });
 
-app.post("/sharing/requests/:id/reject", requireAuth, (req, res) => {
+app.post("/sharing/requests/:id/reject", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const ok = rejectRequest(req.params.id);  // Removed username param
+  const ok = await store.rejectRequest(req.params.id);
   if (!ok) return res.status(404).json({ error: { message: "Request not found" } });
   res.json({ data: { rejected: true } });
 });
 
-app.get("/sharing/members", requireAuth, (req, res) => {
+app.get("/sharing/members", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const members = listMembers(user.id);
-  const accounts = listSharedAccountsFor(user.id);
+  const members = await store.listMembers(user.id);
+  const accounts = await store.listSharedAccountsFor(user.id);
   res.json({ data: { members, accounts } });
 });
 
-app.delete("/sharing/members/:id", requireAuth, (req, res) => {
+app.delete("/sharing/members/:id", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const ok = removeMember(req.params.id, user.id);
+  const ok = await store.removeMember(req.params.id, user.id);
   if (!ok) return res.status(403).json({ error: { message: "Not authorized or not found" } });
   res.status(204).end();
 });
 
 // v1.2: Get billing alerts (must come before /:id routes)
-app.get("/debts/credit-cards/billing-alerts", requireAuth, (req, res) => {
+app.get("/debts/credit-cards/billing-alerts", requireAuth, async (req, res) => {
   const today = new Date();
-  const alerts = checkAndAlertBillingDates(today);
+  const alerts = await store.checkAndAlertBillingDates(today);
   res.json({ data: alerts });
 });
 
-app.get("/debts/credit-cards", requireAuth, (req, res) => {
+app.get("/debts/credit-cards", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const store = getStore();
-  const userCards = store.creditCards.filter(c => c.userId === userId);
+  const userCards = await db.getCreditCardsByUserId(userId);
   res.json({ data: userCards });
 });
 
-app.post("/debts/credit-cards", requireAuth, (req, res) => {
+app.post("/debts/credit-cards", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = creditCardSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { paidAmount, ...cardData } = parsed.data;
-  const created = addCreditCard(userId, {
+  const created = await store.addCreditCard(userId, {
     ...cardData,
     statementDate: cardData.statementDate || new Date().toISOString().split('T')[0],
     billAmount: cardData.billAmount ?? 0  // v1.2: Default to 0 if not provided
   });
   // v1.2: If paidAmount provided, update it
   if (paidAmount !== undefined && paidAmount > 0) {
-    payCreditCard(created.id, paidAmount);
+    await store.payCreditCard(created.id, paidAmount);
   }
-  addActivity((req as any).user.id, "credit_card", "created", { id: created.id });
+  await store.addActivity((req as any).user.id, "credit_card", "created", { id: created.id });
   res.status(201).json({ data: created });
 });
 
 // v1.2: Get credit card usage (must come before /:id routes to avoid route conflicts)
-app.get("/debts/credit-cards/:id/usage", requireAuth, (req, res) => {
+app.get("/debts/credit-cards/:id/usage", requireAuth, async (req, res) => {
   try {
     const userId = (req as any).user.userId;
     const cardId = req.params.id;
-    const store = getStore();
-    const card = store.creditCards.find(c => c.id === cardId && c.userId === userId);
+    const cards = await db.getCreditCardsByUserId(userId);
+    const card = cards.find(c => c.id === cardId);
     if (!card) {
       return res.status(404).json({ error: { message: "Credit card not found" } });
     }
     
     // Get all variable expense actuals for this credit card
-    const usage = store.variableActuals.filter(
-      a => a.userId === userId && 
-           a.paymentMode === "CreditCard" && 
-           a.creditCardId === card.id
+    const allActuals = await db.getVariableActualsByUserId(userId);
+    const usage = allActuals.filter(
+      a => a.paymentMode === "CreditCard" && a.creditCardId === card.id
     );
     
     res.json({ data: usage });
@@ -650,34 +603,34 @@ app.get("/debts/credit-cards/:id/usage", requireAuth, (req, res) => {
   }
 });
 
-app.post("/debts/credit-cards/:id/payments", requireAuth, (req, res) => {
+app.post("/debts/credit-cards/:id/payments", requireAuth, async (req, res) => {
   const parsed = paymentSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const updated = payCreditCard(req.params.id, parsed.data.amount);
+  const updated = await store.payCreditCard(req.params.id, parsed.data.amount);
   if (!updated) return res.status(404).json({ error: { message: "Not found" } });
-  addActivity((req as any).user.id, "credit_card", "payment", { id: updated.id, amount: parsed.data.amount });
+  await store.addActivity((req as any).user.id, "credit_card", "payment", { id: updated.id, amount: parsed.data.amount });
   res.json({ data: updated });
 });
 
 // v1.2: Reset credit card current expenses (prepare for billing)
-app.post("/debts/credit-cards/:id/reset-billing", requireAuth, (req, res) => {
+app.post("/debts/credit-cards/:id/reset-billing", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const updated = resetCreditCardCurrentExpenses(req.params.id, userId);
+  const updated = await store.resetCreditCardCurrentExpenses(req.params.id, userId);
   if (!updated) return res.status(404).json({ error: { message: "Not found" } });
-  addActivity((req as any).user.id, "credit_card", "reset_billing", { id: updated.id });
+  await store.addActivity((req as any).user.id, "credit_card", "reset_billing", { id: updated.id });
   res.json({ data: updated });
 });
 
-app.delete("/debts/credit-cards/:id", requireAuth, (req, res) => {
+app.delete("/debts/credit-cards/:id", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const deleted = deleteCreditCard(userId, req.params.id);
+  const deleted = await store.deleteCreditCard(userId, req.params.id);
   if (!deleted) return res.status(404).json({ error: { message: "Not found" } });
-  addActivity((req as any).user.id, "credit_card", "deleted", { id: req.params.id });
+  await store.addActivity((req as any).user.id, "credit_card", "deleted", { id: req.params.id });
   res.json({ data: { deleted: true } });
 });
 
 // v1.2: Update credit card bill amount
-app.patch("/debts/credit-cards/:id", requireAuth, (req, res) => {
+app.patch("/debts/credit-cards/:id", requireAuth, async (req, res) => {
   try {
     const userId = (req as any).user.userId;
     const cardId = req.params.id;
@@ -688,18 +641,19 @@ app.patch("/debts/credit-cards/:id", requireAuth, (req, res) => {
       return res.status(400).json({ error: parsed.error.flatten() });
     }
     
-    const store = getStore();
-    const card = store.creditCards.find(c => c.id === cardId && c.userId === userId);
+    const cards = await db.getCreditCardsByUserId(userId);
+    const card = cards.find(c => c.id === cardId);
     if (!card) {
       return res.status(404).json({ error: { message: "Credit card not found" } });
     }
     
-    card.billAmount = Math.round(parsed.data.billAmount * 100) / 100; // Round to 2 decimal places
-    card.needsBillUpdate = false;
-    scheduleSave();
+    const billAmount = Math.round(parsed.data.billAmount * 100) / 100; // Round to 2 decimal places
+    await db.updateCreditCard(cardId, { billAmount, needsBillUpdate: false });
     
-    addActivity((req as any).user.id, "credit_card", "updated_bill", { id: card.id, billAmount: card.billAmount });
-    res.json({ data: card });
+    await store.addActivity((req as any).user.id, "credit_card", "updated_bill", { id: card.id, billAmount });
+    const updatedCards = await db.getCreditCardsByUserId(userId);
+    const updatedCard = updatedCards.find(c => c.id === cardId);
+    res.json({ data: updatedCard });
   } catch (error: any) {
     console.error("Error updating credit card bill:", error);
     res.status(500).json({ error: { message: error.message || "Internal server error" } });
@@ -709,7 +663,7 @@ app.patch("/debts/credit-cards/:id", requireAuth, (req, res) => {
 // v1.2: Get user subcategories
 app.get("/user/subcategories", requireAuth, (req, res) => {
   const userId = (req as any).user.userId;
-  res.json({ data: getUserSubcategories(userId) });
+  res.json({ data: store.getUserSubcategories(userId) });
 });
 
 // v1.2: Add new subcategory
@@ -718,29 +672,28 @@ app.post("/user/subcategories", requireAuth, (req, res) => {
   const parsed = z.object({ subcategory: z.string().min(1).max(50) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   
-  addUserSubcategory(userId, parsed.data.subcategory);
-  res.json({ data: { subcategory: parsed.data.subcategory, subcategories: getUserSubcategories(userId) } });
+  store.addUserSubcategory(userId, parsed.data.subcategory);
+  res.json({ data: { subcategory: parsed.data.subcategory, subcategories: store.getUserSubcategories(userId) } });
 });
 
-app.get("/debts/loans", requireAuth, (req, res) => {
+app.get("/debts/loans", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  res.json({ data: listLoans(user.userId) });
+  const loans = await store.listLoans(user.userId);
+  res.json({ data: loans });
 });
 
-app.get("/activity", requireAuth, (req, res) => {
+app.get("/activity", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const all = listActivities();
-  const store = getStore();
+  const all = await store.listActivities(userId);
 
-  // Filter activities to show only user's own activities (actorId is the user who performed the action)
-  const userActivities = all.filter(activity => activity.actorId === userId).map(activity => {
-    // Find the username for this activity
-    const actor = store.users.find(u => u.id === activity.actorId);
+  // Get usernames for activities
+  const userActivities = await Promise.all(all.map(async (activity) => {
+    const actor = await db.getUserById(activity.actorId);
     return {
       ...activity,
       username: actor?.username || 'Unknown User'
     };
-  });
+  }));
 
   res.json({ data: userActivities });
 });
@@ -751,26 +704,28 @@ app.get("/alerts", requireAuth, (req, res) => {
 });
 
 // Export finances as JSON
-app.get("/export/finances", requireAuth, (req, res) => {
+app.get("/export/finances", requireAuth, async (req, res) => {
   const user = (req as any).user;
   const parsed = dateQuerySchema.safeParse(req.query);
   const today = parsed.data?.today ? new Date(parsed.data.today) : new Date();
 
   const userId = (req as any).user?.userId;
-  const constraintDecayed = applyConstraintDecay(getConstraint(userId), today);
+  const constraint = await store.getConstraint(userId);
+  const constraintDecayed = applyConstraintDecay(constraint, today);
   const health = computeHealthSnapshot(today, userId);
-  const store = getStore();
 
-  // Filter all data by userId to ensure user-specific export
-  const userIncomes = store.incomes.filter(i => i.userId === userId);
-  const userFixedExpenses = store.fixedExpenses.filter(e => e.userId === userId);
-  const userVariablePlans = store.variablePlans.filter(p => p.userId === userId);
-  const userVariableActuals = store.variableActuals.filter(a => a.userId === userId);
-  const userInvestments = store.investments.filter(i => i.userId === userId);
-  const userFutureBombs = store.futureBombs.filter(f => f.userId === userId);
-  const userCreditCards = store.creditCards.filter(c => c.userId === userId);
-  const userLoans = store.loans.filter(l => l.userId === userId);
-  const userActivities = store.activities.filter(a => a.actorId === userId).slice(-50); // Last 50 activities
+  // Fetch all data from Supabase
+  const [userIncomes, userFixedExpenses, userVariablePlans, userVariableActuals, userInvestments, userFutureBombs, userCreditCards, userLoans, userActivities] = await Promise.all([
+    db.getIncomesByUserId(userId),
+    db.getFixedExpensesByUserId(userId),
+    db.getVariablePlansByUserId(userId),
+    db.getVariableActualsByUserId(userId),
+    db.getInvestmentsByUserId(userId),
+    db.getFutureBombsByUserId(userId),
+    db.getCreditCardsByUserId(userId),
+    db.getLoansByUserId(userId),
+    db.getActivitiesByUserId(userId, 50) // Last 50 activities
+  ]);
 
   const exportData = {
     exportDate: new Date().toISOString(),
@@ -822,10 +777,10 @@ const themeStateSchema = z.object({
   constraint_tier_effect: z.boolean().optional()
 });
 
-app.get("/themes/state", requireAuth, (req, res) => {
+app.get("/themes/state", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const theme = getThemeState(user.id);
-  const constraint = getConstraint(user.id);
+  const theme = await store.getThemeState(user.id);
+  const constraint = await store.getConstraint(user.id);
   res.json({
     data: {
       mode: theme.mode,
@@ -837,17 +792,17 @@ app.get("/themes/state", requireAuth, (req, res) => {
   });
 });
 
-app.patch("/themes/state", requireAuth, (req, res) => {
+app.patch("/themes/state", requireAuth, async (req, res) => {
   const user = (req as any).user;
   const parsed = themeStateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const updated = updateThemeState(user.id, {
+  const updated = await store.updateThemeState(user.id, {
     mode: parsed.data.mode,
     selectedTheme: parsed.data.selected_theme,
     constraintTierEffect: parsed.data.constraint_tier_effect
   });
   const userId = (req as any).user.userId;
-  const constraint = getConstraint(userId);
+  const constraint = await store.getConstraint(userId);
   res.json({
     data: {
       mode: updated.mode,
@@ -860,7 +815,7 @@ app.patch("/themes/state", requireAuth, (req, res) => {
 });
 
 // Payment tracking endpoints
-app.post("/payments/mark-paid", requireAuth, (req, res) => {
+app.post("/payments/mark-paid", requireAuth, async (req, res) => {
   const user = (req as any).user;
   const schema = z.object({
     itemId: z.string(),
@@ -871,12 +826,11 @@ app.post("/payments/mark-paid", requireAuth, (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   const payment = markAsPaid(user.userId, parsed.data.itemId, parsed.data.itemType, parsed.data.amount);
-  dashboardCache.clear();
-  addActivity(user.userId, parsed.data.itemType, "paid", { id: parsed.data.itemId, amount: parsed.data.amount });
+  await store.addActivity(user.userId, parsed.data.itemType, "paid", { id: parsed.data.itemId, amount: parsed.data.amount });
   res.json({ data: payment });
 });
 
-app.post("/payments/mark-unpaid", requireAuth, (req, res) => {
+app.post("/payments/mark-unpaid", requireAuth, async (req, res) => {
   const user = (req as any).user;
   const schema = z.object({
     itemId: z.string(),
@@ -886,9 +840,8 @@ app.post("/payments/mark-unpaid", requireAuth, (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   const success = markAsUnpaid(user.userId, parsed.data.itemId, parsed.data.itemType);
-  dashboardCache.clear();
   if (success) {
-    addActivity(user.userId, parsed.data.itemType, "unpaid", { id: parsed.data.itemId });
+    await store.addActivity(user.userId, parsed.data.itemType, "unpaid", { id: parsed.data.itemId });
   }
   res.json({ data: { success } });
 });
@@ -908,13 +861,13 @@ app.get("/payments/summary", requireAuth, (req, res) => {
 });
 
 // User preferences endpoints
-app.get("/preferences", requireAuth, (req, res) => {
+app.get("/preferences", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const prefs = getUserPreferences(user.userId);
+  const prefs = await getUserPreferences(user.userId);
   res.json({ data: prefs });
 });
 
-app.patch("/preferences", requireAuth, (req, res) => {
+app.patch("/preferences", requireAuth, async (req, res) => {
   const user = (req as any).user;
   const schema = z.object({
     monthStartDay: z.number().int().min(1).max(28).optional(),
@@ -924,35 +877,22 @@ app.patch("/preferences", requireAuth, (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  const updated = updateUserPreferences(user.userId, parsed.data);
+  const updated = await updateUserPreferences(user.userId, parsed.data);
   res.json({ data: updated });
 });
 
-// Dev-only seed endpoint
+// Dev-only seed endpoint (disabled for Supabase)
 app.post("/admin/seed", (req, res) => {
-  loadFixtureStore();
-  // Clear alerts for all test users (admin endpoint)
-  const userId = (req as any).user?.userId || "admin";
-  clearAlerts(userId);
-  res.json({
-    data: {
-      incomes: getStore().incomes.length,
-      fixedExpenses: getStore().fixedExpenses.length,
-      variablePlans: getStore().variablePlans.length,
-      variableActuals: getStore().variableActuals.length
-    }
-  });
+  res.status(501).json({ error: { message: "Seed endpoint disabled - data is now in Supabase" } });
 });
 
 // TEMPORARY: Admin endpoint to export full store data for migration
 // TODO: Remove this after migration to Supabase is complete
-app.get("/admin/export-full-store", requireAuth, (req, res) => {
+app.get("/admin/export-full-store", requireAuth, async (req, res) => {
   // For migration: Allow any authenticated user to export
   // This is temporary and will be removed after migration
-  const store = getStore();
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', 'attachment; filename="finflow-data-export.json"');
-  res.json(store);
+  // Note: This endpoint is deprecated - data is now in Supabase
+  res.status(501).json({ error: { message: "Export endpoint disabled - data is now in Supabase. Use Supabase dashboard to export data." } });
 });
 
 // Health check
@@ -960,7 +900,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-const dashboardCache: Map<string, { payload: any; expiresAt: number }> = new Map();
+// Dashboard cache removed - Supabase handles caching
 
 if (require.main === module) {
   const PORT = process.env.PORT || 12022;

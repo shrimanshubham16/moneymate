@@ -132,3 +132,4 @@ async function generateIcons() {
 // Run the generator
 generateIcons().catch(console.error);
 
+

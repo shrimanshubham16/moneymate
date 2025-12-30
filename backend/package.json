@@ -12,17 +12,24 @@
     "seed": "tsx scripts/seed.ts",
     "lint": "echo \"No linter configured yet\"",
     "test-supabase": "tsx scripts/test-supabase-connection.ts",
-    "create-schema": "tsx scripts/create-schema.ts"
+    "create-schema": "tsx scripts/create-schema.ts",
+    "encode-password": "tsx scripts/encode-password.ts",
+    "migrate-data": "tsx scripts/migrate-data-to-supabase.ts",
+    "migrate-data-direct": "tsx scripts/migrate-data-direct-postgres.ts",
+    "fix-constraint-scores": "tsx scripts/fix-constraint-scores.ts",
+    "update-constraint-to-zero": "tsx scripts/update-constraint-scores-to-zero.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",
     "@types/cors": "^2.8.19",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/pg": "^8.16.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.19.2",
     "express-rate-limit": "^7.2.0",
     "jsonwebtoken": "^9.0.3",
+    "pg": "^8.16.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
