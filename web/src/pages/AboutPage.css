@@ -184,7 +184,9 @@
 .release-date {
   margin: 0;
   font-size: 14px;
-  opacity: 0.8;
+  opacity: 1;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 1);
 }
 
 .release-notes {
