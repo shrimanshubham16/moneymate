@@ -770,7 +770,7 @@ app.get("/export/finances", requireAuth, (req, res) => {
   const userFutureBombs = store.futureBombs.filter(f => f.userId === userId);
   const userCreditCards = store.creditCards.filter(c => c.userId === userId);
   const userLoans = store.loans.filter(l => l.userId === userId);
-  const userActivities = store.activities.filter(a => a.userId === userId).slice(-50); // Last 50 activities
+  const userActivities = store.activities.filter(a => a.actorId === userId).slice(-50); // Last 50 activities
 
   const exportData = {
     exportDate: new Date().toISOString(),
