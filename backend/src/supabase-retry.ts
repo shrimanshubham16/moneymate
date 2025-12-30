@@ -21,6 +21,7 @@ export async function withRetry<T>(
         error.message?.includes('503') ||
         error.message?.includes('502') ||
         error.message?.includes('504') ||
+        error.code === 'PGRST002' || // PostgREST schema cache error
         error.code === 'PGRST116' || // PostgREST schema cache error
         error.code === 'PGRST301';   // PostgREST timeout
       
@@ -30,7 +31,10 @@ export async function withRetry<T>(
       
       // Wait before retrying (exponential backoff)
       const waitTime = delayMs * Math.pow(2, attempt - 1);
-      console.log(`⚠️  Retryable error (attempt ${attempt}/${maxRetries}), retrying in ${waitTime}ms...`);
+      if (attempt === 1) {
+        // Only log on first retry to avoid spam
+        console.log(`⚠️  Retryable error (attempt ${attempt}/${maxRetries}), retrying in ${waitTime}ms...`);
+      }
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }

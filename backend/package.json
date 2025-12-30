@@ -17,6 +17,7 @@
     "check-user": "tsx scripts/check-user-password.ts",
     "create-test-user": "tsx scripts/create-test-user.ts",
     "list-users": "tsx scripts/list-users.ts",
+    "check-supabase": "tsx scripts/check-supabase-status.ts",
     "create-schema": "tsx scripts/create-schema.ts",
     "encode-password": "tsx scripts/encode-password.ts",
     "migrate-data": "tsx scripts/migrate-data-to-supabase.ts",
