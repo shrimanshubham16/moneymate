@@ -141,22 +141,18 @@ app.get("/health/details", requireAuth, async (req, res) => {
   const useProrated = preferences?.useProrated ?? false;
 
   // Get components
-  const totalIncome = totalIncomePerMonth(userId);
-  const paymentsMade = totalPaymentsMadeThisMonth(userId, today);
-  // v1.2: Credit card overpayments reduce available funds
-  const creditCardOverpaymentsAmount = getCreditCardOverpayments(userId, today);
+  const [totalIncome, paymentsMade, creditCardOverpaymentsAmount, unpaidFixed, unpaidVariable, unpaidInvestments, unpaidCreditCards, health] = await Promise.all([
+    totalIncomePerMonth(userId),
+    Promise.resolve(totalPaymentsMadeThisMonth(userId, today)), // This is sync
+    getCreditCardOverpayments(userId, today),
+    unpaidFixedPerMonth(userId, today),
+    unpaidProratedVariableForRemainingDays(userId, today, monthStartDay),
+    unpaidInvestmentsPerMonth(userId, today),
+    unpaidCreditCardDues(userId, today),
+    computeHealthSnapshot(today, userId)
+  ]);
   const availableFunds = totalIncome - paymentsMade - creditCardOverpaymentsAmount;
-
-  const unpaidFixed = unpaidFixedPerMonth(userId, today);
-  const unpaidVariable = unpaidProratedVariableForRemainingDays(userId, today, monthStartDay);
-  const unpaidInvestments = unpaidInvestmentsPerMonth(userId, today);
-  // v1.2: Use full bill amount (not unpaid amount) for health calculation
-  const unpaidCreditCards = unpaidCreditCardDues(userId, today);
-
   const monthProgress = calculateMonthProgress(today, monthStartDay);
-
-  // Calculate health using backend's formula (same as dashboard)
-  const health = computeHealthSnapshot(today, userId);
 
   const formula = useProrated
     ? "Available Funds - (Unpaid Fixed + Unpaid Prorated Variable for Remaining Days + Unpaid Investments + Unpaid Credit Cards)"
@@ -209,7 +205,7 @@ app.get("/dashboard", requireAuth, async (req, res) => {
   const constraintDecayed = applyConstraintDecay(constraint, today);
   await store.setConstraint(userId, constraintDecayed);
   const groupUserIds = getMergedFinanceGroupUserIds(userId);
-  const health = computeHealthSnapshot(today, userId);
+  const health = await computeHealthSnapshot(today, userId);
   
   // Get payment status for current month
   const paymentStatus = getPaymentStatus(userId);
@@ -710,12 +706,9 @@ app.get("/export/finances", requireAuth, async (req, res) => {
   const today = parsed.data?.today ? new Date(parsed.data.today) : new Date();
 
   const userId = (req as any).user?.userId;
-  const constraint = await store.getConstraint(userId);
-  const constraintDecayed = applyConstraintDecay(constraint, today);
-  const health = computeHealthSnapshot(today, userId);
-
-  // Fetch all data from Supabase
-  const [userIncomes, userFixedExpenses, userVariablePlans, userVariableActuals, userInvestments, userFutureBombs, userCreditCards, userLoans, userActivities] = await Promise.all([
+  const [constraint, health, userIncomes, userFixedExpenses, userVariablePlans, userVariableActuals, userInvestments, userFutureBombs, userCreditCards, userLoans, userActivities] = await Promise.all([
+    store.getConstraint(userId),
+    computeHealthSnapshot(today, userId),
     db.getIncomesByUserId(userId),
     db.getFixedExpensesByUserId(userId),
     db.getVariablePlansByUserId(userId),
@@ -726,6 +719,7 @@ app.get("/export/finances", requireAuth, async (req, res) => {
     db.getLoansByUserId(userId),
     db.getActivitiesByUserId(userId, 50) // Last 50 activities
   ]);
+  const constraintDecayed = applyConstraintDecay(constraint, today);
 
   const exportData = {
     exportDate: new Date().toISOString(),
@@ -779,14 +773,17 @@ const themeStateSchema = z.object({
 
 app.get("/themes/state", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const theme = await store.getThemeState(user.id);
-  const constraint = await store.getConstraint(user.id);
+  const [theme, constraint, health] = await Promise.all([
+    store.getThemeState(user.id),
+    store.getConstraint(user.id),
+    computeHealthSnapshot(new Date(), user.userId)
+  ]);
   res.json({
     data: {
       mode: theme.mode,
       selected_theme: theme.selectedTheme,
       constraint_tier_effect: theme.constraintTierEffect,
-      current_health_category: computeHealthSnapshot(new Date(), user.userId).category,
+      current_health_category: health.category,
       current_constraint_tier: constraint.tier
     }
   });
@@ -796,19 +793,21 @@ app.patch("/themes/state", requireAuth, async (req, res) => {
   const user = (req as any).user;
   const parsed = themeStateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const updated = await store.updateThemeState(user.id, {
-    mode: parsed.data.mode,
-    selectedTheme: parsed.data.selected_theme,
-    constraintTierEffect: parsed.data.constraint_tier_effect
-  });
-  const userId = (req as any).user.userId;
-  const constraint = await store.getConstraint(userId);
+  const [updated, constraint, health] = await Promise.all([
+    store.updateThemeState(user.id, {
+      mode: parsed.data.mode,
+      selectedTheme: parsed.data.selected_theme,
+      constraintTierEffect: parsed.data.constraint_tier_effect
+    }),
+    store.getConstraint(user.userId),
+    computeHealthSnapshot(new Date(), user.userId)
+  ]);
   res.json({
     data: {
       mode: updated.mode,
       selected_theme: updated.selectedTheme,
       constraint_tier_effect: updated.constraintTierEffect,
-      current_health_category: computeHealthSnapshot(new Date(), user.userId).category,
+      current_health_category: health.category,
       current_constraint_tier: constraint.tier
     }
   });

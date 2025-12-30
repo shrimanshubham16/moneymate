@@ -1,4 +1,4 @@
-import { getStore } from "./store";
+import * as db from "./supabase-db";
 import { ConstraintScore, Frequency } from "./mockData";
 import { getUserPreferences, getCurrentBillingPeriod, getBillingPeriodId } from "./preferences";
 import { getUserPayments, isPaid as isItemPaid } from "./payments";
@@ -37,11 +37,12 @@ export function monthlyEquivalent(amount: number, frequency: Frequency): number 
   return amount / 12;
 }
 
-export function proratedVariableSpend(userId: string, today: Date, monthStartDay: number = 1): number {
-  const store = getStore();
+export async function proratedVariableSpend(userId: string, today: Date, monthStartDay: number = 1): Promise<number> {
   const monthProgress = calculateMonthProgress(today, monthStartDay);
-  return store.variablePlans.filter(p => p.userId === userId).reduce((sum, plan) => {
-    const actualTotal = store.variableActuals
+  const plans = await db.getVariablePlansByUserId(userId);
+  const allActuals = await db.getVariableActualsByUserId(userId);
+  return plans.reduce((sum, plan) => {
+    const actualTotal = allActuals
       .filter((a) => a.planId === plan.id && a.userId === userId)
       .reduce((s, a) => s + a.amount, 0);
     const proratedPlanned = plan.planned * monthProgress;
@@ -50,14 +51,15 @@ export function proratedVariableSpend(userId: string, today: Date, monthStartDay
   }, 0);
 }
 
-export function unpaidProratedVariableForRemainingDays(userId: string, today: Date, monthStartDay: number = 1): number {
-  const store = getStore();
+export async function unpaidProratedVariableForRemainingDays(userId: string, today: Date, monthStartDay: number = 1): Promise<number> {
   const monthProgress = calculateMonthProgress(today, monthStartDay);
   const remainingDaysRatio = 1 - monthProgress;
 
-  return store.variablePlans.filter(p => p.userId === userId).reduce((sum, plan) => {
+  const plans = await db.getVariablePlansByUserId(userId);
+  const allActuals = await db.getVariableActualsByUserId(userId);
+  return plans.reduce((sum, plan) => {
     // v1.2: Get actuals for this plan, excluding ExtraCash and CreditCard (they don't reduce available funds)
-    const actuals = store.variableActuals.filter(
+    const actuals = allActuals.filter(
       a => a.planId === plan.id && 
            a.userId === userId &&
            a.paymentMode !== "ExtraCash" &&
@@ -78,23 +80,22 @@ export function totalPaymentsMadeThisMonth(userId: string, today: Date): number 
   return payments.reduce((sum: number, payment: any) => sum + payment.paidAmount, 0);
 }
 
-export function totalIncomePerMonth(userId: string): number {
-  const store = getStore();
-  return store.incomes.filter(i => i.userId === userId).reduce((sum, inc) => sum + monthlyEquivalent(inc.amount ?? 0, inc.frequency), 0);
+export async function totalIncomePerMonth(userId: string): Promise<number> {
+  const incomes = await db.getIncomesByUserId(userId);
+  return incomes.reduce((sum, inc) => sum + monthlyEquivalent(inc.amount ?? 0, inc.frequency), 0);
 }
 
-export function totalFixedPerMonth(userId: string): number {
-  const store = getStore();
-  return store.fixedExpenses.filter(f => f.userId === userId).reduce((sum, exp) => sum + monthlyEquivalent(exp.amount, exp.frequency), 0);
+export async function totalFixedPerMonth(userId: string): Promise<number> {
+  const expenses = await db.getFixedExpensesByUserId(userId);
+  return expenses.reduce((sum, exp) => sum + monthlyEquivalent(exp.amount, exp.frequency), 0);
 }
 
-export function unpaidFixedPerMonth(userId: string, today: Date): number {
-  const store = getStore();
-  const preferences = getUserPreferences(userId);
+export async function unpaidFixedPerMonth(userId: string, today: Date): Promise<number> {
+  const preferences = await getUserPreferences(userId);
   const targetMonth = getBillingPeriodId(preferences.monthStartDay, today);
+  const expenses = await db.getFixedExpensesByUserId(userId);
 
-  return store.fixedExpenses
-    .filter(exp => exp.userId === userId) // FIX: Only include user's own expenses
+  return expenses
     .reduce((sum, exp) => {
       const paid = isItemPaid(userId, exp.id, 'fixed_expense', targetMonth);
       if (paid) return sum; // Skip paid items
@@ -103,13 +104,12 @@ export function unpaidFixedPerMonth(userId: string, today: Date): number {
     }, 0);
 }
 
-export function unpaidInvestmentsPerMonth(userId: string, today: Date): number {
-  const store = getStore();
-  const preferences = getUserPreferences(userId);
+export async function unpaidInvestmentsPerMonth(userId: string, today: Date): Promise<number> {
+  const preferences = await getUserPreferences(userId);
   const targetMonth = getBillingPeriodId(preferences.monthStartDay, today);
+  const investments = await db.getInvestmentsByUserId(userId);
 
-  return store.investments
-    .filter(inv => inv.userId === userId) // FIX: Only include user's own investments
+  return investments
     .reduce((sum, inv) => {
       // Only count active investments
       if (inv.status !== 'active') return sum;
@@ -121,19 +121,19 @@ export function unpaidInvestmentsPerMonth(userId: string, today: Date): number {
     }, 0);
 }
 
-export function totalActiveInvestmentsPerMonth(userId: string): number {
-  const store = getStore();
-  return store.investments.filter(i => i.userId === userId && i.status === 'active').reduce((sum, inv) => sum + inv.monthlyAmount, 0);
+export async function totalActiveInvestmentsPerMonth(userId: string): Promise<number> {
+  const investments = await db.getInvestmentsByUserId(userId);
+  return investments.filter(i => i.status === 'active').reduce((sum, inv) => sum + inv.monthlyAmount, 0);
 }
 
-export function unpaidCreditCardDues(userId: string, today: Date): number {
-  const store = getStore();
+export async function unpaidCreditCardDues(userId: string, today: Date): Promise<number> {
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
+  const cards = await db.getCreditCardsByUserId(userId);
 
   // v1.2: Design: Health score considers FULL bill amount, not unpaid amount
   // This way, paying credit card bill doesn't affect health score until overpaid
-  return store.creditCards.filter(c => c.userId === userId).reduce((sum, card) => {
+  return cards.reduce((sum, card) => {
     const dueDate = new Date(card.dueDate);
     // Only count cards due in current month
     if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
@@ -148,12 +148,12 @@ export function unpaidCreditCardDues(userId: string, today: Date): number {
 
 // v1.2: Calculate credit card overpayments (paidAmount > billAmount)
 // These should reduce available funds
-export function getCreditCardOverpayments(userId: string, today: Date): number {
-  const store = getStore();
+export async function getCreditCardOverpayments(userId: string, today: Date): Promise<number> {
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
+  const cards = await db.getCreditCardsByUserId(userId);
 
-  return store.creditCards.filter(c => c.userId === userId).reduce((sum, card) => {
+  return cards.reduce((sum, card) => {
     const dueDate = new Date(card.dueDate);
     // Only count cards due in current month
     if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
@@ -166,30 +166,27 @@ export function getCreditCardOverpayments(userId: string, today: Date): number {
 
 
 
-export function computeHealthSnapshot(today: Date, userId: string): { remaining: number; category: HealthCategory } {
+export async function computeHealthSnapshot(today: Date, userId: string): Promise<{ remaining: number; category: HealthCategory }> {
   // Get user's billing cycle preferences
-  const preferences = getUserPreferences(userId);
+  const preferences = await getUserPreferences(userId);
   const monthStartDay = preferences?.monthStartDay || 1;
 
   // CALCULATION:
   // Health = Available Funds - (Unpaid Fixed + Unpaid Prorated Variable for remaining days + Unpaid Investments + Unpaid Credit Cards)
   // Where: Available Funds = Total Income - All Payments Made So Far
 
-  const totalIncome = totalIncomePerMonth(userId);
-  const paymentsMade = totalPaymentsMadeThisMonth(userId, today);
+  const [totalIncome, paymentsMade, creditCardOverpaymentsAmount, unpaidFixed, unpaidVariable, unpaidInvestments, unpaidCreditCards] = await Promise.all([
+    totalIncomePerMonth(userId),
+    Promise.resolve(totalPaymentsMadeThisMonth(userId, today)), // This is sync
+    getCreditCardOverpayments(userId, today),
+    unpaidFixedPerMonth(userId, today),
+    unpaidProratedVariableForRemainingDays(userId, today, monthStartDay),
+    unpaidInvestmentsPerMonth(userId, today),
+    unpaidCreditCardDues(userId, today)
+  ]);
+
   // v1.2: Credit card overpayments (paidAmount > billAmount) reduce available funds
-  const creditCardOverpaymentsAmount = getCreditCardOverpayments(userId, today);
   const availableFunds = totalIncome - paymentsMade - creditCardOverpaymentsAmount;
-
-  // Calculate unpaid obligations
-  const unpaidFixed = unpaidFixedPerMonth(userId, today);
-
-  // Variable expenses: use prorated based on user preference
-  const unpaidVariable = unpaidProratedVariableForRemainingDays(userId, today, monthStartDay);
-
-  const unpaidInvestments = unpaidInvestmentsPerMonth(userId, today);
-  // v1.2: Use full bill amount (not unpaid amount) for health calculation
-  const unpaidCreditCards = unpaidCreditCardDues(userId, today);
 
   const remaining = availableFunds - unpaidFixed - unpaidVariable - unpaidInvestments - unpaidCreditCards;
   
