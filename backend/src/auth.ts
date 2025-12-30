@@ -95,7 +95,9 @@ export function recordSuccessfulLogin(username: string): void {
 
 const signupSchema = z.object({
   username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
-  password: z.string().min(8)
+  password: z.string().min(8),
+  encryptionSalt: z.string().min(8, "encryptionSalt is required"),
+  recoveryKeyHash: z.string().min(8, "recoveryKeyHash is required")
 });
 
 const loginSchema = z.object({
@@ -107,7 +109,7 @@ export function authRoutes(app: any) {
   app.post("/auth/signup", async (req: Request, res: Response) => {
     const parsed = signupSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    const { username, password } = parsed.data;
+    const { username, password, encryptionSalt, recoveryKeyHash } = parsed.data;
 
     // Validate password strength
     const passwordValidation = validatePasswordStrength(password);
@@ -117,9 +119,13 @@ export function authRoutes(app: any) {
 
     try {
       const passwordHash = hashPassword(password);
-      const user = await db.createUser({ username, passwordHash });
+      const user = await db.createUser({ username, passwordHash, encryptionSalt, recoveryKeyHash });
       const token = issueToken(user.id, user.username);
-      res.status(201).json({ access_token: token, user: { id: user.id, username: user.username } });
+      res.status(201).json({ 
+        access_token: token, 
+        user: { id: user.id, username: user.username },
+        encryption_salt: encryptionSalt
+      });
     } catch (e: any) {
       res.status(409).json({ error: { message: e.message } });
     }
@@ -212,12 +218,32 @@ export function authRoutes(app: any) {
       user: {
         id: user.id,
         username: user.username
-      }
+      },
+      encryption_salt: user.encryptionSalt
     });
   });
 
   app.get("/auth/me", requireAuth, (req: Request, res: Response) => {
     res.json({ user: (req as any).user });
+  });
+
+  // Public endpoint to fetch encryption salt for a username
+  app.get("/auth/salt/:username", async (req: Request, res: Response) => {
+    const username = req.params.username;
+    if (!username) {
+      return res.status(400).json({ error: { message: "Username is required" } });
+    }
+
+    const user = await db.getUserByUsername(username);
+    if (!user) {
+      return res.status(404).json({ error: { message: "User not found" } });
+    }
+
+    if (!user.encryptionSalt) {
+      return res.status(400).json({ error: { message: "Encryption salt not set for user" } });
+    }
+
+    res.json({ encryption_salt: user.encryptionSalt });
   });
 
   // Admin endpoint to unlock account (clears in-memory lockout)

@@ -164,7 +164,20 @@ export async function getCreditCardOverpayments(userId: string, today: Date): Pr
   }, 0);
 }
 
-
+/**
+ * Fast-path health calculation using PostgreSQL function (income - fixed).
+ * Used for cache warmups or lightweight health checks.
+ */
+export async function computeHealthSnapshotDb(userId: string): Promise<{ remaining: number; category: HealthCategory }> {
+  const result = await db.calculateHealthInDb(userId);
+  const remaining = Math.round(result.availableFunds || 0);
+  let category: HealthCategory = "ok";
+  if (remaining > HEALTH_THRESHOLDS.good) category = "good";
+  else if (remaining >= HEALTH_THRESHOLDS.okMin && remaining <= HEALTH_THRESHOLDS.okMax) category = "ok";
+  else if (remaining < 0 && Math.abs(remaining) <= HEALTH_THRESHOLDS.notWellMax) category = "not_well";
+  else category = "worrisome";
+  return { remaining, category };
+}
 
 export async function computeHealthSnapshot(today: Date, userId: string): Promise<{ remaining: number; category: HealthCategory }> {
   // Get user's billing cycle preferences

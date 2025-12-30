@@ -79,9 +79,13 @@ async function runTests() {
   console.log('3️⃣  Testing User Signup...');
   const testUsername = `test_${Date.now()}`;
   const testPassword = 'Test123!@#';
+  const encryptionSalt = 'c2FsdGxvYWR0ZXN0'; // base64(salt) for test
+  const recoveryKeyHash = 'cmVjaGFzaGxvYWR0ZXN0'; // base64(fake hash) for test
   const signupResult = await testEndpoint('POST', '/auth/signup', undefined, {
     username: testUsername,
-    password: testPassword
+    password: testPassword,
+    encryptionSalt,
+    recoveryKeyHash
   });
   results.push(signupResult);
   const token = signupResult.passed && signupResult.data?.access_token ? signupResult.data.access_token : null;

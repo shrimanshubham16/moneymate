@@ -2,7 +2,7 @@ import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaShieldAlt } from "react-icons/fa";
-import { login, signup } from "./api";
+import { login, signup, fetchSalt } from "./api";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DashboardPage } from "./pages/DashboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -31,6 +31,8 @@ import { HealthDetailsPage } from "./pages/HealthDetailsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { Header } from "./components/Header";
 import { MaintenanceNotice } from "./components/MaintenanceNotice";
+import { useCrypto } from "./contexts/CryptoContext";
+import { deriveKey, generateRecoveryKey, generateSalt, hashRecoveryKey, saltFromBase64 } from "./lib/crypto";
 import "./App.css";
 
 // Enable maintenance mode - set to false when migration is complete
@@ -43,6 +45,7 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<string[]>([]);
+  const cryptoCtx = useCrypto();
 
   const handlePasswordChange = (newPassword: string) => {
     setPassword(newPassword);
@@ -64,8 +67,34 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
     setError(null);
     setLoading(true);
     try {
-      const res = mode === "login" ? await login(username, password) : await signup(username, password);
-      onAuth(res.access_token);
+      let encryptionSalt: string | undefined;
+      let recoveryKey: string | undefined;
+
+      if (mode === "signup") {
+        const { b64: saltB64 } = generateSalt();
+        encryptionSalt = saltB64;
+        recoveryKey = generateRecoveryKey();
+        const recoveryKeyHash = await hashRecoveryKey(recoveryKey);
+        const res = await signup(username, password, encryptionSalt, recoveryKeyHash);
+        const key = await deriveKey(password, saltFromBase64(encryptionSalt));
+        cryptoCtx.setKey(key, encryptionSalt);
+        onAuth(res.access_token);
+        // Surface recovery key to user (temporary UX)
+        window.alert(`Save your recovery key securely:\\n\\n${recoveryKey}`);
+      } else {
+        const res = await login(username, password);
+        encryptionSalt = res.encryption_salt;
+        if (!encryptionSalt) {
+          const saltRes = await fetchSalt(username);
+          encryptionSalt = saltRes.encryption_salt;
+        }
+        if (!encryptionSalt) {
+          throw new Error("Encryption salt not found for user");
+        }
+        const key = await deriveKey(password, saltFromBase64(encryptionSalt));
+        cryptoCtx.setKey(key, encryptionSalt);
+        onAuth(res.access_token);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -196,6 +225,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
 }
 
 export default function App() {
+  const cryptoCtx = useCrypto();
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
 
   const handleAuth = (newToken: string) => {
@@ -206,6 +236,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    cryptoCtx.clearKey();
     setToken(null);
   };
 

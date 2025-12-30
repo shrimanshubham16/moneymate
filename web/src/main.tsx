@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { MatrixLoader } from "./components/MatrixLoader";
+import { CryptoProvider } from "./contexts/CryptoContext";
 import "./design-system.css";
 import "./styles.css";
 
@@ -138,7 +139,9 @@ function Root() {
 
   return (
     <ErrorBoundary>
-      <App />
+      <CryptoProvider>
+        <App />
+      </CryptoProvider>
     </ErrorBoundary>
   );
 }

@@ -1,4 +1,6 @@
-export type LoginResponse = { access_token: string; user: { id: string; username: string } };
+import { encryptString } from "./lib/crypto";
+
+export type LoginResponse = { access_token: string; user: { id: string; username: string }; encryption_salt?: string };
 
 // Ensure BASE_URL has protocol, default to localhost for development
 const getBaseUrl = () => {
@@ -31,12 +33,22 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   return res.json() as Promise<T>;
 }
 
-export async function signup(username: string, password: string): Promise<LoginResponse> {
-  return request<LoginResponse>("/auth/signup", { method: "POST", body: JSON.stringify({ username, password }) });
+async function buildBody(data: any, cryptoKey?: CryptoKey): Promise<string> {
+  if (!cryptoKey) return JSON.stringify(data);
+  const encrypted = await encryptString(JSON.stringify(data), cryptoKey);
+  return JSON.stringify({ payload: encrypted.ciphertext, iv: encrypted.iv });
+}
+
+export async function signup(username: string, password: string, encryptionSalt: string, recoveryKeyHash: string): Promise<LoginResponse> {
+  return request<LoginResponse>("/auth/signup", { method: "POST", body: JSON.stringify({ username, password, encryptionSalt, recoveryKeyHash }) });
 }
 
 export async function login(username: string, password: string): Promise<LoginResponse> {
   return request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
+}
+
+export async function fetchSalt(username: string): Promise<{ encryption_salt: string }> {
+  return request<{ encryption_salt: string }>(`/auth/salt/${encodeURIComponent(username)}`, { method: "GET" });
 }
 
 export async function fetchDashboard(token: string, asOf?: string) {
@@ -44,15 +56,18 @@ export async function fetchDashboard(token: string, asOf?: string) {
   return request<{ data: any }>(`/dashboard${query}`, { method: "GET" }, token);
 }
 
-export async function createIncome(token: string, payload: { source: string; amount: number; frequency: string }) {
-  return request<{ data: any }>("/planning/income", { method: "POST", body: JSON.stringify(payload) }, token);
+export async function createIncome(token: string, payload: { source: string; amount: number; frequency: string }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>("/planning/income", { method: "POST", body }, token);
 }
 
 export async function createVariablePlan(
   token: string,
-  payload: { name: string; planned: number; category: string; start_date: string }
+  payload: { name: string; planned: number; category: string; start_date: string },
+  cryptoKey?: CryptoKey
 ) {
-  return request<{ data: any }>("/planning/variable-expenses", { method: "POST", body: JSON.stringify(payload) }, token);
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>("/planning/variable-expenses", { method: "POST", body }, token);
 }
 
 // v1.2: Updated to include subcategory and payment mode
@@ -66,9 +81,11 @@ export async function addVariableActual(
     subcategory?: string;
     payment_mode: "UPI" | "Cash" | "ExtraCash" | "CreditCard";
     credit_card_id?: string;
-  }
+  },
+  cryptoKey?: CryptoKey
 ) {
-  return request<{ data: any }>(`/planning/variable-expenses/${id}/actuals`, { method: "POST", body: JSON.stringify(payload) }, token);
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>(`/planning/variable-expenses/${id}/actuals`, { method: "POST", body }, token);
 }
 
 // v1.2: Subcategory management
@@ -77,7 +94,8 @@ export async function getUserSubcategories(token: string) {
 }
 
 export async function addUserSubcategory(token: string, subcategory: string) {
-  return request<{ data: { subcategory: string; subcategories: string[] } }>("/user/subcategories", { method: "POST", body: JSON.stringify({ subcategory }) }, token);
+  const body = await buildBody({ subcategory });
+  return request<{ data: { subcategory: string; subcategories: string[] } }>("/user/subcategories", { method: "POST", body }, token);
 }
 
 export async function fetchSharingRequests(token: string) {
@@ -95,7 +113,8 @@ export async function sendInvite(token: string, payload: { username: string; rol
     role: payload.role,
     merge_finances: payload.merge_finances || false
   };
-  return request<{ data: any }>("/sharing/invite", { method: "POST", body: JSON.stringify(requestData) }, token);
+  const body = await buildBody(requestData);
+  return request<{ data: any }>("/sharing/invite", { method: "POST", body }, token);
 }
 
 export async function approveRequest(token: string, id: string) {

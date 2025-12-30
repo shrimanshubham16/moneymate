@@ -30,6 +30,7 @@
     "update-constraint-to-zero": "tsx scripts/update-constraint-scores-to-zero.ts"
   },
   "dependencies": {
+    "@upstash/redis": "^1.32.0",
     "@supabase/supabase-js": "^2.89.0",
     "@types/cors": "^2.8.19",
     "@types/jsonwebtoken": "^9.0.10",

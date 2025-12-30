@@ -4,13 +4,14 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { authRoutes, requireAuth } from "./auth";
 import { getMergedFinanceGroupUserIds } from "./mergedFinances";
-import { applyConstraintDecay, computeHealthSnapshot, tierFor, totalIncomePerMonth, totalPaymentsMadeThisMonth, unpaidFixedPerMonth, unpaidProratedVariableForRemainingDays, unpaidInvestmentsPerMonth, unpaidCreditCardDues, getCreditCardOverpayments, calculateMonthProgress } from "./logic";
+import { applyConstraintDecay, computeHealthSnapshot, computeHealthSnapshotDb, tierFor, totalIncomePerMonth, totalPaymentsMadeThisMonth, unpaidFixedPerMonth, unpaidProratedVariableForRemainingDays, unpaidInvestmentsPerMonth, unpaidCreditCardDues, getCreditCardOverpayments, calculateMonthProgress } from "./logic";
 import { markAsPaid, markAsUnpaid, isPaid, getPaymentStatus, getUserPayments, getPaymentsSummary } from "./payments";
-import { getUserPreferences, updateUserPreferences } from "./preferences";
+import { getUserPreferences, updateUserPreferences, getBillingPeriodId } from "./preferences";
 // Import PostgreSQL database functions (direct connection)
 import * as db from "./pg-db";
 import * as store from "./store-supabase";
 import { listAlerts, recordOverspend, clearAlerts } from "./alerts";
+import { getCachedHealth, setCachedHealth } from "./cache";
 
 export const app = express();
 
@@ -208,14 +209,64 @@ app.get("/dashboard", requireAuth, async (req, res) => {
   const today = parsed.data?.today ? new Date(parsed.data.today) : new Date();
   const userId = (req as any).user.userId;
   
-  // FIX: Removed caching to ensure health scores are always fresh and consistent
-  // Previous caching caused dashboard and /health/details to show different values
-  
+  // Billing period for cache scoping
+  const preferences = await getUserPreferences(userId);
+  const monthStartDay = preferences?.monthStartDay || 1;
+  const billingPeriodId = getBillingPeriodId(monthStartDay, today);
+
+  // Constraint score (always updated fresh)
   const constraint = await db.getConstraintScore(userId);
   const constraintDecayed = applyConstraintDecay(constraint as any, today);
   await db.updateConstraintScore(userId, constraintDecayed);
+
+  // Health calculation with Redis -> PG cache -> fresh compute
+  let health: { remaining: number; category: string } | null = null;
+
+  // 1) Redis cache
+  try {
+    const cached = await getCachedHealth(userId, billingPeriodId);
+    if (cached && typeof cached === "object" && (cached as any).health) {
+      health = (cached as any).health;
+    }
+  } catch (err) {
+    console.error("Redis cache read failed", err);
+  }
+
+  // 2) PostgreSQL cache if Redis miss
+  if (!health) {
+    const pgCache = await db.getHealthCache(userId, billingPeriodId);
+    if (pgCache && pgCache.isStale === false) {
+      health = {
+        remaining: Number(pgCache.availableFunds ?? 0),
+        category: pgCache.healthCategory ?? "ok"
+      };
+    }
+  }
+
+  // 3) Compute fresh if caches are stale/missing
+  if (!health) {
+    health = await computeHealthSnapshot(today, userId);
+    await db.upsertHealthCache({
+      userId,
+      billingPeriodId,
+      availableFunds: health.remaining,
+      healthCategory: health.category,
+      healthPercentage: null,
+      constraintScore: constraintDecayed.score,
+      constraintTier: constraintDecayed.tier,
+      computedAt: new Date().toISOString(),
+      isStale: false
+    });
+  }
+
+  // Warm Redis for next request
+  try {
+    await setCachedHealth(userId, billingPeriodId, { health, constraint: constraintDecayed });
+  } catch (err) {
+    console.error("Redis cache write failed", err);
+  }
+
   const groupUserIds = await getMergedFinanceGroupUserIds(userId);
-  const health = await computeHealthSnapshot(today, userId);
   
   // Get payment status for current month
   const paymentStatus = getPaymentStatus(userId);

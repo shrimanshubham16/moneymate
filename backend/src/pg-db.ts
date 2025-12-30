@@ -66,6 +66,8 @@ export interface User {
   id: string;
   username: string;
   passwordHash: string;
+  encryptionSalt?: string | null;
+  recoveryKeyHash?: string | null;
   createdAt?: string;
   failedLoginAttempts?: number;
   accountLockedUntil?: string | null;
@@ -73,10 +75,10 @@ export interface User {
 
 export async function createUser(user: Omit<User, 'id'> & { id?: string }): Promise<User> {
   const result = await queryOne<any>(
-    `INSERT INTO users (id, username, password_hash, created_at, failed_login_attempts, account_locked_until)
-     VALUES (COALESCE($1, gen_random_uuid()), $2, $3, NOW(), 0, NULL)
-     RETURNING id, username, password_hash, created_at, failed_login_attempts, account_locked_until`,
-    [user.id || null, user.username, user.passwordHash]
+    `INSERT INTO users (id, username, password_hash, encryption_salt, recovery_key_hash, created_at, failed_login_attempts, account_locked_until)
+     VALUES (COALESCE($1, gen_random_uuid()), $2, $3, $4, $5, NOW(), 0, NULL)
+     RETURNING id, username, password_hash, encryption_salt, recovery_key_hash, created_at, failed_login_attempts, account_locked_until`,
+    [user.id || null, user.username, user.passwordHash, user.encryptionSalt || null, user.recoveryKeyHash || null]
   );
   
   if (!result) throw new Error('Failed to create user');
@@ -85,6 +87,8 @@ export async function createUser(user: Omit<User, 'id'> & { id?: string }): Prom
     id: result.id,
     username: result.username,
     passwordHash: result.password_hash,
+    encryptionSalt: result.encryption_salt,
+    recoveryKeyHash: result.recovery_key_hash,
     createdAt: result.created_at,
     failedLoginAttempts: result.failed_login_attempts,
     accountLockedUntil: result.account_locked_until
@@ -103,6 +107,8 @@ export async function getUserByUsername(username: string): Promise<User | null> 
     id: result.id,
     username: result.username,
     passwordHash: result.password_hash,
+    encryptionSalt: result.encryption_salt,
+    recoveryKeyHash: result.recovery_key_hash,
     createdAt: result.created_at,
     failedLoginAttempts: result.failed_login_attempts,
     accountLockedUntil: result.account_locked_until
@@ -121,13 +127,15 @@ export async function getUserById(userId: string): Promise<User | null> {
     id: result.id,
     username: result.username,
     passwordHash: result.password_hash,
+    encryptionSalt: result.encryption_salt,
+    recoveryKeyHash: result.recovery_key_hash,
     createdAt: result.created_at,
     failedLoginAttempts: result.failed_login_attempts,
     accountLockedUntil: result.account_locked_until
   };
 }
 
-export async function updateUser(userId: string, updates: Partial<{ passwordHash?: string; failedLoginAttempts?: number; accountLockedUntil?: string | null }>): Promise<boolean> {
+export async function updateUser(userId: string, updates: Partial<{ passwordHash?: string; failedLoginAttempts?: number; accountLockedUntil?: string | null; encryptionSalt?: string | null; recoveryKeyHash?: string | null }>): Promise<boolean> {
   const setClauses: string[] = [];
   const values: any[] = [];
   let paramIndex = 1;
@@ -144,6 +152,14 @@ export async function updateUser(userId: string, updates: Partial<{ passwordHash
     setClauses.push(`account_locked_until = $${paramIndex++}`);
     values.push(updates.accountLockedUntil);
   }
+  if (updates.encryptionSalt !== undefined) {
+    setClauses.push(`encryption_salt = $${paramIndex++}`);
+    values.push(updates.encryptionSalt);
+  }
+  if (updates.recoveryKeyHash !== undefined) {
+    setClauses.push(`recovery_key_hash = $${paramIndex++}`);
+    values.push(updates.recoveryKeyHash);
+  }
 
   if (setClauses.length === 0) return true;
 
@@ -153,6 +169,87 @@ export async function updateUser(userId: string, updates: Partial<{ passwordHash
     values
   );
   return true;
+}
+
+// ============================================================================
+// HEALTH CACHE
+// ============================================================================
+
+export interface HealthCache {
+  userId: string;
+  billingPeriodId: string;
+  availableFunds: number | null;
+  healthCategory: string | null;
+  healthPercentage: number | null;
+  constraintScore: number | null;
+  constraintTier: string | null;
+  computedAt?: string | null;
+  isStale?: boolean | null;
+}
+
+export async function getHealthCache(userId: string, billingPeriodId: string): Promise<HealthCache | null> {
+  const result = await queryOne<any>(
+    `SELECT * FROM health_cache WHERE user_id = $1 AND billing_period_id = $2`,
+    [userId, billingPeriodId]
+  );
+  if (!result) return null;
+  return {
+    userId: result.user_id,
+    billingPeriodId: result.billing_period_id,
+    availableFunds: result.available_funds,
+    healthCategory: result.health_category,
+    healthPercentage: result.health_percentage,
+    constraintScore: result.constraint_score,
+    constraintTier: result.constraint_tier,
+    computedAt: result.computed_at,
+    isStale: result.is_stale,
+  };
+}
+
+export async function upsertHealthCache(entry: HealthCache): Promise<void> {
+  await query(
+    `INSERT INTO health_cache (user_id, billing_period_id, available_funds, health_category, health_percentage, constraint_score, constraint_tier, computed_at, is_stale)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), FALSE)
+     ON CONFLICT (user_id) DO UPDATE
+       SET billing_period_id = EXCLUDED.billing_period_id,
+           available_funds = EXCLUDED.available_funds,
+           health_category = EXCLUDED.health_category,
+           health_percentage = EXCLUDED.health_percentage,
+           constraint_score = EXCLUDED.constraint_score,
+           constraint_tier = EXCLUDED.constraint_tier,
+           computed_at = NOW(),
+           is_stale = FALSE`,
+    [
+      entry.userId,
+      entry.billingPeriodId,
+      entry.availableFunds,
+      entry.healthCategory,
+      entry.healthPercentage,
+      entry.constraintScore,
+      entry.constraintTier,
+    ]
+  );
+}
+
+export async function markHealthCacheStale(userId: string): Promise<void> {
+  await query(
+    `UPDATE health_cache SET is_stale = TRUE, computed_at = NOW() WHERE user_id = $1`,
+    [userId]
+  );
+}
+
+export async function calculateHealthInDb(userId: string): Promise<{ availableFunds: number; healthCategory: string }> {
+  const result = await queryOne<any>(
+    `SELECT * FROM calculate_user_health($1)`,
+    [userId]
+  );
+  if (!result) {
+    return { availableFunds: 0, healthCategory: "ok" };
+  }
+  return {
+    availableFunds: Number(result.available_funds || 0),
+    healthCategory: result.health_category || "ok",
+  };
 }
 
 // ============================================================================
