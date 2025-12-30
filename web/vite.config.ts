@@ -33,6 +33,13 @@ export default defineConfig({
       input: {
         main: './index.html',
       },
+      output: {
+        // Ensure proper MIME types for module scripts
+        format: 'es',
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
     },
   },
   // Copy public assets (icons, manifest, sw.js) to dist
