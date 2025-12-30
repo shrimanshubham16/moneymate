@@ -1,25 +1,21 @@
-import { getStore } from "./store";
+import * as db from "./supabase-db";
 
 /**
  * Get all user IDs in a merged finance group for the given user
  * Including the user themselves
  */
-export function getMergedFinanceGroupUserIds(userId: string): string[] {
-    const store = getStore();
+export async function getMergedFinanceGroupUserIds(userId: string): Promise<string[]> {
     const userIds = new Set<string>([userId]);
 
-    // Find all shared members where this user is involved with mergeFinances = true
-    const memberships = store.sharedMembers.filter(
-        m => m.userId === userId && m.mergeFinances === true
-    );
-
+    // Get all shared accounts for this user
+    const sharedAccounts = await db.getSharedAccountsByUserId(userId);
+    
     // For each shared account, get all members with mergeFinances
-    memberships.forEach(membership => {
-        const accountMembers = store.sharedMembers.filter(
-            m => m.sharedAccountId === membership.sharedAccountId && m.mergeFinances === true
-        );
-        accountMembers.forEach(m => userIds.add(m.userId));
-    });
+    for (const account of sharedAccounts) {
+        const members = await db.getSharedMembersByAccountId(account.id);
+        const mergedMembers = members.filter(m => m.mergeFinances === true);
+        mergedMembers.forEach(m => userIds.add(m.userId));
+    }
 
     return Array.from(userIds);
 }

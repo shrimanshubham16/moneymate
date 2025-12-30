@@ -204,7 +204,7 @@ app.get("/dashboard", requireAuth, async (req, res) => {
   const constraint = await store.getConstraint(userId);
   const constraintDecayed = applyConstraintDecay(constraint, today);
   await store.setConstraint(userId, constraintDecayed);
-  const groupUserIds = getMergedFinanceGroupUserIds(userId);
+  const groupUserIds = await getMergedFinanceGroupUserIds(userId);
   const health = await computeHealthSnapshot(today, userId);
   
   // Get payment status for current month
@@ -909,11 +909,9 @@ if (require.main === module) {
     console.log(`🔒 CORS origins: ${ALLOWED_ORIGINS.join(', ')} `);
   });
 
-  // Save data on graceful shutdown
+  // Graceful shutdown (no need to save - Supabase handles persistence)
   const handleShutdown = () => {
-    console.log('💾 Saving data before shutdown...');
-    const { saveState } = require('./store');
-    saveState();
+    console.log('🛑 Shutting down server...');
     server.close(() => {
       console.log('✅ Server closed gracefully');
       process.exit(0);
