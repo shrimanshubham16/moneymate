@@ -14,6 +14,9 @@ import { listAlerts, recordOverspend, clearAlerts } from "./alerts";
 
 export const app = express();
 
+// Trust proxy for Railway (fixes X-Forwarded-For header issues with rate limiter)
+app.set('trust proxy', 1);
+
 // CORS configuration for production
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173'];

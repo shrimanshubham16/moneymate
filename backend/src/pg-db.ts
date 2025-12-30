@@ -2,8 +2,12 @@
 // Replaces Supabase REST client with direct PostgreSQL using pg library
 import * as pg from 'pg';
 import * as dotenv from 'dotenv';
+import * as dns from 'dns';
 
 dotenv.config();
+
+// Force IPv4 for DNS lookups (Railway has IPv6 connectivity issues)
+dns.setDefaultResultOrder('ipv4first');
 
 const { Pool } = pg;
 
