@@ -347,8 +347,87 @@ serve(async (req) => {
       return json({ status: 'ok' });
     }
 
+    // AUTH/ME - Get current user info
+    if (path === '/auth/me' && method === 'GET') {
+      const { data: userData } = await supabase.from('users').select('id, username, created_at').eq('id', userId).single();
+      return json({ data: userData });
+    }
+
+    // CREDIT CARDS
+    if (path === '/debts/credit-cards' && method === 'GET') {
+      const { data } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
+      return json({ data: data || [] });
+    }
+    if (path === '/debts/credit-cards' && method === 'POST') {
+      const body = await req.json();
+      const { data, error: e } = await supabase.from('credit_cards')
+        .insert({ user_id: userId, name: body.name, bill_amount: body.billAmount || 0, paid_amount: body.paidAmount || 0, due_date: body.dueDate, billing_date: body.billingDate })
+        .select().single();
+      if (e) return error(e.message, 500);
+      return json({ data }, 201);
+    }
+    if (path.startsWith('/debts/credit-cards/') && method === 'PUT') {
+      const id = path.split('/').pop();
+      const body = await req.json();
+      const updates: any = {};
+      if (body.name) updates.name = body.name;
+      if (body.billAmount !== undefined) updates.bill_amount = body.billAmount;
+      if (body.paidAmount !== undefined) updates.paid_amount = body.paidAmount;
+      if (body.dueDate) updates.due_date = body.dueDate;
+      if (body.billingDate) updates.billing_date = body.billingDate;
+      const { data, error: e } = await supabase.from('credit_cards').update(updates).eq('id', id).select().single();
+      if (e) return error(e.message, 500);
+      return json({ data });
+    }
+    if (path.startsWith('/debts/credit-cards/') && method === 'DELETE') {
+      const id = path.split('/').pop();
+      await supabase.from('credit_cards').delete().eq('id', id);
+      return json({ data: { deleted: true } });
+    }
+
+    // LOANS
+    if (path === '/debts/loans' && method === 'GET') {
+      const { data } = await supabase.from('loans').select('*').eq('user_id', userId);
+      return json({ data: data || [] });
+    }
+    if (path === '/debts/loans' && method === 'POST') {
+      const body = await req.json();
+      const { data, error: e } = await supabase.from('loans')
+        .insert({ user_id: userId, name: body.name, principal: body.principal, remaining_tenure_months: body.remainingTenureMonths, emi: body.emi })
+        .select().single();
+      if (e) return error(e.message, 500);
+      return json({ data }, 201);
+    }
+    if (path.startsWith('/debts/loans/') && method === 'DELETE') {
+      const id = path.split('/').pop();
+      await supabase.from('loans').delete().eq('id', id);
+      return json({ data: { deleted: true } });
+    }
+
+    // ACTIVITY LOG
+    if (path === '/activity' && method === 'GET') {
+      const { data } = await supabase.from('activities').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100);
+      return json({ data: data || [] });
+    }
+
+    // SHARING
+    if (path === '/sharing/members' && method === 'GET') {
+      const { data: members } = await supabase.from('shared_members').select('*').eq('user_id', userId);
+      const { data: accounts } = await supabase.from('shared_accounts').select('*');
+      return json({ data: { members: members || [], accounts: accounts || [] } });
+    }
+    if (path === '/sharing/requests' && method === 'GET') {
+      const { data: incoming } = await supabase.from('sharing_requests').select('*').eq('invitee_id', userId);
+      const { data: outgoing } = await supabase.from('sharing_requests').select('*').eq('inviter_id', userId);
+      return json({ data: { incoming: incoming || [], outgoing: outgoing || [] } });
+    }
+
     // EXPORT
     if (path === '/export' && method === 'GET') {
+      const { data } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
+      return json({ data });
+    }
+    if (path === '/export/finances' && method === 'GET') {
       const { data } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
       return json({ data });
     }
