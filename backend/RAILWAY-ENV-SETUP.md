@@ -6,18 +6,15 @@ The backend requires `SUPABASE_CONNECTION_STRING` to connect to Supabase Postgre
 
 ## How to Set Environment Variables in Railway
 
-### Step 1: Get Your Connection String
+### Step 1: Use the Direct Connection String
 
-1. Go to **Supabase Dashboard**: https://supabase.com/dashboard/project/lvwpurwrktdblctzwctr
-2. Navigate to **Settings** → **Database**
-3. Find **Connection String** section
-4. Select **URI** tab (NOT Connection Pooling)
-5. Copy the connection string
-6. Replace `[YOUR-PASSWORD]` with your actual password
-7. URL-encode the password if it contains special characters:
-   - Space → `%20`
-   - `&` → `%26`
-   - Example: `b0rn & BroughT UP in` → `b0rn%20%26%20BroughT%20UP%20in`
+**For Railway, use the Direct connection (port 5432):**
+
+```
+postgresql://postgres:H4suXkPFKQ1O6jA9@db.lvwpurwrktdblctzwctr.supabase.co:5432/postgres
+```
+
+**Note:** The transactional connection (port 6543) is for serverless/connection pooling. Railway runs a persistent server, so direct connection is better.
 
 ### Step 2: Set in Railway
 
@@ -28,7 +25,7 @@ The backend requires `SUPABASE_CONNECTION_STRING` to connect to Supabase Postgre
 5. Click **+ New Variable**
 6. Add:
    - **Name**: `SUPABASE_CONNECTION_STRING`
-   - **Value**: Your full connection string (e.g., `postgresql://postgres:[ENCODED-PASSWORD]@db.lvwpurwrktdblctzwctr.supabase.co:5432/postgres`)
+   - **Value**: `postgresql://postgres:H4suXkPFKQ1O6jA9@db.lvwpurwrktdblctzwctr.supabase.co:5432/postgres`
 7. Click **Add**
 8. **Redeploy** your service (Railway should auto-redeploy, but you can trigger manually)
 
@@ -53,7 +50,7 @@ Make sure these are set in Railway:
 If you have Railway CLI:
 
 ```bash
-railway variables set SUPABASE_CONNECTION_STRING="postgresql://postgres:[PASSWORD]@db.lvwpurwrktdblctzwctr.supabase.co:5432/postgres"
+railway variables set SUPABASE_CONNECTION_STRING="postgresql://postgres:H4suXkPFKQ1O6jA9@db.lvwpurwrktdblctzwctr.supabase.co:5432/postgres"
 ```
 
 ## After Setting Variables
@@ -65,10 +62,10 @@ railway variables set SUPABASE_CONNECTION_STRING="postgresql://postgres:[PASSWOR
 
 ---
 
-**Note**: The connection string format should be:
+**Connection String to Use:**
 ```
-postgresql://postgres:[PASSWORD]@db.lvwpurwrktdblctzwctr.supabase.co:5432/postgres
+postgresql://postgres:H4suXkPFKQ1O6jA9@db.lvwpurwrktdblctzwctr.supabase.co:5432/postgres
 ```
 
-NOT the connection pooling format (port 6543).
+This is the **Direct connection** (port 5432), which is best for Railway's persistent server setup.
 
