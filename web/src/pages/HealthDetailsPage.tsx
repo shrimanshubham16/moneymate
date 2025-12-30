@@ -18,6 +18,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
   const { showIntro, closeIntro } = useIntroModal("health");
   const [health, setHealth] = useState<any>(null);
   const [breakdown, setBreakdown] = useState<any>(null);
+  const [constraintScore, setConstraintScore] = useState<any>(null);
 
   useEffect(() => {
     loadHealthDetails();
@@ -43,6 +44,11 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const healthRes = await healthResRaw.json();
       const data = dashRes.data;
       const healthData = healthRes.data;
+      
+      // Get constraint score from dashboard data
+      if (data.constraintScore) {
+        setConstraintScore(data.constraintScore);
+      }
 
       console.log("✅ Using backend's health calculation:", healthData);
       console.log("Formula:", healthData.formula);
@@ -415,6 +421,57 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           </div>
         </motion.div>
       </div>
+
+      {/* Constraint Score Section */}
+      {constraintScore && (
+        <motion.div
+          className="constraint-score-section"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+        >
+          <h2><FaChartLine style={{ marginRight: 8 }} />Financial Discipline Score</h2>
+          <div className={`constraint-card constraint-${constraintScore.tier}`}>
+            <div className="constraint-header">
+              <div className="constraint-icon">
+                {constraintScore.tier === 'green' && <FaSun size={48} color="#10b981" />}
+                {constraintScore.tier === 'amber' && <FaCloud size={48} color="#f59e0b" />}
+                {constraintScore.tier === 'red' && <FaBolt size={48} color="#ef4444" />}
+              </div>
+              <div className="constraint-info">
+                <div className="constraint-score-value" style={{ 
+                  color: constraintScore.tier === 'green' ? '#10b981' : 
+                         constraintScore.tier === 'amber' ? '#f59e0b' : '#ef4444'
+                }}>
+                  {constraintScore.score}/100
+                </div>
+                <div className="constraint-tier" style={{ 
+                  color: constraintScore.tier === 'green' ? '#10b981' : 
+                         constraintScore.tier === 'amber' ? '#f59e0b' : '#ef4444'
+                }}>
+                  {constraintScore.tier.toUpperCase()}
+                </div>
+              </div>
+            </div>
+            <div className="constraint-details">
+              <div className="constraint-stat">
+                <span className="stat-label">Recent Overspends:</span>
+                <span className="stat-value">{constraintScore.recentOverspends || 0}</span>
+              </div>
+              <div className="constraint-explanation">
+                <p><strong>What is this?</strong></p>
+                <p>Your Financial Discipline Score tracks how well you stick to your planned expenses. It starts at 0 (best) and increases by +5 for each overspend on variable expenses.</p>
+                <ul>
+                  <li><strong style={{ color: '#10b981' }}>Green (0-39):</strong> Excellent discipline, staying within budget</li>
+                  <li><strong style={{ color: '#f59e0b' }}>Amber (40-69):</strong> Moderate overspending, be more careful</li>
+                  <li><strong style={{ color: '#ef4444' }}>Red (70-100):</strong> Frequent overspending, urgent action needed</li>
+                </ul>
+                <p className="constraint-note">💡 The score decays by 5% each month, so good behavior improves your score over time.</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Health Categories Explanation */}
       <div className="health-categories">
