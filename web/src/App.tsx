@@ -34,7 +34,7 @@ import { MaintenanceNotice } from "./components/MaintenanceNotice";
 import "./App.css";
 
 // Enable maintenance mode - set to false when migration is complete
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
   const [username, setUsername] = useState("");
