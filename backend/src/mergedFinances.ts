@@ -23,19 +23,25 @@ export async function getMergedFinanceGroupUserIds(userId: string): Promise<stri
 /**
  * Check if a user has merged finances enabled
  */
-export function hasMergedFinances(userId: string): boolean {
-    const groupIds = getMergedFinanceGroupUserIds(userId);
+export async function hasMergedFinances(userId: string): Promise<boolean> {
+    const groupIds = await getMergedFinanceGroupUserIds(userId);
     return groupIds.length > 1; // More than just the user themselves
 }
 
 /**
  * Get all usernames in a merged finance group
  */
-export function getMergedFinanceGroupUsernames(userId: string): string[] {
-    const store = getStore();
-    const userIds = getMergedFinanceGroupUserIds(userId);
-
-    return userIds
-        .map(id => store.users.find(u => u.id === id)?.username)
-        .filter((username): username is string => username !== undefined);
+export async function getMergedFinanceGroupUsernames(userId: string): Promise<string[]> {
+    const userIds = await getMergedFinanceGroupUserIds(userId);
+    
+    // Fetch usernames from database
+    const usernames: string[] = [];
+    for (const id of userIds) {
+        const user = await db.getUserById(id);
+        if (user?.username) {
+            usernames.push(user.username);
+        }
+    }
+    
+    return usernames;
 }
