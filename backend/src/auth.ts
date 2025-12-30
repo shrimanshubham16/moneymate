@@ -12,7 +12,13 @@ const JWT_SECRET = process.env.JWT_SECRET || "finflow-secret-key-change-in-produ
 // Remove in-memory token storage - use stateless JWT instead
 
 // Failed login tracking: username -> { attempts: number, lockedUntil: Date | null }
+// NOTE: This is in-memory only. For production, should also check database.
 const failedLogins = new Map<string, { attempts: number; lockedUntil: Date | null }>();
+
+// Helper to clear in-memory lockout (for admin/unlock operations)
+export function clearInMemoryLockout(username: string) {
+  failedLogins.delete(username);
+}
 
 const MAX_FAILED_ATTEMPTS = 3;
 const LOCKOUT_DURATION_MS = 10 * 60 * 1000; // 10 minutes
@@ -213,6 +219,32 @@ export function authRoutes(app: any) {
 
   app.get("/auth/me", requireAuth, (req: Request, res: Response) => {
     res.json({ user: (req as any).user });
+  });
+
+  // Admin endpoint to unlock account (clears in-memory lockout)
+  app.post("/auth/unlock", async (req: Request, res: Response) => {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: { message: "Username required" } });
+    }
+
+    try {
+      // Clear in-memory lockout
+      clearInMemoryLockout(username);
+      
+      // Also clear database lockout (if any)
+      const user = await db.getUserByUsername(username);
+      if (user) {
+        await db.updateUser(user.id, {
+          accountLockedUntil: null,
+          failedLoginAttempts: 0
+        });
+      }
+
+      res.json({ message: `Account unlocked for ${username}` });
+    } catch (error: any) {
+      res.status(500).json({ error: { message: error.message } });
+    }
   });
 }
 

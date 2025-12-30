@@ -116,18 +116,21 @@ export async function createUser(user: Omit<User, 'id'> & { id?: string }): Prom
   });
 }
 
-export async function updateUser(userId: string, updates: Partial<{ passwordHash?: string; failedLoginAttempts?: number; accountLockedUntil?: string | null }>): Promise<void> {
-  const updateData: any = {};
-  if (updates.passwordHash !== undefined) updateData.password_hash = updates.passwordHash;
-  if (updates.failedLoginAttempts !== undefined) updateData.failed_login_attempts = updates.failedLoginAttempts;
-  if (updates.accountLockedUntil !== undefined) updateData.account_locked_until = updates.accountLockedUntil;
-  
-  const { error } = await supabase
-    .from('users')
-    .update(updateData)
-    .eq('id', userId);
-  
-  if (error) throw error;
+export async function updateUser(userId: string, updates: Partial<{ passwordHash?: string; failedLoginAttempts?: number; accountLockedUntil?: string | null }>): Promise<boolean> {
+  return withRetry(async () => {
+    const updateData: any = {};
+    if (updates.passwordHash !== undefined) updateData.password_hash = updates.passwordHash;
+    if (updates.failedLoginAttempts !== undefined) updateData.failed_login_attempts = updates.failedLoginAttempts;
+    if (updates.accountLockedUntil !== undefined) updateData.account_locked_until = updates.accountLockedUntil;
+    
+    const { error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId);
+    
+    if (error) throw error;
+    return true;
+  });
 }
 
 // ============================================================================
