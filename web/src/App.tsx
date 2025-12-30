@@ -30,7 +30,11 @@ import { PreferencesPage } from "./pages/PreferencesPage";
 import { HealthDetailsPage } from "./pages/HealthDetailsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { Header } from "./components/Header";
+import { MaintenanceNotice } from "./components/MaintenanceNotice";
 import "./App.css";
+
+// Enable maintenance mode - set to false when migration is complete
+const MAINTENANCE_MODE = true;
 
 function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
   const [username, setUsername] = useState("");
@@ -207,6 +211,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      {MAINTENANCE_MODE && <MaintenanceNotice />}
       <AnimatePresence mode="wait" initial={false}>
         {token ? (
           <motion.div
