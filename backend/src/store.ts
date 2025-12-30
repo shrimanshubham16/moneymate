@@ -31,7 +31,14 @@ function loadStateFromDisk(): Store {
       const data = fs.readFileSync(DATA_FILE, "utf-8");
       console.log("📂 Loading persisted data from disk...");
       const loadedState = JSON.parse(data);
-      console.log(`✅ Loaded data: ${loadedState.users.length} users, ${loadedState.fixedExpenses.length} fixed expenses`);
+      
+      // Migration: Ensure preferences array exists (for old data files)
+      if (!loadedState.preferences) {
+        loadedState.preferences = [];
+        console.log("📝 Migrated: Added preferences array to existing data");
+      }
+      
+      console.log(`✅ Loaded data: ${loadedState.users.length} users, ${loadedState.fixedExpenses.length} fixed expenses, ${loadedState.preferences.length} preferences`);
       return loadedState;
     }
   } catch (error) {

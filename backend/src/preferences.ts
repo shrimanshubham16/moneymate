@@ -1,5 +1,7 @@
 // User preferences for billing cycle and payment tracking
 
+import { getStore, scheduleSave } from "./store";
+
 export type UserPreferences = {
   userId: string;
   monthStartDay: number; // 1-28, day of month when billing cycle starts
@@ -8,9 +10,18 @@ export type UserPreferences = {
   useProrated?: boolean; // Whether to use prorated variable expenses (default: false)
 };
 
-let preferences: UserPreferences[] = [];
+// Initialize preferences from store on module load
+function getPreferencesFromStore(): UserPreferences[] {
+  const store = getStore();
+  return store.preferences || [];
+}
+
+let preferences: UserPreferences[] = getPreferencesFromStore();
 
 export function getUserPreferences(userId: string): UserPreferences {
+  // Reload from store in case it was updated elsewhere
+  preferences = getPreferencesFromStore();
+  
   let pref = preferences.find(p => p.userId === userId);
   if (!pref) {
     // Create default preferences
@@ -22,6 +33,11 @@ export function getUserPreferences(userId: string): UserPreferences {
       useProrated: false // Disabled by default - simpler calculation
     };
     preferences.push(pref);
+    
+    // Persist new default preferences to store and disk
+    const store = getStore();
+    store.preferences = preferences;
+    scheduleSave();
   }
   return pref;
 }
@@ -47,6 +63,11 @@ export function updateUserPreferences(
     if (updates.timezone !== undefined) pref.timezone = updates.timezone;
     if (updates.useProrated !== undefined) pref.useProrated = updates.useProrated;
   }
+  
+  // Persist preferences to store and disk
+  const store = getStore();
+  store.preferences = preferences;
+  scheduleSave();
   
   return pref;
 }

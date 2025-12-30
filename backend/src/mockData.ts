@@ -78,6 +78,7 @@ export type Store = {
   loans: Loan[];
   activities: Activity[];
   themeStates: ThemeState[];
+  preferences: Array<{ userId: string; monthStartDay: number; currency: string; timezone: string; useProrated?: boolean }>;
 };
 
 export const defaultStore: Store = {
@@ -100,6 +101,7 @@ export const defaultStore: Store = {
   creditCards: [],
   loans: [],
   activities: [],
-  themeStates: []
+  themeStates: [],
+  preferences: []
 };
 
