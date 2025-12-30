@@ -1,0 +1,199 @@
+.psychedelic-loader-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+  z-index: 9999;
+  overflow: hidden;
+}
+
+/* Animated background */
+.psychedelic-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  filter: blur(80px);
+  opacity: 0.6;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  animation: float 8s ease-in-out infinite;
+}
+
+.orb-1 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, #ff00ff 0%, transparent 70%);
+  top: 10%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.orb-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, #00d4ff 0%, transparent 70%);
+  top: 50%;
+  right: 10%;
+  animation-delay: -2s;
+}
+
+.orb-3 {
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, #00ff88 0%, transparent 70%);
+  bottom: 20%;
+  left: 30%;
+  animation-delay: -4s;
+}
+
+.orb-4 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, #ffaa00 0%, transparent 70%);
+  top: 30%;
+  left: 50%;
+  animation-delay: -6s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(50px, -50px) scale(1.1);
+  }
+  50% {
+    transform: translate(-30px, 30px) scale(0.9);
+  }
+  75% {
+    transform: translate(-50px, -30px) scale(1.05);
+  }
+}
+
+/* Loader content */
+.loader-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+/* Spinning rings */
+.rings-container {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid transparent;
+}
+
+.ring-outer {
+  width: 150px;
+  height: 150px;
+  border-top-color: #ff00ff;
+  border-right-color: #ff00ff;
+  box-shadow: 0 0 20px #ff00ff, inset 0 0 20px rgba(255, 0, 255, 0.1);
+}
+
+.ring-middle {
+  width: 110px;
+  height: 110px;
+  border-top-color: #00d4ff;
+  border-left-color: #00d4ff;
+  box-shadow: 0 0 15px #00d4ff, inset 0 0 15px rgba(0, 212, 255, 0.1);
+}
+
+.ring-inner {
+  width: 70px;
+  height: 70px;
+  border-bottom-color: #00ff88;
+  border-right-color: #00ff88;
+  box-shadow: 0 0 10px #00ff88, inset 0 0 10px rgba(0, 255, 136, 0.1);
+}
+
+.center-pulse {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff00ff, #00d4ff, #00ff88);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.8);
+}
+
+/* Loading text */
+.loader-text {
+  display: flex;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.loader-char {
+  display: inline-block;
+  text-shadow: 0 0 10px currentColor;
+}
+
+/* Progress dots */
+.progress-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.progress-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #00d4ff;
+  box-shadow: 0 0 10px currentColor;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .rings-container {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .ring-outer {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .ring-middle {
+    width: 90px;
+    height: 90px;
+  }
+  
+  .ring-inner {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .loader-text {
+    font-size: 1.2rem;
+  }
+  
+  .orb {
+    transform: scale(0.6);
+  }
+}
+
