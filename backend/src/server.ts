@@ -761,40 +761,51 @@ app.get("/export/finances", requireAuth, (req, res) => {
   const health = computeHealthSnapshot(today, userId);
   const store = getStore();
 
+  // Filter all data by userId to ensure user-specific export
+  const userIncomes = store.incomes.filter(i => i.userId === userId);
+  const userFixedExpenses = store.fixedExpenses.filter(e => e.userId === userId);
+  const userVariablePlans = store.variablePlans.filter(p => p.userId === userId);
+  const userVariableActuals = store.variableActuals.filter(a => a.userId === userId);
+  const userInvestments = store.investments.filter(i => i.userId === userId);
+  const userFutureBombs = store.futureBombs.filter(f => f.userId === userId);
+  const userCreditCards = store.creditCards.filter(c => c.userId === userId);
+  const userLoans = store.loans.filter(l => l.userId === userId);
+  const userActivities = store.activities.filter(a => a.userId === userId).slice(-50); // Last 50 activities
+
   const exportData = {
     exportDate: new Date().toISOString(),
     user: { id: user.userId, username: user.username },
     health,
     constraintScore: constraintDecayed,
-    incomes: store.incomes,
-    fixedExpenses: store.fixedExpenses.map(e => ({
+    incomes: userIncomes,
+    fixedExpenses: userFixedExpenses.map(e => ({
       ...e,
       monthlyEquivalent: e.frequency === "monthly" ? e.amount :
         e.frequency === "quarterly" ? e.amount / 3 :
           e.amount / 12
     })),
-    variableExpenses: store.variablePlans.map(plan => ({
+    variableExpenses: userVariablePlans.map(plan => ({
       ...plan,
-      actuals: store.variableActuals.filter(a => a.planId === plan.id),
-      actualTotal: store.variableActuals.filter(a => a.planId === plan.id).reduce((sum, a) => sum + a.amount, 0)
+      actuals: userVariableActuals.filter(a => a.planId === plan.id),
+      actualTotal: userVariableActuals.filter(a => a.planId === plan.id).reduce((sum, a) => sum + a.amount, 0)
     })),
-    investments: store.investments,
-    futureBombs: store.futureBombs,
-    creditCards: store.creditCards,
-    loans: store.loans,
-    activities: store.activities.slice(-50), // Last 50 activities
+    investments: userInvestments,
+    futureBombs: userFutureBombs,
+    creditCards: userCreditCards,
+    loans: userLoans,
+    activities: userActivities,
     alerts: listAlerts(userId),
     summary: {
-      totalIncome: store.incomes.reduce((sum, i) => sum + ((i.amount ?? 0) / (i.frequency === "monthly" ? 1 : i.frequency === "quarterly" ? 3 : 12)), 0),
-      totalFixedExpenses: store.fixedExpenses.reduce((sum, e) => {
+      totalIncome: userIncomes.reduce((sum, i) => sum + ((i.amount ?? 0) / (i.frequency === "monthly" ? 1 : i.frequency === "quarterly" ? 3 : 12)), 0),
+      totalFixedExpenses: userFixedExpenses.reduce((sum, e) => {
         const monthly = e.frequency === "monthly" ? e.amount : e.frequency === "quarterly" ? e.amount / 3 : e.amount / 12;
         return sum + monthly;
       }, 0),
-      totalVariableActual: store.variablePlans.reduce((sum, plan) => {
-        const actuals = store.variableActuals.filter(a => a.planId === plan.id);
+      totalVariableActual: userVariablePlans.reduce((sum, plan) => {
+        const actuals = userVariableActuals.filter(a => a.planId === plan.id);
         return sum + actuals.reduce((s, a) => s + a.amount, 0);
       }, 0),
-      totalInvestments: store.investments.reduce((sum, i) => sum + i.monthlyAmount, 0),
+      totalInvestments: userInvestments.reduce((sum, i) => sum + i.monthlyAmount, 0),
       healthCategory: health.category,
       remainingBalance: health.remaining
     }
