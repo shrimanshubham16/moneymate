@@ -22,258 +22,346 @@ export function MatrixLoader({ message = "Loading...", fullScreen = true }: Matr
     const centerX = width / 2;
     const centerY = height / 2;
     const time = Date.now() * 0.001;
+    const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
 
-    // Clear with slight trail for smoothness
-    ctx.fillStyle = "rgba(5, 5, 15, 0.15)";
+    // Clear canvas completely each frame for smooth animation
+    ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, width, height);
 
-    // ============ LAYER 1: Swirling Vortex Background ============
-    const vortexArms = 6;
-    const vortexPoints = 150;
+    // ============ SWIRLING VORTEX TUNNEL ============
+    // This creates the hypnotic spiral tunnel effect from image 1
+    const spiralLayers = 80;
+    const rotationSpeed = time * 0.8;
     
-    for (let arm = 0; arm < vortexArms; arm++) {
-      const armOffset = (arm / vortexArms) * Math.PI * 2;
+    for (let i = spiralLayers; i >= 0; i--) {
+      const t = i / spiralLayers;
+      const radius = t * maxRadius * 1.2;
+      const twist = t * 12 + rotationSpeed;
+      const segments = 6;
       
-      for (let i = 0; i < vortexPoints; i++) {
-        const t = i / vortexPoints;
-        const radius = t * Math.min(width, height) * 0.7;
-        const angle = armOffset + t * 8 + time * (1 + arm * 0.2);
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(twist);
+      
+      for (let seg = 0; seg < segments; seg++) {
+        const segAngle = (seg / segments) * Math.PI * 2;
+        const nextAngle = ((seg + 1) / segments) * Math.PI * 2;
         
-        const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
-        
-        // Rainbow color based on position and time
-        const hue = (arm * 60 + t * 180 + time * 50) % 360;
+        // Rainbow colors that shift based on depth and time
+        const hue = (seg * 60 + i * 4 + time * 60) % 360;
         const saturation = 100;
         const lightness = 50 + Math.sin(t * Math.PI) * 20;
-        const alpha = (1 - t) * 0.8;
         
         ctx.beginPath();
-        ctx.arc(x, y, 3 + t * 4, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, segAngle, nextAngle);
+        ctx.closePath();
+        
+        ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
         ctx.fill();
       }
+      
+      ctx.restore();
     }
 
-    // ============ LAYER 2: Sacred Geometry Mandala ============
-    const mandalaLayers = 5;
-    const petalsPerLayer = [12, 8, 6, 16, 24];
-    const layerRadii = [80, 120, 160, 200, 250];
-    
+    // ============ INNER VORTEX RINGS ============
+    // Concentric rings that create depth perception
+    for (let ring = 0; ring < 15; ring++) {
+      const ringT = ring / 15;
+      const ringRadius = 50 + ring * 25;
+      const ringRotation = time * (ring % 2 === 0 ? 1 : -1) * 0.5;
+      
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(ringRotation);
+      
+      ctx.beginPath();
+      ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `hsla(${(ring * 25 + time * 40) % 360}, 100%, 60%, ${0.3 + ringT * 0.4})`;
+      ctx.lineWidth = 2 + ring * 0.5;
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+
+    // ============ COSMIC ENTITY / MEDITATION FIGURE ============
+    // Central figure inspired by the multi-armed deity
     ctx.save();
     ctx.translate(centerX, centerY);
     
-    for (let layer = 0; layer < mandalaLayers; layer++) {
-      const petals = petalsPerLayer[layer];
-      const radius = layerRadii[layer];
-      const rotation = time * (layer % 2 === 0 ? 0.5 : -0.3) * (1 + layer * 0.1);
-      
-      ctx.save();
-      ctx.rotate(rotation);
-      
-      for (let i = 0; i < petals; i++) {
-        const angle = (i / petals) * Math.PI * 2;
-        const petalLength = radius * 0.4;
-        const petalWidth = radius * 0.15;
-        
-        ctx.save();
-        ctx.rotate(angle);
-        ctx.translate(radius * 0.6, 0);
-        
-        // Petal shape
-        const hue = (layer * 50 + i * (360 / petals) + time * 30) % 360;
-        const gradient = ctx.createLinearGradient(-petalLength/2, 0, petalLength/2, 0);
-        gradient.addColorStop(0, `hsla(${hue}, 100%, 60%, 0)`);
-        gradient.addColorStop(0.5, `hsla(${hue}, 100%, 60%, 0.8)`);
-        gradient.addColorStop(1, `hsla(${(hue + 60) % 360}, 100%, 60%, 0)`);
-        
-        ctx.beginPath();
-        ctx.ellipse(0, 0, petalLength, petalWidth, 0, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-        
-        // Inner glow
-        ctx.beginPath();
-        ctx.ellipse(0, 0, petalLength * 0.6, petalWidth * 0.6, 0, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${hue}, 100%, 80%, 0.5)`;
-        ctx.fill();
-        
-        ctx.restore();
-      }
-      ctx.restore();
-    }
-    ctx.restore();
-
-    // ============ LAYER 3: Floating Geometric Shapes ============
-    const shapes = 20;
-    for (let i = 0; i < shapes; i++) {
-      const shapeTime = time + i * 1.5;
-      const orbitRadius = 100 + (i % 5) * 60;
-      const orbitSpeed = 0.3 + (i % 3) * 0.2;
-      const verticalOscillation = Math.sin(shapeTime * 2) * 30;
-      
-      const x = centerX + Math.cos(shapeTime * orbitSpeed) * orbitRadius;
-      const y = centerY + Math.sin(shapeTime * orbitSpeed) * orbitRadius * 0.6 + verticalOscillation;
-      
-      const size = 15 + Math.sin(shapeTime * 3) * 5;
-      const hue = (i * 36 + time * 40) % 360;
-      const alpha = 0.6 + Math.sin(shapeTime * 2) * 0.3;
-      
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(shapeTime * 2);
-      
-      // Draw different shapes
-      ctx.beginPath();
-      const shapeType = i % 4;
-      
-      if (shapeType === 0) {
-        // Triangle
-        ctx.moveTo(0, -size);
-        ctx.lineTo(size * 0.866, size * 0.5);
-        ctx.lineTo(-size * 0.866, size * 0.5);
-        ctx.closePath();
-      } else if (shapeType === 1) {
-        // Diamond
-        ctx.moveTo(0, -size);
-        ctx.lineTo(size, 0);
-        ctx.lineTo(0, size);
-        ctx.lineTo(-size, 0);
-        ctx.closePath();
-      } else if (shapeType === 2) {
-        // Pentagon
-        for (let j = 0; j < 5; j++) {
-          const angle = (j / 5) * Math.PI * 2 - Math.PI / 2;
-          const px = Math.cos(angle) * size;
-          const py = Math.sin(angle) * size;
-          if (j === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-      } else {
-        // Star
-        for (let j = 0; j < 10; j++) {
-          const angle = (j / 10) * Math.PI * 2 - Math.PI / 2;
-          const r = j % 2 === 0 ? size : size * 0.5;
-          const px = Math.cos(angle) * r;
-          const py = Math.sin(angle) * r;
-          if (j === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-      }
-      
-      ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
-      ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${alpha})`;
-      ctx.lineWidth = 2;
-      ctx.fill();
-      ctx.stroke();
-      
-      ctx.restore();
-    }
-
-    // ============ LAYER 4: Pulsing Rings ============
-    const ringCount = 6;
-    for (let i = 0; i < ringCount; i++) {
-      const pulse = Math.sin(time * 2 + i * 0.5) * 0.3 + 0.7;
-      const radius = (50 + i * 45) * pulse;
-      const hue = (i * 60 + time * 60) % 360;
-      const alpha = 0.4 - i * 0.05;
-      
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
-      ctx.lineWidth = 3 - i * 0.3;
-      ctx.stroke();
-      
-      // Add dashed ring
-      ctx.setLineDash([10, 10]);
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius + 10, 0, Math.PI * 2);
-      ctx.strokeStyle = `hsla(${(hue + 180) % 360}, 100%, 70%, ${alpha * 0.5})`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // ============ LAYER 5: Particle Burst ============
-    const particles = 60;
-    for (let i = 0; i < particles; i++) {
-      const angle = (i / particles) * Math.PI * 2;
-      const baseRadius = 30;
-      const radiusVariation = Math.sin(time * 3 + i * 0.2) * 20;
-      const radius = baseRadius + radiusVariation + Math.sin(time * 5 + i) * 10;
-      
-      const x = centerX + Math.cos(angle + time * 0.5) * radius;
-      const y = centerY + Math.sin(angle + time * 0.5) * radius;
-      
-      const particleSize = 2 + Math.sin(time * 4 + i) * 1;
-      const hue = (i * 6 + time * 100) % 360;
-      
-      ctx.beginPath();
-      ctx.arc(x, y, particleSize, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${hue}, 100%, 70%, 0.9)`;
-      ctx.fill();
-    }
-
-    // ============ LAYER 6: Center Eye/Portal ============
-    // Outer glow
-    const eyeGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 80);
-    const eyeHue = (time * 30) % 360;
-    eyeGradient.addColorStop(0, `hsla(${eyeHue}, 100%, 80%, 1)`);
-    eyeGradient.addColorStop(0.3, `hsla(${(eyeHue + 60) % 360}, 100%, 50%, 0.8)`);
-    eyeGradient.addColorStop(0.6, `hsla(${(eyeHue + 120) % 360}, 100%, 40%, 0.4)`);
-    eyeGradient.addColorStop(1, "transparent");
+    // Body glow
+    const bodyGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 100);
+    bodyGradient.addColorStop(0, `hsla(${(time * 30) % 360}, 100%, 70%, 0.9)`);
+    bodyGradient.addColorStop(0.5, `hsla(${(time * 30 + 60) % 360}, 100%, 50%, 0.6)`);
+    bodyGradient.addColorStop(1, "transparent");
     
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 80, 0, Math.PI * 2);
-    ctx.fillStyle = eyeGradient;
+    ctx.arc(0, 0, 100, 0, Math.PI * 2);
+    ctx.fillStyle = bodyGradient;
     ctx.fill();
     
-    // Inner core with multiple eyes effect (inspired by reference image)
-    const eyeRows = 5;
-    const eyeScale = 0.8 + Math.sin(time * 2) * 0.1;
+    // Head (with third eye)
+    const headY = -45;
+    const headSize = 35;
     
-    ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.scale(eyeScale, eyeScale);
+    // Head shape - grey/purple like reference
+    ctx.beginPath();
+    ctx.ellipse(0, headY, headSize, headSize * 1.1, 0, 0, Math.PI * 2);
+    const headGrad = ctx.createLinearGradient(0, headY - headSize, 0, headY + headSize);
+    headGrad.addColorStop(0, "#8b7aa8");
+    headGrad.addColorStop(1, "#5a4a6a");
+    ctx.fillStyle = headGrad;
+    ctx.fill();
+    ctx.strokeStyle = "#ff00ff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
     
-    for (let row = 0; row < eyeRows; row++) {
-      const eyesInRow = row === 0 ? 1 : row === 1 ? 2 : row === 2 ? 3 : row === 3 ? 4 : 3;
-      const yOffset = (row - 2) * 12;
-      
-      for (let col = 0; col < eyesInRow; col++) {
-        const xOffset = (col - (eyesInRow - 1) / 2) * 14;
-        const eyeX = xOffset;
-        const eyeY = yOffset;
+    // Crown/headdress
+    ctx.beginPath();
+    ctx.moveTo(-20, headY - 30);
+    ctx.quadraticCurveTo(0, headY - 60, 20, headY - 30);
+    ctx.fillStyle = "#ffaa00";
+    ctx.fill();
+    ctx.strokeStyle = "#ff6600";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Third eye gem
+    ctx.beginPath();
+    ctx.ellipse(0, headY - 35, 8, 12, 0, 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${(time * 60) % 360}, 100%, 60%)`;
+    ctx.fill();
+    ctx.strokeStyle = "#00ffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Multiple eyes on face (like reference image 3)
+    const eyeRows = [
+      { y: headY - 15, count: 3, size: 5 },
+      { y: headY - 5, count: 4, size: 4 },
+      { y: headY + 5, count: 5, size: 4 },
+      { y: headY + 15, count: 4, size: 3 },
+    ];
+    
+    eyeRows.forEach((row, rowIdx) => {
+      for (let i = 0; i < row.count; i++) {
+        const eyeX = (i - (row.count - 1) / 2) * (row.size * 3);
+        const eyeY = row.y;
         
         // Eye white
         ctx.beginPath();
-        ctx.ellipse(eyeX, eyeY, 6, 4, 0, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, 0.9)`;
+        ctx.ellipse(eyeX, eyeY, row.size * 1.5, row.size, 0, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff";
         ctx.fill();
         
-        // Iris
-        const irisHue = (row * 60 + col * 30 + time * 50) % 360;
+        // Iris - rainbow cycling
+        const irisHue = (rowIdx * 60 + i * 30 + time * 100) % 360;
         ctx.beginPath();
-        ctx.arc(eyeX, eyeY, 3, 0, Math.PI * 2);
+        ctx.arc(eyeX, eyeY, row.size * 0.7, 0, Math.PI * 2);
         ctx.fillStyle = `hsl(${irisHue}, 100%, 50%)`;
         ctx.fill();
         
         // Pupil
         ctx.beginPath();
-        ctx.arc(eyeX, eyeY, 1.5, 0, Math.PI * 2);
+        ctx.arc(eyeX, eyeY, row.size * 0.3, 0, Math.PI * 2);
         ctx.fillStyle = "#000";
         ctx.fill();
-        
-        // Highlight
+      }
+    });
+    
+    // Body/robe
+    ctx.beginPath();
+    ctx.moveTo(-40, headY + 35);
+    ctx.quadraticCurveTo(-50, headY + 80, -30, headY + 120);
+    ctx.lineTo(30, headY + 120);
+    ctx.quadraticCurveTo(50, headY + 80, 40, headY + 35);
+    ctx.closePath();
+    const robeGrad = ctx.createLinearGradient(0, headY + 35, 0, headY + 120);
+    robeGrad.addColorStop(0, "#ffaa00");
+    robeGrad.addColorStop(1, "#ff6600");
+    ctx.fillStyle = robeGrad;
+    ctx.fill();
+    ctx.strokeStyle = "#ffcc00";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // ============ MULTIPLE ARMS ============
+    // 8 arms like the deity reference
+    const armCount = 8;
+    const armConfigs = [
+      { angle: -150, length: 90, wave: 0.3 },
+      { angle: -120, length: 100, wave: 0.4 },
+      { angle: -60, length: 100, wave: 0.4 },
+      { angle: -30, length: 90, wave: 0.3 },
+      { angle: 30, length: 90, wave: 0.3 },
+      { angle: 60, length: 100, wave: 0.4 },
+      { angle: 120, length: 100, wave: 0.4 },
+      { angle: 150, length: 90, wave: 0.3 },
+    ];
+    
+    armConfigs.forEach((arm, idx) => {
+      const baseAngle = (arm.angle * Math.PI) / 180;
+      const waveOffset = Math.sin(time * 2 + idx) * arm.wave;
+      const angle = baseAngle + waveOffset;
+      
+      const shoulderX = Math.cos(baseAngle) * 35;
+      const shoulderY = headY + 50 + Math.sin(baseAngle) * 10;
+      
+      const elbowX = shoulderX + Math.cos(angle) * (arm.length * 0.5);
+      const elbowY = shoulderY + Math.sin(angle) * (arm.length * 0.5);
+      
+      const handX = elbowX + Math.cos(angle + waveOffset * 0.5) * (arm.length * 0.5);
+      const handY = elbowY + Math.sin(angle + waveOffset * 0.5) * (arm.length * 0.5);
+      
+      // Arm
+      ctx.beginPath();
+      ctx.moveTo(shoulderX, shoulderY);
+      ctx.quadraticCurveTo(elbowX, elbowY, handX, handY);
+      ctx.strokeStyle = "#7a6a8a";
+      ctx.lineWidth = 12;
+      ctx.lineCap = "round";
+      ctx.stroke();
+      
+      // Bracelet
+      ctx.beginPath();
+      ctx.arc(elbowX, elbowY, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffaa00";
+      ctx.fill();
+      
+      // Hand (simplified palm)
+      ctx.beginPath();
+      ctx.arc(handX, handY, 12, 0, Math.PI * 2);
+      ctx.fillStyle = "#8a7a9a";
+      ctx.fill();
+      ctx.strokeStyle = "#ffaa00";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Fingers
+      for (let f = 0; f < 5; f++) {
+        const fingerAngle = angle - 0.4 + f * 0.2;
+        const fingerLength = 8 + (f === 2 ? 4 : 0);
         ctx.beginPath();
-        ctx.arc(eyeX - 1, eyeY - 1, 0.8, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.moveTo(handX, handY);
+        ctx.lineTo(
+          handX + Math.cos(fingerAngle) * fingerLength,
+          handY + Math.sin(fingerAngle) * fingerLength
+        );
+        ctx.strokeStyle = "#8a7a9a";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    });
+    
+    ctx.restore();
+
+    // ============ FLOATING UFOs ============
+    // Like in reference image 3
+    const ufoPositions = [
+      { x: -200, y: -150, size: 40 },
+      { x: 200, y: -150, size: 40 },
+    ];
+    
+    ufoPositions.forEach((ufo, idx) => {
+      const bobY = Math.sin(time * 2 + idx) * 10;
+      const ux = centerX + ufo.x;
+      const uy = centerY + ufo.y + bobY;
+      
+      ctx.save();
+      ctx.translate(ux, uy);
+      ctx.rotate(Math.sin(time + idx) * 0.1);
+      
+      // UFO dome
+      ctx.beginPath();
+      ctx.ellipse(0, -10, ufo.size * 0.5, ufo.size * 0.4, 0, Math.PI, 0);
+      const domeGrad = ctx.createLinearGradient(0, -25, 0, -10);
+      domeGrad.addColorStop(0, "#aa88cc");
+      domeGrad.addColorStop(1, "#7755aa");
+      ctx.fillStyle = domeGrad;
+      ctx.fill();
+      ctx.strokeStyle = "#ff88ff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // UFO body
+      ctx.beginPath();
+      ctx.ellipse(0, 0, ufo.size, ufo.size * 0.25, 0, 0, Math.PI * 2);
+      const bodyGrad = ctx.createLinearGradient(0, -10, 0, 10);
+      bodyGrad.addColorStop(0, "#88ddaa");
+      bodyGrad.addColorStop(0.5, "#55aa77");
+      bodyGrad.addColorStop(1, "#ff88aa");
+      ctx.fillStyle = bodyGrad;
+      ctx.fill();
+      ctx.strokeStyle = "#ffaacc";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // UFO lights
+      for (let l = 0; l < 5; l++) {
+        const lx = (l - 2) * (ufo.size * 0.35);
+        ctx.beginPath();
+        ctx.arc(lx, 5, 4, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${(l * 60 + time * 100) % 360}, 100%, 70%)`;
         ctx.fill();
       }
+      
+      // Beam
+      ctx.beginPath();
+      ctx.moveTo(-15, 10);
+      ctx.lineTo(-30, 80);
+      ctx.lineTo(30, 80);
+      ctx.lineTo(15, 10);
+      ctx.closePath();
+      ctx.fillStyle = `hsla(${(time * 60) % 360}, 100%, 70%, 0.2)`;
+      ctx.fill();
+      
+      ctx.restore();
+    });
+
+    // ============ FLOATING COSMIC ELEMENTS ============
+    // Stars, planets, sparkles
+    const cosmicElements = 30;
+    for (let i = 0; i < cosmicElements; i++) {
+      const angle = (i / cosmicElements) * Math.PI * 2 + time * 0.2;
+      const radius = 200 + Math.sin(i * 1.5 + time) * 80;
+      const x = centerX + Math.cos(angle) * radius;
+      const y = centerY + Math.sin(angle) * radius * 0.7;
+      const size = 3 + Math.sin(i + time * 3) * 2;
+      const hue = (i * 12 + time * 30) % 360;
+      
+      // Star shape
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(time * 2 + i);
+      
+      ctx.beginPath();
+      for (let p = 0; p < 8; p++) {
+        const starAngle = (p / 8) * Math.PI * 2;
+        const starRadius = p % 2 === 0 ? size : size * 0.4;
+        const sx = Math.cos(starAngle) * starRadius;
+        const sy = Math.sin(starAngle) * starRadius;
+        if (p === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.closePath();
+      ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+      ctx.fill();
+      
+      ctx.restore();
     }
-    ctx.restore();
+
+    // ============ GLOWING ORB AT CENTER ============
+    const orbPulse = Math.sin(time * 3) * 0.2 + 1;
+    const orbGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 40 * orbPulse);
+    orbGradient.addColorStop(0, "#ffffff");
+    orbGradient.addColorStop(0.3, `hsla(${(time * 60) % 360}, 100%, 70%, 0.8)`);
+    orbGradient.addColorStop(0.7, `hsla(${(time * 60 + 120) % 360}, 100%, 50%, 0.4)`);
+    orbGradient.addColorStop(1, "transparent");
+    
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 40 * orbPulse, 0, Math.PI * 2);
+    ctx.fillStyle = orbGradient;
+    ctx.fill();
 
     animationRef.current = requestAnimationFrame(draw);
   }, []);
@@ -283,22 +371,29 @@ export function MatrixLoader({ message = "Loading...", fullScreen = true }: Matr
     if (!canvas) return;
 
     const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
       if (fullScreen) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+        canvas.style.width = window.innerWidth + "px";
+        canvas.style.height = window.innerHeight + "px";
       } else {
         const parent = canvas.parentElement;
         if (parent) {
-          canvas.width = parent.clientWidth;
-          canvas.height = parent.clientHeight;
+          canvas.width = parent.clientWidth * dpr;
+          canvas.height = parent.clientHeight * dpr;
+          canvas.style.width = parent.clientWidth + "px";
+          canvas.style.height = parent.clientHeight + "px";
         }
+      }
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.scale(dpr, dpr);
       }
     };
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
-
-    // Start animation
     animationRef.current = requestAnimationFrame(draw);
 
     return () => {
@@ -310,71 +405,12 @@ export function MatrixLoader({ message = "Loading...", fullScreen = true }: Matr
   return (
     <div className={`matrix-loader ${fullScreen ? "fullscreen" : ""}`}>
       <canvas ref={canvasRef} className="matrix-canvas" />
-      <div className="psychedelic-overlay">
-        <div className="cosmic-frame">
-          <div className="frame-corner top-left"></div>
-          <div className="frame-corner top-right"></div>
-          <div className="frame-corner bottom-left"></div>
-          <div className="frame-corner bottom-right"></div>
-        </div>
-        <div className="loader-content">
-          <div className="lotus-container">
-            <svg className="lotus-svg" viewBox="0 0 100 100">
-              {/* Lotus petals */}
-              {[...Array(12)].map((_, i) => (
-                <path
-                  key={i}
-                  className="lotus-petal"
-                  d={`M50,50 Q${50 + Math.cos((i / 12) * Math.PI * 2) * 30},${50 + Math.sin((i / 12) * Math.PI * 2) * 30} ${50 + Math.cos((i / 12) * Math.PI * 2) * 45},${50 + Math.sin((i / 12) * Math.PI * 2) * 45}`}
-                  style={{ 
-                    animationDelay: `${i * 0.1}s`,
-                    stroke: `hsl(${i * 30}, 100%, 60%)` 
-                  }}
-                />
-              ))}
-              {/* Inner petals */}
-              {[...Array(8)].map((_, i) => (
-                <ellipse
-                  key={`inner-${i}`}
-                  className="lotus-inner-petal"
-                  cx="50"
-                  cy="50"
-                  rx="8"
-                  ry="20"
-                  style={{ 
-                    transform: `rotate(${i * 45}deg)`,
-                    transformOrigin: '50px 50px',
-                    animationDelay: `${i * 0.15}s`,
-                    fill: `hsla(${i * 45 + 180}, 100%, 60%, 0.6)` 
-                  }}
-                />
-              ))}
-              {/* Center gem */}
-              <circle className="lotus-center" cx="50" cy="50" r="8" />
-              <circle className="lotus-center-inner" cx="50" cy="50" r="4" />
-            </svg>
+      <div className="loader-message-overlay">
+        <div className="message-box">
+          <span className="loading-text">{message}</span>
+          <div className="loading-dots">
+            <span></span><span></span><span></span>
           </div>
-          <div className="message-container">
-            <span className="psychedelic-message">{message}</span>
-            <div className="energy-dots">
-              {[...Array(7)].map((_, i) => (
-                <span 
-                  key={i} 
-                  className="energy-dot"
-                  style={{ animationDelay: `${i * 0.1}s` }}
-                ></span>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="floating-symbols">
-          <span className="symbol" style={{ '--delay': '0s', '--x': '10%', '--y': '20%' } as React.CSSProperties}>◇</span>
-          <span className="symbol" style={{ '--delay': '0.5s', '--x': '85%', '--y': '15%' } as React.CSSProperties}>✧</span>
-          <span className="symbol" style={{ '--delay': '1s', '--x': '15%', '--y': '75%' } as React.CSSProperties}>☆</span>
-          <span className="symbol" style={{ '--delay': '1.5s', '--x': '80%', '--y': '80%' } as React.CSSProperties}>◎</span>
-          <span className="symbol" style={{ '--delay': '2s', '--x': '50%', '--y': '10%' } as React.CSSProperties}>✦</span>
-          <span className="symbol" style={{ '--delay': '2.5s', '--x': '5%', '--y': '50%' } as React.CSSProperties}>⬡</span>
-          <span className="symbol" style={{ '--delay': '3s', '--x': '92%', '--y': '45%' } as React.CSSProperties}>◈</span>
         </div>
       </div>
     </div>

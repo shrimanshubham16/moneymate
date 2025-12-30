@@ -1,5 +1,6 @@
 /* ============================================
-   PSYCHEDELIC LOADER - Cosmic Experience
+   PSYCHEDELIC COSMIC LOADER
+   Inspired by cosmic deity art & vortex visuals
    ============================================ */
 
 .matrix-loader {
@@ -7,7 +8,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: radial-gradient(ellipse at center, #1a0a2e 0%, #0d0515 50%, #050208 100%);
+  background: #000;
 }
 
 .matrix-loader.fullscreen {
@@ -25,221 +26,39 @@
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 1;
 }
 
-/* ============ Psychedelic Overlay ============ */
-.psychedelic-overlay {
+/* ============ Message Overlay ============ */
+.loader-message-overlay {
   position: absolute;
-  top: 0;
+  bottom: 10%;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
   z-index: 10;
-  pointer-events: none;
 }
 
-/* ============ Cosmic Frame ============ */
-.cosmic-frame {
-  position: absolute;
-  top: 5%;
-  left: 5%;
-  right: 5%;
-  bottom: 5%;
-  pointer-events: none;
-}
-
-.frame-corner {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  border: 3px solid transparent;
-  animation: cornerPulse 2s ease-in-out infinite;
-}
-
-.frame-corner.top-left {
-  top: 0;
-  left: 0;
-  border-top-color: #ff00ff;
-  border-left-color: #00ffff;
-  border-top-left-radius: 20px;
-  animation-delay: 0s;
-}
-
-.frame-corner.top-right {
-  top: 0;
-  right: 0;
-  border-top-color: #00ffff;
-  border-right-color: #ffff00;
-  border-top-right-radius: 20px;
-  animation-delay: 0.5s;
-}
-
-.frame-corner.bottom-left {
-  bottom: 0;
-  left: 0;
-  border-bottom-color: #ffff00;
-  border-left-color: #ff00ff;
-  border-bottom-left-radius: 20px;
-  animation-delay: 1s;
-}
-
-.frame-corner.bottom-right {
-  bottom: 0;
-  right: 0;
-  border-bottom-color: #ff00ff;
-  border-right-color: #00ffff;
-  border-bottom-right-radius: 20px;
-  animation-delay: 1.5s;
-}
-
-@keyframes cornerPulse {
-  0%, 100% {
-    opacity: 0.4;
-    transform: scale(1);
-    filter: drop-shadow(0 0 5px currentColor);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.1);
-    filter: drop-shadow(0 0 20px currentColor);
-  }
-}
-
-/* ============ Loader Content Container ============ */
-.loader-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 30px;
-  padding: 40px;
-  background: radial-gradient(ellipse at center, rgba(100, 0, 150, 0.2) 0%, transparent 70%);
-  border-radius: 50%;
-}
-
-/* ============ Lotus Container ============ */
-.lotus-container {
-  width: 150px;
-  height: 150px;
-  animation: breathe 4s ease-in-out infinite;
-  filter: drop-shadow(0 0 30px rgba(255, 0, 255, 0.5));
-}
-
-@keyframes breathe {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.15);
-  }
-}
-
-.lotus-svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.lotus-petal {
-  fill: none;
-  stroke-width: 3;
-  stroke-linecap: round;
-  animation: petalPulse 2s ease-in-out infinite;
-  filter: drop-shadow(0 0 8px currentColor);
-}
-
-@keyframes petalPulse {
-  0%, 100% {
-    opacity: 0.6;
-    stroke-width: 3;
-  }
-  50% {
-    opacity: 1;
-    stroke-width: 5;
-  }
-}
-
-.lotus-inner-petal {
-  animation: innerPetalSpin 8s linear infinite, innerPetalPulse 2s ease-in-out infinite;
-}
-
-@keyframes innerPetalSpin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes innerPetalPulse {
-  0%, 100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-
-.lotus-center {
-  fill: url(#centerGradient);
-  animation: centerPulse 1.5s ease-in-out infinite;
-  filter: drop-shadow(0 0 15px #ff00ff);
-}
-
-.lotus-center {
-  fill: #ff00ff;
-  animation: centerGlow 2s ease-in-out infinite;
-}
-
-.lotus-center-inner {
-  fill: #00ffff;
-  animation: innerGlow 1.5s ease-in-out infinite alternate;
-}
-
-@keyframes centerGlow {
-  0%, 100% {
-    fill: #ff00ff;
-    filter: drop-shadow(0 0 10px #ff00ff);
-  }
-  33% {
-    fill: #00ffff;
-    filter: drop-shadow(0 0 15px #00ffff);
-  }
-  66% {
-    fill: #ffff00;
-    filter: drop-shadow(0 0 15px #ffff00);
-  }
-}
-
-@keyframes innerGlow {
-  0% {
-    fill: #00ffff;
-    transform: scale(0.8);
-  }
-  100% {
-    fill: #ffffff;
-    transform: scale(1.2);
-  }
-}
-
-/* ============ Message Container ============ */
-.message-container {
+.message-box {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 15px;
+  padding: 20px 40px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 2px solid rgba(255, 0, 255, 0.4);
+  box-shadow: 
+    0 0 30px rgba(255, 0, 255, 0.3),
+    0 0 60px rgba(0, 255, 255, 0.2),
+    inset 0 0 20px rgba(255, 255, 255, 0.05);
 }
 
-.psychedelic-message {
+.loading-text {
   font-family: 'Poppins', sans-serif;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 600;
-  text-align: center;
   background: linear-gradient(
     90deg,
     #ff00ff 0%,
@@ -252,217 +71,78 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: textShimmer 3s linear infinite;
-  text-shadow: none;
-  filter: drop-shadow(0 0 20px rgba(255, 0, 255, 0.5));
+  animation: textShimmer 2s linear infinite;
 }
 
 @keyframes textShimmer {
-  0% {
-    background-position: 0% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
 }
 
-/* ============ Energy Dots ============ */
-.energy-dots {
+.loading-dots {
   display: flex;
   gap: 8px;
-  justify-content: center;
 }
 
-.energy-dot {
-  width: 10px;
-  height: 10px;
+.loading-dots span {
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  animation: energyPulse 1.4s ease-in-out infinite;
+  animation: dotPulse 1.4s ease-in-out infinite;
 }
 
-.energy-dot:nth-child(1) { background: #ff0080; animation-delay: 0s; }
-.energy-dot:nth-child(2) { background: #ff8000; animation-delay: 0.1s; }
-.energy-dot:nth-child(3) { background: #ffff00; animation-delay: 0.2s; }
-.energy-dot:nth-child(4) { background: #00ff00; animation-delay: 0.3s; }
-.energy-dot:nth-child(5) { background: #00ffff; animation-delay: 0.4s; }
-.energy-dot:nth-child(6) { background: #0080ff; animation-delay: 0.5s; }
-.energy-dot:nth-child(7) { background: #ff00ff; animation-delay: 0.6s; }
+.loading-dots span:nth-child(1) {
+  background: #ff00ff;
+  animation-delay: 0s;
+}
 
-@keyframes energyPulse {
+.loading-dots span:nth-child(2) {
+  background: #00ffff;
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  background: #ffff00;
+  animation-delay: 0.4s;
+}
+
+@keyframes dotPulse {
   0%, 100% {
-    transform: scale(0.5);
-    opacity: 0.3;
-    box-shadow: 0 0 5px currentColor;
+    transform: scale(0.6);
+    opacity: 0.4;
   }
   50% {
-    transform: scale(1.3);
+    transform: scale(1.2);
     opacity: 1;
-    box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+    box-shadow: 0 0 20px currentColor;
   }
-}
-
-/* ============ Floating Symbols ============ */
-.floating-symbols {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.symbol {
-  position: absolute;
-  left: var(--x, 50%);
-  top: var(--y, 50%);
-  font-size: 2rem;
-  animation: symbolFloat 6s ease-in-out infinite;
-  animation-delay: var(--delay, 0s);
-  opacity: 0;
-}
-
-.symbol:nth-child(odd) {
-  color: #ff00ff;
-  text-shadow: 0 0 20px #ff00ff;
-}
-
-.symbol:nth-child(even) {
-  color: #00ffff;
-  text-shadow: 0 0 20px #00ffff;
-}
-
-@keyframes symbolFloat {
-  0%, 100% {
-    opacity: 0;
-    transform: translateY(0) rotate(0deg) scale(0.5);
-  }
-  10% {
-    opacity: 0.8;
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-30px) rotate(180deg) scale(1.2);
-  }
-  90% {
-    opacity: 0.8;
-  }
-}
-
-/* ============ Additional Ambient Effects ============ */
-.matrix-loader::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 200%;
-  height: 200%;
-  transform: translate(-50%, -50%);
-  background: 
-    radial-gradient(ellipse at 30% 20%, rgba(255, 0, 255, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 80%, rgba(0, 255, 255, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 30%, rgba(255, 255, 0, 0.1) 0%, transparent 40%);
-  animation: ambientShift 10s ease-in-out infinite;
-  z-index: 0;
-  pointer-events: none;
-}
-
-@keyframes ambientShift {
-  0%, 100% {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-  50% {
-    transform: translate(-50%, -50%) rotate(180deg);
-  }
-}
-
-/* ============ Scanline Effect ============ */
-.matrix-loader::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.1) 2px,
-    rgba(0, 0, 0, 0.1) 4px
-  );
-  pointer-events: none;
-  z-index: 20;
-  opacity: 0.3;
 }
 
 /* ============ Mobile Responsive ============ */
 @media (max-width: 768px) {
-  .lotus-container {
-    width: 120px;
-    height: 120px;
+  .message-box {
+    padding: 15px 30px;
   }
   
-  .psychedelic-message {
+  .loading-text {
     font-size: 1.1rem;
   }
   
-  .energy-dot {
-    width: 8px;
-    height: 8px;
-  }
-  
-  .frame-corner {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .symbol {
-    font-size: 1.5rem;
-  }
-  
-  .loader-content {
-    padding: 25px;
-    gap: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .lotus-container {
-    width: 100px;
-    height: 100px;
-  }
-  
-  .psychedelic-message {
-    font-size: 1rem;
-  }
-  
-  .cosmic-frame {
-    top: 3%;
-    left: 3%;
-    right: 3%;
-    bottom: 3%;
+  .loading-dots span {
+    width: 10px;
+    height: 10px;
   }
 }
 
 /* ============ Reduced Motion ============ */
 @media (prefers-reduced-motion: reduce) {
-  .lotus-container,
-  .lotus-petal,
-  .lotus-inner-petal,
-  .lotus-center,
-  .lotus-center-inner,
-  .energy-dot,
-  .symbol,
-  .frame-corner,
-  .matrix-loader::before {
+  .loading-text {
     animation: none;
   }
   
-  .psychedelic-message {
+  .loading-dots span {
     animation: none;
-    background: linear-gradient(90deg, #ff00ff, #00ffff);
-    -webkit-background-clip: text;
-    background-clip: text;
+    opacity: 1;
+    transform: scale(1);
   }
 }
