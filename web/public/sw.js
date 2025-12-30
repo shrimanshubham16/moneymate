@@ -1,6 +1,6 @@
 // Service Worker for FinFlow PWA
-const CACHE_NAME = 'finflow-v1.2';
-const RUNTIME_CACHE = 'finflow-runtime-v1.2';
+const CACHE_NAME = 'finflow-v1.2.1';
+const RUNTIME_CACHE = 'finflow-runtime-v1.2.1';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
@@ -101,4 +101,5 @@ self.addEventListener('push', (event) => {
   console.log('[Service Worker] Push notification received');
   // Future: show financial alerts
 });
+
 
