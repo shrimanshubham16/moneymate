@@ -8,14 +8,18 @@
  * - MINOR: New features, non-breaking changes
  * - PATCH: Bug fixes, minor improvements
  * 
- * Build number increments with each deployment
+ * Build number is the Git commit ID (short SHA)
  */
+
+// Get commit ID injected at build time
+declare const __COMMIT_ID__: string;
+const commitId = typeof __COMMIT_ID__ !== 'undefined' ? __COMMIT_ID__ : 'dev';
 
 export const VERSION = {
   major: 1,
   minor: 2,
   patch: 0,
-  build: 16, // Incremented for v1.2 feature branch
+  build: commitId, // Git commit ID (short SHA)
   
   // Formatted version string
   get full(): string {
