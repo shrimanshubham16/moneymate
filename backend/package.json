@@ -12,6 +12,7 @@
     "seed": "tsx scripts/seed.ts",
     "lint": "echo \"No linter configured yet\"",
     "test-supabase": "tsx scripts/test-supabase-connection.ts",
+    "test-endpoints": "tsx scripts/test-supabase-endpoints.ts",
     "create-schema": "tsx scripts/create-schema.ts",
     "encode-password": "tsx scripts/encode-password.ts",
     "migrate-data": "tsx scripts/migrate-data-to-supabase.ts",
