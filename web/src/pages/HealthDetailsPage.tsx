@@ -430,7 +430,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
         >
-          <h2><FaChartLine style={{ marginRight: 8 }} />Financial Discipline Score</h2>
+          <h2><FaChartLine style={{ marginRight: 8 }} />Overspend Risk</h2>
           <div className={`constraint-card constraint-${constraintScore.tier}`}>
             <div className="constraint-header">
               <div className="constraint-icon">
@@ -449,7 +449,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
                   color: constraintScore.tier === 'green' ? '#10b981' : 
                          constraintScore.tier === 'amber' ? '#f59e0b' : '#ef4444'
                 }}>
-                  {constraintScore.tier.toUpperCase()}
+                  {constraintScore.tier === 'green' ? 'LOW RISK' : 
+                   constraintScore.tier === 'amber' ? 'MEDIUM RISK' : 'HIGH RISK'}
                 </div>
               </div>
             </div>
@@ -460,13 +461,13 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
               </div>
               <div className="constraint-explanation">
                 <p><strong>What is this?</strong></p>
-                <p>Your Financial Discipline Score tracks how well you stick to your planned expenses. It starts at 0 (best) and increases by +5 for each overspend on variable expenses.</p>
+                <p>Your Overspend Risk tracks how often you exceed your planned expenses. It starts at 0 (safest) and increases by +5 for each overspend on variable expenses.</p>
                 <ul>
-                  <li><strong style={{ color: '#10b981' }}>Green (0-39):</strong> Excellent discipline, staying within budget</li>
-                  <li><strong style={{ color: '#f59e0b' }}>Amber (40-69):</strong> Moderate overspending, be more careful</li>
-                  <li><strong style={{ color: '#ef4444' }}>Red (70-100):</strong> Frequent overspending, urgent action needed</li>
+                  <li><strong style={{ color: '#10b981' }}>Low Risk (0-39):</strong> You're staying within budget - great job!</li>
+                  <li><strong style={{ color: '#f59e0b' }}>Medium Risk (40-69):</strong> Some overspending detected, stay cautious</li>
+                  <li><strong style={{ color: '#ef4444' }}>High Risk (70-100):</strong> Frequent overspending, review your budget</li>
                 </ul>
-                <p className="constraint-note">💡 The score decays by 5% each month, so good behavior improves your score over time.</p>
+                <p className="constraint-note">💡 Risk level decreases by 5% each month automatically when you stay on budget.</p>
               </div>
             </div>
           </div>

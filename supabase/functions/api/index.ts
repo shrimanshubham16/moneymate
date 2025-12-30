@@ -198,6 +198,44 @@ serve(async (req) => {
         return { ...plan, actuals, actualTotal: actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0) };
       });
 
+      // ============ HEALTH CALCULATION (matching Railway logic) ============
+      // Monthly equivalent helper
+      const monthlyEquiv = (amount: number, freq: string) => {
+        if (freq === 'monthly') return amount;
+        if (freq === 'quarterly') return amount / 3;
+        if (freq === 'yearly') return amount / 12;
+        return amount;
+      };
+
+      // Total monthly income
+      const totalIncome = (data?.incomes || []).reduce((sum: number, i: any) => 
+        sum + monthlyEquiv(i.amount || 0, i.frequency), 0);
+
+      // Total monthly fixed expenses
+      const totalFixed = (data?.fixedExpenses || []).reduce((sum: number, e: any) => 
+        sum + monthlyEquiv(e.amount || 0, e.frequency), 0);
+
+      // Total monthly investments  
+      const totalInvestments = (data?.investments || []).reduce((sum: number, i: any) => 
+        sum + (i.monthlyAmount || 0), 0);
+
+      // Total variable actuals this month
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const totalVariableActuals = (data?.variableActuals || [])
+        .filter((a: any) => new Date(a.incurredAt) >= monthStart)
+        .reduce((sum: number, a: any) => sum + (a.amount || 0), 0);
+
+      // Health = Income - Fixed - Investments - Variable Actuals
+      const remaining = Math.round(totalIncome - totalFixed - totalInvestments - totalVariableActuals);
+      
+      // Category thresholds (matching Railway)
+      let healthCategory: string;
+      if (remaining > 10000) healthCategory = 'good';
+      else if (remaining >= 0) healthCategory = 'ok';
+      else if (remaining >= -3000) healthCategory = 'not_well';
+      else healthCategory = 'worrisome';
+
       return json({
         data: {
           incomes: data?.incomes || [],
@@ -205,7 +243,7 @@ serve(async (req) => {
           variablePlans,
           investments: data?.investments || [],
           futureBombs: data?.futureBombs || [],
-          health: data?.healthCache ? { remaining: data.healthCache.availableFunds, category: data.healthCache.healthCategory } : { remaining: 0, category: 'ok' },
+          health: { remaining, category: healthCategory },
           constraintScore: constraint || { score: 0, tier: 'green' },
           alerts: []
         }
