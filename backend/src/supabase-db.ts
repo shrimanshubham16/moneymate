@@ -1,6 +1,7 @@
 // Supabase Database Access Layer
 // Replaces getStore() with direct Supabase queries
 import { supabase } from './supabase';
+import { withRetry } from './supabase-retry';
 import {
   User,
   Income,
@@ -49,42 +50,60 @@ export async function getUserById(userId: string): Promise<User | null> {
 }
 
 export async function getUserByUsername(username: string): Promise<User | null> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('username', username)
-    .single();
-  
-  if (error || !data) return null;
-  
-  return {
-    id: data.id,
-    username: data.username,
-    passwordHash: data.password_hash
-  };
+  return withRetry(async () => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
+    
+    if (error) {
+      // 406 = no rows returned (not an error, just no user found)
+      if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
+        return null;
+      }
+      throw error;
+    }
+    
+    if (!data) return null;
+    
+    return {
+      id: data.id,
+      username: data.username,
+      passwordHash: data.password_hash
+    };
+  });
 }
 
 export async function createUser(user: Omit<User, 'id'> & { id?: string }): Promise<User> {
-  const { data, error } = await supabase
-    .from('users')
-    .insert({
-      id: user.id,
-      username: user.username,
-      password_hash: user.passwordHash,
-      created_at: new Date().toISOString(),
-      failed_login_attempts: 0,
-      account_locked_until: null
-    })
-    .select()
-    .single();
-  
-  if (error) throw error;
-  
-  return {
-    id: data.id,
-    username: data.username,
-    passwordHash: data.password_hash
-  };
+  return withRetry(async () => {
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        id: user.id,
+        username: user.username,
+        password_hash: user.passwordHash,
+        created_at: new Date().toISOString(),
+        failed_login_attempts: 0,
+        account_locked_until: null
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      // Check for duplicate username
+      if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        throw new Error('Username already exists');
+      }
+      throw error;
+    }
+    
+    return {
+      id: data.id,
+      username: data.username,
+      passwordHash: data.password_hash
+    };
+  });
 }
 
 export async function updateUser(userId: string, updates: Partial<{ passwordHash?: string; failedLoginAttempts?: number; accountLockedUntil?: string | null }>): Promise<void> {

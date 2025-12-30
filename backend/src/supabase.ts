@@ -20,6 +20,18 @@ export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
+  },
+  db: {
+    schema: 'public'
+  },
+  global: {
+    fetch: (url, options = {}) => {
+      return fetch(url, {
+        ...options,
+        // Add timeout
+        signal: AbortSignal.timeout(30000) // 30 second timeout
+      });
+    }
   }
 });
 
