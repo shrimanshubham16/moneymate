@@ -1,4 +1,4 @@
-import * as store from "./store-supabase";
+import * as db from "./pg-db";
 import { tierFor } from "./logic";
 
 type Alert = { id: string; type: string; severity: "info" | "warn" | "critical"; message: string; period: string };
@@ -26,10 +26,10 @@ export function addOverspendAlert(userId: string, planName: string, overAmount: 
 export async function recordOverspend(userId: string, planName: string, projected: number, planned: number, period: string) {
   if (projected <= planned) return;
   const overPct = (projected - planned) / planned;
-  const constraint = await store.getConstraint(userId);
+  const constraint = await db.getConstraintScore(userId);
   addOverspendAlert(userId, planName, overPct, constraint.tier, period);
   const nextScore = constraint.score + 5;
-  await store.setConstraint(userId, { ...constraint, score: nextScore, tier: tierFor(nextScore), recentOverspends: constraint.recentOverspends + 1 });
+  await db.updateConstraintScore(userId, { ...constraint, score: nextScore, tier: tierFor(nextScore), recentOverspends: (constraint.recentOverspends || 0) + 1 });
 }
 
 export function clearAlerts(userId: string) {

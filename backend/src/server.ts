@@ -7,8 +7,8 @@ import { getMergedFinanceGroupUserIds } from "./mergedFinances";
 import { applyConstraintDecay, computeHealthSnapshot, tierFor, totalIncomePerMonth, totalPaymentsMadeThisMonth, unpaidFixedPerMonth, unpaidProratedVariableForRemainingDays, unpaidInvestmentsPerMonth, unpaidCreditCardDues, getCreditCardOverpayments, calculateMonthProgress } from "./logic";
 import { markAsPaid, markAsUnpaid, isPaid, getPaymentStatus, getUserPayments, getPaymentsSummary } from "./payments";
 import { getUserPreferences, updateUserPreferences } from "./preferences";
-// Import Supabase database functions
-import * as db from "./supabase-db";
+// Import PostgreSQL database functions (direct connection)
+import * as db from "./pg-db";
 import * as store from "./store-supabase";
 import { listAlerts, recordOverspend, clearAlerts } from "./alerts";
 
@@ -201,9 +201,9 @@ app.get("/dashboard", requireAuth, async (req, res) => {
   // FIX: Removed caching to ensure health scores are always fresh and consistent
   // Previous caching caused dashboard and /health/details to show different values
   
-  const constraint = await store.getConstraint(userId);
-  const constraintDecayed = applyConstraintDecay(constraint, today);
-  await store.setConstraint(userId, constraintDecayed);
+  const constraint = await db.getConstraintScore(userId);
+  const constraintDecayed = applyConstraintDecay(constraint as any, today);
+  await db.updateConstraintScore(userId, constraintDecayed);
   const groupUserIds = await getMergedFinanceGroupUserIds(userId);
   const health = await computeHealthSnapshot(today, userId);
   
@@ -259,9 +259,9 @@ app.post("/planning/income", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = incomeSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = await store.addIncome(userId, { name: parsed.data.source, amount: parsed.data.amount, frequency: parsed.data.frequency, category: "employment", startDate: new Date().toISOString() });
+  const created = await db.addIncome({ userId, name: parsed.data.source, amount: parsed.data.amount, frequency: parsed.data.frequency, category: "employment", startDate: new Date().toISOString() });
   // FIX: Use userId instead of user.id for activity logging
-  await store.addActivity(userId, "income", "added income source", { name: created.name, amount: created.amount, frequency: created.frequency });
+  await db.addActivity({ actorId: userId, entity: "income", action: "added income source", payload: { name: created.name, amount: created.amount, frequency: created.frequency } });
   res.status(201).json({ data: created });
 });
 
@@ -274,14 +274,14 @@ app.put("/planning/income/:id", requireAuth, async (req, res) => {
   if (parsed.data.amount !== undefined) updateData.amount = parsed.data.amount;
   if (parsed.data.frequency !== undefined) updateData.frequency = parsed.data.frequency;
   updateData.userId = userId; // Needed for fetching updated record
-  const updated = await store.updateIncome(req.params.id, updateData);
+  const updated = await db.updateIncome(req.params.id, updateData);
   if (!updated) return res.status(404).json({ error: { message: "Not found" } });
   res.json({ data: updated });
 });
 
 app.delete("/planning/income/:id", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
-  const ok = await store.deleteIncome(userId, req.params.id);
+  const ok = await db.deleteIncome(req.params.id);
   if (!ok) return res.status(404).json({ error: { message: "Not found" } });
   res.status(200).json({ data: { deleted: true } });
 });
@@ -296,7 +296,8 @@ app.post("/planning/fixed-expenses", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const parsed = fixedSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const created = await store.addFixedExpense(userId, {
+  const created = await db.addFixedExpense({
+    userId,
     name: parsed.data.name,
     amount: parsed.data.amount,
     frequency: parsed.data.frequency,
@@ -304,12 +305,12 @@ app.post("/planning/fixed-expenses", requireAuth, async (req, res) => {
     isSip: parsed.data.is_sip_flag
   });
   // FIX: Add activity logging for fixed expense creation
-  await store.addActivity(userId, "fixed_expense", "added fixed expense", { 
+  await db.addActivity({ actorId: userId, entity: "fixed_expense", action: "added fixed expense", payload: { 
     name: created.name, 
     amount: created.amount, 
     frequency: created.frequency, 
     category: created.category 
-  });
+  } });
   // Return with snake_case field name for API consistency
   res.status(201).json({ data: { ...created, is_sip_flag: created.isSip } });
 });
@@ -401,7 +402,7 @@ app.post("/planning/variable-expenses/:id/actuals", requireAuth, async (req, res
   if (!plan) return res.status(404).json({ error: { message: "Plan not found" } });
   // Overspend check: if constraint is red and over plan, justification required
   const allActuals = await db.getVariableActualsByPlanId(plan.id);
-  const actualTotal = allActuals.filter(a => a.userId === userId).reduce((s, a) => s + a.amount, 0);
+  const actualTotal = allActuals.filter((a: any) => a.userId === userId).reduce((s: number, a: any) => s + a.amount, 0);
   const projected = actualTotal + parsed.data.amount;
   const constraint = await store.getConstraint(userId);
   if (constraint.tier === "red" && projected > plan.planned && !parsed.data.justification) {
@@ -719,7 +720,7 @@ app.get("/export/finances", requireAuth, async (req, res) => {
     db.getLoansByUserId(userId),
     db.getActivitiesByUserId(userId, 50) // Last 50 activities
   ]);
-  const constraintDecayed = applyConstraintDecay(constraint, today);
+  const constraintDecayed = applyConstraintDecay(constraint as any, today);
 
   const exportData = {
     exportDate: new Date().toISOString(),

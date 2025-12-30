@@ -82,17 +82,17 @@ export function totalPaymentsMadeThisMonth(userId: string, today: Date): number 
 
 export async function totalIncomePerMonth(userId: string): Promise<number> {
   const incomes = await db.getIncomesByUserId(userId);
-  return incomes.reduce((sum, inc) => sum + monthlyEquivalent(inc.amount ?? 0, inc.frequency), 0);
+  return incomes.reduce((sum, inc) => sum + monthlyEquivalent(inc.amount ?? 0, inc.frequency as Frequency), 0);
 }
 
 export async function totalFixedPerMonth(userId: string): Promise<number> {
   const expenses = await db.getFixedExpensesByUserId(userId);
-  return expenses.reduce((sum, exp) => sum + monthlyEquivalent(exp.amount, exp.frequency), 0);
+  return expenses.reduce((sum, exp) => sum + monthlyEquivalent(exp.amount, exp.frequency as Frequency), 0);
 }
 
 export async function unpaidFixedPerMonth(userId: string, today: Date): Promise<number> {
   const preferences = await getUserPreferences(userId);
-  const targetMonth = getBillingPeriodId(preferences.monthStartDay, today);
+  const targetMonth = getBillingPeriodId(preferences.monthStartDay || 1, today);
   const expenses = await db.getFixedExpensesByUserId(userId);
 
   return expenses
@@ -100,13 +100,13 @@ export async function unpaidFixedPerMonth(userId: string, today: Date): Promise<
       const paid = isItemPaid(userId, exp.id, 'fixed_expense', targetMonth);
       if (paid) return sum; // Skip paid items
 
-      return sum + monthlyEquivalent(exp.amount, exp.frequency);
+      return sum + monthlyEquivalent(exp.amount, exp.frequency as Frequency);
     }, 0);
 }
 
 export async function unpaidInvestmentsPerMonth(userId: string, today: Date): Promise<number> {
   const preferences = await getUserPreferences(userId);
-  const targetMonth = getBillingPeriodId(preferences.monthStartDay, today);
+  const targetMonth = getBillingPeriodId(preferences.monthStartDay || 1, today);
   const investments = await db.getInvestmentsByUserId(userId);
 
   return investments

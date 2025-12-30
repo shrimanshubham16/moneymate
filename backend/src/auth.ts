@@ -211,8 +211,7 @@ export function authRoutes(app: any) {
       access_token: token,
       user: {
         id: user.id,
-        username: user.username,
-        salt: user.salt  // Return salt for client-side key derivation
+        username: user.username
       }
     });
   });
