@@ -28,7 +28,7 @@ export const VERSION = {
   },
   
   // Release date
-  releaseDate: "Dec 30, 2024",
+  releaseDate: "Dec 30, 2025",
   
   // Release notes
   releaseNotes: [
