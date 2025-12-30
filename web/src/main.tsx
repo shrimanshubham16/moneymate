@@ -7,7 +7,7 @@ import "./design-system.css";
 import "./styles.css";
 
 // App version - bump this to force cache cleanup
-const APP_VERSION = 'v1.3.1';
+const APP_VERSION = 'v1.4.0';
 
 // Clear all caches and service workers (one-time cleanup per version)
 async function cleanupOldCaches(): Promise<boolean> {
