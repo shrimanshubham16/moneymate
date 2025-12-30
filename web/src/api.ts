@@ -2,17 +2,25 @@ import { encryptString } from "./lib/crypto";
 
 export type LoginResponse = { access_token: string; user: { id: string; username: string }; encryption_salt?: string };
 
-// Ensure BASE_URL has protocol, default to localhost for development
+// API URL - defaults to Supabase Edge Function, falls back to Railway/localhost
 const getBaseUrl = () => {
+  // Check for explicit API URL first
   const envUrl = import.meta.env.VITE_API_URL;
-  if (!envUrl) return "http://localhost:12022";
-  
-  // If URL doesn't start with http:// or https://, add https://
-  if (!envUrl.startsWith("http://") && !envUrl.startsWith("https://")) {
-    return `https://${envUrl}`;
+  if (envUrl) {
+    if (!envUrl.startsWith("http://") && !envUrl.startsWith("https://")) {
+      return `https://${envUrl}`;
+    }
+    return envUrl;
   }
   
-  return envUrl;
+  // Default to Supabase Edge Function in production
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (supabaseUrl) {
+    return `${supabaseUrl}/functions/v1/api`;
+  }
+  
+  // Fallback to localhost for development
+  return "http://localhost:12022";
 };
 
 const BASE_URL = getBaseUrl();
