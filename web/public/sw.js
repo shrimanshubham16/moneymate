@@ -1,6 +1,8 @@
 // Service Worker for FinFlow PWA
-const CACHE_NAME = 'finflow-v1.5.0';
-const RUNTIME_CACHE = 'finflow-runtime-v1.5.0';
+// Bump version to invalidate old caches/hashes when deploying
+const SW_VERSION = '1.6.0';
+const CACHE_NAME = `finflow-${SW_VERSION}`;
+const RUNTIME_CACHE = `finflow-runtime-${SW_VERSION}`;
 
 // Assets to cache on install (only static assets, NOT index.html)
 const PRECACHE_ASSETS = [
@@ -11,7 +13,7 @@ const PRECACHE_ASSETS = [
 
 // Install event - cache static assets only
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v1.5.0...');
+  console.log(`[Service Worker] Installing v${SW_VERSION}...`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -24,7 +26,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up ALL old caches immediately
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v1.5.0...');
+  console.log(`[Service Worker] Activating v${SW_VERSION}...`);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
