@@ -6,17 +6,23 @@
 
 ---
 
-## 📊 PlanetScale Free Tier (2025)
+## ⚠️ CRITICAL UPDATE: PlanetScale No Longer Free
 
-### Free Tier Limits
-- **Database Storage**: 5 GB (vs Supabase's 500 MB)
-- **Reads**: 1 billion/month (vs Supabase's unlimited queries)
-- **Writes**: 10 million/month
-- **Branching**: 1 production branch + 1 development branch
-- **Connections**: Unlimited
-- **Bandwidth**: Included (no separate limit)
-- **Backups**: 7-day retention
-- **Support**: Community support
+### PlanetScale Free Tier Discontinued (March 2024)
+- ❌ **Free tier removed** in March 2024
+- ❌ **No free plan available** as of 2025
+- ✅ **Paid plans only**: Starting at $5/month
+
+### Current PlanetScale Pricing (2025)
+- **Scaler Pro Plan**: $5/month (single-node, non-HA)
+  - Suitable for development/testing
+  - Non-high-availability
+- **Production Plans**: $15+/month (multi-node, HA)
+  - High availability
+  - 99.99% SLA
+  - Production-ready
+
+**⚠️ PlanetScale is NOT free anymore!**
 
 ### Key Features
 - ✅ **Serverless MySQL** (Vitess-based)
@@ -51,18 +57,14 @@
 - **vs Supabase**: Unlimited writes
 - **Winner**: ⚠️ **Supabase** (unlimited, but bandwidth limited)
 
-### PlanetScale Cost Estimate
+### PlanetScale Cost Estimate (2025)
 
-| Users | Storage | Reads | Writes | **Total/Month** |
-|-------|---------|-------|--------|----------------|
-| 1,000 | Free | Free | Free | **$0** ✅ |
-| 10,000 | Free | Free | Free | **$0** ✅ |
-| 50,000 | Free | Free | Free | **$0** ✅ |
-| 100,000 | Free | Free | Free | **$0** ✅ |
-| 160,000 | Free | Free | Free | **$0** ✅ |
-| 200,000 | $0.50 | Free | Free | **$0.50** |
+| Users | Plan | Monthly Cost | Notes |
+|-------|------|--------------|-------|
+| Any | Scaler Pro | **$5/month** | Single-node, non-HA |
+| Production | Multi-node | **$15+/month** | High availability |
 
-**✅ PlanetScale stays free up to ~160,000 users!**
+**❌ PlanetScale is NOT free - minimum $5/month**
 
 ---
 
@@ -243,25 +245,32 @@
 
 ---
 
-## 🎯 Final Verdict: PlanetScale
+## 🎯 Updated Verdict: PlanetScale vs Supabase
+
+### ⚠️ PlanetScale is NO LONGER FREE
+
+**PlanetScale**: **$5/month minimum** (discontinued free tier in March 2024)
 
 ### For FinFlow (Free App Goal)
 
-**PlanetScale is the BEST choice** ⭐⭐⭐
+**Supabase is the BEST choice** ⭐⭐⭐
 
 **Why:**
-1. ✅ **160,000 users free** (vs 3,000 on Supabase)
-2. ✅ **5 GB storage** (vs 500 MB on Supabase)
-3. ✅ **1 billion reads/month** (very generous)
-4. ✅ **Database branching** (great for development)
-5. ✅ **Serverless scaling** (handles growth)
+1. ✅ **$0/month** (vs $5/month on PlanetScale)
+2. ✅ **3,000 users free** (vs $5/month for any users on PlanetScale)
+3. ✅ **PostgreSQL** (better than MySQL for this use case)
+4. ✅ **Built-in auth** (all-in-one solution)
+5. ✅ **File storage included** (1 GB free)
 
-**Trade-offs:**
-- ⚠️ MySQL (not PostgreSQL) - but fine for this use case
-- ⚠️ No built-in auth - but you can use current JWT or Supabase Auth
-- ⚠️ No file storage - but not needed for this app
+**PlanetScale Comparison:**
+- ❌ **$5/month minimum** (not free)
+- ✅ Better for high-scale (if you can pay)
+- ✅ Database branching (nice feature)
+- ⚠️ MySQL (not PostgreSQL)
 
-**Cost**: **$0/month** for up to **160,000 users** 🎉
+**Cost**: 
+- **Supabase**: **$0/month** for up to **3,000 users** ✅
+- **PlanetScale**: **$5/month** for any users ❌
 
 ---
 
@@ -295,18 +304,19 @@
 
 ---
 
-## 🔍 Quick Comparison Table
+## 🔍 Quick Comparison Table (Updated 2025)
 
 | Feature | PlanetScale | Supabase | Railway |
 |---------|-------------|----------|---------|
-| **Free Users** | 160,000 | 3,000 | 0 |
-| **Storage** | 5 GB | 500 MB | Pay-per-use |
+| **Free Tier** | ❌ No | ✅ Yes | ⚠️ One-time credits |
+| **Free Users** | 0 (paid only) | 3,000 | 0 |
+| **Storage** | Pay-per-use | 500 MB | Pay-per-use |
 | **Database** | MySQL | PostgreSQL | JSON file |
 | **Auth** | ❌ | ✅ | ❌ |
-| **Cost** | $0 | $0 | $7-23 |
+| **Cost** | **$5/month** | **$0** | $7-23 |
 | **Scalability** | Excellent | Good | Poor |
 | **Branching** | ✅ | ❌ | ❌ |
-| **Recommendation** | ⭐⭐⭐ | ⭐⭐ | ❌ |
+| **Recommendation** | ⭐ (if paying) | ⭐⭐⭐ | ❌ |
 
 ---
 
@@ -321,5 +331,5 @@
 
 ---
 
-**Conclusion**: **PlanetScale is the best choice for a free app that needs to scale**. It supports 160,000 users for free, vs 3,000 on Supabase or $7-23/month on Railway. The MySQL vs PostgreSQL difference is minor compared to the massive capacity advantage.
+**Conclusion**: **PlanetScale is NO LONGER FREE** (discontinued March 2024). For a free app, **Supabase is the best choice** at $0/month for 3,000 users. PlanetScale costs $5/month minimum, making it more expensive than Supabase for small-to-medium apps. Only consider PlanetScale if you're willing to pay $5/month and need MySQL-specific features or database branching.
 

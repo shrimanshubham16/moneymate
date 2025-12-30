@@ -170,17 +170,19 @@
 
 ---
 
-### 4. **PlanetScale** (MySQL)
+### 4. **PlanetScale** (MySQL) ⚠️ NO LONGER FREE
 **Pros:**
-- ✅ Free tier: 5 GB storage, 1 billion reads/month
 - ✅ Serverless MySQL
 - ✅ Great scaling
+- ✅ Database branching
 
 **Cons:**
+- ❌ **Free tier discontinued** (March 2024)
+- ❌ **$5/month minimum** (Scaler Pro plan)
 - ⚠️ MySQL (not PostgreSQL)
 - ⚠️ Requires migration
 
-**Cost**: **$0/month** for first ~160,000 users
+**Cost**: **$5/month minimum** (not free)
 
 ---
 
@@ -400,7 +402,7 @@
 | **Supabase** | 3,000+ | **$0** | Excellent | ⭐⭐⭐ BEST |
 | **Railway** | 0 (after credits) | **$7-23** | Poor (JSON) | ❌ Not sustainable |
 | **Neon** | 1,600 | **$0** | Good | ⭐⭐ Good alternative |
-| **PlanetScale** | 160,000 | **$0** | Excellent | ⭐⭐ Good alternative |
+| **PlanetScale** | 0 (no free tier) | **$5** | Excellent | ⚠️ Not free |
 
 ---
 
