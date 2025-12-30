@@ -9,27 +9,47 @@ import "./styles.css";
 // Register Service Worker for PWA
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('✅ Service Worker registered:', registration.scope);
-          
-          // Check for updates
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New service worker available
-                  console.log('🔄 New service worker available');
-                }
-              });
-            }
-          });
-        })
-        .catch((error) => {
-          console.error('❌ Service Worker registration failed:', error);
+    window.addEventListener('load', async () => {
+      try {
+        // Register with cache-busting to ensure fresh SW
+        const registration = await navigator.serviceWorker.register('/sw.js', {
+          updateViaCache: 'none' // Always fetch fresh SW
         });
+        
+        console.log('✅ Service Worker registered:', registration.scope);
+        
+        // Force update check immediately
+        registration.update();
+        
+        // Handle updates
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed') {
+                if (navigator.serviceWorker.controller) {
+                  // New service worker available - auto-activate it
+                  console.log('🔄 New service worker available, activating...');
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                }
+              }
+            });
+          }
+        });
+        
+        // Reload page when new SW takes control
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            console.log('🔄 New service worker activated, refreshing...');
+            window.location.reload();
+          }
+        });
+        
+      } catch (error) {
+        console.error('❌ Service Worker registration failed:', error);
+      }
     });
   }
 }

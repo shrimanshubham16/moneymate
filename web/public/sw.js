@@ -1,36 +1,35 @@
 // Service Worker for FinFlow PWA
-const CACHE_NAME = 'finflow-v1.2.1';
-const RUNTIME_CACHE = 'finflow-runtime-v1.2.1';
+const CACHE_NAME = 'finflow-v1.3.0';
+const RUNTIME_CACHE = 'finflow-runtime-v1.3.0';
 
-// Assets to cache on install
+// Assets to cache on install (only static assets, NOT index.html)
 const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png'
 ];
 
-// Install event - cache assets
+// Install event - cache static assets only
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing...');
+  console.log('[Service Worker] Installing v1.3.0...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[Service Worker] Precaching assets');
+        console.log('[Service Worker] Precaching static assets');
         return cache.addAll(PRECACHE_ASSETS);
       })
       .then(() => self.skipWaiting())
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up ALL old caches immediately
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating...');
+  console.log('[Service Worker] Activating v1.3.0...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
+          // Delete ALL old caches
           if (cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE) {
             console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
@@ -41,7 +40,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - NETWORK FIRST for HTML/JS, cache for static assets
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
@@ -53,38 +52,61 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  const url = new URL(event.request.url);
+  
+  // NETWORK FIRST for HTML and JS files (prevents stale cache issues)
+  if (event.request.destination === 'document' || 
+      url.pathname.endsWith('.js') || 
+      url.pathname === '/' ||
+      url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache the fresh response
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache only if network fails
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // Last resort: return cached index.html for navigation
+            if (event.request.destination === 'document') {
+              return caches.match('/');
+            }
+          });
+        })
+    );
+    return;
+  }
+
+  // CACHE FIRST for static assets (icons, fonts, images)
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
-        // Return cached version if available
         if (cachedResponse) {
           return cachedResponse;
         }
 
-        // Otherwise fetch from network
         return fetch(event.request)
           .then((response) => {
-            // Don't cache non-successful responses
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
 
-            // Clone the response
             const responseToCache = response.clone();
-
-            // Cache the response
-            caches.open(RUNTIME_CACHE)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
 
             return response;
-          })
-          .catch(() => {
-            // If fetch fails, return offline page if available
-            if (event.request.destination === 'document') {
-              return caches.match('/index.html');
-            }
           });
       })
   );
@@ -93,13 +115,16 @@ self.addEventListener('fetch', (event) => {
 // Handle background sync (for future offline functionality)
 self.addEventListener('sync', (event) => {
   console.log('[Service Worker] Background sync:', event.tag);
-  // Future: sync offline data when connection is restored
 });
 
 // Handle push notifications (for future alerts)
 self.addEventListener('push', (event) => {
   console.log('[Service Worker] Push notification received');
-  // Future: show financial alerts
 });
 
-
+// Listen for skip waiting message from app
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
