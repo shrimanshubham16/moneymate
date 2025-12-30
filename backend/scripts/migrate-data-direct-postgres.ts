@@ -68,28 +68,50 @@ async function migrate() {
     process.exit(1);
   }
   
-  // For connection pooling, add pgbouncer parameter
+  // For connection pooling, we need transaction mode for migrations
   if (connectionString.includes(':6543/')) {
-    console.log('ℹ️  Using connection pooling (port 6543)...');
-    if (!connectionString.includes('pgbouncer=')) {
-      connectionString += (connectionString.includes('?') ? '&' : '?') + 'pgbouncer=true';
+    console.log('ℹ️  Using connection pooling (port 6543) with transaction mode...');
+    // Try different username formats for connection pooling
+    // Format 1: postgres.[project-ref] (current)
+    // Format 2: postgres (alternative)
+    if (connectionString.includes('postgres.lvwpurwrktdblctzwctr')) {
+      console.log('   Trying alternative username format...');
+      // Try with just 'postgres' as username
+      connectionString = connectionString.replace('postgres.lvwpurwrktdblctzwctr', 'postgres');
     }
-  }
-  
-  // Add SSL mode if not present
-  if (!connectionString.includes('sslmode=')) {
-    connectionString += (connectionString.includes('?') ? '&' : '?') + 'sslmode=require';
+    // Remove existing query params and add transaction mode
+    const baseUrl = connectionString.split('?')[0];
+    // Use transaction mode for connection pooling (required for migrations)
+    connectionString = `${baseUrl}?pgbouncer=true`;
+  } else if (connectionString.includes(':5432/')) {
+    console.log('ℹ️  Using direct connection (port 5432)...');
+    // Add SSL mode if not present
+    if (!connectionString.includes('sslmode=')) {
+      connectionString += (connectionString.includes('?') ? '&' : '?') + 'sslmode=require';
+    }
   }
   
   console.log('🔌 Connecting to Supabase PostgreSQL...');
   console.log(`   Using: ${connectionString.replace(/:[^:@]+@/, ':****@')}`); // Hide password in logs
   
   // Temporarily disable SSL verification for migration (Supabase uses self-signed certs)
+  const originalReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   
   const client = new Client({
-    connectionString: connectionString
+    connectionString: connectionString,
+    // For connection pooling, we might need to set statement_timeout
+    statement_timeout: 30000 // 30 seconds
   });
+  
+  // Restore original setting after connection
+  const restoreTLS = () => {
+    if (originalReject !== undefined) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalReject;
+    } else {
+      delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    }
+  };
   
   try {
     await client.connect();
@@ -666,6 +688,7 @@ async function migrate() {
     
   } finally {
     await client.end();
+    restoreTLS();
     console.log('\n🔌 Disconnected from database');
   }
   
