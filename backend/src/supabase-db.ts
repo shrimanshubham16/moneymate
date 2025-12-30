@@ -34,19 +34,29 @@ export type UserPreferences = {
 // ============================================================================
 
 export async function getUserById(userId: string): Promise<User | null> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', userId)
-    .single();
-  
-  if (error || !data) return null;
-  
-  return {
-    id: data.id,
-    username: data.username,
-    passwordHash: data.password_hash
-  };
+  return withRetry(async () => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error) {
+      // 406 = no rows returned (not an error, just no user found)
+      if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
+        return null;
+      }
+      throw error;
+    }
+    
+    if (!data) return null;
+    
+    return {
+      id: data.id,
+      username: data.username,
+      passwordHash: data.password_hash
+    };
+  });
 }
 
 export async function getUserByUsername(username: string): Promise<User | null> {
