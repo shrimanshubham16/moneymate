@@ -7,7 +7,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/|manifest\\.json|sw\\.js|icons/).*)",
       "destination": "/index.html"
     }
   ],
