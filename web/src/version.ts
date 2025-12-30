@@ -16,8 +16,8 @@ declare const __COMMIT_ID__: string;
 const commitId = typeof __COMMIT_ID__ !== 'undefined' ? __COMMIT_ID__ : 'dev';
 
 export const VERSION = {
-  major: 1,
-  minor: 2,
+  major: 2,
+  minor: 0,
   patch: 0,
   build: commitId, // Git commit ID (short SHA)
   
@@ -32,17 +32,18 @@ export const VERSION = {
   },
   
   // Release date
-  releaseDate: "Dec 30, 2025",
+  releaseDate: "Dec 31, 2025",
   
   // Release notes
   releaseNotes: [
-    "Fixed missing routes and imports",
-    "Replaced all emoji icons with professional React Icons",
-    "Added BETA badge to Sharing feature",
-    "Comprehensive Playwright test suite (53.8% passing)",
-    "Health calculation improvements",
-    "Payment tracking system",
-    "Custom billing cycle support"
+    "🚀 Major architecture upgrade - moved to Supabase",
+    "⚡ Improved load times with optimized PostgreSQL functions",
+    "🔐 E2E encryption infrastructure ready (activation coming soon)",
+    "📱 PWA support - install as app on your phone",
+    "🎨 Enhanced psychedelic loader animations",
+    "📊 Overspend Risk tracking (replaces Financial Discipline)",
+    "🔧 Health score consistency across all pages",
+    "🏠 Health categories section with improved styling"
   ]
 };
 

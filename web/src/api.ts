@@ -25,14 +25,27 @@ const getBaseUrl = () => {
 
 const BASE_URL = getBaseUrl();
 
+// Supabase anon key for Edge Function authentication
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Check if we're using Supabase Edge Functions
+const isSupabaseEdgeFunction = BASE_URL.includes('supabase.co/functions');
+
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
+  
+  // Add Supabase apikey header for Edge Functions
+  if (isSupabaseEdgeFunction && SUPABASE_ANON_KEY) {
+    headers['apikey'] = SUPABASE_ANON_KEY;
+  }
+  
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    }
+    headers
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

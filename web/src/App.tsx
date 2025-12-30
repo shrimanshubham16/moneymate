@@ -115,7 +115,7 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
           <p>Your Financial Companion</p>
           <div className="privacy-badge">
             <FaShieldAlt size={14} />
-            <span>Your data is protected. Same privacy level as Mint & YNAB.</span>
+            <span>🔒 v2.0: Supabase-powered • Enterprise-grade security • Your data, your control</span>
           </div>
         </div>
         <form onSubmit={handleSubmit} className="auth-form">

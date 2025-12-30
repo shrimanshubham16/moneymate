@@ -121,16 +121,16 @@ export function AboutPage() {
           <h2><FaShieldAlt style={{ marginRight: '8px', color: '#667eea' }} />Privacy & Security</h2>
           <div className="privacy-summary">
             <p>
-              <strong>Your privacy matters.</strong> We protect your financial data with the same security level as trusted apps like Mint and YNAB.
+              <strong>Your privacy is our priority.</strong> FinFlow v2.0 runs on Supabase with enterprise-grade security.
             </p>
             <div className="privacy-points">
               <div className="privacy-point">
                 <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
-                <span>Passwords are hashed (never stored in plain text)</span>
+                <span>Passwords are securely hashed (SHA-256)</span>
               </div>
               <div className="privacy-point">
                 <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
-                <span>Data is isolated per user (only you can access yours)</span>
+                <span>Row-Level Security: Only you can access your data</span>
               </div>
               <div className="privacy-point">
                 <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
@@ -138,11 +138,15 @@ export function AboutPage() {
               </div>
               <div className="privacy-point">
                 <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
-                <span>Same privacy level as Mint, YNAB, Personal Capital</span>
+                <span>Database hosted on Supabase (SOC2, HIPAA compliant)</span>
+              </div>
+              <div className="privacy-point">
+                <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
+                <span>Same security level as Mint, YNAB, Personal Capital</span>
               </div>
             </div>
             <div className="privacy-coming-soon">
-              <strong>Coming Soon:</strong> Server-side encryption (v1.3) • End-to-end encryption option (v2.0)
+              <strong>🔐 Coming in v2.1:</strong> Full End-to-End Encryption — your data encrypted with your password before it leaves your device. Not even we can read it!
             </div>
             <button 
               className="privacy-button"
