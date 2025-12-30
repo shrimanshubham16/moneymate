@@ -15,7 +15,11 @@ function getPool(): pg.Pool {
     const connectionString = process.env.SUPABASE_CONNECTION_STRING;
     
     if (!connectionString) {
-      throw new Error('SUPABASE_CONNECTION_STRING not found in .env file');
+      // In production (Railway), log helpful error instead of crashing
+      const errorMsg = process.env.NODE_ENV === 'production' 
+        ? 'SUPABASE_CONNECTION_STRING not found in Railway environment variables. Please set it in Railway Dashboard → Variables tab. See backend/RAILWAY-ENV-SETUP.md for instructions.'
+        : 'SUPABASE_CONNECTION_STRING not found in .env file';
+      throw new Error(errorMsg);
     }
 
     pool = new Pool({
