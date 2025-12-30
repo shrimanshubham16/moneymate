@@ -26,25 +26,47 @@ export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
 // For testing connection
 export async function testConnection() {
   try {
-    // Try a simple query to test connection
-    // If schema doesn't exist, this will fail but connection is still valid
-    const { error } = await supabase.from('users').select('id').limit(1);
+    // Test basic API connectivity first
+    const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+      headers: {
+        'apikey': supabaseServiceRoleKey!,
+        'Authorization': `Bearer ${supabaseServiceRoleKey}`
+      }
+    });
+    
+    if (!response.ok && response.status !== 404) {
+      console.error(`❌ API connection failed: ${response.status} ${response.statusText}`);
+      return false;
+    }
+    
+    // Try querying a table (will fail if schema doesn't exist, but that's OK)
+    const { data, error } = await supabase.from('users').select('id').limit(1);
     
     if (error) {
       // Check if it's a "relation does not exist" error (schema not created yet)
-      if (error.message.includes('does not exist') || error.message.includes('relation')) {
-        console.log('⚠️  Connection works, but schema not created yet.');
-        console.log('   Please create the schema first (see SCHEMA-SETUP.md)');
+      if (error.message.includes('does not exist') || 
+          error.message.includes('relation') ||
+          error.message.includes('schema') ||
+          error.code === '42P01') {
+        console.log('✅ Connection successful!');
+        console.log('⚠️  Schema not created yet - this is expected.');
+        console.log('   Next step: Create schema in Supabase SQL Editor (see SCHEMA-SETUP.md)');
         return true; // Connection is valid, just schema missing
       }
-      console.error('❌ Supabase connection failed:', error.message);
+      console.error('❌ Query failed:', error.message);
       return false;
     }
+    
     console.log('✅ Supabase connection successful!');
     console.log('✅ Schema exists and is accessible!');
     return true;
   } catch (error: any) {
-    console.error('❌ Supabase connection error:', error.message);
+    // Network errors are different from schema errors
+    if (error.message.includes('fetch') || error.message.includes('network')) {
+      console.error('❌ Network error. Check your internet connection and Supabase URL.');
+      return false;
+    }
+    console.error('❌ Connection error:', error.message);
     return false;
   }
 }
