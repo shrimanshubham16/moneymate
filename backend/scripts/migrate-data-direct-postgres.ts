@@ -68,21 +68,11 @@ async function migrate() {
     process.exit(1);
   }
   
-  // For connection pooling, we need transaction mode for migrations
+  // For connection pooling (transaction mode), use as-is
   if (connectionString.includes(':6543/')) {
-    console.log('ℹ️  Using connection pooling (port 6543) with transaction mode...');
-    // Try different username formats for connection pooling
-    // Format 1: postgres.[project-ref] (current)
-    // Format 2: postgres (alternative)
-    if (connectionString.includes('postgres.lvwpurwrktdblctzwctr')) {
-      console.log('   Trying alternative username format...');
-      // Try with just 'postgres' as username
-      connectionString = connectionString.replace('postgres.lvwpurwrktdblctzwctr', 'postgres');
-    }
-    // Remove existing query params and add transaction mode
-    const baseUrl = connectionString.split('?')[0];
-    // Use transaction mode for connection pooling (required for migrations)
-    connectionString = `${baseUrl}?pgbouncer=true`;
+    console.log('ℹ️  Using connection pooling in transaction mode (port 6543)...');
+    // Transaction mode connection string should work as-is
+    // No need to modify it
   } else if (connectionString.includes(':5432/')) {
     console.log('ℹ️  Using direct connection (port 5432)...');
     // Add SSL mode if not present
