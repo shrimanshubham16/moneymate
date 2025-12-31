@@ -65,6 +65,23 @@ async function createToken(userId: string, username: string): Promise<string> {
   return `${headerB64}.${payloadB64}.${signatureB64}`;
 }
 
+// Transform credit card from snake_case to camelCase for frontend compatibility
+function transformCreditCard(card: any) {
+  return {
+    id: card.id,
+    userId: card.user_id,
+    name: card.name,
+    statementDate: card.statement_date,
+    dueDate: card.due_date,
+    billAmount: card.bill_amount,
+    paidAmount: card.paid_amount,
+    currentExpenses: card.current_expenses,
+    billingDate: card.billing_date,
+    needsBillUpdate: card.needs_bill_update,
+    createdAt: card.created_at
+  };
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -481,7 +498,7 @@ serve(async (req) => {
     }
     if (path === '/debts/credit-cards' && method === 'GET') {
       const { data } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
-      return json({ data: data || [] });
+      return json({ data: (data || []).map(transformCreditCard) });
     }
     if (path.match(/\/debts\/credit-cards\/[^/]+\/usage$/) && method === 'GET') {
       const id = path.split('/')[3];
@@ -523,7 +540,7 @@ serve(async (req) => {
       }
       
       await logActivity(userId, 'credit_card', 'created', { id: data.id, name: data.name });
-      return json({ data }, 201);
+      return json({ data: transformCreditCard(data) }, 201);
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'PUT') {
       const id = path.split('/').pop();
@@ -538,7 +555,7 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('credit_cards').update(updates).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
       if (!data) return error('Credit card not found', 404);
-      return json({ data });
+      return json({ data: transformCreditCard(data) });
     }
     if (path.match(/\/debts\/credit-cards\/[^/]+\/payments$/) && method === 'POST') {
       const id = path.split('/')[3];
@@ -556,7 +573,7 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('credit_cards').update({ current_expenses: 0, needs_bill_update: false }).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'reset_billing', { id: data.id });
-      return json({ data });
+      return json({ data: transformCreditCard(data) });
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'PATCH') {
       const id = path.split('/').pop();
