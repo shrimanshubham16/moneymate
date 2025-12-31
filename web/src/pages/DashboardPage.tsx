@@ -50,25 +50,37 @@ export function DashboardPage({ token }: DashboardPageProps) {
       // #endregion
 
       // Extract userId from token for cache key
-      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      const userId = tokenPayload.userId;
+      let userId = 'unknown';
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        userId = tokenPayload.userId;
+        console.log('[CACHE_DEBUG] UserId extracted:', userId);
+      } catch (e) {
+        console.error('[CACHE_ERROR] Failed to extract userId from token:', e);
+      }
 
-      // Try client cache first
+      // Try client cache first - use cached data if available (not all-or-nothing)
       const cachedDashboard = ClientCache.get<any>('dashboard', userId);
-      const cachedCards = ClientCache.get<any[]>('creditCards', userId);
-      const cachedLoans = ClientCache.get<any[]>('loans', userId);
-      const cachedActivities = ClientCache.get<any[]>('activities', userId);
       
-      if (cachedDashboard && cachedCards && cachedLoans && cachedActivities) {
-        console.log('[CACHE_HIT] Using cached dashboard data');
+      if (cachedDashboard) {
+        console.log('[CACHE_HIT_CLIENT] Using cached dashboard data - instant load!');
+        const cachedCards = ClientCache.get<any[]>('creditCards', userId) || [];
+        const cachedLoans = ClientCache.get<any[]>('loans', userId) || [];
+        const cachedActivities = ClientCache.get<any[]>('activities', userId) || [];
+        
         setData(cachedDashboard);
         setCreditCards(cachedCards);
         setLoans(cachedLoans);
         setActivities(cachedActivities);
-        setSharingMembers({ members: [] }); // Sharing rarely changes
+        setSharingMembers({ members: [] });
         setLoading(false);
+        
+        // Optionally: fetch in background to update cache
+        // But for now, just return cached data
         return;
       }
+      
+      console.log('[CACHE_MISS_CLIENT] No cached data, fetching from API');
 
       const apiTimings: any = {};
       
@@ -176,12 +188,17 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setSharingMembers(membersRes.data);
       
       // Cache the results
-      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      const userId = tokenPayload.userId;
-      ClientCache.set('dashboard', dashboardRes.data, userId);
-      ClientCache.set('creditCards', cardsRes.data, userId);
-      ClientCache.set('loans', loansRes.data, userId);
-      ClientCache.set('activities', activityRes.data, userId);
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        const userId = tokenPayload.userId;
+        ClientCache.set('dashboard', dashboardRes.data, userId);
+        ClientCache.set('creditCards', cardsRes.data, userId);
+        ClientCache.set('loans', loansRes.data, userId);
+        ClientCache.set('activities', activityRes.data, userId);
+        console.log('[CACHE_SET_CLIENT] Dashboard data cached for next visit');
+      } catch (e) {
+        console.error('[CACHE_ERROR] Failed to cache data:', e);
+      }
     } catch (e: any) {
       console.error("Failed to load dashboard:", e);
     } finally {
