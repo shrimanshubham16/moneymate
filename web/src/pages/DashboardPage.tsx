@@ -43,13 +43,109 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   const loadData = async () => {
     try {
+      // #region agent log
+      const startTime = performance.now();
+      console.log('[PERF_H1_H4] Dashboard loadData started', { timestamp: Date.now() });
+      // #endregion
+
+      const apiTimings: any = {};
+      
       const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
-        fetchDashboard(token, new Date().toISOString()),
-        fetchCreditCards(token),
-        fetchLoans(token),
-        fetchActivity(token),
-        fetchSharingMembers(token)
+        (async () => {
+          // #region agent log
+          const t0 = performance.now();
+          // #endregion
+          const res = await fetchDashboard(token, new Date().toISOString());
+          // #region agent log
+          const t1 = performance.now();
+          apiTimings.dashboard = t1 - t0;
+          console.log('[PERF_H1_H3_H7] fetchDashboard completed', { 
+            duration: apiTimings.dashboard, 
+            payloadSize: JSON.stringify(res).length,
+            hasData: !!res.data
+          });
+          // #endregion
+          return res;
+        })(),
+        (async () => {
+          // #region agent log
+          const t0 = performance.now();
+          // #endregion
+          const res = await fetchCreditCards(token);
+          // #region agent log
+          const t1 = performance.now();
+          apiTimings.creditCards = t1 - t0;
+          console.log('[PERF_H1_H5] fetchCreditCards completed', { 
+            duration: apiTimings.creditCards, 
+            payloadSize: JSON.stringify(res).length,
+            count: res.data?.length || 0
+          });
+          // #endregion
+          return res;
+        })(),
+        (async () => {
+          // #region agent log
+          const t0 = performance.now();
+          // #endregion
+          const res = await fetchLoans(token);
+          // #region agent log
+          const t1 = performance.now();
+          apiTimings.loans = t1 - t0;
+          console.log('[PERF_H1_H5] fetchLoans completed', { 
+            duration: apiTimings.loans, 
+            payloadSize: JSON.stringify(res).length,
+            count: res.data?.length || 0
+          });
+          // #endregion
+          return res;
+        })(),
+        (async () => {
+          // #region agent log
+          const t0 = performance.now();
+          // #endregion
+          const res = await fetchActivity(token);
+          // #region agent log
+          const t1 = performance.now();
+          apiTimings.activity = t1 - t0;
+          console.log('[PERF_H1_H5] fetchActivity completed', { 
+            duration: apiTimings.activity, 
+            payloadSize: JSON.stringify(res).length,
+            count: res.data?.length || 0
+          });
+          // #endregion
+          return res;
+        })(),
+        (async () => {
+          // #region agent log
+          const t0 = performance.now();
+          // #endregion
+          const res = await fetchSharingMembers(token);
+          // #region agent log
+          const t1 = performance.now();
+          apiTimings.sharingMembers = t1 - t0;
+          console.log('[PERF_H1_H5] fetchSharingMembers completed', { 
+            duration: apiTimings.sharingMembers, 
+            payloadSize: JSON.stringify(res).length,
+            count: res.data?.members?.length || 0
+          });
+          // #endregion
+          return res;
+        })()
       ]);
+      
+      // #region agent log
+      const endTime = performance.now();
+      const totalTime = endTime - startTime;
+      const maxTime = Math.max(...Object.values(apiTimings));
+      console.log('[PERF_H1_H4_H6] Dashboard loadData completed', { 
+        totalTime,
+        maxTime,
+        apiTimings,
+        parallelEfficiency: (maxTime / totalTime) * 100,
+        timestamp: Date.now()
+      });
+      // #endregion
+      
       setData(dashboardRes.data);
       setCreditCards(cardsRes.data);
       setLoans(loansRes.data);
