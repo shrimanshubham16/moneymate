@@ -49,7 +49,9 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const loadPlans = async () => {
     try {
       const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
-      setPlans(res.data.variablePlans || []);
+      const variablePlans = res.data.variablePlans || [];
+      console.log('[VAR_EXPENSES] Loaded plans:', variablePlans.map((p: any) => ({id: p.id, name: p.name})));
+      setPlans(variablePlans);
     } catch (e) {
       console.error("Failed to load plans:", e);
     } finally {
@@ -134,6 +136,16 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const handleActualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlanId) return;
+    
+    // Validate plan still exists
+    const planStillExists = plans.find(p => p.id === selectedPlanId);
+    if (!planStillExists) {
+      alert("This plan no longer exists. Refreshing plans...");
+      await loadPlans();
+      setShowActualForm(false);
+      setSelectedPlanId(null);
+      return;
+    }
     
     // v1.2: Validate credit card selection
     if (actualForm.paymentMode === "CreditCard" && !actualForm.creditCardId) {
