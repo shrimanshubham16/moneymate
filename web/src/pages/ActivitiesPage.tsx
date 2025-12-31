@@ -280,10 +280,19 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                 <div className="activity-content">
                   <div className="activity-action">{getActionMessage()}</div>
                   <div className="activity-time">
-                    {new Date(activity.createdAt).toLocaleString('en-IN', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short'
-                    })}
+                    {(() => {
+                      // Handle timestamps - ensure proper timezone conversion
+                      const timestamp = activity.createdAt;
+                      // If timestamp doesn't have timezone indicator, assume UTC
+                      const utcDate = timestamp.endsWith('Z') || timestamp.includes('+') 
+                        ? new Date(timestamp)
+                        : new Date(timestamp + 'Z');
+                      return utcDate.toLocaleString('en-IN', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone // Use browser's timezone
+                      });
+                    })()}
                   </div>
                 </div>
               </motion.div>
