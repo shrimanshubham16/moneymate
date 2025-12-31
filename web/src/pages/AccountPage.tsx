@@ -19,17 +19,32 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
     // Fetch user info from API
     const fetchUser = async () => {
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountPage.tsx:22',message:'Fetching user from /auth/me',data:{baseUrl:BASE_URL,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+        // #endregion
         const response = await fetch(`${BASE_URL}/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountPage.tsx:27',message:'Response received',data:{ok:response.ok,status:response.status,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H4'})}).catch(()=>{});
+        // #endregion
         if (response.ok) {
           const data = await response.json();
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountPage.tsx:29',message:'Response data parsed',data:{rawData:data,hasUser:!!data.user,hasData:!!data.data,userData:data.user||data.data||null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H5'})}).catch(()=>{});
+          // #endregion
           setUser(data.user);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountPage.tsx:31',message:'User state set',data:{userSet:data.user},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
         }
       } catch (e) {
         console.error("Failed to fetch user:", e);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AccountPage.tsx:33',message:'Error fetching user',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H3,H4'})}).catch(()=>{});
+        // #endregion
       } finally {
         setLoading(false);
       }
