@@ -134,14 +134,39 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     }
     
     try {
-      await addVariableActual(token, selectedPlanId, {
+      // Optimistic UI update - add expense immediately to UI
+      const tempActual = {
+        id: `temp-${Date.now()}`,
         amount: Number(actualForm.amount),
-        incurred_at: new Date().toISOString(),  // Use current date
-        justification: actualForm.justification || undefined,
+        incurredAt: new Date().toISOString(),
+        justification: actualForm.justification || "",
         subcategory: actualForm.subcategory,
-        payment_mode: actualForm.paymentMode,
-        credit_card_id: actualForm.paymentMode === "CreditCard" ? actualForm.creditCardId : undefined
+        paymentMode: actualForm.paymentMode,
+        creditCardId: actualForm.paymentMode === "CreditCard" ? actualForm.creditCardId : undefined
+      };
+      
+      const updatedPlans = plans.map(p => {
+        if (p.id === selectedPlanId) {
+          return {
+            ...p,
+            actuals: [...(p.actuals || []), tempActual],
+            actualTotal: (p.actualTotal || 0) + tempActual.amount
+          };
+        }
+        return p;
       });
+      setPlans(updatedPlans);
+      
+      // Update credit card current expenses optimistically if applicable
+      if (actualForm.paymentMode === "CreditCard" && actualForm.creditCardId) {
+        setCreditCards(cards => cards.map(c => 
+          c.id === actualForm.creditCardId 
+            ? { ...c, currentExpenses: (c.currentExpenses || 0) + tempActual.amount }
+            : c
+        ));
+      }
+      
+      // Close form immediately
       setShowActualForm(false);
       setActualForm({ 
         amount: "", 
@@ -153,10 +178,24 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         newSubcategory: ""
       });
       setSelectedPlanId(null);
-      await loadPlans();
-      await loadCreditCards();  // Reload to get updated currentExpenses
+      
+      // Make API call in background
+      await addVariableActual(token, selectedPlanId, {
+        amount: Number(tempActual.amount),
+        incurred_at: tempActual.incurredAt,
+        justification: tempActual.justification || undefined,
+        subcategory: tempActual.subcategory,
+        payment_mode: tempActual.paymentMode,
+        credit_card_id: tempActual.creditCardId
+      });
+      
+      // Refresh data after successful save (replaces temp with real data)
+      await Promise.all([loadPlans(), loadCreditCards()]);
     } catch (e: any) {
       alert(e.message);
+      // Revert optimistic update on error
+      await loadPlans();
+      await loadCreditCards();
     }
   };
 

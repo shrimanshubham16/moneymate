@@ -468,11 +468,50 @@ serve(async (req) => {
     if (path.match(/\/planning\/variable-expenses\/[^/]+\/actuals$/) && method === 'POST') {
       const planId = path.split('/')[3];
       const body = await req.json();
+      
+      // Get plan name for activity log
+      const { data: plan } = await supabase.from('variable_expense_plans').select('name, category').eq('id', planId).single();
+      
       const { data, error: e } = await supabase.from('variable_expense_actuals')
         .insert({ user_id: userId, plan_id: planId, amount: body.amount, incurred_at: body.incurred_at, justification: body.justification, subcategory: body.subcategory, payment_mode: body.payment_mode, credit_card_id: body.credit_card_id })
         .select().single();
       if (e) return error(e.message, 500);
-      await logActivity(userId, 'variable_expense', 'added actual expense', { planId, amount: data.amount, paymentMode: data.payment_mode });
+      
+      // If paid via credit card, update the card's current_expenses
+      if (body.payment_mode === 'CreditCard' && body.credit_card_id) {
+        const { data: card } = await supabase.from('credit_cards')
+          .select('current_expenses')
+          .eq('id', body.credit_card_id)
+          .eq('user_id', userId)
+          .single();
+        
+        if (card) {
+          await supabase.from('credit_cards')
+            .update({ current_expenses: (card.current_expenses || 0) + body.amount })
+            .eq('id', body.credit_card_id)
+            .eq('user_id', userId);
+          console.log(`[CREDIT_CARD_SYNC] Updated card ${body.credit_card_id} current_expenses: ${(card.current_expenses || 0)} + ${body.amount} = ${(card.current_expenses || 0) + body.amount}`);
+        }
+      }
+      
+      // Enhanced activity log with all details
+      let cardName = null;
+      if (body.credit_card_id) {
+        const { data: cardData } = await supabase.from('credit_cards').select('name').eq('id', body.credit_card_id).single();
+        cardName = cardData?.name;
+      }
+      
+      await logActivity(userId, 'variable_expense', 'added actual expense', { 
+        planName: plan?.name,
+        category: plan?.category,
+        amount: data.amount, 
+        subcategory: data.subcategory,
+        paymentMode: data.payment_mode,
+        creditCard: cardName,
+        justification: data.justification 
+      });
+      
+      await invalidateUserCache(userId);
       return json({ data }, 201);
     }
     if (path.startsWith('/planning/variable-expenses/') && method === 'DELETE') {
