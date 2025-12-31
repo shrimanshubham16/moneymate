@@ -190,11 +190,20 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                   }
                   return `${username} deleted ${entity}`;
                 case 'paid':
-                  if (payload.amount) {
+                  const paidName = payload.name || '';
+                  if (payload.amount && paidName) {
+                    return `${username} marked ${entity} "${paidName}" as paid (${formatCurrency(payload.amount)})`;
+                  } else if (payload.amount) {
                     return `${username} marked ${entity} as paid (${formatCurrency(payload.amount)})`;
+                  } else if (paidName) {
+                    return `${username} marked ${entity} "${paidName}" as paid`;
                   }
                   return `${username} marked ${entity} as paid`;
                 case 'unpaid':
+                  const unpaidName = payload.name || '';
+                  if (unpaidName) {
+                    return `${username} unmarked ${entity} "${unpaidName}" payment`;
+                  }
                   return `${username} unmarked ${entity} payment`;
                 default:
                   // Enhanced default message with available payload data
