@@ -310,6 +310,11 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                     </option>
                   ))}
                 </select>
+                {plans.length === 0 && (
+                  <small style={{ color: '#ef4444', display: 'block', marginTop: '4px' }}>
+                    No expense plans available. Create a plan first before adding actual expenses.
+                  </small>
+                )}
               </div>
               <div className="form-group">
                 <label>Amount *</label>
