@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { MatrixLoader } from "./components/MatrixLoader";
+import { SplashScreen } from "./components/SplashScreen";
 import { CryptoProvider } from "./contexts/CryptoContext";
 import "./design-system.css";
 import "./styles.css";
@@ -118,6 +118,7 @@ declare global {
 
 function Root() {
   const [isLoading, setIsLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     // Hide the HTML fallback loading screen immediately when React mounts
@@ -125,16 +126,30 @@ function Root() {
       window.__hideAppFallback__();
     }
     
-    // Show Matrix loader for 1.5 seconds
+    // Simulate loading progress
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 150);
+    
+    // Show splash screen for 1.5 seconds
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 1500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(progressInterval);
+    };
   }, []);
 
   if (isLoading) {
-    return <MatrixLoader message="Initializing FinFlow..." fullScreen />;
+    return <SplashScreen isLoading={isLoading} progress={progress} />;
   }
 
   return (

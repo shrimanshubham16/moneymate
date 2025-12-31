@@ -162,7 +162,12 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
             </motion.div>
           )}
           <button type="submit" disabled={loading || (mode === "signup" && passwordStrength.length > 0)} className="auth-submit">
-            {loading ? "..." : mode === "login" ? "Login" : "Sign Up"}
+            {loading ? (
+              <span className="auth-loading">
+                <span className="spinner"></span>
+                <span>Processing...</span>
+              </span>
+            ) : mode === "login" ? "Login" : "Sign Up"}
           </button>
           <button
             type="button"
