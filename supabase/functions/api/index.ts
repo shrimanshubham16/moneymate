@@ -459,6 +459,57 @@ serve(async (req) => {
       return json({ data: userData });
     }
 
+    // CHANGE PASSWORD
+    if (path === '/auth/change-password' && method === 'POST') {
+      const { currentPassword, newPassword } = await req.json();
+      
+      if (!currentPassword || !newPassword) {
+        return error('Current password and new password are required', 400);
+      }
+      
+      if (newPassword.length < 8) {
+        return error('New password must be at least 8 characters', 400);
+      }
+      
+      // Fetch user with current password hash
+      const { data: user, error: userErr } = await supabase
+        .from('users')
+        .select('id, username, password_hash')
+        .eq('id', userId)
+        .single();
+      
+      if (userErr || !user) {
+        return error('User not found', 404);
+      }
+      
+      // Verify current password
+      const validPassword = await verifyPassword(currentPassword, user.password_hash);
+      if (!validPassword) {
+        return error('Current password is incorrect', 401);
+      }
+      
+      // Check if new password is different from current
+      if (currentPassword === newPassword) {
+        return error('New password must be different from current password', 400);
+      }
+      
+      // Hash new password
+      const newPasswordHash = await hashPassword(newPassword);
+      
+      // Update password in database
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update({ password_hash: newPasswordHash })
+        .eq('id', userId);
+      
+      if (updateErr) {
+        console.error('Password update error:', updateErr);
+        return error('Failed to update password', 500);
+      }
+      
+      return json({ message: 'Password updated successfully' });
+    }
+
     // CREDIT CARDS
     if (path === '/debts/credit-cards/billing-alerts' && method === 'GET') {
       const today = new Date();
