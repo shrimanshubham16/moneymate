@@ -566,7 +566,7 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('credit_cards').update({ paid_amount: newPaidAmount }).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'payment', { id: data.id, amount: body.amount });
-      return json({ data });
+      return json({ data: transformCreditCard(data) });
     }
     if (path.match(/\/debts\/credit-cards\/[^/]+\/reset-billing$/) && method === 'POST') {
       const id = path.split('/')[3];
@@ -584,7 +584,7 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('credit_cards').update({ bill_amount: Math.round(body.billAmount * 100) / 100, needs_bill_update: false }).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'updated_bill', { id: data.id, billAmount: data.bill_amount });
-      return json({ data });
+      return json({ data: transformCreditCard(data) });
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'DELETE') {
       const id = path.split('/').pop();
