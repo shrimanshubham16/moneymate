@@ -159,7 +159,11 @@ export function DashboardPage({ token }: DashboardPageProps) {
   };
 
   if (loading) {
-    return <MatrixLoader message="Loading your financial data..." fullScreen={false} />;
+    return (
+      <div className="dashboard-page">
+        <MatrixLoader message="Loading your financial data..." fullScreen={false} />
+      </div>
+    );
   }
 
   if (!data) {
