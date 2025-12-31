@@ -23,17 +23,6 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
   const loadCards = async () => {
     try {
       const res = await fetchCreditCards(token);
-      // #region agent log H4C/H4D - Log credit card currentExpenses
-      console.log('[CREDIT_CARDS_LOAD] Raw API response:', res.data);
-      (res.data || []).forEach((card: any, i: number) => {
-        console.log(`[CREDIT_CARDS_LOAD] Card ${i} "${card.name}":`, {
-          currentExpenses: card.currentExpenses,
-          current_expenses: card.current_expenses,  // Check both formats
-          billAmount: card.billAmount,
-          bill_amount: card.bill_amount  // Check both formats
-        });
-      });
-      // #endregion
       setCards(res.data);
     } catch (e) {
       console.error("Failed to load cards:", e);

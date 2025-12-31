@@ -84,29 +84,24 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const loadCardUsage = async (cardId: string) => {
     try {
       const res = await getCreditCardUsage(token, cardId);
-      console.log('[CARD_USAGE] Raw response:', res.data);
-      console.log('[CARD_USAGE] First usage item:', res.data?.[0]);
-      console.log('[CARD_USAGE] Plans available:', plans.length);
       
-      // #region agent log H4 - Normalize snake_case to camelCase (defensive)
+      // Normalize snake_case to camelCase (defensive)
       const normalizedUsage = (res.data || []).map((u: any) => ({
         id: u.id,
-        planId: u.planId || u.plan_id,  // Handle both cases
+        planId: u.planId || u.plan_id,
         amount: u.amount,
-        incurredAt: u.incurredAt || u.incurred_at,  // Handle both cases
+        incurredAt: u.incurredAt || u.incurred_at,
         subcategory: u.subcategory,
         justification: u.justification,
-        paymentMode: u.paymentMode || u.payment_mode,  // Handle both cases
-        creditCardId: u.creditCardId || u.credit_card_id  // Handle both cases
+        paymentMode: u.paymentMode || u.payment_mode,
+        creditCardId: u.creditCardId || u.credit_card_id
       }));
-      console.log('[CARD_USAGE] Normalized usage:', normalizedUsage?.[0]);
-      // #endregion
       
       setCardUsage(normalizedUsage);
       setSelectedCardId(cardId);
       setShowUsageModal(true);
     } catch (e: any) {
-      console.error('[CARD_USAGE] Error:', e);
+      console.error("Failed to load credit card usage:", e);
       alert(e.message || "Failed to load credit card usage");
     }
   };
@@ -453,8 +448,6 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {cardUsage.map((usage: any) => {
                     const plan = plans.find((p: any) => p.id === usage.planId);
-                    console.log('[CARD_USAGE_RENDER] Usage item:', {usage, plan, planId: usage.planId});
-                    
                     return (
                       <div key={usage.id} style={{ 
                         padding: '12px', 

@@ -24,37 +24,19 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
 
   const loadActivities = async () => {
     try {
-      console.log("🔍 Loading activities...");
       const res = await fetchActivity(token);
-      console.log("✅ Activities loaded:", res.data);
-
-      // #region agent log H5A/H5B/H5C - Log raw activity payloads
-      if (res.data && res.data.length > 0) {
-        const variableExpenseActivities = res.data.filter((a: any) => a.action === 'added actual expense');
-        console.log('[H5A_H5B_H5C] Variable expense activities from API:', variableExpenseActivities);
-        variableExpenseActivities.forEach((act: any, i: number) => {
-          console.log(`[H5A_H5B_H5C] Activity ${i}: payload type=${typeof act.payload}, value=`, act.payload);
-          if (act.payload) {
-            console.log(`[H5A_H5B_H5C] Activity ${i}: payload.planName=${act.payload?.planName}, amount=${act.payload?.amount}`);
-          }
-        });
-      }
-      // #endregion
 
       // Ensure each activity has the required fields and sanitize payload
       const sanitizedActivities = (res.data || []).map((activity: any) => {
-        // #region agent log H5 - Parse string payload to object
+        // Parse string payload to object if needed
         let parsedPayload = activity.payload;
         if (typeof parsedPayload === 'string') {
           try {
             parsedPayload = JSON.parse(parsedPayload);
-            console.log('[H5_PAYLOAD_PARSED] Converted string to object:', parsedPayload);
           } catch (e) {
-            console.error('[H5_PAYLOAD_PARSE_ERROR]', e);
             parsedPayload = {};
           }
         }
-        // #endregion
         
         return {
           ...activity,
@@ -73,10 +55,9 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         return dateB - dateA; // Descending order (newest first)
       });
 
-      console.log(" Sanitized activities:", sanitizedActivities);
       setActivities(sanitizedActivities);
     } catch (e) {
-      console.error("❌ Failed to load activities:", e);
+      console.error("Failed to load activities:", e);
       setActivities([]);
     } finally {
       setLoading(false);
@@ -97,8 +78,6 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
     };
     return iconMap[entity] || <FaFileAlt />;
   };
-
-  console.log("🎬 ActivitiesPage render:", { loading, activitiesCount: activities.length });
 
   return (
     <div className="activities-page">
@@ -165,15 +144,6 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                   maximumFractionDigits: 0
                 }).format(amount);
               };
-
-              // Debug: Log ALL activities for inspection
-              console.log('[ACTIVITY_DEBUG] Processing activity:', {
-                action: activity.action, 
-                entity: activity.entity, 
-                payload,
-                hasPayload: !!payload,
-                payloadKeys: Object.keys(payload || {})
-              });
               
               switch (activity.action) {
                 case 'created':
@@ -186,7 +156,6 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                   return `${username} added ${entity}`;
                 case 'added actual expense':
                   // Variable expense actual - handle multiple payload formats
-                  // #region agent log H5 - Handle various payload formats
                   const expPlanName = payload.planName || payload.plan || payload.name || 'expense';
                   const expAmount = payload.amount || 0;
                   const expCategory = payload.category ? ` in ${payload.category}` : '';
@@ -194,8 +163,6 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                   const expPaymentMode = payload.paymentMode ? ` via ${payload.paymentMode}` : '';
                   const expCreditCard = payload.creditCard ? ` using ${payload.creditCard}` : '';
                   const expJustification = payload.justification ? ` - "${payload.justification}"` : '';
-                  console.log('[H5_ACTUAL_EXPENSE] Building message:', { expPlanName, expAmount, payload });
-                  // #endregion
                   if (expAmount > 0) {
                     return `${username} spent ${formatCurrency(expAmount)} on ${expPlanName}${expCategory}${expSubcategory}${expPaymentMode}${expCreditCard}${expJustification}`;
                   }
