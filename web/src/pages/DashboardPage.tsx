@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FaWallet, FaChartLine, FaChartBar, FaUniversity, FaCreditCard,
   FaBomb, FaClipboardList, FaClock, FaCalendar, FaBell, FaMoneyBillWave,
@@ -371,14 +371,15 @@ export function DashboardPage({ token }: DashboardPageProps) {
   return (
     <div className="dashboard-page">
       {/* Stale Data Banner */}
-      {isStale && (
-        <motion.div
-          className="stale-data-banner"
-          initial={{ y: -100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -100, opacity: 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-        >
+      <AnimatePresence>
+        {isStale && (
+          <motion.div
+            className="stale-data-banner"
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
           <div className="banner-content">
             <div className="banner-icon-container">
               <motion.div
@@ -396,7 +397,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
           </div>
           <div className="banner-progress-line" />
         </motion.div>
-      )}
+        )}
+      </AnimatePresence>
       
       <IntroModal
         isOpen={showIntro}
