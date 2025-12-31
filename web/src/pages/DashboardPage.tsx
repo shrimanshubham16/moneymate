@@ -38,15 +38,46 @@ export function DashboardPage({ token }: DashboardPageProps) {
     window.location.href = "/";
   };
 
+  // Background revalidation function
+  const fetchFreshData = async (userId: string) => {
+    try {
+      const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
+        fetchDashboard(token, new Date().toISOString()),
+        fetchCreditCards(token),
+        fetchLoans(token),
+        fetchActivity(token),
+        fetchSharingMembers(token)
+      ]);
+      
+      // Update state with fresh data (seamless refresh)
+      setData(dashboardRes.data);
+      setCreditCards(cardsRes.data);
+      setLoans(loansRes.data);
+      setActivities(activityRes.data);
+      setSharingMembers(membersRes.data);
+      
+      // Update cache
+      ClientCache.set('dashboard', dashboardRes.data, userId);
+      ClientCache.set('creditCards', cardsRes.data, userId);
+      ClientCache.set('loans', loansRes.data, userId);
+      ClientCache.set('activities', activityRes.data, userId);
+      
+      console.log('[REVALIDATE_SUCCESS] Dashboard data refreshed in background');
+    } catch (error) {
+      console.error('[REVALIDATE_ERROR] Failed to refresh:', error);
+      // Don't throw - background refresh failures shouldn't break the UI
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (forceRefresh = false) => {
     try {
       // #region agent log
       const startTime = performance.now();
-      console.log('[PERF_H1_H4] Dashboard loadData started', { timestamp: Date.now() });
+      console.log('[PERF_H1_H4] Dashboard loadData started', { timestamp: Date.now(), forceRefresh });
       // #endregion
 
       // Extract userId from token for cache key
@@ -59,15 +90,16 @@ export function DashboardPage({ token }: DashboardPageProps) {
         console.error('[CACHE_ERROR] Failed to extract userId from token:', e);
       }
 
-      // Try client cache first - use cached data if available (not all-or-nothing)
+      // STALE-WHILE-REVALIDATE: Check cache first
       const cachedDashboard = ClientCache.get<any>('dashboard', userId);
       
-      if (cachedDashboard) {
+      if (cachedDashboard && !forceRefresh) {
         console.log('[CACHE_HIT_CLIENT] Using cached dashboard data - instant load!');
         const cachedCards = ClientCache.get<any[]>('creditCards', userId) || [];
         const cachedLoans = ClientCache.get<any[]>('loans', userId) || [];
         const cachedActivities = ClientCache.get<any[]>('activities', userId) || [];
         
+        // Show cached data immediately
         setData(cachedDashboard);
         setCreditCards(cachedCards);
         setLoans(cachedLoans);
@@ -75,8 +107,12 @@ export function DashboardPage({ token }: DashboardPageProps) {
         setSharingMembers({ members: [] });
         setLoading(false);
         
-        // Optionally: fetch in background to update cache
-        // But for now, just return cached data
+        // REVALIDATE: Fetch fresh data in background to update cache
+        console.log('[REVALIDATE] Fetching fresh data in background...');
+        fetchFreshData(userId).catch(err => {
+          console.error('[REVALIDATE_ERROR] Background refresh failed:', err);
+        });
+        
         return;
       }
       
