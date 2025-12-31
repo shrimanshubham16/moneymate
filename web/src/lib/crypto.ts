@@ -1,5 +1,5 @@
 import { generateMnemonic, mnemonicToEntropy, entropyToMnemonic } from "@scure/bip39";
-import { wordlists } from "@scure/bip39/wordlists/english";
+import { wordlist } from "@scure/bip39/wordlists/english";
 
 // Helpers for base64 encoding/decoding in browser
 const toBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -79,7 +79,7 @@ export async function decryptString(
  * Generate a 24-word mnemonic recovery key
  */
 export function generateRecoveryKey(): string {
-  return generateMnemonic(wordlists.english, 256);
+  return generateMnemonic(wordlist, 256);
 }
 
 /**
@@ -87,7 +87,7 @@ export function generateRecoveryKey(): string {
  */
 export function isValidRecoveryKey(mnemonic: string): boolean {
   try {
-    mnemonicToEntropy(mnemonic, wordlists.english);
+    mnemonicToEntropy(mnemonic, wordlist);
     return true;
   } catch {
     return false;
