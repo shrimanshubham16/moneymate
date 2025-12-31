@@ -42,9 +42,10 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
             keys: Object.keys(data)
           });
           // #endregion
-          setUser(data.user);
+          // FIX: Edge Function returns { data: userData }, not { user: userData }
+          setUser(data.data);
           // #region agent log
-          console.log('[DEBUG_ACCOUNT_H1] User state set to data.user', { userSet: data.user });
+          console.log('[DEBUG_ACCOUNT_H1_FIXED] User state set to data.data', { userSet: data.data, username: data.data?.username, userId: data.data?.id });
           // #endregion
         }
       } catch (e) {
