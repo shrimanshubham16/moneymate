@@ -332,7 +332,12 @@ serve(async (req) => {
     // PREFERENCES
     if (path === '/preferences' && method === 'GET') {
       const { data } = await supabase.from('user_preferences').select('*').eq('user_id', userId).single();
-      return json({ data: data || { month_start_day: 1, currency: 'INR' } });
+      const prefs = data || { month_start_day: 1, currency: 'INR', timezone: 'Asia/Kolkata' };
+      return json({ data: {
+        monthStartDay: prefs.month_start_day ?? 1,
+        currency: prefs.currency ?? 'INR',
+        timezone: prefs.timezone ?? 'Asia/Kolkata'
+      }});
     }
     if (path === '/preferences' && (method === 'PUT' || method === 'PATCH')) {
       const body = await req.json();
@@ -344,7 +349,12 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('user_preferences')
         .upsert(updates, { onConflict: 'user_id' }).select().single();
       if (e) return error(e.message, 500);
-      return json({ data });
+      const prefs = data || updates;
+      return json({ data: {
+        monthStartDay: prefs.month_start_day ?? 1,
+        currency: prefs.currency ?? 'INR',
+        timezone: prefs.timezone ?? 'Asia/Kolkata'
+      }});
     }
 
     // HEALTH
@@ -411,7 +421,8 @@ serve(async (req) => {
 
     // ACTIVITY LOG
     if (path === '/activity' && method === 'GET') {
-      const { data } = await supabase.from('activities').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100);
+      // activities table uses actor_id, not user_id
+      const { data } = await supabase.from('activities').select('*').eq('actor_id', userId).order('created_at', { ascending: false }).limit(100);
       return json({ data: data || [] });
     }
 
