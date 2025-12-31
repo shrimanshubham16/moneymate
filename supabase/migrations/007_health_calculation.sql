@@ -134,6 +134,7 @@ BEGIN
       'obligations', json_build_object(
         'unpaidFixed', v_total_fixed,
         'unpaidVariable', GREATEST(v_total_variable_actual, v_total_variable_planned * v_remaining_days_ratio),
+        'unpaidProratedVariable', GREATEST(v_total_variable_actual, v_total_variable_planned * v_remaining_days_ratio),
         'variableActual', v_total_variable_actual,
         'variablePlanned', v_total_variable_planned,
         'unpaidInvestments', v_total_investments,
@@ -141,6 +142,7 @@ BEGIN
       ),
       'totalObligations', v_total_obligations,
       'monthStartDay', v_month_start_day,
+      'monthProgress', 1 - v_remaining_days_ratio,
       'billingPeriod', v_billing_period,
       'remainingDaysRatio', v_remaining_days_ratio
     ),

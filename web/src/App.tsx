@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaShieldAlt } from "react-icons/fa";
 import { login, signup, fetchSalt } from "./api";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -113,10 +112,6 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
         <div className="auth-header">
           <h1>FinFlow</h1>
           <p>Your Financial Companion</p>
-          <div className="privacy-badge">
-            <FaShieldAlt size={14} />
-            <span>🔒 v2.0: Supabase-powered • Enterprise-grade security • Your data, your control</span>
-          </div>
         </div>
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">

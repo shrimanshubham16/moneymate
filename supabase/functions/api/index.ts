@@ -89,6 +89,21 @@ serve(async (req) => {
 
   const error = (message: string, status = 400) => json({ error: { message } }, status);
 
+  // Helper to log activities
+  async function logActivity(actorId: string, entity: string, action: string, payload?: any) {
+    try {
+      await supabase.from('activities').insert({
+        actor_id: actorId,
+        entity,
+        action,
+        payload: payload ? JSON.stringify(payload) : null
+      });
+    } catch (err) {
+      console.error('Failed to log activity:', err);
+      // Don't fail the request if activity logging fails
+    }
+  }
+
   try {
     // ========================================================================
     // AUTH ROUTES (no token required)
@@ -160,8 +175,18 @@ serve(async (req) => {
         // Clear lockout
         await supabase.from('users').update({ failed_login_attempts: 0, account_locked_until: null }).eq('id', user.id);
 
+        // Auto-generate encryption salt for users who don't have one (legacy users)
+        let encryptionSalt = user.encryption_salt;
+        if (!encryptionSalt) {
+          // Generate a random salt (32 bytes, base64 encoded)
+          const saltBytes = new Uint8Array(32);
+          crypto.getRandomValues(saltBytes);
+          encryptionSalt = btoa(String.fromCharCode(...saltBytes));
+          await supabase.from('users').update({ encryption_salt: encryptionSalt }).eq('id', user.id);
+        }
+
         const token = await createToken(user.id, user.username);
-        return json({ access_token: token, user: { id: user.id, username: user.username }, encryption_salt: user.encryption_salt });
+        return json({ access_token: token, user: { id: user.id, username: user.username }, encryption_salt: encryptionSalt });
       } catch (loginErr) {
         console.error('Login error:', loginErr);
         return error('Login failed: ' + (loginErr as Error).message, 500);
@@ -170,8 +195,20 @@ serve(async (req) => {
 
     if (path.startsWith('/auth/salt/') && method === 'GET') {
       const username = path.replace('/auth/salt/', '');
-      const { data } = await supabase.from('users').select('encryption_salt').eq('username', username).single();
-      return json({ encryption_salt: data?.encryption_salt || null });
+      const { data: user } = await supabase.from('users').select('id, encryption_salt').eq('username', username).single();
+      
+      // Auto-generate encryption salt for users who don't have one (legacy users)
+      if (user && !user.encryption_salt) {
+        // Generate a random salt (32 bytes, base64 encoded)
+        const saltBytes = new Uint8Array(32);
+        crypto.getRandomValues(saltBytes);
+        const saltB64 = btoa(String.fromCharCode(...saltBytes));
+        
+        await supabase.from('users').update({ encryption_salt: saltB64 }).eq('id', user.id);
+        return json({ encryption_salt: saltB64 });
+      }
+      
+      return json({ encryption_salt: user?.encryption_salt || null });
     }
 
     // ========================================================================
@@ -201,6 +238,20 @@ serve(async (req) => {
       // Get health from PostgreSQL function (matches /health/details exactly)
       const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
       
+      // Get payment status for current month (matching old backend behavior)
+      const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('entity_type, entity_id')
+        .eq('user_id', userId)
+        .eq('month', month);
+      
+      // Create payment status map
+      const paymentStatus: Record<string, boolean> = {};
+      (payments || []).forEach((p: any) => {
+        paymentStatus[`${p.entity_type}:${p.entity_id}`] = true;
+      });
+      
       // Format response
       const variablePlans = (data?.variablePlans || []).map((plan: any) => {
         const actuals = (data?.variableActuals || []).filter((a: any) => a.planId === plan.id);
@@ -210,9 +261,16 @@ serve(async (req) => {
       return json({
         data: {
           incomes: data?.incomes || [],
-          fixedExpenses: (data?.fixedExpenses || []).map((e: any) => ({ ...e, is_sip_flag: e.isSipFlag })),
+          fixedExpenses: (data?.fixedExpenses || []).map((e: any) => ({
+            ...e,
+            is_sip_flag: e.isSipFlag,
+            paid: paymentStatus[`fixed_expense:${e.id}`] || false
+          })),
           variablePlans,
-          investments: data?.investments || [],
+          investments: (data?.investments || []).map((i: any) => ({
+            ...i,
+            paid: paymentStatus[`investment:${i.id}`] || false
+          })),
           futureBombs: data?.futureBombs || [],
           health: healthData?.health || { remaining: 0, category: 'ok' },
           constraintScore: constraint || { score: 0, tier: 'green' },
@@ -228,6 +286,7 @@ serve(async (req) => {
         .insert({ user_id: userId, name: body.source, amount: body.amount, frequency: body.frequency, category: 'employment' })
         .select().single();
       if (e) return error(e.message, 500);
+      await logActivity(userId, 'income', 'added income source', { name: data.name, amount: data.amount, frequency: data.frequency });
       return json({ data }, 201);
     }
     if (path.startsWith('/planning/income/') && method === 'PUT') {
@@ -243,7 +302,9 @@ serve(async (req) => {
     }
     if (path.startsWith('/planning/income/') && method === 'DELETE') {
       const id = path.split('/').pop();
+      const { data: deleted } = await supabase.from('incomes').select('name').eq('id', id).single();
       await supabase.from('incomes').delete().eq('id', id);
+      if (deleted) await logActivity(userId, 'income', 'deleted income source', { id, name: deleted.name });
       return json({ data: { deleted: true } });
     }
 
@@ -254,6 +315,7 @@ serve(async (req) => {
         .insert({ user_id: userId, name: body.name, amount: body.amount, frequency: body.frequency, category: body.category, is_sip: body.is_sip_flag })
         .select().single();
       if (e) return error(e.message, 500);
+      await logActivity(userId, 'fixed_expense', 'added fixed expense', { name: data.name, amount: data.amount, category: data.category, frequency: data.frequency });
       return json({ data }, 201);
     }
     if (path.startsWith('/planning/fixed-expenses/') && method === 'PUT') {
@@ -271,7 +333,9 @@ serve(async (req) => {
     }
     if (path.startsWith('/planning/fixed-expenses/') && method === 'DELETE') {
       const id = path.split('/').pop();
+      const { data: deleted } = await supabase.from('fixed_expenses').select('name, category').eq('id', id).single();
       await supabase.from('fixed_expenses').delete().eq('id', id);
+      if (deleted) await logActivity(userId, 'fixed_expense', 'deleted fixed expense', { id, name: deleted.name, category: deleted.category });
       return json({ data: { deleted: true } });
     }
 
@@ -282,6 +346,7 @@ serve(async (req) => {
         .insert({ user_id: userId, name: body.name, planned: body.planned, category: body.category, start_date: body.start_date })
         .select().single();
       if (e) return error(e.message, 500);
+      await logActivity(userId, 'variable_expense_plan', 'added variable expense plan', { name: data.name, planned: data.planned, category: data.category });
       return json({ data }, 201);
     }
     if (path.match(/\/planning\/variable-expenses\/[^/]+\/actuals$/) && method === 'POST') {
@@ -291,11 +356,14 @@ serve(async (req) => {
         .insert({ user_id: userId, plan_id: planId, amount: body.amount, incurred_at: body.incurred_at, justification: body.justification, subcategory: body.subcategory, payment_mode: body.payment_mode, credit_card_id: body.credit_card_id })
         .select().single();
       if (e) return error(e.message, 500);
+      await logActivity(userId, 'variable_expense', 'added actual expense', { planId, amount: data.amount, paymentMode: data.payment_mode });
       return json({ data }, 201);
     }
     if (path.startsWith('/planning/variable-expenses/') && method === 'DELETE') {
       const id = path.split('/').pop();
+      const { data: deleted } = await supabase.from('variable_expense_plans').select('name').eq('id', id).single();
       await supabase.from('variable_expense_plans').delete().eq('id', id);
+      if (deleted) await logActivity(userId, 'variable_expense_plan', 'deleted variable expense plan', { id, name: deleted.name });
       return json({ data: { deleted: true } });
     }
 
@@ -306,11 +374,14 @@ serve(async (req) => {
         .insert({ user_id: userId, name: body.name, goal: body.goal, monthly_amount: body.monthly_amount })
         .select().single();
       if (e) return error(e.message, 500);
+      await logActivity(userId, 'investment', 'added investment', { name: data.name, goal: data.goal, monthlyAmount: data.monthly_amount });
       return json({ data }, 201);
     }
     if (path.startsWith('/planning/investments/') && method === 'DELETE') {
       const id = path.split('/').pop();
+      const { data: deleted } = await supabase.from('investments').select('name').eq('id', id).single();
       await supabase.from('investments').delete().eq('id', id);
+      if (deleted) await logActivity(userId, 'investment', 'deleted investment', { id, name: deleted.name });
       return json({ data: { deleted: true } });
     }
 
@@ -321,11 +392,14 @@ serve(async (req) => {
         .insert({ user_id: userId, name: body.name, due_date: body.due_date, total_amount: body.total_amount, saved_amount: body.saved_amount || 0 })
         .select().single();
       if (e) return error(e.message, 500);
+      await logActivity(userId, 'future_bomb', 'added future bomb', { name: data.name, totalAmount: data.total_amount, dueDate: data.due_date });
       return json({ data }, 201);
     }
     if (path.startsWith('/future-bombs/') && method === 'DELETE') {
       const id = path.split('/').pop();
+      const { data: deleted } = await supabase.from('future_bombs').select('name').eq('id', id).single();
       await supabase.from('future_bombs').delete().eq('id', id);
+      if (deleted) await logActivity(userId, 'future_bomb', 'deleted future bomb', { id, name: deleted.name });
       return json({ data: { deleted: true } });
     }
 
@@ -369,16 +443,86 @@ serve(async (req) => {
     }
 
     // CREDIT CARDS
+    if (path === '/debts/credit-cards/billing-alerts' && method === 'GET') {
+      const today = new Date();
+      const todayDay = today.getDate();
+      
+      const { data: cards } = await supabase
+        .from('credit_cards')
+        .select('*')
+        .eq('user_id', userId);
+      
+      const alerts: Array<{ cardId: string; cardName: string; message: string }> = [];
+      
+      (cards || []).forEach((card: any) => {
+        const billingDate = card.billing_date || 1;
+        const currentExpenses = parseFloat(card.current_expenses || 0);
+        
+        // Alert if billing date arrived and currentExpenses > 0
+        if (todayDay === billingDate && currentExpenses > 0) {
+          alerts.push({
+            cardId: card.id,
+            cardName: card.name,
+            message: `${card.name}: ₹${currentExpenses.toLocaleString('en-IN')} pending billing. Please reset and update bill.`
+          });
+        }
+        
+        // Alert if card needs bill update
+        if (card.needs_bill_update) {
+          alerts.push({
+            cardId: card.id,
+            cardName: card.name,
+            message: `${card.name}: Bill needs to be updated with actual amount.`
+          });
+        }
+      });
+      
+      return json({ data: alerts });
+    }
     if (path === '/debts/credit-cards' && method === 'GET') {
       const { data } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
       return json({ data: data || [] });
     }
+    if (path.match(/\/debts\/credit-cards\/[^/]+\/usage$/) && method === 'GET') {
+      const id = path.split('/')[3];
+      const { data: card, error: cardErr } = await supabase.from('credit_cards').select('*').eq('id', id).eq('user_id', userId).single();
+      if (cardErr || !card) return error('Credit card not found', 404);
+      
+      // Get all variable expense actuals for this credit card
+      const { data: usage } = await supabase
+        .from('variable_expense_actuals')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('payment_mode', 'CreditCard')
+        .eq('credit_card_id', id);
+      
+      return json({ data: usage || [] });
+    }
     if (path === '/debts/credit-cards' && method === 'POST') {
       const body = await req.json();
+      // statement_date is required - default to today if not provided
+      const statementDate = body.statementDate || new Date().toISOString().split('T')[0];
       const { data, error: e } = await supabase.from('credit_cards')
-        .insert({ user_id: userId, name: body.name, bill_amount: body.billAmount || 0, paid_amount: body.paidAmount || 0, due_date: body.dueDate, billing_date: body.billingDate })
+        .insert({ 
+          user_id: userId, 
+          name: body.name, 
+          statement_date: statementDate,
+          bill_amount: body.billAmount || 0, 
+          paid_amount: body.paidAmount || 0, 
+          due_date: body.dueDate, 
+          billing_date: body.billingDate 
+        })
         .select().single();
       if (e) return error(e.message, 500);
+      
+      // If paidAmount provided, update it
+      if (body.paidAmount !== undefined && body.paidAmount > 0) {
+        await supabase.from('credit_cards')
+          .update({ paid_amount: body.paidAmount })
+          .eq('id', data.id);
+      }
+      
+      await logActivity(userId, 'credit_card', 'created', { id: data.id, name: data.name });
       return json({ data }, 201);
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'PUT') {
@@ -386,24 +530,93 @@ serve(async (req) => {
       const body = await req.json();
       const updates: any = {};
       if (body.name) updates.name = body.name;
+      if (body.statementDate) updates.statement_date = body.statementDate;
       if (body.billAmount !== undefined) updates.bill_amount = body.billAmount;
       if (body.paidAmount !== undefined) updates.paid_amount = body.paidAmount;
       if (body.dueDate) updates.due_date = body.dueDate;
       if (body.billingDate) updates.billing_date = body.billingDate;
-      const { data, error: e } = await supabase.from('credit_cards').update(updates).eq('id', id).select().single();
+      const { data, error: e } = await supabase.from('credit_cards').update(updates).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
+      if (!data) return error('Credit card not found', 404);
+      return json({ data });
+    }
+    if (path.match(/\/debts\/credit-cards\/[^/]+\/payments$/) && method === 'POST') {
+      const id = path.split('/')[3];
+      const body = await req.json();
+      const { data: card, error: cardErr } = await supabase.from('credit_cards').select('*').eq('id', id).eq('user_id', userId).single();
+      if (cardErr || !card) return error('Credit card not found', 404);
+      const newPaidAmount = (card.paid_amount || 0) + (body.amount || 0);
+      const { data, error: e } = await supabase.from('credit_cards').update({ paid_amount: newPaidAmount }).eq('id', id).select().single();
+      if (e) return error(e.message, 500);
+      await logActivity(userId, 'credit_card', 'payment', { id: data.id, amount: body.amount });
+      return json({ data });
+    }
+    if (path.match(/\/debts\/credit-cards\/[^/]+\/reset-billing$/) && method === 'POST') {
+      const id = path.split('/')[3];
+      const { data, error: e } = await supabase.from('credit_cards').update({ current_expenses: 0, needs_bill_update: false }).eq('id', id).eq('user_id', userId).select().single();
+      if (e) return error(e.message, 500);
+      await logActivity(userId, 'credit_card', 'reset_billing', { id: data.id });
+      return json({ data });
+    }
+    if (path.startsWith('/debts/credit-cards/') && method === 'PATCH') {
+      const id = path.split('/').pop();
+      const body = await req.json();
+      const { data: card, error: cardErr } = await supabase.from('credit_cards').select('*').eq('id', id).eq('user_id', userId).single();
+      if (cardErr || !card) return error('Credit card not found', 404);
+      if (body.billAmount === undefined || body.billAmount < 0) return error('billAmount must be a nonnegative number', 400);
+      const { data, error: e } = await supabase.from('credit_cards').update({ bill_amount: Math.round(body.billAmount * 100) / 100, needs_bill_update: false }).eq('id', id).select().single();
+      if (e) return error(e.message, 500);
+      await logActivity(userId, 'credit_card', 'updated_bill', { id: data.id, billAmount: data.bill_amount });
       return json({ data });
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'DELETE') {
       const id = path.split('/').pop();
+      const { data: deleted } = await supabase.from('credit_cards').select('name').eq('id', id).single();
       await supabase.from('credit_cards').delete().eq('id', id);
+      if (deleted) await logActivity(userId, 'credit_card', 'deleted', { id, name: deleted.name });
       return json({ data: { deleted: true } });
     }
 
-    // LOANS
+    // LOANS - Auto-fetch from fixed expenses where category = "Loan"
     if (path === '/debts/loans' && method === 'GET') {
-      const { data } = await supabase.from('loans').select('*').eq('user_id', userId);
-      return json({ data: data || [] });
+      // Get fixed expenses with category "Loan" (case-insensitive)
+      // Use LOWER() for case-insensitive matching since ilike might not work with all Supabase versions
+      const { data: loanExpenses, error: loanErr } = await supabase
+        .from('fixed_expenses')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (loanErr) {
+        console.error('Error fetching loans:', loanErr);
+        return json({ data: [] });
+      }
+      
+      // Filter for "Loan" category (case-insensitive)
+      const loanExpensesFiltered = (loanExpenses || []).filter((exp: any) => 
+        exp.category && exp.category.toLowerCase() === 'loan'
+      );
+      
+      // Convert fixed expenses to loan format
+      const autoLoans = loanExpensesFiltered.map((exp: any) => {
+        const amount = parseFloat(exp.amount) || 0;
+        const emi = exp.frequency === 'monthly' ? amount :
+          exp.frequency === 'quarterly' ? amount / 3 :
+          exp.frequency === 'yearly' ? amount / 12 : amount;
+        
+        const remainingMonths = exp.end_date ? Math.max(1, Math.ceil(
+          (new Date(exp.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24 * 30)
+        )) : 12;
+        
+        return {
+          id: exp.id,
+          name: exp.name,
+          emi: Math.round(emi * 100) / 100, // Round to 2 decimal places
+          remainingTenureMonths: remainingMonths,
+          principal: Math.round((emi * remainingMonths) * 100) / 100
+        };
+      });
+      
+      return json({ data: autoLoans });
     }
     if (path === '/debts/loans' && method === 'POST') {
       const body = await req.json();
@@ -422,8 +635,40 @@ serve(async (req) => {
     // ACTIVITY LOG
     if (path === '/activity' && method === 'GET') {
       // activities table uses actor_id, not user_id
-      const { data } = await supabase.from('activities').select('*').eq('actor_id', userId).order('created_at', { ascending: false }).limit(100);
-      return json({ data: data || [] });
+      const { data: activities, error: actErr } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('actor_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      
+      if (actErr) {
+        console.error('Error fetching activities:', actErr);
+        return json({ data: [] });
+      }
+      
+      // Get unique actor IDs and fetch usernames
+      const actorIds = [...new Set((activities || []).map((a: any) => a.actor_id))];
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, username')
+        .in('id', actorIds);
+      
+      // Create a map of user ID to username
+      const usernameMap = new Map((users || []).map((u: any) => [u.id, u.username]));
+      
+      // Format response with username
+      const formatted = (activities || []).map((act: any) => ({
+        id: act.id,
+        actorId: act.actor_id,
+        entity: act.entity,
+        action: act.action,
+        payload: act.payload,
+        createdAt: act.created_at,
+        username: usernameMap.get(act.actor_id) || 'Unknown User'
+      }));
+      
+      return json({ data: formatted });
     }
 
     // SHARING
@@ -438,16 +683,228 @@ serve(async (req) => {
       return json({ data: { incoming: incoming || [], outgoing: outgoing || [] } });
     }
 
-    // EXPORT
-    if (path === '/export' && method === 'GET') {
-      const { data: userData } = await supabase.from('users').select('username').eq('id', userId).single();
-      const { data } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
-      return json({ data: { ...data, username: userData?.username } });
+    // PAYMENTS
+    if (path === '/payments/mark-paid' && method === 'POST') {
+      const body = await req.json();
+      if (!body.itemId || !body.itemType || !body.amount) return error('itemId, itemType, and amount required');
+      if (!['fixed_expense', 'investment', 'loan'].includes(body.itemType)) return error('Invalid itemType');
+      
+      const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+      const { data: existing } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('entity_id', body.itemId)
+        .eq('entity_type', body.itemType)
+        .eq('month', month)
+        .single();
+      
+      let payment;
+      if (existing) {
+        const { data: updated } = await supabase
+          .from('payments')
+          .update({ amount: body.amount, paid_at: new Date().toISOString() })
+          .eq('id', existing.id)
+          .select()
+          .single();
+        payment = updated;
+      } else {
+        const { data: created } = await supabase
+          .from('payments')
+          .insert({ user_id: userId, entity_type: body.itemType, entity_id: body.itemId, month, amount: body.amount })
+          .select()
+          .single();
+        payment = created;
+      }
+      
+      await logActivity(userId, body.itemType, 'paid', { id: body.itemId, amount: body.amount });
+      return json({ data: payment });
     }
-    if (path === '/export/finances' && method === 'GET') {
-      const { data: userData } = await supabase.from('users').select('username').eq('id', userId).single();
-      const { data } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
-      return json({ data: { ...data, username: userData?.username } });
+    if (path === '/payments/mark-unpaid' && method === 'POST') {
+      const body = await req.json();
+      if (!body.itemId || !body.itemType) return error('itemId and itemType required');
+      if (!['fixed_expense', 'investment', 'loan'].includes(body.itemType)) return error('Invalid itemType');
+      
+      const month = new Date().toISOString().slice(0, 7);
+      const { error: e } = await supabase
+        .from('payments')
+        .delete()
+        .eq('user_id', userId)
+        .eq('entity_id', body.itemId)
+        .eq('entity_type', body.itemType)
+        .eq('month', month);
+      
+      if (e) return error(e.message, 500);
+      await logActivity(userId, body.itemType, 'unpaid', { id: body.itemId });
+      return json({ data: { success: true } });
+    }
+    if (path === '/payments/status' && method === 'GET') {
+      const month = url.searchParams.get('month') || new Date().toISOString().slice(0, 7);
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('entity_type, entity_id')
+        .eq('user_id', userId)
+        .eq('month', month);
+      
+      const status: Record<string, boolean> = {};
+      (payments || []).forEach((p: any) => {
+        status[`${p.entity_type}:${p.entity_id}`] = true;
+      });
+      return json({ data: status });
+    }
+    if (path === '/payments/summary' && method === 'GET') {
+      const month = url.searchParams.get('month') || new Date().toISOString().slice(0, 7);
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('entity_type, entity_id, amount')
+        .eq('user_id', userId)
+        .eq('month', month);
+      
+      const summary: Record<string, number> = {};
+      (payments || []).forEach((p: any) => {
+        const key = `${p.entity_type}:${p.entity_id}`;
+        summary[key] = (summary[key] || 0) + (p.amount || 0);
+      });
+      return json({ data: Object.entries(summary).map(([key, total]) => {
+        const [entityType, entityId] = key.split(':');
+        return { entityType, entityId, totalPaid: total };
+      })});
+    }
+
+    // SUBCATEGORIES
+    if (path === '/user/subcategories' && method === 'GET') {
+      const { data: prefs } = await supabase.from('user_preferences').select('subcategories').eq('user_id', userId).single();
+      return json({ data: prefs?.subcategories || [] });
+    }
+    if (path === '/user/subcategories' && method === 'POST') {
+      const body = await req.json();
+      if (!body.subcategory || body.subcategory.length < 1 || body.subcategory.length > 50) return error('Subcategory must be 1-50 characters');
+      
+      const { data: prefs } = await supabase.from('user_preferences').select('subcategories').eq('user_id', userId).single();
+      const current = prefs?.subcategories || [];
+      if (current.includes(body.subcategory)) return json({ data: { subcategory: body.subcategory, subcategories: current } });
+      
+      const updated = [...current, body.subcategory];
+      const { data, error: e } = await supabase
+        .from('user_preferences')
+        .upsert({ user_id: userId, subcategories: updated }, { onConflict: 'user_id' })
+        .select()
+        .single();
+      
+      if (e) return error(e.message, 500);
+      return json({ data: { subcategory: body.subcategory, subcategories: updated } });
+    }
+
+    // EXPORT
+    // EXPORT - Match old backend structure exactly
+    if (path === '/export' && method === 'GET' || path === '/export/finances' && method === 'GET') {
+      // Get user data with error handling
+      const { data: userData, error: userErr } = await supabase.from('users').select('id, username').eq('id', userId).single();
+      if (userErr || !userData) {
+        console.error('Export: User fetch error:', userErr);
+        return error('Failed to fetch user data', 500);
+      }
+      
+      // Get all data needed for export
+      const { data: dashboardData } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
+      
+      // Get loans (auto-fetched from fixed expenses)
+      const { data: loanExpenses } = await supabase
+        .from('fixed_expenses')
+        .select('*')
+        .eq('user_id', userId);
+      const loans = (loanExpenses || []).filter((exp: any) => 
+        exp.category && exp.category.toLowerCase() === 'loan'
+      ).map((exp: any) => {
+        const amount = parseFloat(exp.amount) || 0;
+        const emi = exp.frequency === 'monthly' ? amount :
+          exp.frequency === 'quarterly' ? amount / 3 :
+          exp.frequency === 'yearly' ? amount / 12 : amount;
+        const remainingMonths = exp.end_date ? Math.max(1, Math.ceil(
+          (new Date(exp.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24 * 30)
+        )) : 12;
+        return {
+          id: exp.id,
+          name: exp.name,
+          emi: Math.round(emi * 100) / 100,
+          remainingTenureMonths: remainingMonths,
+          principal: Math.round((emi * remainingMonths) * 100) / 100
+        };
+      });
+      
+      // Get activities
+      const { data: activities } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('actor_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      // Get credit cards
+      const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
+      
+      // Get health data
+      const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
+      
+      // Get constraint score
+      const { data: constraint } = await supabase.from('constraint_scores').select('*').eq('user_id', userId).single();
+      
+      // Build export structure matching old backend
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        user: { id: userData.id, username: userData.username },
+        health: healthData?.health || { remaining: 0, category: 'ok' },
+        constraintScore: constraint || { score: 0, tier: 'green' },
+        incomes: dashboardData?.incomes || [],
+        fixedExpenses: (dashboardData?.fixedExpenses || []).map((e: any) => ({
+          ...e,
+          monthlyEquivalent: e.frequency === 'monthly' ? e.amount :
+            e.frequency === 'quarterly' ? e.amount / 3 :
+            e.amount / 12
+        })),
+        variableExpenses: (dashboardData?.variablePlans || []).map((plan: any) => {
+          const actuals = (dashboardData?.variableActuals || []).filter((a: any) => a.planId === plan.id);
+          return {
+            ...plan,
+            actuals,
+            actualTotal: actuals.reduce((sum: number, a: any) => sum + (a.amount || 0), 0)
+          };
+        }),
+        investments: dashboardData?.investments || [],
+        futureBombs: dashboardData?.futureBombs || [],
+        creditCards: creditCards || [],
+        loans: loans,
+        activities: (activities || []).map((a: any) => ({
+          id: a.id,
+          actorId: a.actor_id,
+          entity: a.entity,
+          action: a.action,
+          payload: a.payload,
+          createdAt: a.created_at
+        })),
+        alerts: [],
+        summary: {
+          totalIncome: (dashboardData?.incomes || []).reduce((sum: number, i: any) => 
+            sum + ((i.amount || 0) / (i.frequency === 'monthly' ? 1 : i.frequency === 'quarterly' ? 3 : 12)), 0),
+          totalFixedExpenses: (dashboardData?.fixedExpenses || []).reduce((sum: number, e: any) => {
+            const monthly = e.frequency === 'monthly' ? e.amount : e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12;
+            return sum + monthly;
+          }, 0),
+          totalVariableActual: (dashboardData?.variablePlans || []).reduce((sum: number, plan: any) => {
+            const actuals = (dashboardData?.variableActuals || []).filter((a: any) => a.planId === plan.id);
+            return sum + actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+          }, 0),
+          totalInvestments: (dashboardData?.investments || []).reduce((sum: number, i: any) => sum + (i.monthlyAmount || 0), 0),
+          healthCategory: healthData?.health?.category || 'ok',
+          remainingBalance: healthData?.health?.remaining || 0
+        }
+      };
+      
+      // Old backend returns exportData directly, not wrapped in { data: ... }
+      return new Response(
+        JSON.stringify(exportData),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return error('Not found', 404);
