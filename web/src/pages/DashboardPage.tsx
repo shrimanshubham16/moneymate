@@ -372,23 +372,30 @@ export function DashboardPage({ token }: DashboardPageProps) {
     <div className="dashboard-page">
       {/* Stale Data Banner */}
       {isStale && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
-          color: 'white',
-          padding: '8px 16px',
-          textAlign: 'center',
-          fontSize: '14px',
-          fontWeight: 500,
-          zIndex: 1000,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          animation: 'pulse 2s ease-in-out infinite'
-        }}>
-          ⚠️ Showing cached data - Refreshing in background...
-        </div>
+        <motion.div
+          className="stale-data-banner"
+          initial={{ y: -100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -100, opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          <div className="banner-content">
+            <div className="banner-icon-container">
+              <motion.div
+                className="banner-icon"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                ⟳
+              </motion.div>
+            </div>
+            <div className="banner-text">
+              <span className="banner-title">Refreshing data...</span>
+              <span className="banner-subtitle">Showing cached version</span>
+            </div>
+          </div>
+          <div className="banner-progress-line" />
+        </motion.div>
       )}
       
       <IntroModal
