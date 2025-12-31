@@ -161,6 +161,14 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     );
   }
 
+  if (!breakdown || !health) {
+    return (
+      <div className="health-details-page">
+        <div className="loading">Failed to load health details. Please try again.</div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="health-details-page">
@@ -222,17 +230,18 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         >
           <div className="card-header">
             <h3><FaMoneyBillWave style={{ marginRight: 8 }} />Total Monthly Income</h3>
-            <span className="amount positive">+₹{breakdown.income.total.toLocaleString("en-IN")}</span>
+            <span className="amount positive">+₹{(breakdown.income?.total || 0).toLocaleString("en-IN")}</span>
           </div>
           <div className="items-list">
-            {breakdown.income.sources.map((inc: any) => {
-              const monthly = inc.frequency === "monthly" ? inc.amount :
-                inc.frequency === "quarterly" ? inc.amount / 3 :
-                  inc.amount / 12;
+            {(breakdown.income?.sources || []).map((inc: any) => {
+              const amount = parseFloat(inc.amount || 0);
+              const monthly = inc.frequency === "monthly" ? amount :
+                inc.frequency === "quarterly" ? amount / 3 :
+                  amount / 12;
               return (
                 <div key={inc.id} className="item-row">
-                  <span>{inc.source}</span>
-                  <span>+₹{Math.round(monthly).toLocaleString("en-IN")}</span>
+                  <span>{inc.source || inc.name || 'Unknown'}</span>
+                  <span>+₹{Math.round(monthly || 0).toLocaleString("en-IN")}</span>
                 </div>
               );
             })}
@@ -248,23 +257,24 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         >
           <div className="card-header">
             <h3><FaMoneyBillWave style={{ marginRight: 8 }} />Unpaid Fixed Expenses</h3>
-            <span className="amount negative">-₹{Math.round(breakdown.expenses.fixed.total).toLocaleString("en-IN")}</span>
+            <span className="amount negative">-₹{Math.round(breakdown.expenses?.fixed?.total || 0).toLocaleString("en-IN")}</span>
           </div>
           <div className="sub-note">
             <small>Only showing unpaid fixed expenses (paid items don't count)</small>
           </div>
           <div className="items-list">
-            {breakdown.expenses.fixed.items.length === 0 ? (
+            {(!breakdown.expenses?.fixed?.items || breakdown.expenses.fixed.items.length === 0) ? (
               <div className="item-row"><span>All fixed expenses are paid! </span></div>
             ) : (
               breakdown.expenses.fixed.items.map((exp: any) => {
-                const monthly = exp.frequency === "monthly" ? exp.amount :
-                  exp.frequency === "quarterly" ? exp.amount / 3 :
-                    exp.amount / 12;
+                const amount = parseFloat(exp.amount || 0);
+                const monthly = exp.frequency === "monthly" ? amount :
+                  exp.frequency === "quarterly" ? amount / 3 :
+                    amount / 12;
                 return (
                   <div key={exp.id} className="item-row">
                     <span>{exp.name} {exp.is_sip_flag && <span className="sip-badge">SIP</span>}</span>
-                    <span>-₹{Math.round(monthly).toLocaleString("en-IN")}</span>
+                    <span>-₹{Math.round(monthly || 0).toLocaleString("en-IN")}</span>
                   </div>
                 );
               })
@@ -280,13 +290,13 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         >
           <div className="card-header">
             <h3><FaShoppingCart style={{ marginRight: 8 }} />Variable Expenses (Prorated)</h3>
-            <span className="amount negative">-₹{Math.round(breakdown.expenses.variable.total).toLocaleString("en-IN")}</span>
+            <span className="amount negative">-₹{Math.round(breakdown.expenses?.variable?.total || 0).toLocaleString("en-IN")}</span>
           </div>
           <div className="sub-note">
             <small>Prorated amount for remaining days of billing cycle (uses higher of actual spending or prorated amount)</small>
           </div>
           <div className="items-list">
-            {breakdown.expenses.variable.items.map((plan: any) => {
+            {(breakdown.expenses?.variable?.items || []).map((plan: any) => {
               // FIX: Match backend logic exactly from unpaidProratedVariableForRemainingDays()
               // Backend: 1. Get actuals excluding ExtraCash and CreditCard
               //          2. Calculate actualTotal
@@ -337,19 +347,19 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           >
             <div className="card-header">
               <h3><FaChartLine style={{ marginRight: 8 }} />Active Unpaid Investments</h3>
-              <span className="amount negative">-₹{breakdown.investments.total.toLocaleString("en-IN")}</span>
+              <span className="amount negative">-₹{(breakdown.investments?.total || 0).toLocaleString("en-IN")}</span>
             </div>
             <div className="sub-note">
               <small>Only active, unpaid investments are counted in your health</small>
             </div>
             <div className="items-list">
-              {breakdown.investments.items.length === 0 ? (
+              {(!breakdown.investments?.items || breakdown.investments.items.length === 0) ? (
                 <div className="item-row"><span>All investments are paid or paused! </span></div>
               ) : (
                 breakdown.investments.items.map((inv: any) => (
                   <div key={inv.id} className="item-row">
                     <span>{inv.name} <span className="goal-badge">{inv.goal}</span></span>
-                    <span>-₹{inv.monthlyAmount.toLocaleString("en-IN")}</span>
+                    <span>-₹{(parseFloat(inv.monthlyAmount || inv.monthly_amount || 0)).toLocaleString("en-IN")}</span>
                   </div>
                 ))
               )}
@@ -368,21 +378,23 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           >
             <div className="card-header">
               <h3><FaCreditCard style={{ marginRight: 8 }} />Unpaid Credit Card Bills</h3>
-              <span className="amount negative">-₹{Math.round(breakdown.debts.creditCards.total).toLocaleString("en-IN")}</span>
+              <span className="amount negative">-₹{Math.round(breakdown.debts?.creditCards?.total || 0).toLocaleString("en-IN")}</span>
             </div>
             <div className="sub-note">
               <small>Only unpaid credit card bills for current month are counted in your health</small>
             </div>
             <div className="items-list">
-              {breakdown.debts.creditCards.items.length === 0 ? (
+              {(!breakdown.debts?.creditCards?.items || breakdown.debts.creditCards.items.length === 0) ? (
                 <div className="item-row"><span>All credit card bills are paid! </span></div>
               ) : (
                 breakdown.debts.creditCards.items.map((card: any) => {
-                  const remaining = card.billAmount - card.paidAmount;
+                  const billAmount = parseFloat(card.billAmount || card.bill_amount || 0);
+                  const paidAmount = parseFloat(card.paidAmount || card.paid_amount || 0);
+                  const remaining = billAmount - paidAmount;
                   return (
                     <div key={card.id} className="item-row">
                       <span>{card.name}</span>
-                      <span>-₹{Math.round(remaining).toLocaleString("en-IN")}</span>
+                      <span>-₹{Math.round(remaining || 0).toLocaleString("en-IN")}</span>
                     </div>
                   );
                 })
