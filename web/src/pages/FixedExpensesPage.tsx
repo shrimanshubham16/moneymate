@@ -8,6 +8,7 @@ import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import { ProgressBar } from "../components/ProgressBar";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { getCache, setCache } from "../utils/cache";
 import "./FixedExpensesPage.css";
 
 interface FixedExpensesPageProps {
@@ -36,9 +37,17 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
 
   const loadExpenses = async () => {
     try {
+      // Try cache first for faster load
+      const cached = getCache('dashboard');
+      if (cached?.data?.fixedExpenses) {
+        setExpenses(cached.data.fixedExpenses);
+        setLoading(false);
+      }
+      
+      // Fetch fresh data
       const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
-      console.log(" Dashboard response fixedExpenses:", res.data.fixedExpenses);
       setExpenses(res.data.fixedExpenses || []);
+      setCache('dashboard', res);
     } catch (e) {
       console.error("Failed to load expenses:", e);
     } finally {

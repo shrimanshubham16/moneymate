@@ -72,28 +72,45 @@
 
 .investment-actions {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
-.investment-actions button {
-  padding: var(--space-3) var(--space-5);
+.investment-actions .icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
   border: 1px solid rgba(184, 193, 236, 0.1);
-  border-radius: var(--radius-md);
-  font-size: var(--text-small);
-  font-weight: var(--font-semibold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all var(--transition-base);
+  font-size: 16px;
+  background: transparent;
 }
 
-.investment-actions button:first-child {
+.investment-actions .edit-btn {
   background: rgba(0, 217, 255, 0.1);
   color: var(--accent-cyan);
   border-color: rgba(0, 217, 255, 0.3);
 }
 
-.investment-actions button:first-child:hover {
+.investment-actions .edit-btn:hover {
   background: rgba(0, 217, 255, 0.2);
   box-shadow: var(--glow-cyan);
+  transform: scale(1.1);
+}
+
+.investment-actions .pause-btn {
+  background: rgba(255, 184, 0, 0.1);
+  color: var(--accent-yellow);
+  border-color: rgba(255, 184, 0, 0.3);
+}
+
+.investment-actions .pause-btn:hover {
+  background: rgba(255, 184, 0, 0.2);
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.3);
+  transform: scale(1.1);
 }
 
 .investment-actions .delete-btn {
@@ -105,6 +122,7 @@
 .investment-actions .delete-btn:hover {
   background: rgba(255, 0, 110, 0.2);
   box-shadow: var(--glow-pink);
+  transform: scale(1.1);
 }
 
 @media (max-width: 768px) {

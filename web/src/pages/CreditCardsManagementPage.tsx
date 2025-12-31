@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory } from "react-icons/fa";
 import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts, getCreditCardUsage, fetchDashboard, updateCreditCardBill } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { getCache, setCache } from "../utils/cache";
 import "./CreditCardsManagementPage.css";
 
 interface CreditCardsManagementPageProps {
@@ -31,16 +32,23 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const [plans, setPlans] = useState<any[]>([]);  // v1.2: Variable expense plans for usage display
 
   useEffect(() => {
-    loadCards();
-    loadBillingAlerts();  // v1.2: Load billing alerts
-    loadPlans();  // v1.2: Load plans for usage display
+    // Load all data in parallel for faster initial load
+    Promise.all([loadCards(), loadBillingAlerts(), loadPlans()]);
   }, []);
 
   // v1.2: Load variable expense plans
   const loadPlans = async () => {
     try {
+      // Try cache first
+      const cached = getCache('dashboard');
+      if (cached?.data?.variablePlans) {
+        setPlans(cached.data.variablePlans);
+        return;
+      }
+      
       const res = await fetchDashboard(token, new Date().toISOString());
       setPlans(res.data.variablePlans || []);
+      setCache('dashboard', res);
     } catch (e) {
       console.error("Failed to load plans:", e);
     }
@@ -48,8 +56,16 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
 
   const loadCards = async () => {
     try {
+      // Try cache first
+      const cached = getCache('creditCards');
+      if (cached?.data) {
+        setCards(cached.data);
+        setLoading(false);
+      }
+      
       const res = await fetchCreditCards(token);
       setCards(res.data);
+      setCache('creditCards', res);
     } catch (e) {
       console.error("Failed to load cards:", e);
     } finally {

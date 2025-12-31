@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MdTrendingUp } from "react-icons/md";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt } from "react-icons/fa";
 import { fetchDashboard } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { getCache, setCache } from "../utils/cache";
 import "./InvestmentsPage.css";
 
 interface InvestmentsPageProps {
@@ -24,8 +26,17 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
 
   const loadInvestments = async () => {
     try {
+      // Try cache first for faster load
+      const cached = getCache('dashboard');
+      if (cached?.data?.investments) {
+        setInvestments(cached.data.investments);
+        setLoading(false);
+      }
+      
+      // Fetch fresh data
       const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
       setInvestments(res.data.investments || []);
+      setCache('dashboard', res);
     } catch (e) {
       console.error("Failed to load investments:", e);
     } finally {
@@ -90,11 +101,27 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                 </div>
               </div>
               <div className="investment-actions">
-                <button onClick={() => navigate(`/settings/plan-finances/investments?edit=${inv.id}`)}>Update</button>
-                <button onClick={() => {/* pause/resume logic */}}>
-                  {inv.status === "active" ? "Pause" : "Resume"}
+                <button 
+                  className="icon-btn edit-btn" 
+                  onClick={() => navigate(`/settings/plan-finances/investments?edit=${inv.id}`)}
+                  title="Edit"
+                >
+                  <FaEdit />
                 </button>
-                <button className="delete-btn" onClick={() => {/* delete logic */}}>Delete</button>
+                <button 
+                  className="icon-btn pause-btn" 
+                  onClick={() => {/* pause/resume logic */}}
+                  title={inv.status === "active" ? "Pause" : "Resume"}
+                >
+                  {inv.status === "active" ? <FaPause /> : <FaPlay />}
+                </button>
+                <button 
+                  className="icon-btn delete-btn" 
+                  onClick={() => {/* delete logic */}}
+                  title="Delete"
+                >
+                  <FaTrashAlt />
+                </button>
               </div>
             </motion.div>
           ))}
