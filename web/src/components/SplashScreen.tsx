@@ -31,6 +31,9 @@ export function SplashScreen({ isLoading, progress }: SplashScreenProps) {
     }
   };
 
+  // Money symbols for the swirl
+  const moneySymbols = ['₹', '$', '€', '£', '¥', '₿'];
+  
   return (
     <AnimatePresence>
       {isLoading && (
@@ -42,24 +45,115 @@ export function SplashScreen({ isLoading, progress }: SplashScreenProps) {
           transition={{ duration: 0.3 }}
         >
           <div className="splash-content">
-            {/* Logo/Brand */}
-            <motion.div
-              className="splash-logo"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5 }}
+            {/* Psychedelic Neon Money Swirl */}
+            <div className="money-swirl-container">
+              {/* Outer Ring */}
+              {moneySymbols.map((symbol, index) => (
+                <motion.div
+                  key={`outer-${index}`}
+                  className="money-symbol outer-ring"
+                  style={{
+                    '--rotation': `${index * 60}deg`,
+                    '--delay': `${index * 0.15}s`
+                  } as any}
+                  animate={{
+                    rotate: [0, 360],
+                    scale: [1, 1.2, 1],
+                    opacity: [0.6, 1, 0.6]
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: index * 0.15
+                  }}
+                >
+                  {symbol}
+                </motion.div>
+              ))}
+              
+              {/* Middle Ring */}
+              {moneySymbols.map((symbol, index) => (
+                <motion.div
+                  key={`middle-${index}`}
+                  className="money-symbol middle-ring"
+                  style={{
+                    '--rotation': `${index * 60 + 30}deg`,
+                    '--delay': `${index * 0.12}s`
+                  } as any}
+                  animate={{
+                    rotate: [0, -360],
+                    scale: [1, 1.3, 1],
+                    opacity: [0.5, 1, 0.5]
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: index * 0.12
+                  }}
+                >
+                  {symbol}
+                </motion.div>
+              ))}
+              
+              {/* Inner Ring */}
+              {moneySymbols.slice(0, 4).map((symbol, index) => (
+                <motion.div
+                  key={`inner-${index}`}
+                  className="money-symbol inner-ring"
+                  style={{
+                    '--rotation': `${index * 90}deg`,
+                    '--delay': `${index * 0.1}s`
+                  } as any}
+                  animate={{
+                    rotate: [0, 360],
+                    scale: [1, 1.4, 1],
+                    opacity: [0.4, 1, 0.4]
+                  }}
+                  transition={{
+                    duration: 2.5,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: index * 0.1
+                  }}
+                >
+                  {symbol}
+                </motion.div>
+              ))}
+              
+              {/* Center Glow */}
+              <motion.div
+                className="center-glow"
+                animate={{
+                  scale: [1, 1.5, 1],
+                  opacity: [0.3, 0.6, 0.3]
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+            </div>
+
+            {/* Brand */}
+            <motion.h1
+              className="splash-brand"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <div className="logo-icon">💰</div>
-              <h1 className="logo-text">FinFlow</h1>
-            </motion.div>
+              FinFlow
+            </motion.h1>
 
             {/* Progress Message */}
             <motion.div
               className="splash-message"
               key={stage}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
               {getMessage()}
@@ -73,28 +167,6 @@ export function SplashScreen({ isLoading, progress }: SplashScreenProps) {
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               />
-            </div>
-
-            {/* Animated Dots */}
-            <div className="splash-dots">
-              <motion.span
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
-              >
-                •
-              </motion.span>
-              <motion.span
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
-              >
-                •
-              </motion.span>
-              <motion.span
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1.5, repeat: Infinity, delay: 1 }}
-              >
-                •
-              </motion.span>
             </div>
           </div>
         </motion.div>

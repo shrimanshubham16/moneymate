@@ -4,76 +4,189 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: radial-gradient(circle at center, #1a1f2e 0%, #0a0e1a 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  overflow: hidden;
+}
+
+.splash-screen::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(0, 217, 255, 0.05) 0%, transparent 70%);
+  animation: pulse-glow 3s ease-in-out infinite;
 }
 
 .splash-content {
   text-align: center;
   max-width: 400px;
   padding: 2rem;
+  position: relative;
+  z-index: 1;
 }
 
-.splash-logo {
-  margin-bottom: 2rem;
+/* Psychedelic Neon Money Swirl */
+.money-swirl-container {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  margin: 0 auto 3rem;
 }
 
-.logo-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  filter: drop-shadow(0 0 20px rgba(34, 197, 94, 0.5));
-}
-
-.logo-text {
+.money-symbol {
+  position: absolute;
   font-size: 2.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
+  text-shadow: 
+    0 0 10px currentColor,
+    0 0 20px currentColor,
+    0 0 30px currentColor;
+  transform-origin: center;
+}
+
+.money-symbol.outer-ring {
+  color: #00d9ff;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-120px);
+  font-size: 2.8rem;
+}
+
+.money-symbol.middle-ring {
+  color: #a855f7;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-80px);
+  font-size: 2.4rem;
+}
+
+.money-symbol.inner-ring {
+  color: #22c55e;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-40px);
+  font-size: 2rem;
+}
+
+.center-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle, rgba(0, 217, 255, 0.6) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(20px);
+}
+
+/* Brand */
+.splash-brand {
+  font-size: 3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #00d9ff 0%, #a855f7 50%, #22c55e 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin: 0;
+  margin: 0 0 2rem 0;
+  text-shadow: 0 0 40px rgba(0, 217, 255, 0.3);
+  letter-spacing: 2px;
 }
 
+/* Progress Message */
 .splash-message {
   color: #94a3b8;
   font-size: 1rem;
   margin-bottom: 2rem;
   min-height: 24px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
+/* Progress Bar */
 .splash-progress-container {
   width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 3px;
+  background: rgba(148, 163, 184, 0.1);
   border-radius: 2px;
   overflow: hidden;
-  margin-bottom: 1rem;
+  position: relative;
 }
 
 .splash-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #22c55e 0%, #10b981 100%);
+  background: linear-gradient(90deg, #00d9ff 0%, #a855f7 50%, #22c55e 100%);
   border-radius: 2px;
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+  box-shadow: 
+    0 0 10px rgba(0, 217, 255, 0.6),
+    0 0 20px rgba(168, 85, 247, 0.4),
+    0 0 30px rgba(34, 197, 94, 0.3);
+  position: relative;
 }
 
-.splash-dots {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: #22c55e;
+.splash-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 1.5s infinite;
 }
 
-@keyframes pulse {
+/* Animations */
+@keyframes pulse-glow {
   0%, 100% {
-    opacity: 1;
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1);
   }
   50% {
-    opacity: 0.7;
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .money-swirl-container {
+    width: 250px;
+    height: 250px;
+  }
+  
+  .money-symbol.outer-ring {
+    font-size: 2.2rem;
+    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-100px);
+  }
+  
+  .money-symbol.middle-ring {
+    font-size: 1.8rem;
+    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-65px);
+  }
+  
+  .money-symbol.inner-ring {
+    font-size: 1.5rem;
+    transform: translate(-50%, -50%) rotate(var(--rotation)) translateY(-35px);
+  }
+  
+  .splash-brand {
+    font-size: 2.5rem;
   }
 }
 
