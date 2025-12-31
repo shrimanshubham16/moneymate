@@ -19,40 +19,18 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
     // Fetch user info from API
     const fetchUser = async () => {
       try {
-        // #region agent log
-        console.log('[DEBUG_ACCOUNT_H1_H2_H3] Fetching user from /auth/me', { baseUrl: BASE_URL, hasToken: !!token, tokenPrefix: token?.substring(0, 20) });
-        // #endregion
         const response = await fetch(`${BASE_URL}/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
-        // #region agent log
-        console.log('[DEBUG_ACCOUNT_H2_H4] Response received', { ok: response.ok, status: response.status, statusText: response.statusText });
-        // #endregion
         if (response.ok) {
           const data = await response.json();
-          // #region agent log
-          console.log('[DEBUG_ACCOUNT_H1_H5] Response data parsed', { 
-            rawData: data, 
-            hasUser: !!data.user, 
-            hasData: !!data.data, 
-            userPath: data.user, 
-            dataPath: data.data,
-            keys: Object.keys(data)
-          });
-          // #endregion
-          // FIX: Edge Function returns { data: userData }, not { user: userData }
+          // Edge Function returns { data: userData }, not { user: userData }
           setUser(data.data);
-          // #region agent log
-          console.log('[DEBUG_ACCOUNT_H1_FIXED] User state set to data.data', { userSet: data.data, username: data.data?.username, userId: data.data?.id });
-          // #endregion
         }
       } catch (e) {
         console.error("Failed to fetch user:", e);
-        // #region agent log
-        console.error('[DEBUG_ACCOUNT_H2_H3_H4] Error fetching user', { error: String(e), errorObj: e });
-        // #endregion
       } finally {
         setLoading(false);
       }

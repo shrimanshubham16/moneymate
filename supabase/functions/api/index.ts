@@ -455,8 +455,7 @@ serve(async (req) => {
 
     // AUTH/ME - Get current user info
     if (path === '/auth/me' && method === 'GET') {
-      const { data: userData, error: userErr } = await supabase.from('users').select('id, username, created_at').eq('id', userId).single();
-      console.log('[DEBUG_AUTH_ME]', { userId, userData, userErr, hasUsername: !!userData?.username, hasId: !!userData?.id });
+      const { data: userData } = await supabase.from('users').select('id, username, created_at').eq('id', userId).single();
       return json({ data: userData });
     }
 
