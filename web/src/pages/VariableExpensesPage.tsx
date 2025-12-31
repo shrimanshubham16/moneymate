@@ -508,17 +508,19 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, gap: 16 }}>
                     <div className="stat">
                       <span className="stat-label">Planned</span>
-                      <span className="stat-value">₹{plan.planned.toLocaleString("en-IN")}</span>
+                      <span className={`stat-value ${plan.planned >= 100000 ? 'large-amount' : ''} ${plan.planned >= 1000000 ? 'extra-large-amount' : ''}`}>
+                        ₹{plan.planned.toLocaleString("en-IN")}
+                      </span>
                     </div>
                     <div className="stat">
                       <span className="stat-label">Actual</span>
-                      <span className={`stat-value ${overspend ? "overspend" : ""}`}>
+                      <span className={`stat-value ${overspend ? "overspend" : ""} ${plan.actualTotal >= 100000 ? 'large-amount' : ''} ${plan.actualTotal >= 1000000 ? 'extra-large-amount' : ''}`}>
                         ₹{plan.actualTotal.toLocaleString("en-IN")}
                       </span>
                     </div>
                     <div className="stat">
                       <span className="stat-label">Remaining</span>
-                      <span className={`stat-value ${overspend ? "overspend" : "good"}`}>
+                      <span className={`stat-value ${overspend ? "overspend" : "good"} ${Math.abs(plan.actualTotal - plan.planned) >= 100000 ? 'large-amount' : ''} ${Math.abs(plan.actualTotal - plan.planned) >= 1000000 ? 'extra-large-amount' : ''}`}>
                         {overspend ? "-" : ""}₹{Math.abs(plan.actualTotal - plan.planned).toLocaleString("en-IN")}
                       </span>
                     </div>
