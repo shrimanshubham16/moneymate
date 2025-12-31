@@ -27,11 +27,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0); // Track loading progress
+  const [isStale, setIsStale] = useState(false); // Track if showing stale data
   const [creditCards, setCreditCards] = useState<any[]>([]);
   const [loans, setLoans] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
   const { showIntro, closeIntro } = useIntroModal("dashboard");
+  const keepAliveIntervalRef = useRef<number | null>(null);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -39,7 +42,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   };
 
   // Background revalidation function
-  const fetchFreshData = async (userId: string) => {
+  const fetchFreshData = async (userId: string, wasStale = false) => {
     try {
       const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
         fetchDashboard(token, new Date().toISOString()),
@@ -55,6 +58,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setLoans(loansRes.data);
       setActivities(activityRes.data);
       setSharingMembers(membersRes.data);
+      setIsStale(false); // Data is now fresh
       
       // Update cache
       ClientCache.set('dashboard', dashboardRes.data, userId);
@@ -62,10 +66,15 @@ export function DashboardPage({ token }: DashboardPageProps) {
       ClientCache.set('loans', loansRes.data, userId);
       ClientCache.set('activities', activityRes.data, userId);
       
-      console.log('[REVALIDATE_SUCCESS] Dashboard data refreshed in background');
+      if (wasStale) {
+        console.log('[REVALIDATE_SUCCESS] Stale data replaced with fresh data');
+      } else {
+        console.log('[REVALIDATE_SUCCESS] Dashboard data refreshed in background');
+      }
     } catch (error) {
       console.error('[REVALIDATE_ERROR] Failed to refresh:', error);
       // Don't throw - background refresh failures shouldn't break the UI
+      // User still sees the stale cached data
     }
   };
 
@@ -90,33 +99,42 @@ export function DashboardPage({ token }: DashboardPageProps) {
         console.error('[CACHE_ERROR] Failed to extract userId from token:', e);
       }
 
-      // STALE-WHILE-REVALIDATE: Check cache first
+      // OFFLINE-FIRST: Always check cache first (even if stale)
       const cachedDashboard = ClientCache.get<any>('dashboard', userId);
+      const isDataStale = ClientCache.isStale('dashboard', userId);
       
       if (cachedDashboard && !forceRefresh) {
-        console.log('[CACHE_HIT_CLIENT] Using cached dashboard data - instant load!');
         const cachedCards = ClientCache.get<any[]>('creditCards', userId) || [];
         const cachedLoans = ClientCache.get<any[]>('loans', userId) || [];
         const cachedActivities = ClientCache.get<any[]>('activities', userId) || [];
         
-        // Show cached data immediately
+        // Show cached data immediately (even if stale)
         setData(cachedDashboard);
         setCreditCards(cachedCards);
         setLoans(cachedLoans);
         setActivities(cachedActivities);
         setSharingMembers({ members: [] });
         setLoading(false);
+        setIsStale(isDataStale);
         
-        // REVALIDATE: Fetch fresh data in background to update cache
+        if (isDataStale) {
+          console.log('[OFFLINE_FIRST] Showing stale cache to prevent blank screen');
+        } else {
+          console.log('[CACHE_HIT_CLIENT] Using cached dashboard data - instant load!');
+        }
+        
+        // REVALIDATE: Fetch fresh data in background
         console.log('[REVALIDATE] Fetching fresh data in background...');
-        fetchFreshData(userId).catch(err => {
+        fetchFreshData(userId, isDataStale).catch(err => {
           console.error('[REVALIDATE_ERROR] Background refresh failed:', err);
+          // Keep showing stale data - better than blank screen
         });
         
         return;
       }
       
       console.log('[CACHE_MISS_CLIENT] No cached data, fetching from API');
+      setIsStale(false);
 
       const apiTimings: any = {};
       
@@ -216,12 +234,16 @@ export function DashboardPage({ token }: DashboardPageProps) {
       });
       // #endregion
       
+      setLoadProgress(80); // Data received
+      
       // Set state
       setData(dashboardRes.data);
       setCreditCards(cardsRes.data);
       setLoans(loansRes.data);
       setActivities(activityRes.data);
       setSharingMembers(membersRes.data);
+      
+      setLoadProgress(95); // Rendering
       
       // Cache the results
       try {
@@ -237,17 +259,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
       }
     } catch (e: any) {
       console.error("Failed to load dashboard:", e);
+      setLoadProgress(100); // Complete even on error
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="dashboard-page">
-        <MatrixLoader message="Loading your financial data..." fullScreen={false} />
-      </div>
-    );
+    return <SplashScreen isLoading={loading} progress={loadProgress} />;
   }
 
   if (!data) {
@@ -312,6 +331,27 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   return (
     <div className="dashboard-page">
+      {/* Stale Data Banner */}
+      {isStale && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
+          color: 'white',
+          padding: '8px 16px',
+          textAlign: 'center',
+          fontSize: '14px',
+          fontWeight: 500,
+          zIndex: 1000,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          animation: 'pulse 2s ease-in-out infinite'
+        }}>
+          ⚠️ Showing cached data - Refreshing in background...
+        </div>
+      )}
+      
       <IntroModal
         isOpen={showIntro}
         onClose={closeIntro}

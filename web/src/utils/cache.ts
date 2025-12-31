@@ -32,15 +32,37 @@ export class ClientCache {
       // Check TTL
       const age = Date.now() - entry.timestamp;
       if (age > CACHE_TTL_MS) {
-        this.invalidate(key);
-        return null;
+        // Don't invalidate - just mark as stale
+        console.log(`[CACHE_HIT_STALE] ${key} (age: ${age}ms) - showing stale data`);
+      } else {
+        console.log(`[CACHE_HIT] ${key} (age: ${age}ms)`);
       }
       
-      console.log(`[CACHE_HIT] ${key} (age: ${age}ms)`);
       return entry.data;
     } catch (e) {
       console.error('[CACHE_ERROR] Failed to read cache:', e);
       return null;
+    }
+  }
+  
+  /**
+   * Check if cache is stale (expired but still exists)
+   */
+  static isStale(key: string, userId: string): boolean {
+    try {
+      const cacheKey = `${CACHE_PREFIX}${key}`;
+      const cached = localStorage.getItem(cacheKey);
+      
+      if (!cached) return false;
+      
+      const entry: CacheEntry<any> = JSON.parse(cached);
+      
+      if (entry.userId !== userId) return false;
+      
+      const age = Date.now() - entry.timestamp;
+      return age > CACHE_TTL_MS;
+    } catch (e) {
+      return false;
     }
   }
 
