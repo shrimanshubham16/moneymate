@@ -112,6 +112,10 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                 </div>
                 <div className="card-details">
                   <div className="detail-item">
+                    <span className="label">Current Unbilled</span>
+                    <span className="value">₹{(card.currentExpenses || 0).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="detail-item">
                     <span className="label">Bill Amount</span>
                     <span className="value">₹{card.billAmount.toLocaleString("en-IN")}</span>
                   </div>
