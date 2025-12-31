@@ -1,6 +1,6 @@
 // Service Worker for FinFlow PWA - Enhanced with Stale-While-Revalidate
 // Bump version to invalidate old caches/hashes when deploying
-const SW_VERSION = '1.7.0';
+const SW_VERSION = '1.8.0'; // Force cache clear after useRef fix
 const CACHE_NAME = `finflow-static-${SW_VERSION}`;
 const RUNTIME_CACHE = `finflow-runtime-${SW_VERSION}`;
 const IMAGE_CACHE = `finflow-images-${SW_VERSION}`;
