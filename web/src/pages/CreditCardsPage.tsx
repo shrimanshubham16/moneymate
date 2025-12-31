@@ -63,11 +63,16 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                 <label>Select Card *</label>
                 <select value={selectedCard || ""} onChange={(e) => setSelectedCard(e.target.value)} required>
                   <option value="">Select card</option>
-                  {cards.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} - Bill: ₹{c.billAmount.toLocaleString("en-IN")}, Paid: ₹{c.paidAmount.toLocaleString("en-IN")}
-                    </option>
-                  ))}
+                  {cards.map(c => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CreditCardsPage.tsx:option-map',message:'Mapping card to option',data:{card:c,billAmount:c?.billAmount,paidAmount:c?.paidAmount,fields:Object.keys(c||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'})}).catch(()=>{});
+                    // #endregion
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {c.name} - Bill: ₹{(parseFloat(c.billAmount || c.bill_amount || 0)).toLocaleString("en-IN")}, Paid: ₹{(parseFloat(c.paidAmount || c.paid_amount || 0)).toLocaleString("en-IN")}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
               <div className="form-group">

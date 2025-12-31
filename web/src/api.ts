@@ -147,7 +147,11 @@ export async function rejectRequest(token: string, id: string) {
 }
 
 export async function fetchCreditCards(token: string) {
-  return request<{ data: any[] }>("/debts/credit-cards", { method: "GET" }, token);
+  // #region agent log
+  const result = await request<{ data: any[] }>("/debts/credit-cards", { method: "GET" }, token);
+  fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:fetchCreditCards',message:'Credit cards fetched from API',data:{count:result?.data?.length||0,firstCard:result?.data?.[0]||null,allCards:result?.data||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2'})}).catch(()=>{});
+  // #endregion
+  return result;
 }
 
 // v1.2: Updated to include billingDate
