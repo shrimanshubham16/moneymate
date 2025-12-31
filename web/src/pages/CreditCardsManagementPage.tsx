@@ -87,7 +87,22 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       console.log('[CARD_USAGE] Raw response:', res.data);
       console.log('[CARD_USAGE] First usage item:', res.data?.[0]);
       console.log('[CARD_USAGE] Plans available:', plans.length);
-      setCardUsage(res.data || []);
+      
+      // #region agent log H4 - Normalize snake_case to camelCase (defensive)
+      const normalizedUsage = (res.data || []).map((u: any) => ({
+        id: u.id,
+        planId: u.planId || u.plan_id,  // Handle both cases
+        amount: u.amount,
+        incurredAt: u.incurredAt || u.incurred_at,  // Handle both cases
+        subcategory: u.subcategory,
+        justification: u.justification,
+        paymentMode: u.paymentMode || u.payment_mode,  // Handle both cases
+        creditCardId: u.creditCardId || u.credit_card_id  // Handle both cases
+      }));
+      console.log('[CARD_USAGE] Normalized usage:', normalizedUsage?.[0]);
+      // #endregion
+      
+      setCardUsage(normalizedUsage);
       setSelectedCardId(cardId);
       setShowUsageModal(true);
     } catch (e: any) {
