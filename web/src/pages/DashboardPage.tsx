@@ -30,7 +30,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [loading, setLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0); // Track loading progress
   const [isStale, setIsStale] = useState(false); // Track if showing stale data
-  const [isStale, setIsStale] = useState(false); // Track if showing stale data
   const [creditCards, setCreditCards] = useState<any[]>([]);
   const [loans, setLoans] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
