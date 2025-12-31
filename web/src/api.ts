@@ -147,11 +147,7 @@ export async function rejectRequest(token: string, id: string) {
 }
 
 export async function fetchCreditCards(token: string) {
-  // #region agent log
-  const result = await request<{ data: any[] }>("/debts/credit-cards", { method: "GET" }, token);
-  console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'api.ts:fetchCreditCards',message:'Credit cards fetched from API',data:{count:result?.data?.length||0,firstCard:result?.data?.[0]||null,allCards:result?.data||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2'}));
-  // #endregion
-  return result;
+  return request<{ data: any[] }>("/debts/credit-cards", { method: "GET" }, token);
 }
 
 // v1.2: Updated to include billingDate

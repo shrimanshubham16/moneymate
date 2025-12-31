@@ -272,12 +272,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       </div>
                       <div className="detail-row">
                         <span>Paid Amount:</span>
-                        <span className="amount">
-                          {/* #region agent log */}
-                          {(() => { console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'CreditCardsManagementPage.tsx:paidAmount',message:'Rendering paid amount',data:{card,paidAmount:card?.paidAmount,paidAmountSnake:card?.paid_amount,fields:Object.keys(card||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'})); return null; })()}
-                          {/* #endregion */}
-                          ₹{(parseFloat(card.paidAmount || card.paid_amount || 0)).toLocaleString("en-IN")}
-                        </span>
+                        <span className="amount">₹{(parseFloat(card.paidAmount || 0)).toLocaleString("en-IN")}</span>
                       </div>
                       <div className="detail-row">
                         <span>Remaining:</span>

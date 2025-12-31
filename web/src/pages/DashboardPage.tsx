@@ -52,9 +52,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
       ]);
       setData(dashboardRes.data);
       setCreditCards(cardsRes.data);
-      // #region agent log
-      console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:loadData',message:'Credit cards set in state',data:{count:cardsRes?.data?.length||0,firstCard:cardsRes?.data?.[0]||null,allCards:cardsRes?.data||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2'}));
-      // #endregion
       setLoans(loansRes.data);
       setActivities(activityRes.data);
       setSharingMembers(membersRes.data);
@@ -121,15 +118,9 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const unpaidInvestments = data.investments?.filter((i: any) => !i.paid).reduce((sum: number, i: any) => sum + (i.monthlyAmount || 0), 0) || 0;
   // Loans are excluded from dues as they're auto-tracked from fixed expenses and not separately markable
   // const unpaidLoans = loans.filter((l: any) => !l.paid).reduce((sum, l) => sum + (l.emi || 0), 0);
-  // #region agent log
-  console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:creditCardDues-before',message:'Before credit card dues calculation',data:{creditCards:creditCards||[],count:creditCards?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'}));
-  // #endregion
   const creditCardDues = (creditCards || []).reduce((sum: number, c: any) => {
-    const billAmount = parseFloat(c.billAmount || c.bill_amount || 0);
-    const paidAmount = parseFloat(c.paidAmount || c.paid_amount || 0);
-    // #region agent log
-    console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:creditCardDues-iter',message:'Credit card dues iteration',data:{card:c,billAmount,paidAmount,fields:Object.keys(c||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H4'}));
-    // #endregion
+    const billAmount = parseFloat(c.billAmount || 0);
+    const paidAmount = parseFloat(c.paidAmount || 0);
     return sum + Math.max(0, billAmount - paidAmount);
   }, 0);
 
@@ -223,19 +214,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         <DashboardWidget
           title="Credit Cards"
           value={creditCards.length}
-          subtitle={(() => {
-            // #region agent log
-            console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:widget-subtitle-before',message:'Before credit card widget subtitle calculation',data:{creditCards:creditCards||[],count:creditCards?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4,H5'}));
-            // #endregion
-            const total = (creditCards || []).reduce((s: number, c: any) => {
-              const billAmount = parseFloat(c.billAmount || c.bill_amount || 0);
-              // #region agent log
-              console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:widget-subtitle-iter',message:'Widget subtitle iteration',data:{card:c,billAmount,fields:Object.keys(c||{}),cBillAmount:c?.billAmount,cBillAmountSnake:c?.bill_amount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'}));
-              // #endregion
-              return s + billAmount;
-            }, 0);
-            return `₹${total.toLocaleString("en-IN")} bills`;
-          })()}
+          subtitle={`₹${(creditCards || []).reduce((s: number, c: any) => s + (parseFloat(c.billAmount || 0)), 0).toLocaleString("en-IN")} bills`}
           icon={<FaCreditCard />}
           onClick={() => navigate("/credit-cards")}
           color="#ef4444"

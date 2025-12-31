@@ -63,16 +63,11 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                 <label>Select Card *</label>
                 <select value={selectedCard || ""} onChange={(e) => setSelectedCard(e.target.value)} required>
                   <option value="">Select card</option>
-                  {cards.map(c => {
-                    // #region agent log
-                    console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'CreditCardsPage.tsx:option-map',message:'Mapping card to option',data:{card:c,billAmount:c?.billAmount,paidAmount:c?.paidAmount,fields:Object.keys(c||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'}));
-                    // #endregion
-                    return (
-                      <option key={c.id} value={c.id}>
-                        {c.name} - Bill: ₹{(parseFloat(c.billAmount || c.bill_amount || 0)).toLocaleString("en-IN")}, Paid: ₹{(parseFloat(c.paidAmount || c.paid_amount || 0)).toLocaleString("en-IN")}
-                      </option>
-                    );
-                  })}
+                  {cards.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} - Bill: ₹{(parseFloat(c.billAmount || 0)).toLocaleString("en-IN")}, Paid: ₹{(parseFloat(c.paidAmount || 0)).toLocaleString("en-IN")}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">
