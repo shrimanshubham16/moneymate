@@ -20,7 +20,7 @@ function verifyPassword(password: string, hash: string): Promise<boolean> {
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
 };
 
 // JWT handling
@@ -334,10 +334,15 @@ serve(async (req) => {
       const { data } = await supabase.from('user_preferences').select('*').eq('user_id', userId).single();
       return json({ data: data || { month_start_day: 1, currency: 'INR' } });
     }
-    if (path === '/preferences' && method === 'PUT') {
+    if (path === '/preferences' && (method === 'PUT' || method === 'PATCH')) {
       const body = await req.json();
+      const updates: any = { user_id: userId };
+      if (body.monthStartDay !== undefined) updates.month_start_day = body.monthStartDay;
+      if (body.month_start_day !== undefined) updates.month_start_day = body.month_start_day;
+      if (body.currency !== undefined) updates.currency = body.currency;
+      if (body.timezone !== undefined) updates.timezone = body.timezone;
       const { data, error: e } = await supabase.from('user_preferences')
-        .upsert({ user_id: userId, ...body }).select().single();
+        .upsert(updates, { onConflict: 'user_id' }).select().single();
       if (e) return error(e.message, 500);
       return json({ data });
     }
@@ -424,12 +429,14 @@ serve(async (req) => {
 
     // EXPORT
     if (path === '/export' && method === 'GET') {
+      const { data: userData } = await supabase.from('users').select('username').eq('id', userId).single();
       const { data } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
-      return json({ data });
+      return json({ data: { ...data, username: userData?.username } });
     }
     if (path === '/export/finances' && method === 'GET') {
+      const { data: userData } = await supabase.from('users').select('username').eq('id', userId).single();
       const { data } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
-      return json({ data });
+      return json({ data: { ...data, username: userData?.username } });
     }
 
     return error('Not found', 404);
