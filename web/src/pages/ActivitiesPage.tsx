@@ -28,6 +28,19 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       const res = await fetchActivity(token);
       console.log("✅ Activities loaded:", res.data);
 
+      // #region agent log H5A/H5B/H5C - Log raw activity payloads
+      if (res.data && res.data.length > 0) {
+        const variableExpenseActivities = res.data.filter((a: any) => a.action === 'added actual expense');
+        console.log('[H5A_H5B_H5C] Variable expense activities from API:', variableExpenseActivities);
+        variableExpenseActivities.forEach((act: any, i: number) => {
+          console.log(`[H5A_H5B_H5C] Activity ${i}: payload type=${typeof act.payload}, value=`, act.payload);
+          if (act.payload) {
+            console.log(`[H5A_H5B_H5C] Activity ${i}: payload.planName=${act.payload?.planName}, amount=${act.payload?.amount}`);
+          }
+        });
+      }
+      // #endregion
+
       // Ensure each activity has the required fields and sanitize payload
       const sanitizedActivities = (res.data || []).map((activity: any) => ({
         ...activity,

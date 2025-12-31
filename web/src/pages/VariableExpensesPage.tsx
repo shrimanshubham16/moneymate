@@ -201,17 +201,23 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       
       // Make API call in background
       const logKey = `[EXPENSE_SAVE_${Date.now()}]`;
-      console.log(`${logKey} Starting API call...`);
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:SAVE_START',message:'Starting expense save',data:{planId:selectedPlanId,amount:tempActual.amount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-      
-      await addVariableActual(token, selectedPlanId, {
+      const apiPayload = {
         amount: Number(tempActual.amount),
         incurred_at: tempActual.incurredAt,
         justification: tempActual.justification || undefined,
         subcategory: tempActual.subcategory,
         payment_mode: tempActual.paymentMode,
         credit_card_id: tempActual.creditCardId
-      });
+      };
+      console.log(`${logKey} Starting API call...`);
+      // #region agent log H4A/H4B - Log exact payload being sent
+      console.log(`${logKey} [H4A_H4B] API Payload:`, JSON.stringify(apiPayload, null, 2));
+      console.log(`${logKey} [H4A_H4B] Plan ID:`, selectedPlanId);
+      console.log(`${logKey} [H4A_H4B] payment_mode value:`, apiPayload.payment_mode, 'Type:', typeof apiPayload.payment_mode);
+      console.log(`${logKey} [H4A_H4B] credit_card_id value:`, apiPayload.credit_card_id, 'Type:', typeof apiPayload.credit_card_id);
+      // #endregion
+      
+      await addVariableActual(token, selectedPlanId, apiPayload);
       
       console.log(`${logKey} API call complete, refreshing data...`);
       fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:SAVE_COMPLETE',message:'API save complete, starting refresh',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
