@@ -755,6 +755,19 @@ serve(async (req) => {
       if (!body.itemId || !body.itemType) return error('itemId and itemType required');
       if (!['fixed_expense', 'investment', 'loan'].includes(body.itemType)) return error('Invalid itemType');
       
+      // Fetch the item name for activity logging
+      let itemName = 'Unknown';
+      if (body.itemType === 'fixed_expense') {
+        const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).single();
+        itemName = expense?.name || 'Unknown Expense';
+      } else if (body.itemType === 'investment') {
+        const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).single();
+        itemName = investment?.name || 'Unknown Investment';
+      } else if (body.itemType === 'loan') {
+        const { data: loan } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).eq('category', 'loan').single();
+        itemName = loan?.name || 'Unknown Loan';
+      }
+      
       const month = new Date().toISOString().slice(0, 7);
       const { error: e } = await supabase
         .from('payments')
@@ -765,7 +778,7 @@ serve(async (req) => {
         .eq('month', month);
       
       if (e) return error(e.message, 500);
-      await logActivity(userId, body.itemType, 'unpaid', { id: body.itemId });
+      await logActivity(userId, body.itemType, 'unpaid', { id: body.itemId, name: itemName });
       return json({ data: { success: true } });
     }
     if (path === '/payments/status' && method === 'GET') {
