@@ -84,10 +84,14 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const loadCardUsage = async (cardId: string) => {
     try {
       const res = await getCreditCardUsage(token, cardId);
+      console.log('[CARD_USAGE] Raw response:', res.data);
+      console.log('[CARD_USAGE] First usage item:', res.data?.[0]);
+      console.log('[CARD_USAGE] Plans available:', plans.length);
       setCardUsage(res.data || []);
       setSelectedCardId(cardId);
       setShowUsageModal(true);
     } catch (e: any) {
+      console.error('[CARD_USAGE] Error:', e);
       alert(e.message || "Failed to load credit card usage");
     }
   };
@@ -434,6 +438,8 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {cardUsage.map((usage: any) => {
                     const plan = plans.find((p: any) => p.id === usage.planId);
+                    console.log('[CARD_USAGE_RENDER] Usage item:', {usage, plan, planId: usage.planId});
+                    
                     return (
                       <div key={usage.id} style={{ 
                         padding: '12px', 
@@ -443,13 +449,29 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                         justifyContent: 'space-between',
                         alignItems: 'center'
                       }}>
-                        <div>
-                          <div style={{ fontWeight: 'bold' }}>₹{usage.amount.toLocaleString("en-IN")}</div>
-                          <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                            {plan?.name || 'Unknown Plan'} - {usage.subcategory || 'Unspecified'}
+                        <div style={{ width: '100%' }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                            ₹{usage.amount.toLocaleString("en-IN")}
                           </div>
+                          <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>
+                            {plan?.name || 'Unknown Plan'} {plan?.category ? `(${plan.category})` : ''}
+                          </div>
+                          {usage.subcategory && usage.subcategory !== 'Unspecified' && (
+                            <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>
+                              Subcategory: {usage.subcategory}
+                            </div>
+                          )}
+                          {usage.justification && (
+                            <div style={{ fontSize: '13px', color: '#6b7280', fontStyle: 'italic', marginBottom: '4px' }}>
+                              "{usage.justification}"
+                            </div>
+                          )}
                           <div style={{ fontSize: '12px', color: '#9ca3af' }}>
-                            {new Date(usage.incurredAt).toLocaleDateString()}
+                            {usage.incurredAt ? new Date(usage.incurredAt).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            }) : 'Date unavailable'}
                           </div>
                         </div>
                       </div>

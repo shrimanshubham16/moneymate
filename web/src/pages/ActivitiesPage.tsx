@@ -138,11 +138,14 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                 }).format(amount);
               };
 
-              // Debug: Log activity for inspection
-              if (activity.action === 'added actual expense') {
-                console.log('[ACTIVITY_DEBUG] Variable expense activity:', {action: activity.action, entity: activity.entity, payload});
-                fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActivitiesPage.tsx:VARIABLE_EXPENSE',message:'Variable expense activity',data:{action:activity.action,entity:activity.entity,payload},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-              }
+              // Debug: Log ALL activities for inspection
+              console.log('[ACTIVITY_DEBUG] Processing activity:', {
+                action: activity.action, 
+                entity: activity.entity, 
+                payload,
+                hasPayload: !!payload,
+                payloadKeys: Object.keys(payload || {})
+              });
               
               switch (activity.action) {
                 case 'created':
