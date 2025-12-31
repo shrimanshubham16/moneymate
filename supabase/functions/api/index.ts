@@ -98,6 +98,65 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
+  // Redis client for caching
+  const REDIS_URL = Deno.env.get('UPSTASH_REDIS_URL');
+  const REDIS_TOKEN = Deno.env.get('UPSTASH_REDIS_TOKEN');
+  
+  async function redisGet(key: string): Promise<any | null> {
+    if (!REDIS_URL || !REDIS_TOKEN) return null;
+    try {
+      const response = await fetch(`${REDIS_URL}/get/${key}`, {
+        headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+      });
+      const data = await response.json();
+      if (data.result) {
+        console.log(`[REDIS_HIT] ${key}`);
+        return JSON.parse(data.result);
+      }
+      return null;
+    } catch (e) {
+      console.error('[REDIS_ERROR] Get failed:', e);
+      return null;
+    }
+  }
+  
+  async function redisSet(key: string, value: any, ttlSeconds = 60): Promise<void> {
+    if (!REDIS_URL || !REDIS_TOKEN) return;
+    try {
+      await fetch(`${REDIS_URL}/setex/${key}/${ttlSeconds}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+        body: JSON.stringify(value)
+      });
+      console.log(`[REDIS_SET] ${key} (TTL: ${ttlSeconds}s)`);
+    } catch (e) {
+      console.error('[REDIS_ERROR] Set failed:', e);
+    }
+  }
+  
+  async function redisInvalidate(pattern: string): Promise<void> {
+    if (!REDIS_URL || !REDIS_TOKEN) return;
+    try {
+      // Delete specific key
+      await fetch(`${REDIS_URL}/del/${pattern}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+      });
+      console.log(`[REDIS_INVALIDATE] ${pattern}`);
+    } catch (e) {
+      console.error('[REDIS_ERROR] Invalidate failed:', e);
+    }
+  }
+  
+  // Invalidate all dashboard-related caches for a user
+  async function invalidateUserCache(userId: string): Promise<void> {
+    await Promise.all([
+      redisInvalidate(`dashboard:${userId}`),
+      redisInvalidate(`health:${userId}`)
+    ]);
+    console.log(`[CACHE_INVALIDATE] User ${userId} caches cleared`);
+  }
+
   // Helper to return JSON
   const json = (data: any, status = 200) => new Response(
     JSON.stringify(data),
@@ -248,6 +307,16 @@ serve(async (req) => {
     // DASHBOARD
     if (path === '/dashboard' && method === 'GET') {
       const perfStart = Date.now();
+      const cacheKey = `dashboard:${userId}`;
+      
+      // Try Redis cache first
+      const cached = await redisGet(cacheKey);
+      if (cached) {
+        const cacheTime = Date.now() - perfStart;
+        console.log('[EDGE_PERF_CACHE] Dashboard from cache', { cacheTime, userId });
+        return json({ data: cached });
+      }
+      
       const timings: any = {};
       
       // Query 1: Dashboard data
@@ -287,28 +356,31 @@ serve(async (req) => {
         return { ...plan, actuals, actualTotal: actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0) };
       });
 
-      const totalTime = Date.now() - perfStart;
-      console.log('[EDGE_PERF_H3_H7] Dashboard endpoint timing', { totalTime, timings, userId });
+      const responseData = {
+        incomes: data?.incomes || [],
+        fixedExpenses: (data?.fixedExpenses || []).map((e: any) => ({ 
+          ...e, 
+          is_sip_flag: e.isSipFlag,
+          paid: paymentStatus[`fixed_expense:${e.id}`] || false 
+        })),
+        variablePlans,
+        investments: (data?.investments || []).map((i: any) => ({ 
+          ...i, 
+          paid: paymentStatus[`investment:${i.id}`] || false 
+        })),
+        futureBombs: data?.futureBombs || [],
+        health: healthData?.health || { remaining: 0, category: 'ok' },
+        constraintScore: constraint || { score: 0, tier: 'green' },
+        alerts: []
+      };
 
-      return json({
-        data: {
-          incomes: data?.incomes || [],
-          fixedExpenses: (data?.fixedExpenses || []).map((e: any) => ({ 
-            ...e, 
-            is_sip_flag: e.isSipFlag,
-            paid: paymentStatus[`fixed_expense:${e.id}`] || false 
-          })),
-          variablePlans,
-          investments: (data?.investments || []).map((i: any) => ({ 
-            ...i, 
-            paid: paymentStatus[`investment:${i.id}`] || false 
-          })),
-          futureBombs: data?.futureBombs || [],
-          health: healthData?.health || { remaining: 0, category: 'ok' },
-          constraintScore: constraint || { score: 0, tier: 'green' },
-          alerts: []
-        }
-      });
+      // Cache the result (60s TTL)
+      await redisSet(cacheKey, responseData, 60);
+
+      const totalTime = Date.now() - perfStart;
+      console.log('[EDGE_PERF_H3_H7] Dashboard endpoint timing', { totalTime, timings, userId, cached: false });
+
+      return json({ data: responseData });
     }
 
     // INCOMES
@@ -319,6 +391,7 @@ serve(async (req) => {
         .select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'income', 'added income source', { name: data.name, amount: data.amount, frequency: data.frequency });
+      await invalidateUserCache(userId);
       return json({ data }, 201);
     }
     if (path.startsWith('/planning/income/') && method === 'PUT') {
@@ -337,6 +410,7 @@ serve(async (req) => {
       const { data: deleted } = await supabase.from('incomes').select('name').eq('id', id).single();
       await supabase.from('incomes').delete().eq('id', id);
       if (deleted) await logActivity(userId, 'income', 'deleted income source', { id, name: deleted.name });
+      await invalidateUserCache(userId);
       return json({ data: { deleted: true } });
     }
 
@@ -348,6 +422,7 @@ serve(async (req) => {
         .select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'fixed_expense', 'added fixed expense', { name: data.name, amount: data.amount, category: data.category, frequency: data.frequency });
+      await invalidateUserCache(userId);
       return json({ data }, 201);
     }
     if (path.startsWith('/planning/fixed-expenses/') && method === 'PUT') {
@@ -368,6 +443,7 @@ serve(async (req) => {
       const { data: deleted } = await supabase.from('fixed_expenses').select('name, category').eq('id', id).single();
       await supabase.from('fixed_expenses').delete().eq('id', id);
       if (deleted) await logActivity(userId, 'fixed_expense', 'deleted fixed expense', { id, name: deleted.name, category: deleted.category });
+      await invalidateUserCache(userId);
       return json({ data: { deleted: true } });
     }
 
@@ -379,6 +455,7 @@ serve(async (req) => {
         .select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'variable_expense_plan', 'added variable expense plan', { name: data.name, planned: data.planned, category: data.category });
+      await invalidateUserCache(userId);
       return json({ data }, 201);
     }
     if (path.match(/\/planning\/variable-expenses\/[^/]+\/actuals$/) && method === 'POST') {
@@ -606,6 +683,7 @@ serve(async (req) => {
       }
       
       await logActivity(userId, 'credit_card', 'created', { id: data.id, name: data.name });
+      await invalidateUserCache(userId);
       return json({ data: transformCreditCard(data) }, 201);
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'PUT') {
@@ -632,6 +710,7 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('credit_cards').update({ paid_amount: newPaidAmount }).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'payment', { id: data.id, amount: body.amount });
+      await invalidateUserCache(userId);
       return json({ data: transformCreditCard(data) });
     }
     if (path.match(/\/debts\/credit-cards\/[^/]+\/reset-billing$/) && method === 'POST') {
@@ -639,6 +718,7 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('credit_cards').update({ current_expenses: 0, needs_bill_update: false }).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'reset_billing', { id: data.id });
+      await invalidateUserCache(userId);
       return json({ data: transformCreditCard(data) });
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'PATCH') {
@@ -650,6 +730,7 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('credit_cards').update({ bill_amount: Math.round(body.billAmount * 100) / 100, needs_bill_update: false }).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'updated_bill', { id: data.id, billAmount: data.bill_amount });
+      await invalidateUserCache(userId);
       return json({ data: transformCreditCard(data) });
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'DELETE') {
@@ -657,6 +738,7 @@ serve(async (req) => {
       const { data: deleted } = await supabase.from('credit_cards').select('name').eq('id', id).single();
       await supabase.from('credit_cards').delete().eq('id', id);
       if (deleted) await logActivity(userId, 'credit_card', 'deleted', { id, name: deleted.name });
+      await invalidateUserCache(userId);
       return json({ data: { deleted: true } });
     }
 
@@ -824,6 +906,7 @@ serve(async (req) => {
       }
       
       await logActivity(userId, body.itemType, 'paid', { id: body.itemId, name: itemName, amount: body.amount });
+      await invalidateUserCache(userId);
       return json({ data: payment });
     }
     if (path === '/payments/mark-unpaid' && method === 'POST') {
@@ -855,6 +938,7 @@ serve(async (req) => {
       
       if (e) return error(e.message, 500);
       await logActivity(userId, body.itemType, 'unpaid', { id: body.itemId, name: itemName });
+      await invalidateUserCache(userId);
       return json({ data: { success: true } });
     }
     if (path === '/payments/status' && method === 'GET') {

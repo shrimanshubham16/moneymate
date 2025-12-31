@@ -16,6 +16,7 @@ import { TrendIndicator } from "../components/TrendIndicator";
 import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
+import { ClientCache } from "../utils/cache";
 import "./DashboardPage.css";
 
 interface DashboardPageProps {
@@ -47,6 +48,27 @@ export function DashboardPage({ token }: DashboardPageProps) {
       const startTime = performance.now();
       console.log('[PERF_H1_H4] Dashboard loadData started', { timestamp: Date.now() });
       // #endregion
+
+      // Extract userId from token for cache key
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      const userId = tokenPayload.userId;
+
+      // Try client cache first
+      const cachedDashboard = ClientCache.get<any>('dashboard', userId);
+      const cachedCards = ClientCache.get<any[]>('creditCards', userId);
+      const cachedLoans = ClientCache.get<any[]>('loans', userId);
+      const cachedActivities = ClientCache.get<any[]>('activities', userId);
+      
+      if (cachedDashboard && cachedCards && cachedLoans && cachedActivities) {
+        console.log('[CACHE_HIT] Using cached dashboard data');
+        setData(cachedDashboard);
+        setCreditCards(cachedCards);
+        setLoans(cachedLoans);
+        setActivities(cachedActivities);
+        setSharingMembers({ members: [] }); // Sharing rarely changes
+        setLoading(false);
+        return;
+      }
 
       const apiTimings: any = {};
       
@@ -146,11 +168,20 @@ export function DashboardPage({ token }: DashboardPageProps) {
       });
       // #endregion
       
+      // Set state
       setData(dashboardRes.data);
       setCreditCards(cardsRes.data);
       setLoans(loansRes.data);
       setActivities(activityRes.data);
       setSharingMembers(membersRes.data);
+      
+      // Cache the results
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      const userId = tokenPayload.userId;
+      ClientCache.set('dashboard', dashboardRes.data, userId);
+      ClientCache.set('creditCards', cardsRes.data, userId);
+      ClientCache.set('loans', loansRes.data, userId);
+      ClientCache.set('activities', activityRes.data, userId);
     } catch (e: any) {
       console.error("Failed to load dashboard:", e);
     } finally {
