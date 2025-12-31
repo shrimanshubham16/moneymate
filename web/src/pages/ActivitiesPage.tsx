@@ -42,14 +42,29 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       // #endregion
 
       // Ensure each activity has the required fields and sanitize payload
-      const sanitizedActivities = (res.data || []).map((activity: any) => ({
-        ...activity,
-        id: activity.id || activity._id || Math.random().toString(),
-        entity: String(activity.entity || 'unknown'),
-        action: String(activity.action || 'action'),
-        createdAt: activity.createdAt || new Date().toISOString(),
-        payload: activity.payload // Keep as-is, will stringify in render
-      }));
+      const sanitizedActivities = (res.data || []).map((activity: any) => {
+        // #region agent log H5 - Parse string payload to object
+        let parsedPayload = activity.payload;
+        if (typeof parsedPayload === 'string') {
+          try {
+            parsedPayload = JSON.parse(parsedPayload);
+            console.log('[H5_PAYLOAD_PARSED] Converted string to object:', parsedPayload);
+          } catch (e) {
+            console.error('[H5_PAYLOAD_PARSE_ERROR]', e);
+            parsedPayload = {};
+          }
+        }
+        // #endregion
+        
+        return {
+          ...activity,
+          id: activity.id || activity._id || Math.random().toString(),
+          entity: String(activity.entity || 'unknown'),
+          action: String(activity.action || 'action'),
+          createdAt: activity.createdAt || new Date().toISOString(),
+          payload: parsedPayload // Now guaranteed to be object
+        };
+      });
 
       // Sort by most recent first (newest at top)
       sanitizedActivities.sort((a: any, b: any) => {
@@ -170,14 +185,21 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                   }
                   return `${username} added ${entity}`;
                 case 'added actual expense':
-                  // Variable expense actual
-                  const planName = payload.planName || 'expense';
-                  const category = payload.category ? ` in ${payload.category}` : '';
-                  const subcategory = payload.subcategory && payload.subcategory !== 'Unspecified' ? ` (${payload.subcategory})` : '';
-                  const paymentMode = payload.paymentMode ? ` via ${payload.paymentMode}` : '';
-                  const creditCard = payload.creditCard ? ` using ${payload.creditCard}` : '';
-                  const justification = payload.justification ? ` - "${payload.justification}"` : '';
-                  return `${username} spent ${formatCurrency(payload.amount)} on ${planName}${category}${subcategory}${paymentMode}${creditCard}${justification}`;
+                  // Variable expense actual - handle multiple payload formats
+                  // #region agent log H5 - Handle various payload formats
+                  const expPlanName = payload.planName || payload.plan || payload.name || 'expense';
+                  const expAmount = payload.amount || 0;
+                  const expCategory = payload.category ? ` in ${payload.category}` : '';
+                  const expSubcategory = payload.subcategory && payload.subcategory !== 'Unspecified' ? ` (${payload.subcategory})` : '';
+                  const expPaymentMode = payload.paymentMode ? ` via ${payload.paymentMode}` : '';
+                  const expCreditCard = payload.creditCard ? ` using ${payload.creditCard}` : '';
+                  const expJustification = payload.justification ? ` - "${payload.justification}"` : '';
+                  console.log('[H5_ACTUAL_EXPENSE] Building message:', { expPlanName, expAmount, payload });
+                  // #endregion
+                  if (expAmount > 0) {
+                    return `${username} spent ${formatCurrency(expAmount)} on ${expPlanName}${expCategory}${expSubcategory}${expPaymentMode}${expCreditCard}${expJustification}`;
+                  }
+                  return `${username} added actual expense`;
                 case 'added fixed expense':
                   if (payload.name && payload.amount) {
                     const frequency = payload.frequency ? ` (${payload.frequency})` : '';
