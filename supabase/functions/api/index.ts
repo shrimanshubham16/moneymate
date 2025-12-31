@@ -890,16 +890,27 @@ serve(async (req) => {
       // Create a map of user ID to username
       const usernameMap = new Map((users || []).map((u: any) => [u.id, u.username]));
       
-      // Format response with username
-      const formatted = (activities || []).map((act: any) => ({
-        id: act.id,
-        actorId: act.actor_id,
-        entity: act.entity,
-        action: act.action,
-        payload: act.payload,
-        createdAt: act.created_at,
-        username: usernameMap.get(act.actor_id) || 'Unknown User'
-      }));
+      // Format response with username and parse JSON payload
+      const formatted = (activities || []).map((act: any) => {
+        let parsedPayload = null;
+        try {
+          // Parse JSON string payload back to object
+          parsedPayload = act.payload ? JSON.parse(act.payload) : null;
+        } catch (e) {
+          console.error('[ACTIVITY_PARSE_ERROR] Failed to parse payload:', act.payload);
+          parsedPayload = act.payload; // Keep as-is if parse fails
+        }
+        
+        return {
+          id: act.id,
+          actorId: act.actor_id,
+          entity: act.entity,
+          action: act.action,
+          payload: parsedPayload, // Parsed object, not string
+          createdAt: act.created_at,
+          username: usernameMap.get(act.actor_id) || 'Unknown User'
+        };
+      });
       
       return json({ data: formatted });
     }
