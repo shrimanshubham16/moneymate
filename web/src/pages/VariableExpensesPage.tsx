@@ -222,17 +222,14 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       console.log(`${logKey} API call complete, refreshing data...`);
       fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:SAVE_COMPLETE',message:'API save complete, starting refresh',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
       
-      // Refresh data after successful save (replaces temp with real data)
+      // Refresh data in PARALLEL after successful save (replaces temp with real data)
       const refreshStart = Date.now();
-      await loadPlans();
-      const plansRefreshTime = Date.now() - refreshStart;
-      console.log(`${logKey} Plans refreshed in ${plansRefreshTime}ms`);
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:PLANS_REFRESHED',message:'Plans data refreshed',data:{timeMs:plansRefreshTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-      
-      await loadCreditCards();
+      // #region agent log PERF - Parallel refresh for better performance
+      console.log(`${logKey} Starting PARALLEL refresh...`);
+      await Promise.all([loadPlans(), loadCreditCards()]);
       const totalRefreshTime = Date.now() - refreshStart;
-      console.log(`${logKey} Total refresh time: ${totalRefreshTime}ms`);
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:REFRESH_COMPLETE',message:'All data refreshed',data:{totalTimeMs:totalRefreshTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      console.log(`${logKey} PARALLEL refresh complete in ${totalRefreshTime}ms`);
+      // #endregion
 
     } catch (e: any) {
       alert(e.message);
