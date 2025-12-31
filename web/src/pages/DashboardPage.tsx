@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -11,6 +11,7 @@ import { fetchDashboard, fetchCreditCards, fetchLoans, fetchActivity, fetchShari
 import { DashboardWidget } from "../components/DashboardWidget";
 import { HealthIndicator } from "../components/HealthIndicator";
 import { MatrixLoader } from "../components/MatrixLoader";
+import { SplashScreen } from "../components/SplashScreen";
 import { EmptyState } from "../components/EmptyState";
 import { TrendIndicator } from "../components/TrendIndicator";
 import { StatusBadge } from "../components/StatusBadge";
@@ -29,11 +30,13 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [loading, setLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0); // Track loading progress
   const [isStale, setIsStale] = useState(false); // Track if showing stale data
+  const [isStale, setIsStale] = useState(false); // Track if showing stale data
   const [creditCards, setCreditCards] = useState<any[]>([]);
   const [loans, setLoans] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
   const { showIntro, closeIntro } = useIntroModal("dashboard");
+  const keepAliveIntervalRef = useRef<number | null>(null);
   const keepAliveIntervalRef = useRef<number | null>(null);
 
   const handleLogout = () => {
@@ -80,10 +83,44 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   useEffect(() => {
     loadData();
+    
+    // KEEP-ALIVE: Ping Edge Function every 4 minutes to prevent cold starts
+    // Only runs while dashboard is mounted (user is active)
+    const keepAlive = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_SUPABASE_URL?.replace('/rest/v1', '') || 'https://eklennfapovprkebdsml.supabase.co';
+        await fetch(`${baseUrl}/functions/v1/api/health`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+          }
+        });
+        console.log('[KEEP_ALIVE] Edge Function pinged to prevent cold start');
+      } catch (err) {
+        console.error('[KEEP_ALIVE_ERROR]', err);
+      }
+    };
+    
+    // Initial ping after 4 minutes
+    const timeoutId = setTimeout(() => {
+      keepAlive();
+      // Then ping every 4 minutes
+      keepAliveIntervalRef.current = window.setInterval(keepAlive, 4 * 60 * 1000);
+    }, 4 * 60 * 1000);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      if (keepAliveIntervalRef.current) {
+        clearInterval(keepAliveIntervalRef.current);
+      }
+    };
   }, []);
 
   const loadData = async (forceRefresh = false) => {
     try {
+      setLoadProgress(0);
+      
       // #region agent log
       const startTime = performance.now();
       console.log('[PERF_H1_H4] Dashboard loadData started', { timestamp: Date.now(), forceRefresh });
@@ -115,6 +152,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         setActivities(cachedActivities);
         setSharingMembers({ members: [] });
         setLoading(false);
+        setLoadProgress(100);
         setIsStale(isDataStale);
         
         if (isDataStale) {
@@ -135,8 +173,11 @@ export function DashboardPage({ token }: DashboardPageProps) {
       
       console.log('[CACHE_MISS_CLIENT] No cached data, fetching from API');
       setIsStale(false);
+      setLoadProgress(10); // Starting fetch
 
       const apiTimings: any = {};
+      
+      setLoadProgress(30); // Connecting to server
       
       const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
         (async () => {
