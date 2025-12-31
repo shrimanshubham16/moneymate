@@ -247,21 +247,33 @@ serve(async (req) => {
 
     // DASHBOARD
     if (path === '/dashboard' && method === 'GET') {
+      const perfStart = Date.now();
+      const timings: any = {};
+      
+      // Query 1: Dashboard data
+      const t0 = Date.now();
       const { data } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
+      timings.dashboardData = Date.now() - t0;
       
-      // Get constraint score
+      // Query 2: Constraint score
+      const t1 = Date.now();
       const { data: constraint } = await supabase.from('constraint_scores').select('*').eq('user_id', userId).single();
+      timings.constraintScore = Date.now() - t1;
       
-      // Get health from PostgreSQL function (matches /health/details exactly)
+      // Query 3: Health calculation
+      const t2 = Date.now();
       const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
+      timings.healthCalc = Date.now() - t2;
       
-      // Get payment status for current month (matching old backend behavior)
-      const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+      // Query 4: Payment status
+      const t3 = Date.now();
+      const month = new Date().toISOString().slice(0, 7);
       const { data: payments } = await supabase
         .from('payments')
         .select('entity_type, entity_id')
         .eq('user_id', userId)
         .eq('month', month);
+      timings.payments = Date.now() - t3;
       
       // Create payment status map
       const paymentStatus: Record<string, boolean> = {};
@@ -275,18 +287,21 @@ serve(async (req) => {
         return { ...plan, actuals, actualTotal: actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0) };
       });
 
+      const totalTime = Date.now() - perfStart;
+      console.log('[EDGE_PERF_H3_H7] Dashboard endpoint timing', { totalTime, timings, userId });
+
       return json({
         data: {
           incomes: data?.incomes || [],
-          fixedExpenses: (data?.fixedExpenses || []).map((e: any) => ({
-            ...e,
+          fixedExpenses: (data?.fixedExpenses || []).map((e: any) => ({ 
+            ...e, 
             is_sip_flag: e.isSipFlag,
-            paid: paymentStatus[`fixed_expense:${e.id}`] || false
+            paid: paymentStatus[`fixed_expense:${e.id}`] || false 
           })),
           variablePlans,
-          investments: (data?.investments || []).map((i: any) => ({
-            ...i,
-            paid: paymentStatus[`investment:${i.id}`] || false
+          investments: (data?.investments || []).map((i: any) => ({ 
+            ...i, 
+            paid: paymentStatus[`investment:${i.id}`] || false 
           })),
           futureBombs: data?.futureBombs || [],
           health: healthData?.health || { remaining: 0, category: 'ok' },
