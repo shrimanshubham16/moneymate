@@ -113,14 +113,18 @@ export function DashboardPage({ token }: DashboardPageProps) {
   // Calculate unpaid dues only
   const unpaidFixed = data.fixedExpenses?.filter((f: any) => !f.paid).reduce((sum: number, f: any) => {
     const monthly = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
-    return sum + monthly;
+    return sum + (monthly || 0);
   }, 0) || 0;
-  const unpaidInvestments = data.investments?.filter((i: any) => !i.paid).reduce((sum: number, i: any) => sum + i.monthlyAmount, 0) || 0;
+  const unpaidInvestments = data.investments?.filter((i: any) => !i.paid).reduce((sum: number, i: any) => sum + (i.monthlyAmount || 0), 0) || 0;
   // Loans are excluded from dues as they're auto-tracked from fixed expenses and not separately markable
   // const unpaidLoans = loans.filter((l: any) => !l.paid).reduce((sum, l) => sum + (l.emi || 0), 0);
-  const creditCardDues = creditCards.reduce((sum, c) => sum + Math.max(0, c.billAmount - c.paidAmount), 0);
+  const creditCardDues = (creditCards || []).reduce((sum: number, c: any) => {
+    const billAmount = parseFloat(c.billAmount || c.bill_amount || 0);
+    const paidAmount = parseFloat(c.paidAmount || c.paid_amount || 0);
+    return sum + Math.max(0, billAmount - paidAmount);
+  }, 0);
 
-  const duesTotal = unpaidFixed + unpaidInvestments + creditCardDues;
+  const duesTotal = (unpaidFixed || 0) + (unpaidInvestments || 0) + (creditCardDues || 0);
 
   return (
     <div className="dashboard-page">
@@ -210,7 +214,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         <DashboardWidget
           title="Credit Cards"
           value={creditCards.length}
-          subtitle={`₹${creditCards.reduce((s, c) => s + c.billAmount, 0).toLocaleString("en-IN")} bills`}
+          subtitle={`₹${(creditCards || []).reduce((s: number, c: any) => s + (parseFloat(c.billAmount || c.bill_amount || 0)), 0).toLocaleString("en-IN")} bills`}
           icon={<FaCreditCard />}
           onClick={() => navigate("/credit-cards")}
           color="#ef4444"
