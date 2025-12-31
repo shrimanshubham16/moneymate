@@ -53,7 +53,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setData(dashboardRes.data);
       setCreditCards(cardsRes.data);
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:loadData',message:'Credit cards set in state',data:{count:cardsRes?.data?.length||0,firstCard:cardsRes?.data?.[0]||null,allCards:cardsRes?.data||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2'})}).catch(()=>{});
+      console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:loadData',message:'Credit cards set in state',data:{count:cardsRes?.data?.length||0,firstCard:cardsRes?.data?.[0]||null,allCards:cardsRes?.data||[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2'}));
       // #endregion
       setLoans(loansRes.data);
       setActivities(activityRes.data);
@@ -122,13 +122,13 @@ export function DashboardPage({ token }: DashboardPageProps) {
   // Loans are excluded from dues as they're auto-tracked from fixed expenses and not separately markable
   // const unpaidLoans = loans.filter((l: any) => !l.paid).reduce((sum, l) => sum + (l.emi || 0), 0);
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:creditCardDues-before',message:'Before credit card dues calculation',data:{creditCards:creditCards||[],count:creditCards?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+  console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:creditCardDues-before',message:'Before credit card dues calculation',data:{creditCards:creditCards||[],count:creditCards?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'}));
   // #endregion
   const creditCardDues = (creditCards || []).reduce((sum: number, c: any) => {
     const billAmount = parseFloat(c.billAmount || c.bill_amount || 0);
     const paidAmount = parseFloat(c.paidAmount || c.paid_amount || 0);
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:creditCardDues-iter',message:'Credit card dues iteration',data:{card:c,billAmount,paidAmount,fields:Object.keys(c||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H4'})}).catch(()=>{});
+    console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:creditCardDues-iter',message:'Credit card dues iteration',data:{card:c,billAmount,paidAmount,fields:Object.keys(c||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H4'}));
     // #endregion
     return sum + Math.max(0, billAmount - paidAmount);
   }, 0);
@@ -225,12 +225,12 @@ export function DashboardPage({ token }: DashboardPageProps) {
           value={creditCards.length}
           subtitle={(() => {
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:widget-subtitle-before',message:'Before credit card widget subtitle calculation',data:{creditCards:creditCards||[],count:creditCards?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4,H5'})}).catch(()=>{});
+            console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:widget-subtitle-before',message:'Before credit card widget subtitle calculation',data:{creditCards:creditCards||[],count:creditCards?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4,H5'}));
             // #endregion
             const total = (creditCards || []).reduce((s: number, c: any) => {
               const billAmount = parseFloat(c.billAmount || c.bill_amount || 0);
               // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:widget-subtitle-iter',message:'Widget subtitle iteration',data:{card:c,billAmount,fields:Object.keys(c||{}),cBillAmount:c?.billAmount,cBillAmountSnake:c?.bill_amount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'})}).catch(()=>{});
+              console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'DashboardPage.tsx:widget-subtitle-iter',message:'Widget subtitle iteration',data:{card:c,billAmount,fields:Object.keys(c||{}),cBillAmount:c?.billAmount,cBillAmountSnake:c?.bill_amount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'}));
               // #endregion
               return s + billAmount;
             }, 0);

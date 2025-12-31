@@ -65,7 +65,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                   <option value="">Select card</option>
                   {cards.map(c => {
                     // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CreditCardsPage.tsx:option-map',message:'Mapping card to option',data:{card:c,billAmount:c?.billAmount,paidAmount:c?.paidAmount,fields:Object.keys(c||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'})}).catch(()=>{});
+                    console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'CreditCardsPage.tsx:option-map',message:'Mapping card to option',data:{card:c,billAmount:c?.billAmount,paidAmount:c?.paidAmount,fields:Object.keys(c||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'}));
                     // #endregion
                     return (
                       <option key={c.id} value={c.id}>

@@ -274,7 +274,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                         <span>Paid Amount:</span>
                         <span className="amount">
                           {/* #region agent log */}
-                          {(() => { fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CreditCardsManagementPage.tsx:paidAmount',message:'Rendering paid amount',data:{card,paidAmount:card?.paidAmount,paidAmountSnake:card?.paid_amount,fields:Object.keys(card||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'})}).catch(()=>{}); return null; })()}
+                          {(() => { console.log('[DEBUG_CREDIT_CARD]', JSON.stringify({location:'CreditCardsManagementPage.tsx:paidAmount',message:'Rendering paid amount',data:{card,paidAmount:card?.paidAmount,paidAmountSnake:card?.paid_amount,fields:Object.keys(card||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H5'})); return null; })()}
                           {/* #endregion */}
                           ₹{(parseFloat(card.paidAmount || card.paid_amount || 0)).toLocaleString("en-IN")}
                         </span>
