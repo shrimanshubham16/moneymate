@@ -61,9 +61,17 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const loadSubcategories = async () => {
     try {
       const res = await getUserSubcategories(token);
-      setUserSubcategories(res.data || ["Unspecified"]);
+      const subs = res.data || [];
+      // Always ensure "Unspecified" is first in the list
+      if (!subs.includes("Unspecified")) {
+        setUserSubcategories(["Unspecified", ...subs]);
+      } else {
+        // Move "Unspecified" to the front
+        setUserSubcategories(["Unspecified", ...subs.filter(s => s !== "Unspecified")]);
+      }
     } catch (e) {
       console.error("Failed to load subcategories:", e);
+      setUserSubcategories(["Unspecified"]);
     }
   };
 
@@ -190,7 +198,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       });
       
       // Refresh data after successful save (replaces temp with real data)
-      await Promise.all([loadPlans(), loadCreditCards()]);
+      // Use sequential loading for better perceived performance
+      loadPlans().then(() => loadCreditCards());
     } catch (e: any) {
       alert(e.message);
       // Revert optimistic update on error

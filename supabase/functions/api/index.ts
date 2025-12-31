@@ -702,7 +702,19 @@ serve(async (req) => {
         .eq('payment_mode', 'CreditCard')
         .eq('credit_card_id', id);
       
-      return json({ data: usage || [] });
+      // Transform snake_case to camelCase for frontend compatibility
+      const transformedUsage = (usage || []).map((u: any) => ({
+        id: u.id,
+        planId: u.plan_id,
+        amount: u.amount,
+        incurredAt: u.incurred_at,
+        subcategory: u.subcategory,
+        justification: u.justification,
+        paymentMode: u.payment_mode,
+        creditCardId: u.credit_card_id
+      }));
+      
+      return json({ data: transformedUsage });
     }
     if (path === '/debts/credit-cards' && method === 'POST') {
       const body = await req.json();
