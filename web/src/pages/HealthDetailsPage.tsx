@@ -413,11 +413,11 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         >
           <div className="summary-row">
             <span className="label">Total Income:</span>
-            <span className="value positive">+₹{breakdown.income.total.toLocaleString("en-IN")}</span>
+            <span className="value positive">+₹{(breakdown.income?.total || 0).toLocaleString("en-IN")}</span>
           </div>
           <div className="summary-row">
             <span className="label">Total Outflow:</span>
-            <span className="value negative">-₹{Math.round(breakdown.totalOutflow).toLocaleString("en-IN")}</span>
+            <span className="value negative">-₹{Math.round(breakdown.totalOutflow || 0).toLocaleString("en-IN")}</span>
           </div>
           <div className="divider"></div>
           <div className="summary-row final">
