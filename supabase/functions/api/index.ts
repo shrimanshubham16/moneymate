@@ -91,6 +91,13 @@ serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname.replace('/api', '').replace('/functions/v1/api', '');
   const method = req.method;
+  
+  // HEALTH CHECK - for keep-alive pings (no auth required)
+  if (path === '/health' && method === 'GET') {
+    return new Response(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
 
   // Create admin client (bypasses RLS)
   const supabase = createClient(
