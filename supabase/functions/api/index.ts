@@ -662,25 +662,25 @@ serve(async (req) => {
 
     // LOANS - Auto-fetch from fixed expenses where category = "Loan"
     if (path === '/debts/loans' && method === 'GET') {
-      // Get fixed expenses with category "Loan" (case-insensitive)
-      // Use LOWER() for case-insensitive matching since ilike might not work with all Supabase versions
+      const perfStart = Date.now();
+      
+      // OPTIMIZED: Filter at DB level using ilike for case-insensitive search
+      const t0 = Date.now();
       const { data: loanExpenses, error: loanErr } = await supabase
         .from('fixed_expenses')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .ilike('category', 'loan'); // Database-level filtering
+      const queryTime = Date.now() - t0;
       
       if (loanErr) {
         console.error('Error fetching loans:', loanErr);
         return json({ data: [] });
       }
       
-      // Filter for "Loan" category (case-insensitive)
-      const loanExpensesFiltered = (loanExpenses || []).filter((exp: any) => 
-        exp.category && exp.category.toLowerCase() === 'loan'
-      );
-      
       // Convert fixed expenses to loan format
-      const autoLoans = loanExpensesFiltered.map((exp: any) => {
+      const t1 = Date.now();
+      const autoLoans = (loanExpenses || []).map((exp: any) => {
         const amount = parseFloat(exp.amount) || 0;
         const emi = exp.frequency === 'monthly' ? amount :
           exp.frequency === 'quarterly' ? amount / 3 :
@@ -693,10 +693,20 @@ serve(async (req) => {
         return {
           id: exp.id,
           name: exp.name,
-          emi: Math.round(emi * 100) / 100, // Round to 2 decimal places
+          emi: Math.round(emi * 100) / 100,
           remainingTenureMonths: remainingMonths,
           principal: Math.round((emi * remainingMonths) * 100) / 100
         };
+      });
+      const mapTime = Date.now() - t1;
+      const totalTime = Date.now() - perfStart;
+      
+      console.log('[EDGE_PERF_LOANS] Loans endpoint timing', { 
+        totalTime, 
+        queryTime, 
+        mapTime, 
+        loanCount: autoLoans.length,
+        userId 
       });
       
       return json({ data: autoLoans });
