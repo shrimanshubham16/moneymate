@@ -138,6 +138,12 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                 }).format(amount);
               };
 
+              // Debug: Log activity for inspection
+              if (activity.action === 'added actual expense') {
+                console.log('[ACTIVITY_DEBUG] Variable expense activity:', {action: activity.action, entity: activity.entity, payload});
+                fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActivitiesPage.tsx:VARIABLE_EXPENSE',message:'Variable expense activity',data:{action:activity.action,entity:activity.entity,payload},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+              }
+              
               switch (activity.action) {
                 case 'created':
                 case 'added':
@@ -147,6 +153,15 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                     return `${username} added income source ${formatCurrency(payload.amount)}${frequency} for ${payload.name}`;
                   }
                   return `${username} added ${entity}`;
+                case 'added actual expense':
+                  // Variable expense actual
+                  const planName = payload.planName || 'expense';
+                  const category = payload.category ? ` in ${payload.category}` : '';
+                  const subcategory = payload.subcategory && payload.subcategory !== 'Unspecified' ? ` (${payload.subcategory})` : '';
+                  const paymentMode = payload.paymentMode ? ` via ${payload.paymentMode}` : '';
+                  const creditCard = payload.creditCard ? ` using ${payload.creditCard}` : '';
+                  const justification = payload.justification ? ` - "${payload.justification}"` : '';
+                  return `${username} spent ${formatCurrency(payload.amount)} on ${planName}${category}${subcategory}${paymentMode}${creditCard}${justification}`;
                 case 'added fixed expense':
                   if (payload.name && payload.amount) {
                     const frequency = payload.frequency ? ` (${payload.frequency})` : '';

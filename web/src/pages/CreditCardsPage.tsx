@@ -23,6 +23,8 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
   const loadCards = async () => {
     try {
       const res = await fetchCreditCards(token);
+      console.log('[CARDS_PAGE] Loaded cards:', res.data);
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CreditCardsPage.tsx:loadCards',message:'Cards loaded',data:{count:res.data?.length,firstCard:res.data?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
       setCards(res.data);
     } catch (e) {
       console.error("Failed to load cards:", e);

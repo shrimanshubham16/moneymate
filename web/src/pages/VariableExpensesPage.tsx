@@ -188,6 +188,10 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       setSelectedPlanId(null);
       
       // Make API call in background
+      const logKey = `[EXPENSE_SAVE_${Date.now()}]`;
+      console.log(`${logKey} Starting API call...`);
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:SAVE_START',message:'Starting expense save',data:{planId:selectedPlanId,amount:tempActual.amount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      
       await addVariableActual(token, selectedPlanId, {
         amount: Number(tempActual.amount),
         incurred_at: tempActual.incurredAt,
@@ -197,9 +201,21 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         credit_card_id: tempActual.creditCardId
       });
       
+      console.log(`${logKey} API call complete, refreshing data...`);
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:SAVE_COMPLETE',message:'API save complete, starting refresh',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      
       // Refresh data after successful save (replaces temp with real data)
-      // Use sequential loading for better perceived performance
-      loadPlans().then(() => loadCreditCards());
+      const refreshStart = Date.now();
+      await loadPlans();
+      const plansRefreshTime = Date.now() - refreshStart;
+      console.log(`${logKey} Plans refreshed in ${plansRefreshTime}ms`);
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:PLANS_REFRESHED',message:'Plans data refreshed',data:{timeMs:plansRefreshTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      
+      await loadCreditCards();
+      const totalRefreshTime = Date.now() - refreshStart;
+      console.log(`${logKey} Total refresh time: ${totalRefreshTime}ms`);
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:REFRESH_COMPLETE',message:'All data refreshed',data:{totalTimeMs:totalRefreshTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+
     } catch (e: any) {
       alert(e.message);
       // Revert optimistic update on error
