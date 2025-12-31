@@ -37,7 +37,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const keepAliveIntervalRef = useRef<number | null>(null);
-  const keepAliveIntervalRef = useRef<number | null>(null);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
