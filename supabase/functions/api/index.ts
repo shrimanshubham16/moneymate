@@ -164,6 +164,72 @@ serve(async (req) => {
     console.log(`[CACHE_INVALIDATE] User ${userId} caches cleared`);
   }
 
+  // P0 FIX: Monthly reset - clear previous month's payments when new month starts
+  async function checkAndResetMonthlyPayments(userId: string): Promise<void> {
+    try {
+      // Get user preferences for month start day
+      const { data: prefs } = await supabase.from('user_preferences')
+        .select('month_start_day').eq('user_id', userId).single();
+      const monthStartDay = prefs?.month_start_day || 1;
+      
+      const today = new Date();
+      let currentMonthStart: Date;
+      let previousMonthStart: Date;
+      let previousMonthEnd: Date;
+      
+      // Calculate current billing period
+      if (today.getDate() >= monthStartDay) {
+        currentMonthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+      } else {
+        currentMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+      }
+      
+      // Calculate previous billing period
+      previousMonthStart = new Date(currentMonthStart);
+      previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
+      previousMonthEnd = new Date(currentMonthStart);
+      
+      const previousMonthStr = `${previousMonthStart.getFullYear()}-${String(previousMonthStart.getMonth() + 1).padStart(2, '0')}`;
+      const currentMonthStr = `${currentMonthStart.getFullYear()}-${String(currentMonthStart.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Check if we've already reset for current month
+      const { data: resetCheck } = await supabase.from('activities')
+        .select('id')
+        .eq('actor_id', userId)
+        .eq('entity', 'system')
+        .eq('action', 'monthly_reset')
+        .like('payload', `%"month":"${currentMonthStr}"%`)
+        .limit(1);
+      
+      // Only reset if we haven't already reset for this month
+      if (!resetCheck || resetCheck.length === 0) {
+        console.log(`[MONTHLY_RESET] Resetting payments for user ${userId}, previous month: ${previousMonthStr}`);
+        
+        // Delete all payments from previous month
+        const { error: deleteErr } = await supabase.from('payments')
+          .delete()
+          .eq('user_id', userId)
+          .eq('month', previousMonthStr);
+        
+        if (deleteErr) {
+          console.error(`[MONTHLY_RESET_ERROR] Failed to delete payments:`, deleteErr);
+        } else {
+          // Log monthly reset activity
+          await logActivity(userId, 'system', 'monthly_reset', {
+            month: currentMonthStr,
+            previousMonth: previousMonthStr,
+            resetAt: new Date().toISOString()
+          });
+          
+          console.log(`[MONTHLY_RESET] Cleared payments for ${previousMonthStr}, new month: ${currentMonthStr}`);
+        }
+      }
+    } catch (err) {
+      console.error('[MONTHLY_RESET_ERROR]', err);
+      // Don't fail the request if reset check fails
+    }
+  }
+
   // Helper to return JSON
   const json = (data: any, status = 200) => new Response(
     JSON.stringify(data),
@@ -313,6 +379,9 @@ serve(async (req) => {
 
     // DASHBOARD
     if (path === '/dashboard' && method === 'GET') {
+      // P0 FIX: Check and reset monthly payments if new month has started
+      await checkAndResetMonthlyPayments(userId);
+      
       const perfStart = Date.now();
       const cacheKey = `dashboard:${userId}`;
       
@@ -377,7 +446,13 @@ serve(async (req) => {
         })),
         futureBombs: data?.futureBombs || [],
         health: healthData?.health || { remaining: 0, category: 'ok' },
-        constraintScore: constraint || { score: 0, tier: 'green' },
+        constraintScore: constraint ? {
+          score: constraint.score,
+          tier: constraint.tier,
+          recentOverspends: constraint.recent_overspends || 0,
+          decayAppliedAt: constraint.decay_applied_at,
+          updatedAt: constraint.updated_at
+        } : { score: 0, tier: 'green', recentOverspends: 0 },
         alerts: []
       };
 
@@ -469,8 +544,9 @@ serve(async (req) => {
       const planId = path.split('/')[3];
       const body = await req.json();
       
-      // Get plan name for activity log
-      const { data: plan } = await supabase.from('variable_expense_plans').select('name, category').eq('id', planId).single();
+      // Get plan details for activity log and overspend detection
+      const { data: plan } = await supabase.from('variable_expense_plans')
+        .select('name, category, planned').eq('id', planId).single();
       
       const { data, error: e } = await supabase.from('variable_expense_actuals')
         .insert({ user_id: userId, plan_id: planId, amount: body.amount, incurred_at: body.incurred_at, justification: body.justification, subcategory: body.subcategory, payment_mode: body.payment_mode, credit_card_id: body.credit_card_id })
@@ -491,6 +567,108 @@ serve(async (req) => {
             .eq('id', body.credit_card_id)
             .eq('user_id', userId);
           console.log(`[CREDIT_CARD_SYNC] Updated card ${body.credit_card_id} current_expenses: ${(card.current_expenses || 0)} + ${body.amount} = ${(card.current_expenses || 0) + body.amount}`);
+        }
+      }
+      
+      // P0 FIX: Detect and record overspend
+      if (plan?.planned) {
+        // Get user's billing period
+        const { data: prefs } = await supabase.from('user_preferences')
+          .select('month_start_day').eq('user_id', userId).single();
+        const monthStartDay = prefs?.month_start_day || 1;
+        
+        // Calculate billing period dates
+        const today = new Date(body.incurred_at || new Date().toISOString());
+        let monthStart: Date;
+        let monthEnd: Date;
+        
+        if (today.getDate() >= monthStartDay) {
+          monthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+          monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, monthStartDay);
+        } else {
+          monthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+          monthEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+        }
+        
+        // Get total actual spending for this plan in current billing period
+        const { data: actuals } = await supabase.from('variable_expense_actuals')
+          .select('amount')
+          .eq('plan_id', planId)
+          .eq('user_id', userId)
+          .gte('incurred_at', monthStart.toISOString())
+          .lt('incurred_at', monthEnd.toISOString());
+        
+        const totalActual = (actuals || []).reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+        const plannedAmount = parseFloat(plan.planned) || 0;
+        
+        // Detect overspend: actual > planned (only count once per plan per billing period)
+        if (totalActual > plannedAmount) {
+          console.log(`[OVERSPEND_CHECK] Plan: ${plan.name}, Planned: ${plannedAmount}, Actual: ${totalActual}, Overspend: ${totalActual - plannedAmount}`);
+          
+          // Check if we've already recorded an overspend for THIS PLAN this billing period
+          const { data: existingOverspend } = await supabase.from('activities')
+            .select('id')
+            .eq('actor_id', userId)
+            .eq('entity', 'variable_expense')
+            .eq('action', 'overspend_detected')
+            .like('payload', `%"planName":"${plan.name}"%`)
+            .gte('created_at', monthStart.toISOString())
+            .lt('created_at', monthEnd.toISOString())
+            .limit(1);
+          
+          // Only count if this is a NEW overspend for this plan
+          if (!existingOverspend || existingOverspend.length === 0) {
+            console.log(`[OVERSPEND_DETECTED] Plan: ${plan.name}, Planned: ${plannedAmount}, Actual: ${totalActual}, Overspend: ${totalActual - plannedAmount}`);
+            
+            // Get current constraint score
+            const { data: constraint } = await supabase.from('constraint_scores')
+              .select('*').eq('user_id', userId).single();
+            
+            if (constraint) {
+              const currentScore = constraint.score || 0;
+              const currentOverspends = constraint.recent_overspends || 0;
+              
+              // Update constraint score: +5 per overspend, max 100
+              const newScore = Math.min(100, currentScore + 5);
+              const newTier = newScore >= 70 ? 'red' : newScore >= 40 ? 'amber' : 'green';
+              
+              await supabase.from('constraint_scores')
+                .update({
+                  score: newScore,
+                  tier: newTier,
+                  recent_overspends: currentOverspends + 1,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', userId);
+              
+              // Log overspend activity
+              await logActivity(userId, 'variable_expense', 'overspend_detected', {
+                planName: plan.name,
+                planned: plannedAmount,
+                actual: totalActual,
+                overspend: totalActual - plannedAmount,
+                billingPeriod: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`
+              });
+              
+              console.log(`[CONSTRAINT_UPDATE] Score: ${currentScore} → ${newScore}, Overspends: ${currentOverspends} → ${currentOverspends + 1}`);
+            } else {
+              // Create constraint score if it doesn't exist
+              await supabase.from('constraint_scores').insert({
+                user_id: userId,
+                score: 5,
+                tier: 'green',
+                recent_overspends: 1
+              });
+              
+              await logActivity(userId, 'variable_expense', 'overspend_detected', {
+                planName: plan.name,
+                planned: plannedAmount,
+                actual: totalActual,
+                overspend: totalActual - plannedAmount,
+                billingPeriod: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`
+              });
+            }
+          }
         }
       }
       
@@ -1126,7 +1304,13 @@ serve(async (req) => {
         exportDate: new Date().toISOString(),
         user: { id: userData.id, username: userData.username },
         health: healthData?.health || { remaining: 0, category: 'ok' },
-        constraintScore: constraint || { score: 0, tier: 'green' },
+        constraintScore: constraint ? {
+          score: constraint.score,
+          tier: constraint.tier,
+          recentOverspends: constraint.recent_overspends || 0,
+          decayAppliedAt: constraint.decay_applied_at,
+          updatedAt: constraint.updated_at
+        } : { score: 0, tier: 'green', recentOverspends: 0 },
         incomes: dashboardData?.incomes || [],
         fixedExpenses: (dashboardData?.fixedExpenses || []).map((e: any) => ({
           ...e,

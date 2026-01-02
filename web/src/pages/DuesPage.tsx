@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { fetchCreditCards, fetchLoans, fetchDashboard, markAsPaid, markAsUnpaid } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { Toast } from "../components/Toast";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./DuesPage.css";
 
 interface DuesPageProps {
@@ -14,6 +16,7 @@ export function DuesPage({ token }: DuesPageProps) {
   const [dues, setDues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalDues, setTotalDues] = useState(0);
+  const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: "" });
 
   useEffect(() => {
     loadDues();
@@ -26,13 +29,27 @@ export function DuesPage({ token }: DuesPageProps) {
         return;
       }
 
-      if (due.paid) {
+      const wasPaid = due.paid;
+      const dueName = due.name;
+      const dueAmount = due.amount;
+
+      // P1 FIX: Optimistic UI update - remove card immediately
+      setDues(prevDues => prevDues.filter(d => d.id !== due.id));
+      setTotalDues(prevTotal => prevTotal - (wasPaid ? 0 : dueAmount));
+
+      if (wasPaid) {
         await markAsUnpaid(token, due.id, due.itemType);
+        setToast({ show: true, message: `${dueName} marked as unpaid` });
       } else {
         await markAsPaid(token, due.id, due.itemType, due.amount);
+        setToast({ show: true, message: `Hurray!! ${dueName} Due paid` });
       }
-      await loadDues(); // Refresh the list
+      
+      // Refresh in background to sync with server
+      loadDues().catch(console.error);
     } catch (e: any) {
+      // Revert optimistic update on error
+      await loadDues();
       alert("Failed to update payment status: " + e.message);
     }
   };
@@ -159,7 +176,14 @@ export function DuesPage({ token }: DuesPageProps) {
         </div>
       </div>
 
-      {loading ? <div>Loading...</div> : (
+      <Toast
+        message={toast.message}
+        show={toast.show}
+        onClose={() => setToast({ show: false, message: "" })}
+        type="success"
+      />
+      
+      {loading ? <SkeletonLoader type="list" count={5} /> : (
         <>
           <div className="dues-summary">
             <h2>Total Dues</h2>
