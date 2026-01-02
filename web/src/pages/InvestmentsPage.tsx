@@ -35,17 +35,15 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
         console.error('[CACHE_ERROR] Failed to extract userId from token:', e);
       }
 
-      // Try cache first for faster load
+      // Try cache first for faster load (only on initial load)
       const cached = ClientCache.get<any>('dashboard', userId);
-      if (cached?.investments) {
-        console.log('[INVEST_DEBUG] Using cached investments:', cached.investments.map((i: any) => ({ name: i.name, accumulatedFunds: i.accumulatedFunds, accumulated_funds: i.accumulated_funds })));
+      if (cached?.investments && loading) {
         setInvestments(cached.investments);
         setLoading(false);
       }
       
-      // Fetch fresh data
+      // Always fetch fresh data
       const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
-      console.log('[INVEST_DEBUG] Fresh investments from API:', res.data.investments?.map((i: any) => ({ name: i.name, accumulatedFunds: i.accumulatedFunds, accumulated_funds: i.accumulated_funds })));
       setInvestments(res.data.investments || []);
       ClientCache.set('dashboard', res.data, userId);
     } catch (e) {
@@ -102,12 +100,11 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                 <h3>{inv.name}</h3>
                 <div className="investment-details">
                   <span>Goal: {inv.goal}</span>
-                  <span>₹{inv.monthlyAmount.toLocaleString("en-IN")}/month</span>
-                  {(inv.accumulatedFunds || inv.accumulated_funds || 0) > 0 && (
-                    <span style={{ color: '#10b981', fontWeight: 600 }}>
-                      Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
-                    </span>
-                  )}
+                  <span>₹{(inv.monthlyAmount || inv.monthly_amount || 0).toLocaleString("en-IN")}/month</span>
+                  {/* Always show accumulated funds for investments */}
+                  <span style={{ color: '#10b981', fontWeight: 600 }}>
+                    Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
+                  </span>
                   <StatusBadge 
                     status={inv.status === "active" ? "active" : "paused"} 
                     size="small" 
@@ -121,16 +118,19 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                   className="icon-btn wallet-btn" 
                   onClick={async () => {
                     const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
-                    console.log('[INVEST_DEBUG] Update fund clicked for:', { name: inv.name, id: inv.id, currentFund });
                     const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(currentFund).toLocaleString("en-IN")}\n\nEnter new amount:`);
                     if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
                       try {
-                        console.log('[INVEST_DEBUG] Calling updateInvestment with:', { id: inv.id, accumulatedFunds: parseFloat(newAmount) });
-                        const result = await updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
-                        console.log('[INVEST_DEBUG] Update result:', result);
+                        await updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
+                        // Clear client cache to ensure fresh data
+                        let userId = 'unknown';
+                        try {
+                          const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+                          userId = tokenPayload.userId;
+                        } catch (e) {}
+                        ClientCache.clear(userId);
                         await loadInvestments();
                       } catch (e: any) {
-                        console.error('[INVEST_DEBUG] Update failed:', e);
                         alert("Failed to update: " + e.message);
                       }
                     }

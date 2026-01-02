@@ -321,6 +321,12 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                   <span>{expense.category}</span>
                   {expense.is_sip_flag && <StatusBadge status="active" size="small" label="SIP" icon="🔄" />}
                   {expense.paid && <StatusBadge status="paid" size="small" />}
+                  {/* Show accumulated funds for SIPs */}
+                  {expense.is_sip_flag && (expense.accumulatedFunds || expense.accumulated_funds || 0) > 0 && (
+                    <span style={{ color: '#10b981', fontWeight: 600 }}>
+                      Accumulated: ₹{Math.round(expense.accumulatedFunds || expense.accumulated_funds || 0).toLocaleString("en-IN")}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="expense-actions">

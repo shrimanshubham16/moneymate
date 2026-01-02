@@ -774,11 +774,9 @@ serve(async (req) => {
     if (path.startsWith('/planning/investments/') && method === 'PUT') {
       const id = path.split('/').pop();
       if (!id) {
-        console.error(`[INVESTMENT_UPDATE] Missing investment ID, path: ${path}`);
         return error('Investment ID required', 400);
       }
       const body = await req.json();
-      console.log(`[INVESTMENT_UPDATE_DEBUG] Request received for investment ${id}, userId: ${userId}, path: ${path}, body:`, JSON.stringify(body));
       const updateData: any = {};
       if (body.name !== undefined) updateData.name = body.name;
       if (body.goal !== undefined) updateData.goal = body.goal;
@@ -786,12 +784,6 @@ serve(async (req) => {
       if (body.status !== undefined) updateData.status = body.status;
       if (body.accumulated_funds !== undefined) updateData.accumulated_funds = body.accumulated_funds;
       
-      // P0 DEBUG: Log if accumulated_funds is being updated
-      if (body.accumulated_funds !== undefined) {
-        console.log(`[INVESTMENT_UPDATE_DEBUG] Accumulated funds update requested: ${body.accumulated_funds}`);
-      }
-      
-      console.log(`[INVESTMENT_UPDATE_DEBUG] Updating investment ${id} with data:`, JSON.stringify(updateData));
       const { data, error: e } = await supabase.from('investments')
         .update(updateData)
         .eq('id', id)
@@ -799,18 +791,12 @@ serve(async (req) => {
         .select()
         .single();
       if (e) {
-        console.error(`[INVESTMENT_UPDATE_ERROR] Database error:`, JSON.stringify(e));
         return error(e.message, 500);
       }
       
       if (!data) {
-        console.error(`[INVESTMENT_UPDATE_ERROR] No data returned, investment ${id} not found or access denied`);
         return error('Investment not found', 404);
       }
-      
-      // P0 DEBUG: Log the returned data to verify accumulated_funds
-      console.log(`[INVESTMENT_UPDATE_DEBUG] Successfully updated investment ${id}, returned data:`, JSON.stringify(data));
-      console.log(`[INVESTMENT_UPDATE_DEBUG] Returned accumulated_funds: ${data.accumulated_funds}`);
       
       if (body.accumulated_funds !== undefined) {
         await logActivity(userId, 'investment', 'updated available fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
@@ -819,13 +805,12 @@ serve(async (req) => {
       }
       await invalidateUserCache(userId);
       
-      // P0 DEBUG: Transform response to include camelCase for frontend
+      // Transform response to include camelCase for frontend
       const responseData = {
         ...data,
         monthlyAmount: data.monthly_amount,
         accumulatedFunds: data.accumulated_funds
       };
-      console.log(`[INVESTMENT_UPDATE_DEBUG] Returning response:`, JSON.stringify(responseData));
       return json({ data: responseData });
     }
     if (path.startsWith('/planning/investments/') && method === 'DELETE') {
@@ -833,6 +818,7 @@ serve(async (req) => {
       const { data: deleted } = await supabase.from('investments').select('name').eq('id', id).single();
       await supabase.from('investments').delete().eq('id', id);
       if (deleted) await logActivity(userId, 'investment', 'deleted investment', { id, name: deleted.name });
+      await invalidateUserCache(userId); // P0 FIX: Invalidate cache after delete
       return json({ data: { deleted: true } });
     }
 
