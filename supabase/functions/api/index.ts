@@ -410,14 +410,30 @@ serve(async (req) => {
       const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
       timings.healthCalc = Date.now() - t2;
       
-      // Query 4: Payment status
+      // Query 4: Payment status - P0 FIX: Use billing period month, not calendar month
       const t3 = Date.now();
-      const month = new Date().toISOString().slice(0, 7);
+      
+      // Get user's billing period month (same logic as monthly reset)
+      const { data: prefs } = await supabase.from('user_preferences')
+        .select('month_start_day').eq('user_id', userId).single();
+      const monthStartDay = prefs?.month_start_day || 1;
+      
+      const today = new Date();
+      let billingMonthStart: Date;
+      if (today.getDate() >= monthStartDay) {
+        billingMonthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+      } else {
+        billingMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+      }
+      
+      // Format as YYYY-MM for payments table lookup
+      const billingMonth = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
+      
       const { data: payments } = await supabase
         .from('payments')
         .select('entity_type, entity_id')
         .eq('user_id', userId)
-        .eq('month', month);
+        .eq('month', billingMonth);
       timings.payments = Date.now() - t3;
       
       // Create payment status map
