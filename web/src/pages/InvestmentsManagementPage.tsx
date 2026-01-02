@@ -47,7 +47,8 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     try {
       if (editingId) {
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:45',message:'Calling updateInvestment',data:{editingId,payload:{name:formData.name,goal:formData.goal,monthlyAmount:Number(formData.monthlyAmount),status:formData.status}},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update',hypothesisId:'A'}}).catch(()=>{});
+        const payloadData = {name:formData.name,goal:formData.goal,monthlyAmount:Number(formData.monthlyAmount),status:formData.status};
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:45',message:'Calling updateInvestment',data:{editingId:editingId,payload:payloadData},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update',hypothesisId:'A'}}).catch(()=>{});
         // #endregion
         await updateInvestment(token, editingId, {
           name: formData.name,
@@ -56,11 +57,12 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
           status: formData.status
         });
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:52',message:'updateInvestment succeeded',data:{editingId},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update',hypothesisId:'A'}}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:52',message:'updateInvestment succeeded',data:{editingId:editingId},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update',hypothesisId:'A'}}).catch(()=>{});
         // #endregion
       } else {
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:55',message:'Calling createInvestment',data:{payload:{name:formData.name,goal:formData.goal,monthlyAmount:Number(formData.monthlyAmount),status:formData.status}},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
+        const createPayload = {name:formData.name,goal:formData.goal,monthlyAmount:Number(formData.monthlyAmount),status:formData.status};
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:55',message:'Calling createInvestment',data:{payload:createPayload},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
         // #endregion
         await createInvestment(token, {
           name: formData.name,
