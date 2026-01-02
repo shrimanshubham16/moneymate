@@ -41,7 +41,8 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:41',message:'handleSubmit started',data:{editingId,formData},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
+    const logData = { editingId, formData: { name: formData.name, goal: formData.goal, monthlyAmount: formData.monthlyAmount, status: formData.status } };
+    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:41',message:'handleSubmit started',data:logData,timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
     // #endregion
     try {
       if (editingId) {
