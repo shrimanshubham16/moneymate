@@ -42,13 +42,13 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     e.preventDefault();
     // #region agent log
     const logData = { editingId, formData: { name: formData.name, goal: formData.goal, monthlyAmount: formData.monthlyAmount, status: formData.status } };
-    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:41',message:'handleSubmit started',data:logData,timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:41',message:'handleSubmit started',data:logData,timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
     try {
       if (editingId) {
         // #region agent log
         const payloadData = {name:formData.name,goal:formData.goal,monthlyAmount:Number(formData.monthlyAmount),status:formData.status};
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:45',message:'Calling updateInvestment',data:{editingId:editingId,payload:payloadData},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update',hypothesisId:'A'}}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:45',message:'Calling updateInvestment',data:{editingId:editingId,payload:payloadData},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
         await updateInvestment(token, editingId, {
           name: formData.name,
@@ -57,12 +57,12 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
           status: formData.status
         });
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:52',message:'updateInvestment succeeded',data:{editingId:editingId},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update',hypothesisId:'A'}}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:52',message:'updateInvestment succeeded',data:{editingId:editingId},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
       } else {
         // #region agent log
         const createPayload = {name:formData.name,goal:formData.goal,monthlyAmount:Number(formData.monthlyAmount),status:formData.status};
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:55',message:'Calling createInvestment',data:{payload:createPayload},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:55',message:'Calling createInvestment',data:{payload:createPayload},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'})}).catch(()=>{});
         // #endregion
         await createInvestment(token, {
           name: formData.name,
@@ -71,22 +71,22 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
           status: formData.status
         });
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:62',message:'createInvestment succeeded',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:62',message:'createInvestment succeeded',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'})}).catch(()=>{});
         // #endregion
       }
       setShowForm(false);
       setEditingId(null);
       setFormData({ name: "", goal: "", monthlyAmount: "", status: "active" });
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:66',message:'Calling loadInvestments after create/update',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:66',message:'Calling loadInvestments after create/update',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'})}).catch(()=>{});
       // #endregion
       await loadInvestments();
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:68',message:'loadInvestments completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:68',message:'loadInvestments completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'})}).catch(()=>{});
       // #endregion
     } catch (e: any) {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:69',message:'handleSubmit error',data:{error:e?.message,stack:e?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'}}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:69',message:'handleSubmit error',data:{error:e?.message,stack:e?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-create',hypothesisId:'C'})}).catch(()=>{});
       // #endregion
       alert(e.message);
     }
@@ -115,30 +115,30 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
 
   const handleTogglePause = async (inv: any) => {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:89',message:'handleTogglePause started',data:{invId:inv.id,currentStatus:inv.status},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-pause',hypothesisId:'A'}}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:89',message:'handleTogglePause started',data:{invId:inv.id,currentStatus:inv.status},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-pause',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
     try {
       if (inv.status === "active") {
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:92',message:'Calling pauseInvestment',data:{invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-pause',hypothesisId:'A'}}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:92',message:'Calling pauseInvestment',data:{invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-pause',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
         await pauseInvestment(token, inv.id);
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:94',message:'pauseInvestment succeeded',data:{invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-pause',hypothesisId:'A'}}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:94',message:'pauseInvestment succeeded',data:{invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-pause',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
       } else {
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:96',message:'Calling resumeInvestment',data:{invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-resume',hypothesisId:'A'}}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:96',message:'Calling resumeInvestment',data:{invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-resume',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
         await resumeInvestment(token, inv.id);
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:98',message:'resumeInvestment succeeded',data:{invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-resume',hypothesisId:'A'}}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:98',message:'resumeInvestment succeeded',data:{invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-resume',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
       }
       await loadInvestments();
     } catch (e: any) {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:100',message:'handleTogglePause error',data:{error:e?.message,stack:e?.stack,invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-pause',hypothesisId:'A'}}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsManagementPage.tsx:100',message:'handleTogglePause error',data:{error:e?.message,stack:e?.stack,invId:inv.id},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-pause',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
       alert(e.message);
     }
