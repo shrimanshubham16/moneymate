@@ -54,7 +54,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
           id: activity.id || activity._id || Math.random().toString(),
           entity: String(activity.entity || 'unknown'),
           action: String(activity.action || 'action'),
-          createdAt: activity.createdAt || new Date().toISOString(),
+          createdAt: activity.createdAt || activity.created_at || new Date().toISOString(),
           payload: parsedPayload // Now guaranteed to be object
         };
       });
@@ -66,7 +66,20 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         return dateB - dateA; // Descending order (newest first)
       });
 
-      setActivities(sanitizedActivities);
+      // P0 FIX: Filter out duplicate monthly_reset activities (keep only the most recent one per month)
+      const seenMonths = new Set<string>();
+      const filteredActivities = sanitizedActivities.filter((a: any) => {
+        if (a.entity === 'system' && a.action === 'monthly_reset') {
+          const month = a.payload?.month || 'unknown';
+          if (seenMonths.has(month)) {
+            return false; // Skip duplicate
+          }
+          seenMonths.add(month);
+        }
+        return true;
+      });
+
+      setActivities(filteredActivities);
     } catch (e) {
       console.error("Failed to load activities:", e);
       setActivities([]);
