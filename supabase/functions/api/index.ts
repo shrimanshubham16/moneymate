@@ -1294,7 +1294,7 @@ serve(async (req) => {
       } else {
         const { data: created } = await supabase
           .from('payments')
-          .insert({ user_id: userId, entity_type: body.itemType, entity_id: body.itemId, month, amount: body.amount })
+          .insert({ user_id: userId, entity_type: body.itemType, entity_id: body.itemId, month: billingMonthStr, amount: body.amount })
           .select()
           .single();
         payment = created;
