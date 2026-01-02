@@ -30,6 +30,7 @@ import { HealthDetailsPage } from "./pages/HealthDetailsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { Header } from "./components/Header";
 import { MaintenanceNotice } from "./components/MaintenanceNotice";
+import { RecoveryKeyModal } from "./components/RecoveryKeyModal";
 import { useCrypto } from "./contexts/CryptoContext";
 import { deriveKey, generateRecoveryKey, generateSalt, hashRecoveryKey, saltFromBase64 } from "./lib/crypto";
 import "./App.css";
@@ -44,6 +45,9 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<string[]>([]);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
   const cryptoCtx = useCrypto();
 
   const handlePasswordChange = (newPassword: string) => {
@@ -72,14 +76,17 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
       if (mode === "signup") {
         const { b64: saltB64 } = generateSalt();
         encryptionSalt = saltB64;
-        recoveryKey = generateRecoveryKey();
-        const recoveryKeyHash = await hashRecoveryKey(recoveryKey);
+        const newRecoveryKey = generateRecoveryKey();
+        const recoveryKeyHash = await hashRecoveryKey(newRecoveryKey);
         const res = await signup(username, password, encryptionSalt, recoveryKeyHash);
         const key = await deriveKey(password, saltFromBase64(encryptionSalt));
         cryptoCtx.setKey(key, encryptionSalt);
-        onAuth(res.access_token);
-        // Surface recovery key to user (temporary UX)
-        window.alert(`Save your recovery key securely:\\n\\n${recoveryKey}`);
+        // Show recovery key modal before completing auth
+        setRecoveryKey(newRecoveryKey);
+        setPendingToken(res.access_token);
+        setShowRecoveryModal(true);
+        setLoading(false);
+        return; // Don't complete auth yet - wait for modal close
       } else {
         const res = await login(username, password);
         encryptionSalt = res.encryption_salt;
@@ -178,6 +185,19 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
           </button>
         </form>
       </motion.div>
+      
+      {/* Recovery Key Modal - shown after signup */}
+      {showRecoveryModal && recoveryKey && pendingToken && (
+        <RecoveryKeyModal
+          recoveryKey={recoveryKey}
+          onClose={() => {
+            setShowRecoveryModal(false);
+            setRecoveryKey(null);
+            onAuth(pendingToken);
+            setPendingToken(null);
+          }}
+        />
+      )}
     </div>
   );
 }
