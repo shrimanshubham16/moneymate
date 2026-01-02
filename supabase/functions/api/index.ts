@@ -400,6 +400,17 @@ serve(async (req) => {
       // P0 FIX: Check and reset monthly payments if new month has started
       await checkAndResetMonthlyPayments(userId);
       
+      // P0 FIX: Auto-accumulate funds for SIPs and investments
+      try {
+        const { error: accErr } = await supabase.rpc('auto_accumulate_funds', { 
+          p_user_id: userId, 
+          p_today: new Date().toISOString().split('T')[0] 
+        });
+        if (accErr) console.error('[AUTO_ACCUMULATE_ERROR]', accErr);
+      } catch (err) {
+        console.error('[AUTO_ACCUMULATE_ERROR]', err);
+      }
+      
       const perfStart = Date.now();
       const cacheKey = `dashboard:${userId}`;
       
