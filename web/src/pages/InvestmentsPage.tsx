@@ -119,7 +119,8 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                   className="icon-btn wallet-btn" 
                   onClick={async () => {
                     // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsPage.tsx:120',message:'Update available fund clicked',data:{invId:inv.id,currentAmount:inv.accumulatedFunds||inv.accumulated_funds||0},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update-fund',hypothesisId:'A'}}).catch(()=>{});
+                    const currentAmount = inv.accumulatedFunds || inv.accumulated_funds || 0;
+                    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InvestmentsPage.tsx:120',message:'Update available fund clicked',data:{invId:inv.id,currentAmount},timestamp:Date.now(),sessionId:'debug-session',runId:'invest-update-fund',hypothesisId:'A'}}).catch(()=>{});
                     // #endregion
                     const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}\n\nEnter new amount:`);
                     if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
