@@ -240,21 +240,27 @@ export function DuesPage({ token }: DuesPageProps) {
       // Investments due this month
       console.log('[DUES_DEBUG] Investments:', dashboardRes.data.investments?.length || 0);
       dashboardRes.data.investments?.forEach((inv: any) => {
-        console.log('[DUES_DEBUG] Investment:', { name: inv.name, paid: inv.paid, monthlyAmount: inv.monthlyAmount || inv.monthly_amount });
-        if (!inv.paid) { // Only show unpaid items
+        const monthlyAmount = inv.monthlyAmount || inv.monthly_amount || 0;
+        const status = inv.status || 'active';
+        console.log('[DUES_DEBUG] Investment:', { name: inv.name, paid: inv.paid, monthlyAmount, status });
+        // Only show active investments that are unpaid
+        if (!inv.paid && status === 'active') {
           const accumulatedFunds = inv.accumulatedFunds || inv.accumulated_funds || 0;
           duesList.push({
             id: inv.id,
             name: inv.name,
             type: "Investment",
             itemType: "investment",
-            amount: inv.monthlyAmount || inv.monthly_amount,
+            amount: monthlyAmount,
             dueDate: today.toISOString().split("T")[0],
             paid: inv.paid || false,
-            total: inv.monthlyAmount || inv.monthly_amount,
+            total: monthlyAmount,
             accumulatedFunds: accumulatedFunds
           });
-          total += inv.monthlyAmount || inv.monthly_amount;
+          total += monthlyAmount;
+          console.log('[DUES_DEBUG] Investment added to dues:', { name: inv.name, amount: monthlyAmount });
+        } else {
+          console.log('[DUES_DEBUG] Investment skipped:', { name: inv.name, reason: inv.paid ? 'paid' : `status: ${status}` });
         }
       });
 

@@ -759,6 +759,7 @@ serve(async (req) => {
     }
     if (path.startsWith('/planning/investments/') && method === 'PUT') {
       const id = path.split('/').pop();
+      if (!id) return error('Investment ID required', 400);
       const body = await req.json();
       const updateData: any = {};
       if (body.name !== undefined) updateData.name = body.name;
@@ -767,13 +768,17 @@ serve(async (req) => {
       if (body.status !== undefined) updateData.status = body.status;
       if (body.accumulated_funds !== undefined) updateData.accumulated_funds = body.accumulated_funds;
       
+      console.log(`[INVESTMENT_UPDATE] Updating investment ${id} with data:`, updateData);
       const { data, error: e } = await supabase.from('investments')
         .update(updateData)
         .eq('id', id)
         .eq('user_id', userId)
         .select()
         .single();
-      if (e) return error(e.message, 500);
+      if (e) {
+        console.error(`[INVESTMENT_UPDATE_ERROR]`, e);
+        return error(e.message, 500);
+      }
       
       if (body.accumulated_funds !== undefined) {
         await logActivity(userId, 'investment', 'updated available fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
