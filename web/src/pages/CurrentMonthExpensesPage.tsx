@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard } from "react-icons/fa";
+import { FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaHistory } from "react-icons/fa";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { fetchDashboard } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { ActivityHistoryModal } from "../components/ActivityHistoryModal";
 import "./CurrentMonthExpensesPage.css";
 
 interface CurrentMonthExpensesPageProps {
@@ -17,6 +18,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   useEffect(() => {
     loadExpenses();
@@ -203,7 +205,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
           <h1>Current Month Expenses</h1>
           <PageInfoButton
             title="Current Month Expenses"
-            description="View all your expenses for the current month, organized by category, subcategory, and payment mode. Analyze your spending patterns with interactive charts."
+            description="View all your expenses for the current month, organized by category, subcategory, and payment mode. Analyze your spending patterns with interactive charts. Use the History button to view past months."
             impact="This page helps you understand where your money is going. Expenses are grouped by category and payment mode, helping you identify spending patterns and make informed financial decisions."
             howItWorks={[
               "Expenses are grouped by Category → Subcategory → Payment Mode",
@@ -214,6 +216,27 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
             ]}
           />
         </div>
+        <button 
+          className="icon-btn" 
+          onClick={() => setShowHistoryModal(true)}
+          title="View History"
+          style={{ 
+            background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', 
+            color: 'white', 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '50%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            fontSize: '16px',
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
+          }}
+        >
+          <FaHistory />
+        </button>
       </div>
 
       {loading ? <SkeletonLoader type="card" count={5} /> : expenses.length === 0 ? (
@@ -414,6 +437,14 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
         </div>
         </>
       )}
+      
+      {/* History Modal */}
+      <ActivityHistoryModal
+        token={token}
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        selectedMonth={null}
+      />
     </div>
   );
 }

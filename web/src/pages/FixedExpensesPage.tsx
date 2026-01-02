@@ -30,6 +30,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     is_sip_flag: false
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);  // Prevent multiple submissions
 
   useEffect(() => {
     loadExpenses();
@@ -66,6 +67,8 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // Prevent multiple submissions
+    setIsSubmitting(true);
     console.log("💾 Submitting form with is_sip_flag:", formData.is_sip_flag);
     try {
       if (editingId) {
@@ -105,6 +108,8 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       await loadExpenses();
     } catch (e: any) {
       alert(e.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -271,10 +276,10 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                 </div>
               )}
               <div className="form-actions">
-                <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }}>
+                <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={isSubmitting}>
                   Cancel
                 </button>
-                <button type="submit">{editingId ? "Update" : "Add"}</button>
+                <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : (editingId ? "Update" : "Add")}</button>
               </div>
             </form>
           </div>

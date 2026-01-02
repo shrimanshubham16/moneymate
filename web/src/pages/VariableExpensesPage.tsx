@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash } from "react-icons/fa";
+import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
 import { fetchDashboard, createVariableExpensePlan, updateVariableExpensePlan, deleteVariableExpensePlan, addVariableActual, getUserSubcategories, addUserSubcategory, fetchCreditCards } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -39,6 +39,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   });
   const [userSubcategories, setUserSubcategories] = useState<string[]>(["Unspecified"]);  // v1.2: User's subcategories
   const [creditCards, setCreditCards] = useState<any[]>([]);  // v1.2: User's credit cards
+  const [isSubmitting, setIsSubmitting] = useState(false);  // Prevent multiple submissions
 
   useEffect(() => {
     loadPlans();
@@ -87,6 +88,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
 
   const handlePlanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // Prevent multiple submissions
+    setIsSubmitting(true);
     try {
       if (editingId) {
         await updateVariableExpensePlan(token, editingId, {
@@ -110,6 +113,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       await loadPlans();
     } catch (e: any) {
       alert(e.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -134,6 +139,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const handleActualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlanId) return;
+    if (isSubmitting) return; // Prevent multiple submissions
     
     // Validate plan still exists
     const planStillExists = plans.find(p => p.id === selectedPlanId);
@@ -151,6 +157,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       return;
     }
     
+    setIsSubmitting(true);
     try {
       // Optimistic UI update - add expense immediately to UI
       const tempActual = {
@@ -215,6 +222,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       // Revert optimistic update on error
       await loadPlans();
       await loadCreditCards();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -242,9 +251,19 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
             ]}
           />
         </div>
-        <button className="add-button" onClick={() => { setShowPlanForm(true); setEditingId(null); }}>
-          + Add New Plan
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className="icon-btn" 
+            onClick={() => setShowActualForm(true)}
+            title="Add an expense"
+            style={{ background: '#10b981', color: 'white', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}
+          >
+            <FaPlus />
+          </button>
+          <button className="add-button" onClick={() => { setShowPlanForm(true); setEditingId(null); }}>
+            + Add New Plan
+          </button>
+        </div>
       </div>
 
       {showPlanForm && (
@@ -280,8 +299,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                 </div>
               </div>
               <div className="form-actions">
-                <button type="button" onClick={() => setShowPlanForm(false)}>Cancel</button>
-                <button type="submit">{editingId ? "Update" : "Add"}</button>
+                <button type="button" onClick={() => setShowPlanForm(false)} disabled={isSubmitting}>Cancel</button>
+                <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : (editingId ? "Update" : "Add")}</button>
               </div>
             </form>
           </motion.div>
@@ -292,7 +311,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         <motion.div className="modal-overlay" onClick={() => setShowActualForm(false)}>
           <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}
             initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
-            <h2>Add Actual Expense</h2>
+            <h2>Add an Expense</h2>
             <form onSubmit={handleActualSubmit}>
               <div className="form-group">
                 <label>Select Plan *</label>
@@ -467,8 +486,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                 <textarea value={actualForm.justification} onChange={(e) => setActualForm({ ...actualForm, justification: e.target.value })} rows={3} />
               </div>
               <div className="form-actions">
-                <button type="button" onClick={() => setShowActualForm(false)}>Cancel</button>
-                <button type="submit">Add</button>
+                <button type="button" onClick={() => setShowActualForm(false)} disabled={isSubmitting}>Cancel</button>
+                <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Add"}</button>
               </div>
             </form>
           </motion.div>
@@ -477,7 +496,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
 
       <div className="actions-bar">
         <button className="secondary-button" onClick={() => setShowActualForm(true)}>
-          + Add Actual Expense
+          + Add an Expense
         </button>
       </div>
 
