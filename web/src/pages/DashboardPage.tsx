@@ -365,7 +365,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const monthly = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
     return sum + (monthly || 0);
   }, 0) || 0;
-  const unpaidInvestments = data.investments?.filter((i: any) => !i.paid).reduce((sum: number, i: any) => sum + (i.monthlyAmount || 0), 0) || 0;
+  // P0 FIX: Only include active (not paused) investments in dues
+  const unpaidInvestments = data.investments?.filter((i: any) => !i.paid && (i.status === 'active' || !i.status)).reduce((sum: number, i: any) => sum + (i.monthlyAmount || 0), 0) || 0;
   // Loans are excluded from dues as they're auto-tracked from fixed expenses and not separately markable
   // const unpaidLoans = loans.filter((l: any) => !l.paid).reduce((sum, l) => sum + (l.emi || 0), 0);
   
