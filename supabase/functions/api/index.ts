@@ -192,16 +192,18 @@ serve(async (req) => {
       const previousMonthStr = `${previousMonthStart.getFullYear()}-${String(previousMonthStart.getMonth() + 1).padStart(2, '0')}`;
       const currentMonthStr = `${currentMonthStart.getFullYear()}-${String(currentMonthStart.getMonth() + 1).padStart(2, '0')}`;
       
-      // Check if we've already reset for current month
+      // Check if we've already reset for current billing period
+      // P0 FIX: Check for reset in current billing period using created_at timestamp
       const { data: resetCheck } = await supabase.from('activities')
         .select('id')
         .eq('actor_id', userId)
         .eq('entity', 'system')
         .eq('action', 'monthly_reset')
-        .like('payload', `%"month":"${currentMonthStr}"%`)
+        .gte('created_at', currentMonthStart.toISOString())
+        .lt('created_at', new Date(currentMonthStart.getTime() + 32 * 24 * 60 * 60 * 1000).toISOString()) // Next month
         .limit(1);
       
-      // Only reset if we haven't already reset for this month
+      // Only reset if we haven't already reset for this billing period
       if (!resetCheck || resetCheck.length === 0) {
         console.log(`[MONTHLY_RESET] Resetting payments and variable actuals for user ${userId}, previous month: ${previousMonthStr}`);
         

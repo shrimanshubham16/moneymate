@@ -244,7 +244,14 @@ export async function deleteIncome(token: string, id: string) {
 
 // Investments
 export async function createInvestment(token: string, payload: { name: string; goal: string; monthlyAmount: number; status: string }) {
-  return request<{ data: any }>("/investments", { method: "POST", body: JSON.stringify(payload) }, token);
+  // Convert camelCase to snake_case for backend
+  const backendPayload: any = {
+    name: payload.name,
+    goal: payload.goal,
+    monthly_amount: payload.monthlyAmount,
+    status: payload.status
+  };
+  return request<{ data: any }>("/planning/investments", { method: "POST", body: JSON.stringify(backendPayload) }, token);
 }
 
 export async function updateInvestment(token: string, id: string, payload: { name?: string; goal?: string; monthlyAmount?: number; status?: string; accumulatedFunds?: number }) {
@@ -260,15 +267,23 @@ export async function updateInvestment(token: string, id: string, payload: { nam
 }
 
 export async function deleteInvestment(token: string, id: string) {
-  return request<{ data: { deleted: boolean } }>(`/investments/${id}`, { method: "DELETE" }, token);
+  return request<{ data: { deleted: boolean } }>(`/planning/investments/${id}`, { method: "DELETE" }, token);
 }
 
 export async function pauseInvestment(token: string, id: string) {
-  return request<{ data: any }>(`/investments/${id}/pause`, { method: "POST" }, token);
+  return updateInvestment(token, id, { status: "paused" });
 }
 
 export async function resumeInvestment(token: string, id: string) {
-  return request<{ data: any }>(`/investments/${id}/resume`, { method: "POST" }, token);
+  return updateInvestment(token, id, { status: "active" });
+}
+
+export async function pauseInvestment(token: string, id: string) {
+  return updateInvestment(token, id, { status: "paused" });
+}
+
+export async function resumeInvestment(token: string, id: string) {
+  return updateInvestment(token, id, { status: "active" });
 }
 
 // Payment tracking

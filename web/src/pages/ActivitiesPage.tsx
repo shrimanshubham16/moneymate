@@ -92,25 +92,6 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
 
   return (
     <div className="activities-page">
-      {/* App Header */}
-      <header className="activities-app-header">
-        <div className="header-left">
-          <button
-            className="logo-button"
-            onClick={() => navigate("/dashboard")}
-            title="Go to Dashboard"
-          >
-            <span className="logo-icon"><MdAccountBalanceWallet size={28} /></span>
-            <span className="logo-text">FinFlow</span>
-          </button>
-        </div>
-        <div className="header-right">
-          <button className="header-nav-button" onClick={() => navigate("/settings")}>
-            Settings
-          </button>
-        </div>
-      </header>
-
       {/* Page Header */}
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>

@@ -55,8 +55,9 @@ export function DuesPage({ token }: DuesPageProps) {
   };
 
   // Helper function to calculate next due date for periodic expenses
-  const getNextDueDate = (startDate: string, frequency: string, today: Date = new Date()): Date => {
-    const start = new Date(startDate);
+  const getNextDueDate = (startDate: string | undefined, frequency: string, today: Date = new Date()): Date => {
+    // If no start date, use today as fallback (for expenses created without start date)
+    const start = startDate ? new Date(startDate) : today;
     if (start > today) return start;
     
     let nextDue = new Date(start);
@@ -90,10 +91,15 @@ export function DuesPage({ token }: DuesPageProps) {
   };
   
   // Helper function to check if periodic expense is due in current billing period
-  const isPeriodicExpenseDue = (startDate: string, frequency: string, monthStartDay: number, today: Date = new Date()): boolean => {
+  const isPeriodicExpenseDue = (startDate: string | undefined, frequency: string, monthStartDay: number, today: Date = new Date()): boolean => {
     if (frequency === 'monthly') {
       // Monthly expenses are always due
       return true;
+    }
+    
+    // If no start date, show as due if unpaid (fallback for expenses without start date)
+    if (!startDate) {
+      return true; // Show as due if no start date (user can set start date later)
     }
     
     const nextDue = getNextDueDate(startDate, frequency, today);
@@ -127,17 +133,29 @@ export function DuesPage({ token }: DuesPageProps) {
       const duesList: any[] = [];
       let total = 0;
 
-      // Credit card dues (current month)
+      // Credit card dues (current billing period)
       console.log('[DUES_DEBUG] Credit cards:', cardsRes.data?.length || 0);
       cardsRes.data.forEach((card: any) => {
         const remaining = card.billAmount - card.paidAmount;
         console.log('[DUES_DEBUG] Credit card:', { name: card.name, billAmount: card.billAmount, paidAmount: card.paidAmount, remaining, dueDate: card.dueDate });
         if (remaining > 0) {
           const dueDate = new Date(card.dueDate);
-          const isCurrentMonth = dueDate.getMonth() === new Date().getMonth() && 
-                                dueDate.getFullYear() === new Date().getFullYear();
-          console.log('[DUES_DEBUG] Credit card month check:', { name: card.name, isCurrentMonth, dueDateMonth: dueDate.getMonth(), currentMonth: new Date().getMonth() });
-          if (isCurrentMonth) {
+          
+          // Calculate current billing period (same logic as other dues)
+          let billingStart: Date;
+          let billingEnd: Date;
+          if (today.getDate() >= monthStartDay) {
+            billingStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+            billingEnd = new Date(today.getFullYear(), today.getMonth() + 1, monthStartDay);
+          } else {
+            billingStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+            billingEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+          }
+          
+          // Check if due date falls within current billing period
+          const isCurrentBillingPeriod = dueDate >= billingStart && dueDate < billingEnd;
+          console.log('[DUES_DEBUG] Credit card billing period check:', { name: card.name, isCurrentBillingPeriod, dueDate: dueDate.toISOString().split('T')[0], billingStart: billingStart.toISOString().split('T')[0], billingEnd: billingEnd.toISOString().split('T')[0] });
+          if (isCurrentBillingPeriod) {
             duesList.push({
               id: card.id,
               name: card.name,
@@ -177,12 +195,15 @@ export function DuesPage({ token }: DuesPageProps) {
       const today = new Date();
       console.log('[DUES_DEBUG] Fixed expenses:', dashboardRes.data.fixedExpenses?.length || 0);
       dashboardRes.data.fixedExpenses?.forEach((exp: any) => {
-        console.log('[DUES_DEBUG] Fixed expense:', { name: exp.name, paid: exp.paid, frequency: exp.frequency, startDate: exp.startDate || exp.start_date });
+        const startDate = exp.startDate || exp.start_date;
+        console.log('[DUES_DEBUG] Fixed expense:', { name: exp.name, paid: exp.paid, frequency: exp.frequency, startDate, isSip: exp.is_sip_flag || exp.isSipFlag });
         if (!exp.paid) { // Only show unpaid items
           // P0 FIX: For periodic expenses (quarterly/yearly), only show if actually due this billing period
-          if (exp.frequency !== 'monthly') {
-            const isDue = isPeriodicExpenseDue(exp.startDate || exp.start_date || today.toISOString().split('T')[0], exp.frequency, monthStartDay, today);
-            console.log('[DUES_DEBUG] Periodic expense due check:', { name: exp.name, frequency: exp.frequency, isDue });
+          // For SIPs (is_sip_flag = true), always show if unpaid (they accumulate monthly)
+          const isSip = exp.is_sip_flag || exp.isSipFlag;
+          if (exp.frequency !== 'monthly' && !isSip) {
+            const isDue = isPeriodicExpenseDue(startDate, exp.frequency, monthStartDay, today);
+            console.log('[DUES_DEBUG] Periodic expense due check:', { name: exp.name, frequency: exp.frequency, isDue, startDate });
             if (!isDue) {
               return; // Skip if not due this period
             }
