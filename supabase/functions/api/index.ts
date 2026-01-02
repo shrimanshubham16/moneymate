@@ -1269,7 +1269,9 @@ serve(async (req) => {
         billingMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
       }
       
-      const month = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
+      const billingMonthStr = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
+      
+      console.log(`[MARK_PAID] Marking ${body.itemType} ${body.itemId} as paid for user ${userId}, month: ${billingMonthStr}, amount: ${body.amount}`);
       
       const { data: existing } = await supabase
         .from('payments')
@@ -1277,7 +1279,7 @@ serve(async (req) => {
         .eq('user_id', userId)
         .eq('entity_id', body.itemId)
         .eq('entity_type', body.itemType)
-        .eq('month', month)
+        .eq('month', billingMonthStr)
         .single();
       
       let payment;
