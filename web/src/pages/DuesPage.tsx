@@ -132,6 +132,7 @@ export function DuesPage({ token }: DuesPageProps) {
       const monthStartDay = prefsRes.data?.monthStartDay || prefsRes.data?.month_start_day || 1;
       const duesList: any[] = [];
       let total = 0;
+      const today = new Date(); // P0 FIX: Declare today before using it
 
       // Credit card dues (current billing period)
       console.log('[DUES_DEBUG] Credit cards:', cardsRes.data?.length || 0);
@@ -192,7 +193,6 @@ export function DuesPage({ token }: DuesPageProps) {
       // });
 
       // Fixed expenses due this month
-      const today = new Date();
       console.log('[DUES_DEBUG] Fixed expenses:', dashboardRes.data.fixedExpenses?.length || 0);
       dashboardRes.data.fixedExpenses?.forEach((exp: any) => {
         const startDate = exp.startDate || exp.start_date;
