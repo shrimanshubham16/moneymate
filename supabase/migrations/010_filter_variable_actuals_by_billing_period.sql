@@ -1,5 +1,8 @@
--- Combined dashboard data function - reduces 10+ queries to 1
--- This dramatically improves latency by eliminating multiple round-trips
+-- P0 FIX: Filter variable actuals by billing period in dashboard function
+-- This ensures only current month's actuals are shown, matching health calculation logic
+
+-- Drop and recreate the function with billing period filtering
+DROP FUNCTION IF EXISTS get_dashboard_data(UUID, TEXT);
 
 CREATE OR REPLACE FUNCTION get_dashboard_data(
   p_user_id UUID,
@@ -26,14 +29,12 @@ BEGIN
     v_month_start := DATE_TRUNC('month', NOW() - INTERVAL '1 month') + (v_month_start_day - 1) * INTERVAL '1 day';
     v_month_end := DATE_TRUNC('month', NOW()) + (v_month_start_day - 1) * INTERVAL '1 day';
   END IF;
+
   -- Get merged finance group (user + any shared account members where finances are merged)
-  -- Schema: shared_members has user_id, shared_account_id, role (owner/editor/viewer), merge_finances
   SELECT ARRAY_AGG(DISTINCT uid) INTO v_group_user_ids
   FROM (
-    -- The user themselves (always included)
     SELECT p_user_id AS uid
     UNION
-    -- Other members in shared accounts where this user is a member AND merge_finances is true
     SELECT sm2.user_id AS uid
     FROM shared_members sm
     JOIN shared_members sm2 ON sm2.shared_account_id = sm.shared_account_id
@@ -42,7 +43,6 @@ BEGIN
       AND (sm.merge_finances = TRUE OR sm2.merge_finances = TRUE)
   ) AS all_users;
 
-  -- If no group found, just use the user
   IF v_group_user_ids IS NULL THEN
     v_group_user_ids := ARRAY[p_user_id];
   END IF;
@@ -245,8 +245,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION get_dashboard_data(UUID, TEXT) TO postgres;
-
--- Index already exists from schema.sql: idx_shared_members_user_id
+GRANT EXECUTE ON FUNCTION get_dashboard_data(UUID, TEXT) TO postgres, anon, authenticated;
 
