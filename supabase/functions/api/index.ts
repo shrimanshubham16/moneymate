@@ -168,12 +168,14 @@ serve(async (req) => {
   }
 
   // P0 FIX: Monthly reset - clear previous month's payments when new month starts
+  // Uses last_reset_billing_period column for reliable tracking (not activities)
   async function checkAndResetMonthlyPayments(userId: string): Promise<void> {
     try {
-      // Get user preferences for month start day
+      // Get user preferences for month start day and last reset period
       const { data: prefs } = await supabase.from('user_preferences')
-        .select('month_start_day').eq('user_id', userId).single();
+        .select('month_start_day, last_reset_billing_period').eq('user_id', userId).single();
       const monthStartDay = prefs?.month_start_day || 1;
+      const lastResetPeriod = prefs?.last_reset_billing_period;
       
       const today = new Date();
       let currentMonthStart: Date;
@@ -195,69 +197,57 @@ serve(async (req) => {
       const previousMonthStr = `${previousMonthStart.getFullYear()}-${String(previousMonthStart.getMonth() + 1).padStart(2, '0')}`;
       const currentMonthStr = `${currentMonthStart.getFullYear()}-${String(currentMonthStart.getMonth() + 1).padStart(2, '0')}`;
       
-      // Check if we've already reset for current billing period
-      // P0 FIX: Check for reset in current billing period using created_at timestamp
-      console.log(`[MONTHLY_RESET_CHECK] Checking for existing reset for user ${userId}, currentMonthStart: ${currentMonthStart.toISOString()}, currentMonthStr: ${currentMonthStr}`);
-      const { data: resetCheck, error: resetCheckErr } = await supabase.from('activities')
-        .select('id, created_at')
-        .eq('actor_id', userId)
-        .eq('entity', 'system')
-        .eq('action', 'monthly_reset')
-        .gte('created_at', currentMonthStart.toISOString())
-        .lt('created_at', new Date(currentMonthStart.getTime() + 32 * 24 * 60 * 60 * 1000).toISOString()) // Next month
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (resetCheckErr) {
-        console.error(`[MONTHLY_RESET_CHECK_ERROR]`, resetCheckErr);
-      } else {
-        console.log(`[MONTHLY_RESET_CHECK] Found ${resetCheck?.length || 0} existing reset(s) for current billing period`);
-        if (resetCheck && resetCheck.length > 0) {
-          console.log(`[MONTHLY_RESET_CHECK] Existing reset found at ${resetCheck[0].created_at}, skipping reset`);
-        }
+      // P0 FIX: Use dedicated column instead of querying activities (more reliable)
+      if (lastResetPeriod === currentMonthStr) {
+        // Already reset for this billing period, skip
+        return;
       }
       
-      // Only reset if we haven't already reset for this billing period
-      if (!resetCheck || resetCheck.length === 0) {
-        console.log(`[MONTHLY_RESET] Resetting payments and variable actuals for user ${userId}, previous month: ${previousMonthStr}`);
-        
-        // Delete all payments from previous month (resets payment status for fixed expenses, investments, SIPs)
-        const { error: deleteErr } = await supabase.from('payments')
-          .delete()
-          .eq('user_id', userId)
-          .eq('month', previousMonthStr);
-        
-        if (deleteErr) {
-          console.error(`[MONTHLY_RESET_ERROR] Failed to delete payments:`, deleteErr);
-        }
-        
-        // P0 FIX: Delete variable expense actuals from previous billing period
-        // This ensures variable actuals are reset on monthly reset date
-        const { error: deleteActualsErr } = await supabase.from('variable_expense_actuals')
-          .delete()
-          .eq('user_id', userId)
-          .gte('incurred_at', previousMonthStart.toISOString().split('T')[0])
-          .lt('incurred_at', previousMonthEnd.toISOString().split('T')[0]);
-        
-        if (deleteActualsErr) {
-          console.error(`[MONTHLY_RESET_ERROR] Failed to delete variable actuals:`, deleteActualsErr);
-        } else {
-          console.log(`[MONTHLY_RESET] Deleted variable actuals from ${previousMonthStart.toISOString().split('T')[0]} to ${previousMonthEnd.toISOString().split('T')[0]}`);
-        }
-        
-        // Log monthly reset activity only if at least one operation succeeded
-        if (!deleteErr || !deleteActualsErr) {
-          await logActivity(userId, 'system', 'monthly_reset', {
-            month: currentMonthStr,
-            previousMonth: previousMonthStr,
-            paymentsDeleted: !deleteErr,
-            variableActualsDeleted: !deleteActualsErr,
-            resetAt: new Date().toISOString()
-          });
-          
-          console.log(`[MONTHLY_RESET] Cleared payments for ${previousMonthStr}, new month: ${currentMonthStr}`);
-        }
+      console.log(`[MONTHLY_RESET] Resetting for user ${userId}, previous: ${previousMonthStr}, current: ${currentMonthStr}, lastReset: ${lastResetPeriod || 'never'}`);
+      
+      // Delete all payments from previous month (resets payment status for fixed expenses, investments, SIPs)
+      const { error: deleteErr } = await supabase.from('payments')
+        .delete()
+        .eq('user_id', userId)
+        .eq('month', previousMonthStr);
+      
+      if (deleteErr) {
+        console.error(`[MONTHLY_RESET_ERROR] Failed to delete payments:`, deleteErr);
       }
+      
+      // P0 FIX: Delete variable expense actuals from previous billing period
+      const { error: deleteActualsErr } = await supabase.from('variable_expense_actuals')
+        .delete()
+        .eq('user_id', userId)
+        .gte('incurred_at', previousMonthStart.toISOString().split('T')[0])
+        .lt('incurred_at', previousMonthEnd.toISOString().split('T')[0]);
+      
+      if (deleteActualsErr) {
+        console.error(`[MONTHLY_RESET_ERROR] Failed to delete variable actuals:`, deleteActualsErr);
+      }
+      
+      // P0 FIX: Update last_reset_billing_period BEFORE logging activity
+      // This prevents duplicate resets even if activity logging fails
+      const { error: updateErr } = await supabase.from('user_preferences')
+        .update({ last_reset_billing_period: currentMonthStr })
+        .eq('user_id', userId);
+      
+      if (updateErr) {
+        console.error(`[MONTHLY_RESET_ERROR] Failed to update last_reset_billing_period:`, updateErr);
+        // Don't log activity if we couldn't update the tracking column
+        return;
+      }
+      
+      // Log monthly reset activity (only once per billing period now)
+      await logActivity(userId, 'system', 'monthly_reset', {
+        month: currentMonthStr,
+        previousMonth: previousMonthStr,
+        paymentsDeleted: !deleteErr,
+        variableActualsDeleted: !deleteActualsErr,
+        resetAt: new Date().toISOString()
+      });
+      
+      console.log(`[MONTHLY_RESET] Completed for ${currentMonthStr}`);
     } catch (err) {
       console.error('[MONTHLY_RESET_ERROR]', err);
       // Don't fail the request if reset check fails
