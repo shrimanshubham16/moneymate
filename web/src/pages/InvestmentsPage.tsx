@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MdTrendingUp } from "react-icons/md";
-import { FaEdit, FaPause, FaPlay, FaTrashAlt } from "react-icons/fa";
-import { fetchDashboard } from "../api";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet } from "react-icons/fa";
+import { fetchDashboard, updateInvestment } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
@@ -101,6 +101,11 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                 <div className="investment-details">
                   <span>Goal: {inv.goal}</span>
                   <span>₹{inv.monthlyAmount.toLocaleString("en-IN")}/month</span>
+                  {(inv.accumulatedFunds || inv.accumulated_funds || 0) > 0 && (
+                    <span style={{ color: '#10b981', fontWeight: 600 }}>
+                      Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
+                    </span>
+                  )}
                   <StatusBadge 
                     status={inv.status === "active" ? "active" : "paused"} 
                     size="small" 
@@ -110,6 +115,24 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                 </div>
               </div>
               <div className="investment-actions">
+                <button 
+                  className="icon-btn wallet-btn" 
+                  onClick={async () => {
+                    const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}\n\nEnter new amount:`);
+                    if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
+                      try {
+                        await updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
+                        await loadInvestments();
+                      } catch (e: any) {
+                        alert("Failed to update: " + e.message);
+                      }
+                    }
+                  }}
+                  title="Update Available Fund"
+                  style={{ color: '#10b981' }}
+                >
+                  <FaWallet />
+                </button>
                 <button 
                   className="icon-btn edit-btn" 
                   onClick={() => navigate(`/settings/plan-finances/investments?edit=${inv.id}`)}

@@ -744,6 +744,32 @@ serve(async (req) => {
       await logActivity(userId, 'investment', 'added investment', { name: data.name, goal: data.goal, monthlyAmount: data.monthly_amount });
       return json({ data }, 201);
     }
+    if (path.startsWith('/planning/investments/') && method === 'PUT') {
+      const id = path.split('/').pop();
+      const body = await req.json();
+      const updateData: any = {};
+      if (body.name !== undefined) updateData.name = body.name;
+      if (body.goal !== undefined) updateData.goal = body.goal;
+      if (body.monthly_amount !== undefined) updateData.monthly_amount = body.monthly_amount;
+      if (body.status !== undefined) updateData.status = body.status;
+      if (body.accumulated_funds !== undefined) updateData.accumulated_funds = body.accumulated_funds;
+      
+      const { data, error: e } = await supabase.from('investments')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select()
+        .single();
+      if (e) return error(e.message, 500);
+      
+      if (body.accumulated_funds !== undefined) {
+        await logActivity(userId, 'investment', 'updated available fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
+      } else {
+        await logActivity(userId, 'investment', 'updated investment', { id, name: data.name });
+      }
+      await invalidateUserCache(userId);
+      return json({ data });
+    }
     if (path.startsWith('/planning/investments/') && method === 'DELETE') {
       const id = path.split('/').pop();
       const { data: deleted } = await supabase.from('investments').select('name').eq('id', id).single();
@@ -1173,7 +1199,21 @@ serve(async (req) => {
         itemName = loan?.name || 'Unknown Loan';
       }
       
-      const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+      // Get user's billing period month (same logic as dashboard)
+      const { data: prefs } = await supabase.from('user_preferences')
+        .select('month_start_day').eq('user_id', userId).single();
+      const monthStartDay = prefs?.month_start_day || 1;
+      
+      const today = new Date();
+      let billingMonthStart: Date;
+      if (today.getDate() >= monthStartDay) {
+        billingMonthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+      } else {
+        billingMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+      }
+      
+      const month = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
+      
       const { data: existing } = await supabase
         .from('payments')
         .select('*')
@@ -1199,6 +1239,23 @@ serve(async (req) => {
           .select()
           .single();
         payment = created;
+      }
+      
+      // P0 FIX: Reset accumulated_funds when marked as paid
+      if (body.itemType === 'fixed_expense') {
+        const { error: resetErr } = await supabase
+          .from('fixed_expenses')
+          .update({ accumulated_funds: 0 })
+          .eq('id', body.itemId)
+          .eq('user_id', userId);
+        if (resetErr) console.error('[PAYMENT_RESET] Failed to reset accumulated funds:', resetErr);
+      } else if (body.itemType === 'investment') {
+        const { error: resetErr } = await supabase
+          .from('investments')
+          .update({ accumulated_funds: 0 })
+          .eq('id', body.itemId)
+          .eq('user_id', userId);
+        if (resetErr) console.error('[PAYMENT_RESET] Failed to reset accumulated funds:', resetErr);
       }
       
       await logActivity(userId, body.itemType, 'paid', { id: body.itemId, name: itemName, amount: body.amount });

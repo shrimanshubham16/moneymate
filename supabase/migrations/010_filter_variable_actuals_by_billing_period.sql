@@ -76,7 +76,8 @@ BEGIN
         'frequency', fe.frequency,
         'startDate', fe.start_date,
         'endDate', fe.end_date,
-        'isSipFlag', fe.is_sip
+        'isSipFlag', fe.is_sip,
+        'accumulatedFunds', COALESCE(fe.accumulated_funds, 0)
       ))
       FROM fixed_expenses fe
       WHERE fe.user_id = ANY(v_group_user_ids)
@@ -147,7 +148,8 @@ BEGIN
         'name', inv.name,
         'monthlyAmount', inv.monthly_amount,
         'goal', inv.goal,
-        'status', inv.status
+        'status', inv.status,
+        'accumulatedFunds', COALESCE(inv.accumulated_funds, 0)
       ))
       FROM investments inv
       WHERE inv.user_id = ANY(v_group_user_ids)

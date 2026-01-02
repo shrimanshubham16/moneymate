@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { fetchCreditCards, fetchLoans, fetchDashboard, markAsPaid, markAsUnpaid } from "../api";
+import { fetchCreditCards, fetchLoans, fetchDashboard, markAsPaid, markAsUnpaid, getUserPreferences } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { Toast } from "../components/Toast";
 import { SkeletonLoader } from "../components/SkeletonLoader";
@@ -54,14 +54,76 @@ export function DuesPage({ token }: DuesPageProps) {
     }
   };
 
+  // Helper function to calculate next due date for periodic expenses
+  const getNextDueDate = (startDate: string, frequency: string, today: Date = new Date()): Date => {
+    const start = new Date(startDate);
+    if (start > today) return start;
+    
+    let nextDue = new Date(start);
+    const monthsSinceStart = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
+    
+    if (frequency === 'monthly') {
+      // Next due is same day of next month
+      nextDue = new Date(today.getFullYear(), today.getMonth(), start.getDate());
+      if (nextDue <= today) {
+        nextDue = new Date(today.getFullYear(), today.getMonth() + 1, start.getDate());
+      }
+    } else if (frequency === 'quarterly') {
+      // Next due is every 3 months from start
+      const quartersSinceStart = Math.floor(monthsSinceStart / 3);
+      nextDue = new Date(start);
+      nextDue.setMonth(start.getMonth() + (quartersSinceStart + 1) * 3);
+      while (nextDue <= today) {
+        nextDue.setMonth(nextDue.getMonth() + 3);
+      }
+    } else if (frequency === 'yearly') {
+      // Next due is every 12 months from start
+      const yearsSinceStart = Math.floor(monthsSinceStart / 12);
+      nextDue = new Date(start);
+      nextDue.setFullYear(start.getFullYear() + yearsSinceStart + 1);
+      while (nextDue <= today) {
+        nextDue.setFullYear(nextDue.getFullYear() + 1);
+      }
+    }
+    
+    return nextDue;
+  };
+  
+  // Helper function to check if periodic expense is due in current billing period
+  const isPeriodicExpenseDue = (startDate: string, frequency: string, monthStartDay: number, today: Date = new Date()): boolean => {
+    if (frequency === 'monthly') {
+      // Monthly expenses are always due
+      return true;
+    }
+    
+    const nextDue = getNextDueDate(startDate, frequency, today);
+    
+    // Calculate current billing period
+    let billingStart: Date;
+    let billingEnd: Date;
+    
+    if (today.getDate() >= monthStartDay) {
+      billingStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+      billingEnd = new Date(today.getFullYear(), today.getMonth() + 1, monthStartDay);
+    } else {
+      billingStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+      billingEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+    }
+    
+    // Check if next due date falls within current billing period
+    return nextDue >= billingStart && nextDue < billingEnd;
+  };
+
   const loadDues = async () => {
     try {
-      const [cardsRes, loansRes, dashboardRes] = await Promise.all([
+      const [cardsRes, loansRes, dashboardRes, prefsRes] = await Promise.all([
         fetchCreditCards(token),
         fetchLoans(token),
-        fetchDashboard(token, "2025-01-15T00:00:00Z")
+        fetchDashboard(token, "2025-01-15T00:00:00Z"),
+        getUserPreferences(token)
       ]);
 
+      const monthStartDay = prefsRes.data?.monthStartDay || prefsRes.data?.month_start_day || 1;
       const duesList: any[] = [];
       let total = 0;
 
@@ -121,18 +183,35 @@ export function DuesPage({ token }: DuesPageProps) {
       const today = new Date();
       dashboardRes.data.fixedExpenses?.forEach((exp: any) => {
         if (!exp.paid) { // Only show unpaid items
+          // P0 FIX: For periodic expenses (quarterly/yearly), only show if actually due this billing period
+          if (exp.frequency !== 'monthly' && !isPeriodicExpenseDue(exp.startDate || exp.start_date || today.toISOString().split('T')[0], exp.frequency, monthStartDay, today)) {
+            return; // Skip if not due this period
+          }
+          
           const monthly = exp.frequency === "monthly" ? exp.amount : 
                          exp.frequency === "quarterly" ? exp.amount / 3 : 
                          exp.amount / 12;
+          
+          // Calculate next due date for periodic expenses
+          const nextDue = exp.frequency !== 'monthly' 
+            ? getNextDueDate(exp.startDate || exp.start_date || today.toISOString().split('T')[0], exp.frequency, today)
+            : today;
+          
+          const accumulatedFunds = exp.accumulatedFunds || exp.accumulated_funds || 0;
+          const isSip = exp.is_sip_flag || exp.isSipFlag;
+          
           duesList.push({
             id: exp.id,
             name: exp.name,
-            type: "Fixed Expense",
+            type: isSip ? "SIP Expense" : "Fixed Expense",
             itemType: "fixed_expense",
             amount: Math.round(monthly),
-            dueDate: today.toISOString().split("T")[0],
+            dueDate: nextDue.toISOString().split("T")[0],
             paid: exp.paid || false,
-            total: Math.round(monthly)
+            total: Math.round(monthly),
+            accumulatedFunds: accumulatedFunds,
+            isSip: isSip,
+            frequency: exp.frequency
           });
           total += Math.round(monthly);
         }
@@ -141,17 +220,19 @@ export function DuesPage({ token }: DuesPageProps) {
       // Investments due this month
       dashboardRes.data.investments?.forEach((inv: any) => {
         if (!inv.paid) { // Only show unpaid items
+          const accumulatedFunds = inv.accumulatedFunds || inv.accumulated_funds || 0;
           duesList.push({
             id: inv.id,
             name: inv.name,
             type: "Investment",
             itemType: "investment",
-            amount: inv.monthlyAmount,
+            amount: inv.monthlyAmount || inv.monthly_amount,
             dueDate: today.toISOString().split("T")[0],
             paid: inv.paid || false,
-            total: inv.monthlyAmount
+            total: inv.monthlyAmount || inv.monthly_amount,
+            accumulatedFunds: accumulatedFunds
           });
-          total += inv.monthlyAmount;
+          total += inv.monthlyAmount || inv.monthly_amount;
         }
       });
 
@@ -237,6 +318,12 @@ export function DuesPage({ token }: DuesPageProps) {
                       <span className="label">Due Date</span>
                       <span className="value">{new Date(due.dueDate).toLocaleDateString()}</span>
                     </div>
+                    {(due.accumulatedFunds || 0) > 0 && (
+                      <div className="detail-item">
+                        <span className="label">{due.isSip ? "Accumulated Funds" : "Saved Amount"}</span>
+                        <span className="value" style={{ color: '#10b981' }}>₹{Math.round(due.accumulatedFunds).toLocaleString("en-IN")}</span>
+                      </div>
+                    )}
                     {due.partialPaid > 0 && (
                       <div className="detail-item">
                         <span className="label">Paid</span>

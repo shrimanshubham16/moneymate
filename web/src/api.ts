@@ -247,8 +247,16 @@ export async function createInvestment(token: string, payload: { name: string; g
   return request<{ data: any }>("/investments", { method: "POST", body: JSON.stringify(payload) }, token);
 }
 
-export async function updateInvestment(token: string, id: string, payload: { name?: string; goal?: string; monthlyAmount?: number; status?: string }) {
-  return request<{ data: any }>(`/investments/${id}`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+export async function updateInvestment(token: string, id: string, payload: { name?: string; goal?: string; monthlyAmount?: number; status?: string; accumulatedFunds?: number }) {
+  // Convert camelCase to snake_case for backend
+  const backendPayload: any = {};
+  if (payload.name !== undefined) backendPayload.name = payload.name;
+  if (payload.goal !== undefined) backendPayload.goal = payload.goal;
+  if (payload.monthlyAmount !== undefined) backendPayload.monthly_amount = payload.monthlyAmount;
+  if (payload.status !== undefined) backendPayload.status = payload.status;
+  if (payload.accumulatedFunds !== undefined) backendPayload.accumulated_funds = payload.accumulatedFunds;
+  
+  return request<{ data: any }>(`/planning/investments/${id}`, { method: "PUT", body: JSON.stringify(backendPayload) }, token);
 }
 
 export async function deleteInvestment(token: string, id: string) {
