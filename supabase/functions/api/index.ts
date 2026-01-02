@@ -201,14 +201,25 @@ serve(async (req) => {
       
       // Check if we've already reset for current billing period
       // P0 FIX: Check for reset in current billing period using created_at timestamp
-      const { data: resetCheck } = await supabase.from('activities')
-        .select('id')
+      console.log(`[MONTHLY_RESET_CHECK] Checking for existing reset for user ${userId}, currentMonthStart: ${currentMonthStart.toISOString()}, currentMonthStr: ${currentMonthStr}`);
+      const { data: resetCheck, error: resetCheckErr } = await supabase.from('activities')
+        .select('id, created_at')
         .eq('actor_id', userId)
         .eq('entity', 'system')
         .eq('action', 'monthly_reset')
         .gte('created_at', currentMonthStart.toISOString())
         .lt('created_at', new Date(currentMonthStart.getTime() + 32 * 24 * 60 * 60 * 1000).toISOString()) // Next month
+        .order('created_at', { ascending: false })
         .limit(1);
+      
+      if (resetCheckErr) {
+        console.error(`[MONTHLY_RESET_CHECK_ERROR]`, resetCheckErr);
+      } else {
+        console.log(`[MONTHLY_RESET_CHECK] Found ${resetCheck?.length || 0} existing reset(s) for current billing period`);
+        if (resetCheck && resetCheck.length > 0) {
+          console.log(`[MONTHLY_RESET_CHECK] Existing reset found at ${resetCheck[0].created_at}, skipping reset`);
+        }
+      }
       
       // Only reset if we haven't already reset for this billing period
       if (!resetCheck || resetCheck.length === 0) {
@@ -757,17 +768,31 @@ serve(async (req) => {
     // INVESTMENTS
     if (path === '/planning/investments' && method === 'POST') {
       const body = await req.json();
+      console.log(`[INVESTMENT_CREATE] Creating investment for user ${userId}, body:`, body);
       const { data, error: e } = await supabase.from('investments')
-        .insert({ user_id: userId, name: body.name, goal: body.goal, monthly_amount: body.monthly_amount })
+        .insert({ user_id: userId, name: body.name, goal: body.goal, monthly_amount: body.monthly_amount, status: body.status || 'active' })
         .select().single();
-      if (e) return error(e.message, 500);
+      if (e) {
+        console.error(`[INVESTMENT_CREATE_ERROR] Database error:`, e);
+        return error(e.message, 500);
+      }
+      if (!data) {
+        console.error(`[INVESTMENT_CREATE_ERROR] No data returned`);
+        return error('Failed to create investment', 500);
+      }
+      console.log(`[INVESTMENT_CREATE] Successfully created investment ${data.id}`);
       await logActivity(userId, 'investment', 'added investment', { name: data.name, goal: data.goal, monthlyAmount: data.monthly_amount });
+      await invalidateUserCache(userId); // P0 FIX: Invalidate cache after creation
       return json({ data }, 201);
     }
     if (path.startsWith('/planning/investments/') && method === 'PUT') {
       const id = path.split('/').pop();
-      if (!id) return error('Investment ID required', 400);
+      if (!id) {
+        console.error(`[INVESTMENT_UPDATE] Missing investment ID, path: ${path}`);
+        return error('Investment ID required', 400);
+      }
       const body = await req.json();
+      console.log(`[INVESTMENT_UPDATE] Request received for investment ${id}, userId: ${userId}, path: ${path}, body:`, body);
       const updateData: any = {};
       if (body.name !== undefined) updateData.name = body.name;
       if (body.goal !== undefined) updateData.goal = body.goal;
@@ -783,9 +808,16 @@ serve(async (req) => {
         .select()
         .single();
       if (e) {
-        console.error(`[INVESTMENT_UPDATE_ERROR]`, e);
+        console.error(`[INVESTMENT_UPDATE_ERROR] Database error:`, e);
         return error(e.message, 500);
       }
+      
+      if (!data) {
+        console.error(`[INVESTMENT_UPDATE_ERROR] No data returned, investment ${id} not found or access denied`);
+        return error('Investment not found', 404);
+      }
+      
+      console.log(`[INVESTMENT_UPDATE] Successfully updated investment ${id}:`, data);
       
       if (body.accumulated_funds !== undefined) {
         await logActivity(userId, 'investment', 'updated available fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
