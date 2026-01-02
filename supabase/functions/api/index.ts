@@ -203,9 +203,9 @@ serve(async (req) => {
       
       // Only reset if we haven't already reset for this month
       if (!resetCheck || resetCheck.length === 0) {
-        console.log(`[MONTHLY_RESET] Resetting payments for user ${userId}, previous month: ${previousMonthStr}`);
+        console.log(`[MONTHLY_RESET] Resetting payments and variable actuals for user ${userId}, previous month: ${previousMonthStr}`);
         
-        // Delete all payments from previous month
+        // Delete all payments from previous month (resets payment status for fixed expenses, investments, SIPs)
         const { error: deleteErr } = await supabase.from('payments')
           .delete()
           .eq('user_id', userId)
@@ -213,11 +213,29 @@ serve(async (req) => {
         
         if (deleteErr) {
           console.error(`[MONTHLY_RESET_ERROR] Failed to delete payments:`, deleteErr);
+        }
+        
+        // P0 FIX: Delete variable expense actuals from previous billing period
+        // This ensures variable actuals are reset on monthly reset date
+        const { error: deleteActualsErr } = await supabase.from('variable_expense_actuals')
+          .delete()
+          .eq('user_id', userId)
+          .gte('incurred_at', previousMonthStart.toISOString().split('T')[0])
+          .lt('incurred_at', previousMonthEnd.toISOString().split('T')[0]);
+        
+        if (deleteActualsErr) {
+          console.error(`[MONTHLY_RESET_ERROR] Failed to delete variable actuals:`, deleteActualsErr);
         } else {
-          // Log monthly reset activity
+          console.log(`[MONTHLY_RESET] Deleted variable actuals from ${previousMonthStart.toISOString().split('T')[0]} to ${previousMonthEnd.toISOString().split('T')[0]}`);
+        }
+        
+        // Log monthly reset activity only if at least one operation succeeded
+        if (!deleteErr || !deleteActualsErr) {
           await logActivity(userId, 'system', 'monthly_reset', {
             month: currentMonthStr,
             previousMonth: previousMonthStr,
+            paymentsDeleted: !deleteErr,
+            variableActualsDeleted: !deleteActualsErr,
             resetAt: new Date().toISOString()
           });
           
