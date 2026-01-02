@@ -5,7 +5,7 @@ import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory 
 import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts, getCreditCardUsage, fetchDashboard, updateCreditCardBill } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
-import { getCache, setCache } from "../utils/cache";
+import { ClientCache } from "../utils/cache";
 import "./CreditCardsManagementPage.css";
 
 interface CreditCardsManagementPageProps {
@@ -40,16 +40,25 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   // v1.2: Load variable expense plans
   const loadPlans = async () => {
     try {
+      // Extract userId from token for cache
+      let userId = 'unknown';
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        userId = tokenPayload.userId;
+      } catch (e) {
+        console.error('[CACHE_ERROR] Failed to extract userId from token:', e);
+      }
+
       // Try cache first
-      const cached = getCache('dashboard');
-      if (cached?.data?.variablePlans) {
-        setPlans(cached.data.variablePlans);
+      const cached = ClientCache.get<any>('dashboard', userId);
+      if (cached?.variablePlans) {
+        setPlans(cached.variablePlans);
         return;
       }
       
       const res = await fetchDashboard(token, new Date().toISOString());
       setPlans(res.data.variablePlans || []);
-      setCache('dashboard', res);
+      ClientCache.set('dashboard', res.data, userId);
     } catch (e) {
       console.error("Failed to load plans:", e);
     }
@@ -57,16 +66,25 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
 
   const loadCards = async () => {
     try {
+      // Extract userId from token for cache
+      let userId = 'unknown';
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        userId = tokenPayload.userId;
+      } catch (e) {
+        console.error('[CACHE_ERROR] Failed to extract userId from token:', e);
+      }
+
       // Try cache first
-      const cached = getCache('creditCards');
-      if (cached?.data) {
-        setCards(cached.data);
+      const cached = ClientCache.get<any[]>('creditCards', userId);
+      if (cached) {
+        setCards(cached);
         setLoading(false);
       }
       
       const res = await fetchCreditCards(token);
       setCards(res.data);
-      setCache('creditCards', res);
+      ClientCache.set('creditCards', res.data, userId);
     } catch (e) {
       console.error("Failed to load cards:", e);
     } finally {

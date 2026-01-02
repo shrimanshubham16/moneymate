@@ -8,7 +8,7 @@ import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import { ProgressBar } from "../components/ProgressBar";
 import { PageInfoButton } from "../components/PageInfoButton";
-import { getCache, setCache } from "../utils/cache";
+import { ClientCache } from "../utils/cache";
 import "./FixedExpensesPage.css";
 
 interface FixedExpensesPageProps {
@@ -37,17 +37,26 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
 
   const loadExpenses = async () => {
     try {
+      // Extract userId from token for cache
+      let userId = 'unknown';
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        userId = tokenPayload.userId;
+      } catch (e) {
+        console.error('[CACHE_ERROR] Failed to extract userId from token:', e);
+      }
+
       // Try cache first for faster load
-      const cached = getCache('dashboard');
-      if (cached?.data?.fixedExpenses) {
-        setExpenses(cached.data.fixedExpenses);
+      const cached = ClientCache.get<any>('dashboard', userId);
+      if (cached?.fixedExpenses) {
+        setExpenses(cached.fixedExpenses);
         setLoading(false);
       }
       
       // Fetch fresh data
       const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
       setExpenses(res.data.fixedExpenses || []);
-      setCache('dashboard', res);
+      ClientCache.set('dashboard', res.data, userId);
     } catch (e) {
       console.error("Failed to load expenses:", e);
     } finally {
