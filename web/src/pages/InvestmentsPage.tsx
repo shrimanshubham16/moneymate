@@ -38,12 +38,14 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
       // Try cache first for faster load
       const cached = ClientCache.get<any>('dashboard', userId);
       if (cached?.investments) {
+        console.log('[INVEST_DEBUG] Using cached investments:', cached.investments.map((i: any) => ({ name: i.name, accumulatedFunds: i.accumulatedFunds, accumulated_funds: i.accumulated_funds })));
         setInvestments(cached.investments);
         setLoading(false);
       }
       
       // Fetch fresh data
       const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
+      console.log('[INVEST_DEBUG] Fresh investments from API:', res.data.investments?.map((i: any) => ({ name: i.name, accumulatedFunds: i.accumulatedFunds, accumulated_funds: i.accumulated_funds })));
       setInvestments(res.data.investments || []);
       ClientCache.set('dashboard', res.data, userId);
     } catch (e) {
@@ -118,12 +120,17 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                 <button 
                   className="icon-btn wallet-btn" 
                   onClick={async () => {
-                    const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}\n\nEnter new amount:`);
+                    const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
+                    console.log('[INVEST_DEBUG] Update fund clicked for:', { name: inv.name, id: inv.id, currentFund });
+                    const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(currentFund).toLocaleString("en-IN")}\n\nEnter new amount:`);
                     if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
                       try {
-                        await updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
+                        console.log('[INVEST_DEBUG] Calling updateInvestment with:', { id: inv.id, accumulatedFunds: parseFloat(newAmount) });
+                        const result = await updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
+                        console.log('[INVEST_DEBUG] Update result:', result);
                         await loadInvestments();
                       } catch (e: any) {
+                        console.error('[INVEST_DEBUG] Update failed:', e);
                         alert("Failed to update: " + e.message);
                       }
                     }

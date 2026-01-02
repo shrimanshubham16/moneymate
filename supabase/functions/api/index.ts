@@ -778,7 +778,7 @@ serve(async (req) => {
         return error('Investment ID required', 400);
       }
       const body = await req.json();
-      console.log(`[INVESTMENT_UPDATE] Request received for investment ${id}, userId: ${userId}, path: ${path}, body:`, body);
+      console.log(`[INVESTMENT_UPDATE_DEBUG] Request received for investment ${id}, userId: ${userId}, path: ${path}, body:`, JSON.stringify(body));
       const updateData: any = {};
       if (body.name !== undefined) updateData.name = body.name;
       if (body.goal !== undefined) updateData.goal = body.goal;
@@ -786,7 +786,12 @@ serve(async (req) => {
       if (body.status !== undefined) updateData.status = body.status;
       if (body.accumulated_funds !== undefined) updateData.accumulated_funds = body.accumulated_funds;
       
-      console.log(`[INVESTMENT_UPDATE] Updating investment ${id} with data:`, updateData);
+      // P0 DEBUG: Log if accumulated_funds is being updated
+      if (body.accumulated_funds !== undefined) {
+        console.log(`[INVESTMENT_UPDATE_DEBUG] Accumulated funds update requested: ${body.accumulated_funds}`);
+      }
+      
+      console.log(`[INVESTMENT_UPDATE_DEBUG] Updating investment ${id} with data:`, JSON.stringify(updateData));
       const { data, error: e } = await supabase.from('investments')
         .update(updateData)
         .eq('id', id)
@@ -794,7 +799,7 @@ serve(async (req) => {
         .select()
         .single();
       if (e) {
-        console.error(`[INVESTMENT_UPDATE_ERROR] Database error:`, e);
+        console.error(`[INVESTMENT_UPDATE_ERROR] Database error:`, JSON.stringify(e));
         return error(e.message, 500);
       }
       
@@ -803,7 +808,9 @@ serve(async (req) => {
         return error('Investment not found', 404);
       }
       
-      console.log(`[INVESTMENT_UPDATE] Successfully updated investment ${id}:`, data);
+      // P0 DEBUG: Log the returned data to verify accumulated_funds
+      console.log(`[INVESTMENT_UPDATE_DEBUG] Successfully updated investment ${id}, returned data:`, JSON.stringify(data));
+      console.log(`[INVESTMENT_UPDATE_DEBUG] Returned accumulated_funds: ${data.accumulated_funds}`);
       
       if (body.accumulated_funds !== undefined) {
         await logActivity(userId, 'investment', 'updated available fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
@@ -811,7 +818,15 @@ serve(async (req) => {
         await logActivity(userId, 'investment', 'updated investment', { id, name: data.name });
       }
       await invalidateUserCache(userId);
-      return json({ data });
+      
+      // P0 DEBUG: Transform response to include camelCase for frontend
+      const responseData = {
+        ...data,
+        monthlyAmount: data.monthly_amount,
+        accumulatedFunds: data.accumulated_funds
+      };
+      console.log(`[INVESTMENT_UPDATE_DEBUG] Returning response:`, JSON.stringify(responseData));
+      return json({ data: responseData });
     }
     if (path.startsWith('/planning/investments/') && method === 'DELETE') {
       const id = path.split('/').pop();
