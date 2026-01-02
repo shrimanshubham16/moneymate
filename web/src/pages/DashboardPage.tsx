@@ -369,10 +369,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
   // Loans are excluded from dues as they're auto-tracked from fixed expenses and not separately markable
   // const unpaidLoans = loans.filter((l: any) => !l.paid).reduce((sum, l) => sum + (l.emi || 0), 0);
   
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:363',message:'Calculating credit card dues',data:{creditCards:creditCards?.map((c:any)=>({id:c.id,name:c.name,billAmount:c.billAmount,paidAmount:c.paidAmount,dueDate:c.dueDate})),currentMonth:new Date().getMonth(),currentYear:new Date().getFullYear()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  
   // P0 FIX: Credit card dues should only include current month's bills (matching DuesPage logic)
   const creditCardDues = (creditCards || []).reduce((sum: number, c: any) => {
     const billAmount = parseFloat(c.billAmount || 0);
@@ -385,20 +381,12 @@ export function DashboardPage({ token }: DashboardPageProps) {
       const isCurrentMonth = dueDate.getMonth() === new Date().getMonth() && 
                             dueDate.getFullYear() === new Date().getFullYear();
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:375',message:'Credit card due check',data:{cardName:c.name,remaining,isCurrentMonth,dueDateMonth:dueDate.getMonth(),dueDateYear:dueDate.getFullYear()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       if (isCurrentMonth) {
         return sum + remaining;
       }
     }
     return sum;
   }, 0);
-
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage.tsx:385',message:'Dashboard dues calculation',data:{unpaidFixed,unpaidInvestments,creditCardDues,duesTotal:(unpaidFixed || 0) + (unpaidInvestments || 0) + (creditCardDues || 0)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 
   const duesTotal = (unpaidFixed || 0) + (unpaidInvestments || 0) + (creditCardDues || 0);
 

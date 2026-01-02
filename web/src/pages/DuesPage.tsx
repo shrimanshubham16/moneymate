@@ -128,20 +128,12 @@ export function DuesPage({ token }: DuesPageProps) {
       let total = 0;
 
       // Credit card dues (current month)
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DuesPage.tsx:68',message:'Processing credit cards for dues',data:{cards:cardsRes.data.map((c:any)=>({id:c.id,name:c.name,billAmount:c.billAmount,paidAmount:c.paidAmount,dueDate:c.dueDate})),currentMonth:new Date().getMonth(),currentYear:new Date().getFullYear()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       cardsRes.data.forEach((card: any) => {
         const remaining = card.billAmount - card.paidAmount;
         if (remaining > 0) {
           const dueDate = new Date(card.dueDate);
           const isCurrentMonth = dueDate.getMonth() === new Date().getMonth() && 
                                 dueDate.getFullYear() === new Date().getFullYear();
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DuesPage.tsx:75',message:'Credit card due check',data:{cardName:card.name,remaining,isCurrentMonth,dueDateMonth:dueDate.getMonth(),dueDateYear:dueDate.getFullYear()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
           
           if (isCurrentMonth) {
             duesList.push({
@@ -236,10 +228,6 @@ export function DuesPage({ token }: DuesPageProps) {
         }
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DuesPage.tsx:149',message:'Dues page calculation complete',data:{totalDues:total,duesCount:duesList.length,breakdown:{fixedExpenses:duesList.filter((d:any)=>d.itemType==='fixed_expense').length,investments:duesList.filter((d:any)=>d.itemType==='investment').length,creditCards:duesList.filter((d:any)=>d.itemType==='credit_card').length}},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       setDues(duesList);
       setTotalDues(total);
     } catch (e) {
