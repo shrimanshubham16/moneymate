@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { fetchDashboard, createInvestment, updateInvestment, deleteInvestment, pauseInvestment, resumeInvestment } from "../api";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./InvestmentsManagementPage.css";
 
 interface InvestmentsManagementPageProps {
@@ -176,7 +177,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
       )}
 
       {loading ? (
-        <div className="loading">Loading...</div>
+        <SkeletonLoader type="card" count={3} />
       ) : (
         <div className="investments-list">
           {investments.length === 0 ? (

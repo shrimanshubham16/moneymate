@@ -207,9 +207,9 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         <div className="remaining-amount" style={{ color: (health?.remaining || 0) >= 0 ? "#10b981" : "#ef4444" }}>
           {(health?.remaining || 0) >= 0 ? "+" : ""}₹{Math.round(health?.remaining || 0).toLocaleString("en-IN")}
         </div>
-        <p className="health-description">{health?.description || "Loading..."}</p>
+        <p className="health-description">{health?.description || "Calculating your financial health..."}</p>
         <div className="health-advice">
-          <strong><FaLightbulb style={{ marginRight: 6 }} />Advice:</strong> {health?.advice || "Loading..."}
+          <strong><FaLightbulb style={{ marginRight: 6 }} />Advice:</strong> {health?.advice || "Analyzing your financial data..."}
         </div>
       </motion.div>
 

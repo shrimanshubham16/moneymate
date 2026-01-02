@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaMoneyBillWave, FaPlus } from "react-icons/fa";
 import { fetchDashboard, createIncome, deleteIncome } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./IncomePage.css";
 
 interface IncomePageProps {
@@ -108,7 +109,7 @@ export function IncomePage({ token }: IncomePageProps) {
       </div>
 
       {loading ? (
-        <div className="loading">Loading...</div>
+        <SkeletonLoader type="list" count={5} />
       ) : (
         <>
           {incomes.length === 0 && !showForm ? (

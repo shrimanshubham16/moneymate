@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory } from "react-icons/fa";
 import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts, getCreditCardUsage, fetchDashboard, updateCreditCardBill } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import { getCache, setCache } from "../utils/cache";
 import "./CreditCardsManagementPage.css";
 
@@ -218,7 +219,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       )}
 
       {loading ? (
-        <div className="loading">Loading...</div>
+        <SkeletonLoader type="card" count={3} />
       ) : (
         <>
           {cards.length === 0 && !showForm ? (

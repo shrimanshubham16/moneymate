@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./AccountPage.css";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
@@ -39,7 +40,7 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
   }, [token]);
 
   if (loading) {
-    return <div className="account-page"><div className="loading">Loading...</div></div>;
+    return <div className="account-page"><SkeletonLoader type="card" count={2} /></div>;
   }
 
   return (

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { fetchCreditCards, payCreditCard } from "../api";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./CreditCardsPage.css";
 
 interface CreditCardsPageProps {
@@ -88,7 +89,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
         </motion.div>
       )}
 
-      {loading ? <div>Loading...</div> : cards.length === 0 ? (
+      {loading ? <SkeletonLoader type="card" count={3} /> : cards.length === 0 ? (
         <div className="empty-state">No credit cards. Add one to get started!</div>
       ) : (
         <div className="cards-list">

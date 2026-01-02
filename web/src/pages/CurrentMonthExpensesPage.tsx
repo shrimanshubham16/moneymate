@@ -5,6 +5,7 @@ import { FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard } from "react-icon
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { fetchDashboard } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./CurrentMonthExpensesPage.css";
 
 interface CurrentMonthExpensesPageProps {
@@ -215,7 +216,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
         </div>
       </div>
 
-      {loading ? <div>Loading...</div> : expenses.length === 0 ? (
+      {loading ? <SkeletonLoader type="card" count={5} /> : expenses.length === 0 ? (
         <div className="empty-state">No expenses for the current month.</div>
       ) : (
         <>

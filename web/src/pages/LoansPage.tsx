@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { fetchLoans } from "../api";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./LoansPage.css";
 
 interface LoansPageProps {
@@ -35,7 +36,7 @@ export function LoansPage({ token }: LoansPageProps) {
         <h1>Loans</h1>
         <p className="page-subtitle">Auto-fetched from fixed expenses with category=Loan</p>
       </div>
-      {loading ? <div>Loading...</div> : loans.length === 0 ? (
+      {loading ? <SkeletonLoader type="card" count={3} /> : loans.length === 0 ? (
         <div className="empty-state">No loans found. Add a fixed expense with category=Loan to see it here.</div>
       ) : (
         <div className="loans-list">

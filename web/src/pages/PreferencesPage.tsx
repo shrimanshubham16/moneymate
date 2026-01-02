@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCog, FaCalendar, FaMoneyBillWave, FaClock, FaSave, FaExclamationTriangle } from "react-icons/fa";
 import { getUserPreferences, updateUserPreferences } from "../api";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./PreferencesPage.css";
 
 interface PreferencesPageProps {
@@ -58,7 +59,7 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
       </div>
 
       {loading ? (
-        <div className="loading">Loading...</div>
+        <SkeletonLoader type="card" count={2} />
       ) : (
         <div className="preferences-content">
           <div className="preference-card">

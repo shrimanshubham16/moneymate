@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { fetchDashboard } from "../api";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./FutureBombsPage.css";
 
 interface FutureBombsPageProps {
@@ -43,7 +44,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
           + Add Future Bomb
         </button>
       </div>
-      {loading ? <div>Loading...</div> : bombs.length === 0 ? (
+      {loading ? <SkeletonLoader type="card" count={3} /> : bombs.length === 0 ? (
         <div className="empty-state">No future bombs. Add upcoming liabilities to track them!</div>
       ) : (
         <div className="bombs-list">
