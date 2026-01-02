@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS payments (
   UNIQUE(user_id, entity_type, entity_id, month)
 );
 
-CREATE INDEX idx_payments_user_id ON payments(user_id);
-CREATE INDEX idx_payments_month ON payments(month);
-CREATE INDEX idx_payments_entity ON payments(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(month);
+CREATE INDEX IF NOT EXISTS idx_payments_entity ON payments(entity_type, entity_id);
 
