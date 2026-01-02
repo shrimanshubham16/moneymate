@@ -1300,21 +1300,62 @@ serve(async (req) => {
         payment = created;
       }
       
-      // P0 FIX: Reset accumulated_funds when marked as paid
-      if (body.itemType === 'fixed_expense') {
-        const { error: resetErr } = await supabase
-          .from('fixed_expenses')
-          .update({ accumulated_funds: 0 })
+      // P0 FIX: Update accumulated_funds when marked as paid
+      // INVESTMENTS: Add paid amount to accumulated_funds (savings increase)
+      // PERIODIC SIPs: Deduct paid amount from accumulated_funds (savings decrease)
+      if (body.itemType === 'investment') {
+        console.log(`[MARK_PAID] Adding paid amount to accumulated_funds for investment ${body.itemId}, amount: ${body.amount}`);
+        // Get current accumulated_funds
+        const { data: inv } = await supabase.from('investments')
+          .select('accumulated_funds')
           .eq('id', body.itemId)
-          .eq('user_id', userId);
-        if (resetErr) console.error('[PAYMENT_RESET] Failed to reset accumulated funds:', resetErr);
-      } else if (body.itemType === 'investment') {
-        const { error: resetErr } = await supabase
+          .eq('user_id', userId)
+          .single();
+        const currentAccumulated = inv?.accumulated_funds || 0;
+        const newAccumulated = currentAccumulated + body.amount;
+        const { error: updateErr } = await supabase
           .from('investments')
-          .update({ accumulated_funds: 0 })
+          .update({ accumulated_funds: newAccumulated })
           .eq('id', body.itemId)
           .eq('user_id', userId);
-        if (resetErr) console.error('[PAYMENT_RESET] Failed to reset accumulated funds:', resetErr);
+        if (updateErr) {
+          console.error('[MARK_PAID] Failed to update accumulated_funds for investment:', updateErr);
+        } else {
+          console.log(`[MARK_PAID] Updated investment accumulated_funds from ${currentAccumulated} to ${newAccumulated}`);
+        }
+      } else if (body.itemType === 'fixed_expense') {
+        // Check if it's a periodic SIP (is_sip = true and frequency != monthly)
+        const { data: expense } = await supabase.from('fixed_expenses')
+          .select('is_sip, frequency, accumulated_funds')
+          .eq('id', body.itemId)
+          .eq('user_id', userId)
+          .single();
+        
+        if (expense?.is_sip && expense.frequency !== 'monthly') {
+          // Periodic SIP: Deduct paid amount from accumulated_funds
+          console.log(`[MARK_PAID] Deducting paid amount from accumulated_funds for periodic SIP ${body.itemId}, amount: ${body.amount}`);
+          const currentAccumulated = expense.accumulated_funds || 0;
+          const newAccumulated = Math.max(0, currentAccumulated - body.amount); // Don't go negative
+          const { error: updateErr } = await supabase
+            .from('fixed_expenses')
+            .update({ accumulated_funds: newAccumulated })
+            .eq('id', body.itemId)
+            .eq('user_id', userId);
+          if (updateErr) {
+            console.error('[MARK_PAID] Failed to update accumulated_funds for periodic SIP:', updateErr);
+          } else {
+            console.log(`[MARK_PAID] Updated periodic SIP accumulated_funds from ${currentAccumulated} to ${newAccumulated}`);
+          }
+        } else {
+          // Regular monthly fixed expense: Reset to 0 (no accumulation needed)
+          console.log(`[MARK_PAID] Resetting accumulated_funds for regular fixed expense ${body.itemId}`);
+          const { error: resetErr } = await supabase
+            .from('fixed_expenses')
+            .update({ accumulated_funds: 0 })
+            .eq('id', body.itemId)
+            .eq('user_id', userId);
+          if (resetErr) console.error('[MARK_PAID] Failed to reset accumulated funds:', resetErr);
+        }
       }
       
       await logActivity(userId, body.itemType, 'paid', { id: body.itemId, name: itemName, amount: body.amount });
