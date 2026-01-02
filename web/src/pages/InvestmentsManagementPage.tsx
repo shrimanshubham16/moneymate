@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet } from "react-icons/fa";
 import { fetchDashboard, createInvestment, updateInvestment, deleteInvestment, pauseInvestment, resumeInvestment } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./InvestmentsManagementPage.css";
@@ -196,19 +197,56 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                   <div className="investment-details">
                     <span>Goal: {inv.goal}</span>
                     <span>₹{inv.monthlyAmount.toLocaleString("en-IN")}/month</span>
+                    {(inv.accumulatedFunds || inv.accumulated_funds || 0) > 0 && (
+                      <span className="accumulated-funds">
+                        Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
+                      </span>
+                    )}
                     <span className={`status ${inv.status}`}>
                       {inv.status === "active" ? "● Active" : "⏸ Paused"}
                     </span>
-                    {inv.paid && <span className="paid-badge">✓ Paid</span>}
+                    {inv.paid && <span className="paid-badge">✓ Paid This Month</span>}
+                    {!inv.paid && <span className="unpaid-badge">⚠ Not Paid</span>}
                   </div>
                 </div>
                 <div className="investment-actions">
-                  <button onClick={() => handleEdit(inv)}>Edit</button>
-                  <button onClick={() => handleTogglePause(inv)}>
-                    {inv.status === "active" ? "Pause" : "Resume"}
+                  <button 
+                    className="icon-btn wallet-btn" 
+                    onClick={async () => {
+                      const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}\n\nEnter new amount:`);
+                      if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
+                        try {
+                          await updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
+                          await loadInvestments();
+                        } catch (e: any) {
+                          alert("Failed to update: " + e.message);
+                        }
+                      }
+                    }}
+                    title="Update Available Fund"
+                  >
+                    <FaWallet />
                   </button>
-                  <button onClick={() => handleDelete(inv.id)} className="delete-btn">
-                    Delete
+                  <button 
+                    className="icon-btn edit-btn" 
+                    onClick={() => handleEdit(inv)}
+                    title="Edit"
+                  >
+                    <FaEdit />
+                  </button>
+                  <button 
+                    className="icon-btn pause-btn" 
+                    onClick={() => handleTogglePause(inv)}
+                    title={inv.status === "active" ? "Pause" : "Resume"}
+                  >
+                    {inv.status === "active" ? <FaPause /> : <FaPlay />}
+                  </button>
+                  <button 
+                    className="icon-btn delete-btn" 
+                    onClick={() => handleDelete(inv.id)}
+                    title="Delete"
+                  >
+                    <FaTrashAlt />
                   </button>
                 </div>
               </motion.div>

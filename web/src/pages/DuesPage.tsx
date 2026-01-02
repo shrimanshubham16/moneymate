@@ -128,13 +128,15 @@ export function DuesPage({ token }: DuesPageProps) {
       let total = 0;
 
       // Credit card dues (current month)
+      console.log('[DUES_DEBUG] Credit cards:', cardsRes.data?.length || 0);
       cardsRes.data.forEach((card: any) => {
         const remaining = card.billAmount - card.paidAmount;
+        console.log('[DUES_DEBUG] Credit card:', { name: card.name, billAmount: card.billAmount, paidAmount: card.paidAmount, remaining, dueDate: card.dueDate });
         if (remaining > 0) {
           const dueDate = new Date(card.dueDate);
           const isCurrentMonth = dueDate.getMonth() === new Date().getMonth() && 
                                 dueDate.getFullYear() === new Date().getFullYear();
-          
+          console.log('[DUES_DEBUG] Credit card month check:', { name: card.name, isCurrentMonth, dueDateMonth: dueDate.getMonth(), currentMonth: new Date().getMonth() });
           if (isCurrentMonth) {
             duesList.push({
               id: card.id,
@@ -173,11 +175,17 @@ export function DuesPage({ token }: DuesPageProps) {
 
       // Fixed expenses due this month
       const today = new Date();
+      console.log('[DUES_DEBUG] Fixed expenses:', dashboardRes.data.fixedExpenses?.length || 0);
       dashboardRes.data.fixedExpenses?.forEach((exp: any) => {
+        console.log('[DUES_DEBUG] Fixed expense:', { name: exp.name, paid: exp.paid, frequency: exp.frequency, startDate: exp.startDate || exp.start_date });
         if (!exp.paid) { // Only show unpaid items
           // P0 FIX: For periodic expenses (quarterly/yearly), only show if actually due this billing period
-          if (exp.frequency !== 'monthly' && !isPeriodicExpenseDue(exp.startDate || exp.start_date || today.toISOString().split('T')[0], exp.frequency, monthStartDay, today)) {
-            return; // Skip if not due this period
+          if (exp.frequency !== 'monthly') {
+            const isDue = isPeriodicExpenseDue(exp.startDate || exp.start_date || today.toISOString().split('T')[0], exp.frequency, monthStartDay, today);
+            console.log('[DUES_DEBUG] Periodic expense due check:', { name: exp.name, frequency: exp.frequency, isDue });
+            if (!isDue) {
+              return; // Skip if not due this period
+            }
           }
           
           const monthly = exp.frequency === "monthly" ? exp.amount : 
@@ -210,7 +218,9 @@ export function DuesPage({ token }: DuesPageProps) {
       });
 
       // Investments due this month
+      console.log('[DUES_DEBUG] Investments:', dashboardRes.data.investments?.length || 0);
       dashboardRes.data.investments?.forEach((inv: any) => {
+        console.log('[DUES_DEBUG] Investment:', { name: inv.name, paid: inv.paid, monthlyAmount: inv.monthlyAmount || inv.monthly_amount });
         if (!inv.paid) { // Only show unpaid items
           const accumulatedFunds = inv.accumulatedFunds || inv.accumulated_funds || 0;
           duesList.push({
@@ -228,6 +238,11 @@ export function DuesPage({ token }: DuesPageProps) {
         }
       });
 
+      console.log('[DUES_DEBUG] Final dues list:', { total, count: duesList.length, breakdown: {
+        fixedExpenses: duesList.filter(d => d.itemType === 'fixed_expense').length,
+        investments: duesList.filter(d => d.itemType === 'investment').length,
+        creditCards: duesList.filter(d => d.itemType === 'credit_card').length
+      }});
       setDues(duesList);
       setTotalDues(total);
     } catch (e) {

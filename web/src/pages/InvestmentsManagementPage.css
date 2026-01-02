@@ -154,37 +154,86 @@
 
 .investment-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-3);
+  align-items: center;
 }
 
-.investment-actions button {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
+.investment-actions .icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(184, 193, 236, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
+  font-size: 16px;
+  background: transparent;
+  padding: 0;
 }
 
-.investment-actions button:first-child {
-  background: #3b82f6;
-  color: white;
+.investment-actions .wallet-btn {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-green);
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
-.investment-actions button:nth-child(2) {
-  background: #f59e0b;
-  color: white;
+.investment-actions .wallet-btn:hover {
+  background: rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  transform: scale(1.1);
+}
+
+.investment-actions .edit-btn {
+  background: rgba(0, 217, 255, 0.1);
+  color: var(--accent-cyan);
+  border-color: rgba(0, 217, 255, 0.3);
+}
+
+.investment-actions .edit-btn:hover {
+  background: rgba(0, 217, 255, 0.2);
+  box-shadow: var(--glow-cyan);
+  transform: scale(1.1);
+}
+
+.investment-actions .pause-btn {
+  background: rgba(255, 184, 0, 0.1);
+  color: var(--accent-yellow);
+  border-color: rgba(255, 184, 0, 0.3);
+}
+
+.investment-actions .pause-btn:hover {
+  background: rgba(255, 184, 0, 0.2);
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.3);
+  transform: scale(1.1);
 }
 
 .investment-actions .delete-btn {
-  background: #ef4444;
-  color: white;
+  background: rgba(255, 0, 110, 0.1);
+  color: var(--accent-pink);
+  border-color: rgba(255, 0, 110, 0.3);
 }
 
-.investment-actions button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.investment-actions .delete-btn:hover {
+  background: rgba(255, 0, 110, 0.2);
+  box-shadow: var(--glow-pink);
+  transform: scale(1.1);
+}
+
+.accumulated-funds {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.unpaid-badge {
+  background: rgba(255, 184, 0, 0.1);
+  color: var(--accent-yellow);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .empty-state {
