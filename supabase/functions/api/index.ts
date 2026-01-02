@@ -89,15 +89,11 @@ serve(async (req) => {
   }
 
   const url = new URL(req.url);
-  let path = url.pathname.replace('/api', '').replace('/functions/v1/api', '');
+  // P0 FIX: Correct order - must replace longer pattern first
+  let path = url.pathname.replace('/functions/v1/api', '').replace('/api', '');
   // Ensure path starts with / for proper matching
   if (!path.startsWith('/')) path = '/' + path;
   const method = req.method;
-  
-  // Debug logging for route matching (temporary)
-  if (path.includes('investment')) {
-    console.log(`[ROUTE_DEBUG] Path: ${path}, Method: ${method}, Original: ${url.pathname}`);
-  }
   
   // HEALTH CHECK - for keep-alive pings (no auth required)
   if (path === '/health' && method === 'GET') {
