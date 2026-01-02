@@ -219,7 +219,6 @@ export function DuesPage({ token }: DuesPageProps) {
             : today;
           
           const accumulatedFunds = exp.accumulatedFunds || exp.accumulated_funds || 0;
-          const isSip = exp.is_sip_flag || exp.isSipFlag;
           
           duesList.push({
             id: exp.id,
