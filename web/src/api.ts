@@ -278,14 +278,6 @@ export async function resumeInvestment(token: string, id: string) {
   return updateInvestment(token, id, { status: "active" });
 }
 
-export async function pauseInvestment(token: string, id: string) {
-  return updateInvestment(token, id, { status: "paused" });
-}
-
-export async function resumeInvestment(token: string, id: string) {
-  return updateInvestment(token, id, { status: "active" });
-}
-
 // Payment tracking
 export async function markAsPaid(token: string, itemId: string, itemType: 'fixed_expense' | 'investment' | 'loan', amount: number) {
   return request<{ data: any }>("/payments/mark-paid", { method: "POST", body: JSON.stringify({ itemId, itemType, amount }) }, token);
