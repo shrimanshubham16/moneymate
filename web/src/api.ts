@@ -189,8 +189,13 @@ export async function fetchLoans(token: string) {
   return request<{ data: any[] }>("/debts/loans", { method: "GET" }, token);
 }
 
-export async function fetchActivity(token: string) {
-  return request<{ data: any[] }>("/activity", { method: "GET" }, token);
+export async function fetchActivity(token: string, startDate?: string, endDate?: string) {
+  const params = new URLSearchParams();
+  if (startDate) params.append('start_date', startDate);
+  if (endDate) params.append('end_date', endDate);
+  const queryString = params.toString();
+  const url = `/activity${queryString ? `?${queryString}` : ''}`;
+  return request<{ data: any[] }>(url, { method: "GET" }, token);
 }
 
 export async function fetchAlerts(token: string) {

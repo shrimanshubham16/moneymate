@@ -1045,13 +1045,28 @@ serve(async (req) => {
 
     // ACTIVITY LOG
     if (path === '/activity' && method === 'GET') {
+      // Support date range filtering via query params
+      const url = new URL(req.url);
+      const startDate = url.searchParams.get('start_date');
+      const endDate = url.searchParams.get('end_date');
+      
       // activities table uses actor_id, not user_id
-      const { data: activities, error: actErr } = await supabase
+      let query = supabase
         .from('activities')
         .select('*')
-        .eq('actor_id', userId)
+        .eq('actor_id', userId);
+      
+      // Apply date filters if provided
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+      }
+      if (endDate) {
+        query = query.lte('created_at', endDate);
+      }
+      
+      const { data: activities, error: actErr } = await query
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(1000); // Increased limit for history view
       
       if (actErr) {
         console.error('Error fetching activities:', actErr);

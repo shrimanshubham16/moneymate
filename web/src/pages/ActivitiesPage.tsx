@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { fetchActivity } from "../api";
-import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt, FaHistory } from "react-icons/fa";
+import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt, FaHistory, FaCalendarAlt } from "react-icons/fa";
 import { MdAccountBalanceWallet } from "react-icons/md";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { ActivityHistoryModal } from "../components/ActivityHistoryModal";
+import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./ActivitiesPage.css";
 
 interface ActivitiesPageProps {
@@ -17,14 +19,23 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
   const navigate = useNavigate();
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [usePeriodFilter, setUsePeriodFilter] = useState(false);
 
   useEffect(() => {
     loadActivities();
-  }, []);
+  }, [startDate, endDate, usePeriodFilter]);
 
   const loadActivities = async () => {
     try {
-      const res = await fetchActivity(token);
+      const res = await fetchActivity(
+        token,
+        usePeriodFilter && startDate ? startDate : undefined,
+        usePeriodFilter && endDate ? endDate : undefined
+      );
 
       // Ensure each activity has the required fields and sanitize payload
       const sanitizedActivities = (res.data || []).map((activity: any) => {
@@ -102,7 +113,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
 
       {/* Page Header */}
       <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           <h1><FaClipboardList style={{ marginRight: 12, verticalAlign: "middle" }} />Activity Log</h1>
           <PageInfoButton
             title="Activity Log"
@@ -117,11 +128,81 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
             ]}
           />
         </div>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+          <button
+            className="history-button"
+            onClick={() => setShowHistoryModal(true)}
+            title="View Monthly History & Trends"
+          >
+            <FaHistory style={{ marginRight: 6 }} />
+            History
+          </button>
+        </div>
       </div>
+
+      {/* Period Selector */}
+      <div className="period-selector-container">
+        <div className="period-selector">
+          <label>
+            <FaCalendarAlt style={{ marginRight: 6 }} />
+            Period Filter:
+          </label>
+          <input
+            type="checkbox"
+            checked={usePeriodFilter}
+            onChange={(e) => {
+              setUsePeriodFilter(e.target.checked);
+              if (!e.target.checked) {
+                setStartDate("");
+                setEndDate("");
+              }
+            }}
+          />
+          <span>Enable</span>
+          {usePeriodFilter && (
+            <>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                placeholder="Start Date"
+                className="date-input"
+              />
+              <span>to</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                placeholder="End Date"
+                className="date-input"
+              />
+              {(startDate || endDate) && (
+                <button
+                  className="clear-filter-button"
+                  onClick={() => {
+                    setStartDate("");
+                    setEndDate("");
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* History Modal */}
+      <ActivityHistoryModal
+        token={token}
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        selectedMonth={selectedMonth}
+      />
 
       {/* Content */}
       {loading ? (
-        <div className="loading-state">Loading activities...</div>
+        <SkeletonLoader type="list" count={5} />
       ) : activities.length === 0 ? (
         <div className="empty-state">
           <FaClipboardList size={64} color="#cbd5e1" />
