@@ -133,9 +133,18 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     if (!confirm("Delete this expense?")) return;
     try {
       await deleteFixedExpense(token, id);
+      // Optimistic UI: Remove from state immediately
+      setExpenses(prev => prev.filter(e => e.id !== id));
+      // Clear cache and refresh in background
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        ClientCache.clear(tokenPayload.userId);
+      } catch (e) { /* ignore */ }
       await loadExpenses();
     } catch (e: any) {
       alert(e.message);
+      // Revert on error
+      await loadExpenses();
     }
   };
 

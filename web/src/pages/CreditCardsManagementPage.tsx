@@ -184,9 +184,12 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
     if (!confirm("Are you sure you want to delete this credit card?")) return;
     try {
       await deleteCreditCard(token, id);
+      // Optimistic UI: Remove from state immediately
+      setCards(prev => prev.filter(c => c.id !== id));
       await loadCards();
     } catch (e: any) {
       alert(e.message);
+      await loadCards();
     }
   };
 

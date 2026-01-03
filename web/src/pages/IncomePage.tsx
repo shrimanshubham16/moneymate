@@ -56,9 +56,12 @@ export function IncomePage({ token }: IncomePageProps) {
     if (!confirm("Are you sure you want to delete this income source?")) return;
     try {
       await deleteIncome(token, id);
+      // Optimistic UI: Remove from state immediately
+      setIncomes(prev => prev.filter(inc => inc.id !== id));
       await loadIncomes();
     } catch (e: any) {
       alert(e.message);
+      await loadIncomes();
     }
   };
 

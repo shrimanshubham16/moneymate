@@ -80,9 +80,12 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     if (!confirm("Delete this investment?")) return;
     try {
       await deleteInvestment(token, id);
+      // Optimistic UI: Remove from state immediately
+      setInvestments(prev => prev.filter(inv => inv.id !== id));
       await loadInvestments();
     } catch (e: any) {
       alert(e.message);
+      await loadInvestments();
     }
   };
 
