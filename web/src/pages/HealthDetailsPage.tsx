@@ -88,6 +88,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const breakdown = healthData.breakdown;
 
       // For display purposes, still get item lists from dashboard data
+      // P0 FIX: Use correct field names from updated health calculation
       setBreakdown({
         income: {
           total: breakdown.totalIncome,
@@ -95,17 +96,19 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         },
         expenses: {
           fixed: {
-            total: breakdown.obligations.unpaidFixed,
-            items: data.fixedExpenses?.filter((exp: any) => !exp.paid) || []
+            // Now uses totalFixed (all fixed expenses) instead of unpaidFixed
+            total: breakdown.obligations.totalFixed || breakdown.obligations.unpaidFixed || 0,
+            items: data.fixedExpenses || []
           },
           variable: {
-            total: breakdown.obligations.unpaidProratedVariable,
+            total: breakdown.obligations.unpaidProratedVariable || breakdown.obligations.unpaidVariable || 0,
             items: data.variablePlans || []
           }
         },
         investments: {
-          total: breakdown.obligations.unpaidInvestments,
-          items: data.investments?.filter((inv: any) => inv.status === 'active' && !inv.paid) || []
+          // Now uses totalInvestments (all active) instead of unpaidInvestments
+          total: breakdown.obligations.totalInvestments || breakdown.obligations.unpaidInvestments || 0,
+          items: data.investments?.filter((inv: any) => inv.status === 'active') || []
         },
         debts: {
           creditCards: {
