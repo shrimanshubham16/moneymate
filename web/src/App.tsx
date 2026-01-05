@@ -28,9 +28,11 @@ import { IncomePage } from "./pages/IncomePage";
 import { PreferencesPage } from "./pages/PreferencesPage";
 import { HealthDetailsPage } from "./pages/HealthDetailsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { Header } from "./components/Header";
 import { MaintenanceNotice } from "./components/MaintenanceNotice";
 import { RecoveryKeyModal } from "./components/RecoveryKeyModal";
+import { EmailVerificationModal } from "./components/EmailVerificationModal";
 import { useCrypto } from "./contexts/CryptoContext";
 import { deriveKey, generateRecoveryKey, generateSalt, hashRecoveryKey, saltFromBase64 } from "./lib/crypto";
 import "./App.css";
@@ -38,16 +40,20 @@ import "./App.css";
 // Enable maintenance mode - set to false when migration is complete
 const MAINTENANCE_MODE = false;
 
-function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
+function AuthForm({ onAuth, onForgotPassword }: { onAuth: (token: string) => void; onForgotPassword: () => void }) {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<string[]>([]);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
   const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [devVerificationCode, setDevVerificationCode] = useState<string | null>(null);
   const cryptoCtx = useCrypto();
 
   const handlePasswordChange = (newPassword: string) => {
@@ -71,19 +77,28 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
     setLoading(true);
     try {
       let encryptionSalt: string | undefined;
-      let recoveryKey: string | undefined;
 
       if (mode === "signup") {
+        // Validate email if provided
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          setError("Invalid email format");
+          setLoading(false);
+          return;
+        }
+        
         const { b64: saltB64 } = generateSalt();
         encryptionSalt = saltB64;
         const newRecoveryKey = generateRecoveryKey();
         const recoveryKeyHash = await hashRecoveryKey(newRecoveryKey);
-        const res = await signup(username, password, encryptionSalt, recoveryKeyHash);
+        const res = await signup(username, password, encryptionSalt, recoveryKeyHash, email || undefined);
         const key = await deriveKey(password, saltFromBase64(encryptionSalt));
         cryptoCtx.setKey(key, encryptionSalt);
+        
         // Show recovery key modal before completing auth
         setRecoveryKey(newRecoveryKey);
         setPendingToken(res.access_token);
+        setPendingEmail(email || null);
+        setDevVerificationCode(res._dev_verification_code || null);
         setShowRecoveryModal(true);
         setLoading(false);
         return; // Don't complete auth yet - wait for modal close
@@ -105,6 +120,30 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const handleRecoveryModalClose = () => {
+    setShowRecoveryModal(false);
+    setRecoveryKey(null);
+    
+    // If email was provided, show verification modal
+    if (pendingEmail && pendingToken) {
+      setShowEmailVerification(true);
+    } else if (pendingToken) {
+      // No email, just complete auth
+      onAuth(pendingToken);
+      setPendingToken(null);
+    }
+  };
+  
+  const handleEmailVerificationClose = (verified: boolean) => {
+    setShowEmailVerification(false);
+    setPendingEmail(null);
+    setDevVerificationCode(null);
+    if (pendingToken) {
+      onAuth(pendingToken);
+      setPendingToken(null);
     }
   };
 
@@ -138,6 +177,23 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
               <small className="help-text">3-20 characters, letters, numbers, underscores only. Username is permanent.</small>
             )}
           </div>
+          
+          {mode === "signup" && (
+            <div className="form-group">
+              <label>Email <span className="optional-label">(recommended for recovery)</span></label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+              />
+              <small className="help-text">
+                Email helps recover your account if you forget your password. 
+                You'll also receive a 24-word recovery key as backup.
+              </small>
+            </div>
+          )}
+          
           <div className="form-group">
             <label>Password</label>
             <input
@@ -176,9 +232,20 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
               </span>
             ) : mode === "login" ? "Login" : "Sign Up"}
           </button>
+          
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="auth-forgot-password"
+            >
+              Forgot password?
+            </button>
+          )}
+          
           <button
             type="button"
-            onClick={() => { setMode(mode === "login" ? "signup" : "login"); setPasswordStrength([]); }}
+            onClick={() => { setMode(mode === "login" ? "signup" : "login"); setPasswordStrength([]); setEmail(""); }}
             className="auth-switch"
           >
             {mode === "login" ? "Don't have an account? Sign Up" : "Already have an account? Login"}
@@ -190,12 +257,16 @@ function AuthForm({ onAuth }: { onAuth: (token: string) => void }) {
       {showRecoveryModal && recoveryKey && pendingToken && (
         <RecoveryKeyModal
           recoveryKey={recoveryKey}
-          onClose={() => {
-            setShowRecoveryModal(false);
-            setRecoveryKey(null);
-            onAuth(pendingToken);
-            setPendingToken(null);
-          }}
+          onClose={handleRecoveryModalClose}
+        />
+      )}
+      
+      {/* Email Verification Modal - shown after recovery key saved */}
+      {showEmailVerification && pendingEmail && (
+        <EmailVerificationModal
+          email={pendingEmail}
+          devCode={devVerificationCode}
+          onClose={handleEmailVerificationClose}
         />
       )}
     </div>
@@ -247,6 +318,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
 export default function App() {
   const cryptoCtx = useCrypto();
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleAuth = (newToken: string) => {
     localStorage.setItem("token", newToken);
@@ -274,6 +346,16 @@ export default function App() {
           >
             <AppRoutes token={token} onLogout={handleLogout} />
           </motion.div>
+        ) : showForgotPassword ? (
+          <motion.div
+            key="forgot"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ForgotPasswordPage onBack={() => setShowForgotPassword(false)} />
+          </motion.div>
         ) : (
           <motion.div
             key="auth"
@@ -282,7 +364,7 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <AuthForm onAuth={handleAuth} />
+            <AuthForm onAuth={handleAuth} onForgotPassword={() => setShowForgotPassword(true)} />
           </motion.div>
         )}
       </AnimatePresence>

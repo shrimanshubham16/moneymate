@@ -1,6 +1,11 @@
 import { encryptString, decryptString } from "./lib/crypto";
 
-export type LoginResponse = { access_token: string; user: { id: string; username: string }; encryption_salt?: string };
+export type LoginResponse = { 
+  access_token: string; 
+  user: { id: string; username: string; email?: string; email_verified?: boolean }; 
+  encryption_salt?: string;
+  _dev_verification_code?: string; // Dev mode only
+};
 
 // API URL - defaults to Supabase Edge Function, falls back to Railway/localhost
 const getBaseUrl = () => {
@@ -157,8 +162,17 @@ async function buildBody(data: any, cryptoKey?: CryptoKey): Promise<string> {
   return JSON.stringify(encrypted);
 }
 
-export async function signup(username: string, password: string, encryptionSalt: string, recoveryKeyHash: string): Promise<LoginResponse> {
-  return request<LoginResponse>("/auth/signup", { method: "POST", body: JSON.stringify({ username, password, encryptionSalt, recoveryKeyHash }) });
+export async function signup(
+  username: string, 
+  password: string, 
+  encryptionSalt: string, 
+  recoveryKeyHash: string,
+  email?: string
+): Promise<LoginResponse> {
+  return request<LoginResponse>("/auth/signup", { 
+    method: "POST", 
+    body: JSON.stringify({ username, password, encryptionSalt, recoveryKeyHash, email }) 
+  });
 }
 
 export async function login(username: string, password: string): Promise<LoginResponse> {
@@ -167,6 +181,64 @@ export async function login(username: string, password: string): Promise<LoginRe
 
 export async function fetchSalt(username: string): Promise<{ encryption_salt: string }> {
   return request<{ encryption_salt: string }>(`/auth/salt/${encodeURIComponent(username)}`, { method: "GET" });
+}
+
+// Email verification
+export async function verifyEmail(email: string, code: string): Promise<{ message: string; verified: boolean }> {
+  return request<{ message: string; verified: boolean }>("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ email, code })
+  });
+}
+
+export async function resendVerificationCode(email: string): Promise<{ message: string; _dev_code?: string }> {
+  return request<{ message: string; _dev_code?: string }>("/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email })
+  });
+}
+
+// Password recovery
+export async function forgotPassword(email: string): Promise<{ message: string; _dev_code?: string }> {
+  return request<{ message: string; _dev_code?: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email })
+  });
+}
+
+export async function resetPassword(
+  email: string, 
+  resetCode: string, 
+  recoveryKey: string, 
+  newPassword: string
+): Promise<{ message: string; encryption_salt: string }> {
+  return request<{ message: string; encryption_salt: string }>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, resetCode, recoveryKey, newPassword })
+  });
+}
+
+// User profile
+export async function getUserProfile(token: string): Promise<{ data: any }> {
+  return request<{ data: any }>("/user/profile", { method: "GET" }, token);
+}
+
+export async function updateUserEmail(token: string, email: string): Promise<{ message: string; _dev_code?: string }> {
+  return request<{ message: string; _dev_code?: string }>("/user/email", {
+    method: "PUT",
+    body: JSON.stringify({ email })
+  }, token);
+}
+
+export async function updateUserPassword(
+  token: string, 
+  oldPassword: string, 
+  newPassword: string
+): Promise<{ message: string }> {
+  return request<{ message: string }>("/user/password", {
+    method: "PUT",
+    body: JSON.stringify({ oldPassword, newPassword })
+  }, token);
 }
 
 export async function fetchDashboard(token: string, asOf?: string, cryptoKey?: CryptoKey) {
@@ -248,8 +320,14 @@ export async function fetchCreditCards(token: string, cryptoKey?: CryptoKey) {
 }
 
 // v1.2: Updated to include billingDate
-export async function createCreditCard(token: string, payload: { name: string; billAmount?: number; paidAmount?: number; dueDate: string; billingDate?: number }) {
-  return request<{ data: any }>("/debts/credit-cards", { method: "POST", body: JSON.stringify(payload) }, token);
+export async function createCreditCard(token: string, payload: { name: string; billAmount?: number; paidAmount?: number; dueDate: string; billingDate?: number }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>("/debts/credit-cards", { method: "POST", body }, token);
+}
+
+export async function updateCreditCard(token: string, id: string, payload: { name?: string; billAmount?: number; paidAmount?: number; dueDate?: string; billingDate?: number }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>(`/debts/credit-cards/${id}`, { method: "PUT", body }, token);
 }
 
 export async function deleteCreditCard(token: string, id: string) {
@@ -307,32 +385,37 @@ export async function updateThemeState(token: string, payload: { mode?: "health_
   return request<{ data: any }>("/themes/state", { method: "PATCH", body: JSON.stringify(payload) }, token);
 }
 
-export async function createFixedExpense(token: string, payload: { name: string; amount: number; frequency: string; category: string; start_date?: string; end_date?: string; is_sip_flag?: boolean }) {
-  return request<{ data: any }>("/planning/fixed-expenses", { method: "POST", body: JSON.stringify(payload) }, token);
+export async function createFixedExpense(token: string, payload: { name: string; amount: number; frequency: string; category: string; start_date?: string; end_date?: string; is_sip_flag?: boolean }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>("/planning/fixed-expenses", { method: "POST", body }, token);
 }
 
-export async function updateFixedExpense(token: string, id: string, payload: { name?: string; amount?: number; frequency?: string; category?: string; start_date?: string; end_date?: string; is_sip_flag?: boolean }) {
-  return request<{ data: any }>(`/planning/fixed-expenses/${id}`, { method: "PUT", body: JSON.stringify(payload) }, token);
+export async function updateFixedExpense(token: string, id: string, payload: { name?: string; amount?: number; frequency?: string; category?: string; start_date?: string; end_date?: string; is_sip_flag?: boolean }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>(`/planning/fixed-expenses/${id}`, { method: "PUT", body }, token);
 }
 
 export async function deleteFixedExpense(token: string, id: string) {
   return request<{ data: any }>(`/planning/fixed-expenses/${id}`, { method: "DELETE" }, token);
 }
 
-export async function createVariableExpensePlan(token: string, payload: { name: string; planned: number; category: string; start_date: string; end_date?: string }) {
-  return request<{ data: any }>("/planning/variable-expenses", { method: "POST", body: JSON.stringify(payload) }, token);
+export async function createVariableExpensePlan(token: string, payload: { name: string; planned: number; category: string; start_date: string; end_date?: string }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>("/planning/variable-expenses", { method: "POST", body }, token);
 }
 
-export async function updateVariableExpensePlan(token: string, id: string, payload: { name?: string; planned?: number; category?: string; start_date?: string; end_date?: string }) {
-  return request<{ data: any }>(`/planning/variable-expenses/${id}`, { method: "PUT", body: JSON.stringify(payload) }, token);
+export async function updateVariableExpensePlan(token: string, id: string, payload: { name?: string; planned?: number; category?: string; start_date?: string; end_date?: string }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>(`/planning/variable-expenses/${id}`, { method: "PUT", body }, token);
 }
 
 export async function deleteVariableExpensePlan(token: string, id: string) {
   return request<{ data: any }>(`/planning/variable-expenses/${id}`, { method: "DELETE" }, token);
 }
 
-export async function updateIncome(token: string, id: string, payload: { source?: string; amount?: number; frequency?: string }) {
-  return request<{ data: any }>(`/planning/income/${id}`, { method: "PUT", body: JSON.stringify(payload) }, token);
+export async function updateIncome(token: string, id: string, payload: { source?: string; amount?: number; frequency?: string }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>(`/planning/income/${id}`, { method: "PUT", body }, token);
 }
 
 export async function deleteIncome(token: string, id: string) {
@@ -340,7 +423,7 @@ export async function deleteIncome(token: string, id: string) {
 }
 
 // Investments
-export async function createInvestment(token: string, payload: { name: string; goal: string; monthlyAmount: number; status: string }) {
+export async function createInvestment(token: string, payload: { name: string; goal: string; monthlyAmount: number; status: string }, cryptoKey?: CryptoKey) {
   // Convert camelCase to snake_case for backend
   const backendPayload: any = {
     name: payload.name,
@@ -348,10 +431,11 @@ export async function createInvestment(token: string, payload: { name: string; g
     monthly_amount: payload.monthlyAmount,
     status: payload.status
   };
-  return request<{ data: any }>("/planning/investments", { method: "POST", body: JSON.stringify(backendPayload) }, token);
+  const body = await buildBody(backendPayload, cryptoKey);
+  return request<{ data: any }>("/planning/investments", { method: "POST", body }, token);
 }
 
-export async function updateInvestment(token: string, id: string, payload: { name?: string; goal?: string; monthlyAmount?: number; status?: string; accumulatedFunds?: number }) {
+export async function updateInvestment(token: string, id: string, payload: { name?: string; goal?: string; monthlyAmount?: number; status?: string; accumulatedFunds?: number }, cryptoKey?: CryptoKey) {
   // Convert camelCase to snake_case for backend
   const backendPayload: any = {};
   if (payload.name !== undefined) backendPayload.name = payload.name;
@@ -360,7 +444,8 @@ export async function updateInvestment(token: string, id: string, payload: { nam
   if (payload.status !== undefined) backendPayload.status = payload.status;
   if (payload.accumulatedFunds !== undefined) backendPayload.accumulated_funds = payload.accumulatedFunds;
   
-  return request<{ data: any }>(`/planning/investments/${id}`, { method: "PUT", body: JSON.stringify(backendPayload) }, token);
+  const body = await buildBody(backendPayload, cryptoKey);
+  return request<{ data: any }>(`/planning/investments/${id}`, { method: "PUT", body }, token);
 }
 
 export async function deleteInvestment(token: string, id: string) {

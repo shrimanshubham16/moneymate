@@ -283,32 +283,227 @@ serve(async (req) => {
     // ========================================================================
     
     if (path === '/auth/signup' && method === 'POST') {
-      const { username, password, encryptionSalt, recoveryKeyHash } = await req.json();
+      const { username, password, email, encryptionSalt, recoveryKeyHash } = await req.json();
       
       if (!username || !password) return error('Username and password required');
       if (username.length < 3 || username.length > 20) return error('Username must be 3-20 characters');
       if (password.length < 8) return error('Password must be at least 8 characters');
+      
+      // Email validation (optional but recommended)
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return error('Invalid email format');
+      }
 
-      // Check existing
-      const { data: existing } = await supabase
+      // Check existing username
+      const { data: existingUser } = await supabase
         .from('users').select('id').eq('username', username).single();
-      if (existing) return error('Username already taken', 409);
+      if (existingUser) return error('Username already taken', 409);
+      
+      // Check existing email if provided
+      if (email) {
+        const { data: existingEmail } = await supabase
+          .from('users').select('id').eq('email', email).single();
+        if (existingEmail) return error('Email already registered', 409);
+      }
+
+      // Generate email verification code (6-digit)
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
 
       // Create user
       const passwordHash = await hashPassword(password);
       const { data: user, error: insertErr } = await supabase
         .from('users')
-        .insert({ username, password_hash: passwordHash, encryption_salt: encryptionSalt, recovery_key_hash: recoveryKeyHash })
-        .select('id, username').single();
+        .insert({ 
+          username, 
+          password_hash: passwordHash, 
+          email: email || null,
+          email_verified: false,
+          email_verification_code: email ? verificationCode : null,
+          email_verification_expires: email ? verificationExpires : null,
+          encryption_salt: encryptionSalt, 
+          recovery_key_hash: recoveryKeyHash 
+        })
+        .select('id, username, email').single();
       
-      if (insertErr) return error('Failed to create user', 500);
+      if (insertErr) {
+        console.error('Signup error:', insertErr);
+        return error('Failed to create user', 500);
+      }
 
       // Create defaults
       await supabase.from('user_preferences').insert({ user_id: user.id, month_start_day: 1, currency: 'INR' });
       await supabase.from('constraint_scores').insert({ user_id: user.id, score: 0, tier: 'green' });
 
+      // TODO: Send verification email (integrate with email service)
+      // For now, we'll return the code in development (remove in production!)
+      console.log(`[EMAIL_VERIFY] User ${username}, code: ${verificationCode}`);
+
       const token = await createToken(user.id, user.username);
-      return json({ access_token: token, user: { id: user.id, username: user.username }, encryption_salt: encryptionSalt }, 201);
+      return json({ 
+        access_token: token, 
+        user: { id: user.id, username: user.username, email: user.email, email_verified: false }, 
+        encryption_salt: encryptionSalt,
+        // Include verification code in dev (remove in production)
+        _dev_verification_code: email ? verificationCode : undefined
+      }, 201);
+    }
+    
+    // EMAIL VERIFICATION - Verify email with code
+    if (path === '/auth/verify-email' && method === 'POST') {
+      const { email, code } = await req.json();
+      
+      if (!email || !code) return error('Email and verification code required');
+      
+      const { data: user, error: userErr } = await supabase
+        .from('users')
+        .select('id, email_verification_code, email_verification_expires, email_verified')
+        .eq('email', email)
+        .single();
+      
+      if (userErr || !user) return error('User not found', 404);
+      if (user.email_verified) return error('Email already verified');
+      
+      // Check expiry
+      if (new Date(user.email_verification_expires) < new Date()) {
+        return error('Verification code expired. Please request a new one.');
+      }
+      
+      // Check code
+      if (user.email_verification_code !== code) {
+        return error('Invalid verification code');
+      }
+      
+      // Mark verified
+      await supabase.from('users').update({
+        email_verified: true,
+        email_verification_code: null,
+        email_verification_expires: null
+      }).eq('id', user.id);
+      
+      return json({ message: 'Email verified successfully', verified: true });
+    }
+    
+    // RESEND VERIFICATION CODE
+    if (path === '/auth/resend-verification' && method === 'POST') {
+      const { email } = await req.json();
+      
+      if (!email) return error('Email required');
+      
+      const { data: user, error: userErr } = await supabase
+        .from('users')
+        .select('id, email_verified')
+        .eq('email', email)
+        .single();
+      
+      if (userErr || !user) return error('User not found', 404);
+      if (user.email_verified) return error('Email already verified');
+      
+      // Generate new code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      
+      await supabase.from('users').update({
+        email_verification_code: verificationCode,
+        email_verification_expires: verificationExpires
+      }).eq('id', user.id);
+      
+      // TODO: Send verification email
+      console.log(`[EMAIL_VERIFY_RESEND] Email ${email}, code: ${verificationCode}`);
+      
+      return json({ message: 'Verification code sent', _dev_code: verificationCode });
+    }
+    
+    // FORGOT PASSWORD - Step 1: Request reset (email + sends code)
+    if (path === '/auth/forgot-password' && method === 'POST') {
+      const { email } = await req.json();
+      
+      if (!email) return error('Email required');
+      
+      const { data: user, error: userErr } = await supabase
+        .from('users')
+        .select('id, email, email_verified')
+        .eq('email', email)
+        .single();
+      
+      // Don't reveal if user exists
+      if (userErr || !user) {
+        return json({ message: 'If email exists, a reset code will be sent' });
+      }
+      
+      // Require verified email
+      if (!user.email_verified) {
+        return error('Email not verified. Please verify your email first.');
+      }
+      
+      // Generate reset code
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const resetExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+      
+      await supabase.from('users').update({
+        password_reset_code: resetCode,
+        password_reset_expires: resetExpires
+      }).eq('id', user.id);
+      
+      // TODO: Send reset email
+      console.log(`[PASSWORD_RESET] Email ${email}, code: ${resetCode}`);
+      
+      return json({ message: 'If email exists, a reset code will be sent', _dev_code: resetCode });
+    }
+    
+    // FORGOT PASSWORD - Step 2: Verify code + recovery key + set new password
+    if (path === '/auth/reset-password' && method === 'POST') {
+      const { email, resetCode, recoveryKey, newPassword } = await req.json();
+      
+      if (!email || !resetCode || !recoveryKey || !newPassword) {
+        return error('Email, reset code, recovery key, and new password required');
+      }
+      
+      if (newPassword.length < 8) return error('Password must be at least 8 characters');
+      
+      const { data: user, error: userErr } = await supabase
+        .from('users')
+        .select('id, password_reset_code, password_reset_expires, recovery_key_hash, encryption_salt')
+        .eq('email', email)
+        .single();
+      
+      if (userErr || !user) return error('User not found', 404);
+      
+      // Check reset code
+      if (user.password_reset_code !== resetCode) {
+        return error('Invalid reset code');
+      }
+      
+      // Check expiry
+      if (new Date(user.password_reset_expires) < new Date()) {
+        return error('Reset code expired. Please request a new one.');
+      }
+      
+      // Verify recovery key (hash and compare)
+      const encoder = new TextEncoder();
+      const recoveryData = encoder.encode(recoveryKey.trim().toLowerCase());
+      const recoveryHashBuffer = await crypto.subtle.digest('SHA-256', recoveryData);
+      const recoveryHashArray = Array.from(new Uint8Array(recoveryHashBuffer));
+      const recoveryHashB64 = btoa(String.fromCharCode(...recoveryHashArray));
+      
+      if (recoveryHashB64 !== user.recovery_key_hash) {
+        return error('Invalid recovery key. Please check your 24-word recovery phrase.');
+      }
+      
+      // Update password
+      const newPasswordHash = await hashPassword(newPassword);
+      await supabase.from('users').update({
+        password_hash: newPasswordHash,
+        password_reset_code: null,
+        password_reset_expires: null,
+        failed_login_attempts: 0,
+        account_locked_until: null
+      }).eq('id', user.id);
+      
+      return json({ 
+        message: 'Password reset successfully. Please log in with your new password.',
+        encryption_salt: user.encryption_salt 
+      });
     }
 
     if (path === '/auth/login' && method === 'POST') {
@@ -318,7 +513,7 @@ serve(async (req) => {
 
         const { data: user, error: userErr } = await supabase
           .from('users')
-          .select('id, username, password_hash, encryption_salt, failed_login_attempts, account_locked_until')
+          .select('id, username, email, email_verified, password_hash, encryption_salt, failed_login_attempts, account_locked_until')
           .eq('username', username).single();
         
         if (userErr) {
@@ -359,7 +554,16 @@ serve(async (req) => {
         }
 
         const token = await createToken(user.id, user.username);
-        return json({ access_token: token, user: { id: user.id, username: user.username }, encryption_salt: encryptionSalt });
+        return json({ 
+          access_token: token, 
+          user: { 
+            id: user.id, 
+            username: user.username,
+            email: user.email,
+            email_verified: user.email_verified 
+          }, 
+          encryption_salt: encryptionSalt 
+        });
       } catch (loginErr) {
         console.error('Login error:', loginErr);
         return error('Login failed: ' + (loginErr as Error).message, 500);
@@ -399,6 +603,98 @@ serve(async (req) => {
     if (path === '/health/details' && method === 'GET') {
       const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
       return json({ data: healthData });
+    }
+    
+    // ========================================================================
+    // USER PROFILE ROUTES
+    // ========================================================================
+    
+    // GET user profile
+    if (path === '/user/profile' && method === 'GET') {
+      const { data: profile, error: profileErr } = await supabase
+        .from('users')
+        .select('id, username, email, email_verified, encryption_salt, created_at')
+        .eq('id', userId)
+        .single();
+      
+      if (profileErr || !profile) return error('User not found', 404);
+      return json({ data: profile });
+    }
+    
+    // UPDATE user email (for users who didn't provide at signup)
+    if (path === '/user/email' && method === 'PUT') {
+      const { email } = await req.json();
+      
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return error('Valid email required');
+      }
+      
+      // Check if email already used by another user
+      const { data: existingEmail } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .neq('id', userId)
+        .single();
+      
+      if (existingEmail) return error('Email already registered', 409);
+      
+      // Generate verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      
+      await supabase.from('users').update({
+        email,
+        email_verified: false,
+        email_verification_code: verificationCode,
+        email_verification_expires: verificationExpires
+      }).eq('id', userId);
+      
+      // TODO: Send verification email
+      console.log(`[EMAIL_UPDATE] User ${userId}, email: ${email}, code: ${verificationCode}`);
+      
+      return json({ 
+        message: 'Email updated. Please verify your email.',
+        _dev_code: verificationCode 
+      });
+    }
+    
+    // UPDATE user password (authenticated - requires old password)
+    if (path === '/user/password' && method === 'PUT') {
+      const { oldPassword, newPassword, encryptedData } = await req.json();
+      
+      if (!oldPassword || !newPassword) {
+        return error('Old and new password required');
+      }
+      
+      if (newPassword.length < 8) return error('Password must be at least 8 characters');
+      
+      // Verify old password
+      const { data: currentUser, error: userErr } = await supabase
+        .from('users')
+        .select('password_hash')
+        .eq('id', userId)
+        .single();
+      
+      if (userErr || !currentUser) return error('User not found', 404);
+      
+      const valid = await verifyPassword(oldPassword, currentUser.password_hash);
+      if (!valid) return error('Current password is incorrect');
+      
+      // Update password
+      const newPasswordHash = await hashPassword(newPassword);
+      await supabase.from('users').update({
+        password_hash: newPasswordHash
+      }).eq('id', userId);
+      
+      // If re-encrypted data provided, update all entities
+      if (encryptedData) {
+        console.log('[RE_ENCRYPT] Processing re-encrypted data for password change');
+        // This is handled by the reEncryptionService on the client side
+        // which makes individual API calls to update each entity
+      }
+      
+      return json({ message: 'Password updated successfully' });
     }
 
     // DASHBOARD
