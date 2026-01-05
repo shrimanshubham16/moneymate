@@ -3,7 +3,87 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { sendVerificationEmail, sendPasswordResetEmail } from './email.ts';
+
+// ============================================================================
+// EMAIL SERVICE (Inlined to avoid import issues)
+// ============================================================================
+const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY');
+const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'noreply@finflow.app';
+const FROM_NAME = Deno.env.get('FROM_NAME') || 'FinFlow';
+const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'production';
+
+async function sendVerificationEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string }> {
+  const subject = 'Verify your FinFlow email';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 32px; border-radius: 12px;">
+      <h1 style="color: #00e676; text-align: center;">🌿 FinFlow</h1>
+      <p style="color: #ccc;">Please verify your email with this code:</p>
+      <div style="background: #2d2d2d; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00e676;">${code}</span>
+      </div>
+      <p style="color: #888; font-size: 12px;">This code expires in 15 minutes.</p>
+    </div>
+  `;
+  
+  if (IS_PRODUCTION && SENDGRID_API_KEY) {
+    try {
+      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: FROM_EMAIL, name: FROM_NAME },
+          subject,
+          content: [{ type: 'text/html', value: html }]
+        })
+      });
+      return { success: response.ok || response.status === 202 };
+    } catch (e) {
+      console.error('[EMAIL_ERROR]', e);
+      return { success: false };
+    }
+  } else {
+    console.log(`[EMAIL_DEV] Verification email to ${to}, code: ${code}`);
+    return { success: true, devCode: code };
+  }
+}
+
+async function sendPasswordResetEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string }> {
+  const subject = 'Reset your FinFlow password';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 32px; border-radius: 12px;">
+      <h1 style="color: #00e676; text-align: center;">🌿 FinFlow</h1>
+      <p style="color: #ccc;">Use this code to reset your password:</p>
+      <div style="background: #2d2d2d; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #ff9800;">${code}</span>
+      </div>
+      <p style="color: #ff9800; background: rgba(255,152,0,0.1); padding: 12px; border-radius: 8px;">⚠️ You'll also need your 24-word recovery key.</p>
+      <p style="color: #888; font-size: 12px;">This code expires in 15 minutes.</p>
+    </div>
+  `;
+  
+  if (IS_PRODUCTION && SENDGRID_API_KEY) {
+    try {
+      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: FROM_EMAIL, name: FROM_NAME },
+          subject,
+          content: [{ type: 'text/html', value: html }]
+        })
+      });
+      return { success: response.ok || response.status === 202 };
+    } catch (e) {
+      console.error('[EMAIL_ERROR]', e);
+      return { success: false };
+    }
+  } else {
+    console.log(`[EMAIL_DEV] Password reset email to ${to}, code: ${code}`);
+    return { success: true, devCode: code };
+  }
+}
 
 // SHA256 hashing (matches Railway backend)
 async function hashPassword(password: string): Promise<string> {
