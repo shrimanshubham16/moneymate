@@ -219,7 +219,10 @@ body {
 }
 
 .privacy-badge .badge-icon {
-  font-size: 24px;
+  width: 28px;
+  height: 28px;
+  color: #00c853;
+  flex-shrink: 0;
 }
 
 .privacy-badge .badge-content {

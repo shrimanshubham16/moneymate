@@ -156,13 +156,16 @@ function AuthForm({ onAuth, onForgotPassword }: { onAuth: (token: string) => voi
         transition={{ duration: 0.5 }}
       >
         <div className="auth-header">
-          <h1>🌿 FinFlow</h1>
+          <h1>FinFlow</h1>
           <p>Your Financial Companion</p>
         </div>
         
         {/* E2E Encryption Badge */}
         <div className="privacy-badge">
-          <div className="badge-icon">🔐</div>
+          <svg className="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
           <div className="badge-content">
             <strong>End-to-End Encrypted</strong>
             <small>Your data encrypted on YOUR device. Only you can read it.</small>

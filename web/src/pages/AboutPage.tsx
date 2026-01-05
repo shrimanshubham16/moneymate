@@ -118,7 +118,7 @@ export function AboutPage() {
         </section>
 
         <section className="about-section privacy-hero">
-          <h2><FaShieldAlt style={{ marginRight: '8px', color: '#00e676' }} />🔐 End-to-End Encryption</h2>
+          <h2><FaShieldAlt style={{ marginRight: '8px', color: '#00e676' }} />End-to-End Encryption</h2>
           <div className="privacy-summary">
             <div className="e2e-badge">
               <span className="badge-new">NEW in v2.1</span>
