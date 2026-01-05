@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaMoneyBillWave, FaEdit, FaTrashAlt } from "react-icons/fa";
-import { fetchDashboard, createFixedExpense, updateFixedExpense, deleteFixedExpense } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
@@ -17,6 +17,7 @@ interface FixedExpensesPageProps {
 
 export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -55,7 +56,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       }
       
       // Fetch fresh data
-      const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
       setExpenses(res.data.fixedExpenses || []);
       ClientCache.set('dashboard', res.data, userId);
     } catch (e) {
@@ -72,7 +73,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     console.log("💾 Submitting form with is_sip_flag:", formData.is_sip_flag);
     try {
       if (editingId) {
-        const response = await updateFixedExpense(token, editingId, {
+        const response = await api.updateFixedExpense(token, editingId, {
           name: formData.name,
           amount: Number(formData.amount),
           frequency: formData.frequency,
@@ -83,7 +84,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
         });
         console.log("✅ Update response:", response);
       } else {
-        const response = await createFixedExpense(token, {
+        const response = await api.createFixedExpense(token, {
           name: formData.name,
           amount: Number(formData.amount),
           frequency: formData.frequency,
@@ -132,7 +133,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this expense?")) return;
     try {
-      await deleteFixedExpense(token, id);
+      await api.deleteFixedExpense(token, id);
       // Optimistic UI: Remove from state immediately
       setExpenses(prev => prev.filter(e => e.id !== id));
       // Clear cache and refresh in background

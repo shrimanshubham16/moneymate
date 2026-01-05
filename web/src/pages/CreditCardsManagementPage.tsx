@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory } from "react-icons/fa";
-import { fetchCreditCards, createCreditCard, deleteCreditCard, resetCreditCardBilling, getBillingAlerts, getCreditCardUsage, fetchDashboard, updateCreditCardBill } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { getBillingAlerts, getCreditCardUsage } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { ClientCache } from "../utils/cache";
@@ -14,6 +15,7 @@ interface CreditCardsManagementPageProps {
 
 export function CreditCardsManagementPage({ token }: CreditCardsManagementPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -56,7 +58,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         return;
       }
       
-      const res = await fetchDashboard(token, new Date().toISOString());
+      const res = await api.fetchDashboard(token, new Date().toISOString());
       setPlans(res.data.variablePlans || []);
       ClientCache.set('dashboard', res.data, userId);
     } catch (e) {
@@ -82,7 +84,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         setLoading(false);
       }
       
-      const res = await fetchCreditCards(token);
+      const res = await api.fetchCreditCards(token);
       setCards(res.data);
       ClientCache.set('creditCards', res.data, userId);
     } catch (e) {
@@ -106,7 +108,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const handleResetBilling = async (cardId: string, cardName: string) => {
     if (!confirm(`Reset current expenses for ${cardName}? You'll need to manually update the bill amount.`)) return;
     try {
-      await resetCreditCardBilling(token, cardId);
+      await api.resetCreditCardBilling(token, cardId);
       await loadCards();
       await loadBillingAlerts();
       alert("Current expenses reset. Please update the bill amount manually.");
@@ -150,7 +152,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         return;
       }
       // Update bill amount via API helper
-      await updateCreditCardBill(token, cardId, amount);
+      await api.updateCreditCardBill(token, cardId, amount);
       await loadCards();
       await loadBillingAlerts();
       setShowUpdateBillModal(false);
@@ -165,7 +167,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createCreditCard(token, {
+      await api.createCreditCard(token, {
         name: form.name,
         billAmount: Number(form.billAmount) || 0,  // v1.2: Default to 0
         paidAmount: Number(form.paidAmount) || 0,
@@ -183,7 +185,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this credit card?")) return;
     try {
-      await deleteCreditCard(token, id);
+      await api.deleteCreditCard(token, id);
       // Optimistic UI: Remove from state immediately
       setCards(prev => prev.filter(c => c.id !== id));
       await loadCards();

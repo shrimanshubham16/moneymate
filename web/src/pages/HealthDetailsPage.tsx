@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaMoneyBillWave, FaShoppingCart, FaChartLine, FaCreditCard, FaUniversity, FaHeart } from "react-icons/fa";
-import { fetchDashboard, fetchCreditCards, fetchLoans, fetchHealthDetails } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import "./HealthDetailsPage.css";
@@ -15,6 +15,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const { showIntro, closeIntro } = useIntroModal("health");
   const [health, setHealth] = useState<any>(null);
   const [breakdown, setBreakdown] = useState<any>(null);
@@ -32,9 +33,9 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         fetch(`${BASE_URL}/health/details`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetchDashboard(token, new Date().toISOString()),
-        fetchCreditCards(token),
-        fetchLoans(token)
+        api.fetchDashboard(token, new Date().toISOString()),
+        api.fetchCreditCards(token),
+        api.fetchLoans(token)
       ]);
 
       if (!healthResRaw.ok) {

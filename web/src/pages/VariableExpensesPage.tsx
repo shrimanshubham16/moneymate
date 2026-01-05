@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
-import { fetchDashboard, createVariableExpensePlan, updateVariableExpensePlan, deleteVariableExpensePlan, addVariableActual, getUserSubcategories, addUserSubcategory, fetchCreditCards } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { getUserSubcategories, addUserSubcategory } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ProgressBar } from "../components/ProgressBar";
@@ -15,6 +16,7 @@ interface VariableExpensesPageProps {
 
 export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPlanForm, setShowPlanForm] = useState(false);
@@ -49,7 +51,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
 
   const loadPlans = async () => {
     try {
-      const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
       setPlans(res.data.variablePlans || []);
     } catch (e) {
       console.error("Failed to load plans:", e);
@@ -79,7 +81,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   // v1.2: Load credit cards
   const loadCreditCards = async () => {
     try {
-      const res = await fetchCreditCards(token);
+      const res = await api.fetchCreditCards(token);
       setCreditCards(res.data || []);
     } catch (e) {
       console.error("Failed to load credit cards:", e);
@@ -92,7 +94,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     setIsSubmitting(true);
     try {
       if (editingId) {
-        await updateVariableExpensePlan(token, editingId, {
+        await api.updateVariableExpensePlan(token, editingId, {
           name: planForm.name,
           planned: Number(planForm.planned),
           category: planForm.category,
@@ -100,7 +102,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           end_date: planForm.end_date
         });
       } else {
-        await createVariableExpensePlan(token, {
+        await api.createVariablePlan(token, {
           name: planForm.name,
           planned: Number(planForm.planned),
           category: planForm.category,
@@ -205,7 +207,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       setSelectedPlanId(null);
       
       // Make API call in background
-      await addVariableActual(token, selectedPlanId, {
+      await api.addVariableActual(token, selectedPlanId, {
         amount: Number(tempActual.amount),
         incurred_at: tempActual.incurredAt,
         justification: tempActual.justification || undefined,
@@ -528,7 +530,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                     <h3>{plan.name}</h3>
                     <div className="plan-actions">
                       <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
-                      <button className="delete-btn" onClick={() => { if (confirm("Delete?")) deleteVariableExpensePlan(token, plan.id).then(loadPlans); }} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
+                      <button className="delete-btn" onClick={() => { if (confirm("Delete?")) api.deleteVariableExpensePlan(token, plan.id).then(loadPlans); }} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
                     </div>
                   </div>
                 </div>

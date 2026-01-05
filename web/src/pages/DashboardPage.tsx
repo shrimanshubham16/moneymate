@@ -7,7 +7,8 @@ import {
   FaExchangeAlt, FaHandHoldingUsd
 } from "react-icons/fa";
 import { MdAccountBalanceWallet, MdSavings, MdTrendingUp } from "react-icons/md";
-import { fetchDashboard, fetchCreditCards, fetchLoans, fetchActivity, fetchSharingMembers } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { fetchSharingMembers } from "../api";
 import { DashboardWidget } from "../components/DashboardWidget";
 import { HealthIndicator } from "../components/HealthIndicator";
 import { MatrixLoader } from "../components/MatrixLoader";
@@ -26,6 +27,7 @@ interface DashboardPageProps {
 
 export function DashboardPage({ token }: DashboardPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0); // Track loading progress
@@ -46,10 +48,10 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const fetchFreshData = async (userId: string, wasStale = false) => {
     try {
       const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
-        fetchDashboard(token, new Date().toISOString()),
-        fetchCreditCards(token),
-        fetchLoans(token),
-        fetchActivity(token),
+        api.fetchDashboard(token, new Date().toISOString()),
+        api.fetchCreditCards(token),
+        api.fetchLoans(token),
+        api.fetchActivity(token),
         fetchSharingMembers(token)
       ]);
       
@@ -182,7 +184,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
           // #region agent log
           const t0 = performance.now();
           // #endregion
-          const res = await fetchDashboard(token, new Date().toISOString());
+          const res = await api.fetchDashboard(token, new Date().toISOString());
           // #region agent log
           const t1 = performance.now();
           apiTimings.dashboard = t1 - t0;
@@ -198,7 +200,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
           // #region agent log
           const t0 = performance.now();
           // #endregion
-          const res = await fetchCreditCards(token);
+          const res = await api.fetchCreditCards(token);
           // #region agent log
           const t1 = performance.now();
           apiTimings.creditCards = t1 - t0;
@@ -214,7 +216,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
           // #region agent log
           const t0 = performance.now();
           // #endregion
-          const res = await fetchLoans(token);
+          const res = await api.fetchLoans(token);
           // #region agent log
           const t1 = performance.now();
           apiTimings.loans = t1 - t0;
@@ -230,7 +232,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
           // #region agent log
           const t0 = performance.now();
           // #endregion
-          const res = await fetchActivity(token);
+          const res = await api.fetchActivity(token);
           // #region agent log
           const t1 = performance.now();
           apiTimings.activity = t1 - t0;

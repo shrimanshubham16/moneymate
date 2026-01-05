@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { fetchActivity } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt, FaHistory, FaCalendarAlt } from "react-icons/fa";
 import { MdAccountBalanceWallet } from "react-icons/md";
 import { IntroModal } from "../components/IntroModal";
@@ -17,6 +17,7 @@ interface ActivitiesPageProps {
 
 export function ActivitiesPage({ token }: ActivitiesPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -31,11 +32,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
 
   const loadActivities = async () => {
     try {
-      const res = await fetchActivity(
-        token,
-        usePeriodFilter && startDate ? startDate : undefined,
-        usePeriodFilter && endDate ? endDate : undefined
-      );
+      const res = await api.fetchActivity(token);
 
       // Ensure each activity has the required fields and sanitize payload
       const sanitizedActivities = (res.data || []).map((activity: any) => {

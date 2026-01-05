@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { fetchCreditCards, fetchLoans, fetchDashboard, markAsPaid, markAsUnpaid, getUserPreferences } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { Toast } from "../components/Toast";
 import { SkeletonLoader } from "../components/SkeletonLoader";
@@ -13,6 +13,7 @@ interface DuesPageProps {
 
 export function DuesPage({ token }: DuesPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [dues, setDues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalDues, setTotalDues] = useState(0);
@@ -38,10 +39,10 @@ export function DuesPage({ token }: DuesPageProps) {
       setTotalDues(prevTotal => prevTotal - (wasPaid ? 0 : dueAmount));
 
       if (wasPaid) {
-        await markAsUnpaid(token, due.id, due.itemType);
+        await api.markAsUnpaid(token, due.itemType, due.id);
         setToast({ show: true, message: `${dueName} marked as unpaid` });
       } else {
-        await markAsPaid(token, due.id, due.itemType, due.amount);
+        await api.markAsPaid(token, due.itemType, due.id, due.amount);
         setToast({ show: true, message: `Hurray!! ${dueName} Due paid` });
       }
       
@@ -123,10 +124,10 @@ export function DuesPage({ token }: DuesPageProps) {
   const loadDues = async () => {
     try {
       const [cardsRes, loansRes, dashboardRes, prefsRes] = await Promise.all([
-        fetchCreditCards(token),
-        fetchLoans(token),
-        fetchDashboard(token, "2025-01-15T00:00:00Z"),
-        getUserPreferences(token)
+        api.fetchCreditCards(token),
+        api.fetchLoans(token),
+        api.fetchDashboard(token, "2025-01-15T00:00:00Z"),
+        api.getUserPreferences(token)
       ]);
 
       const monthStartDay = prefsRes.data?.monthStartDay || prefsRes.data?.month_start_day || 1;

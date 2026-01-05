@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet } from "react-icons/fa";
-import { fetchDashboard, createInvestment, updateInvestment, deleteInvestment, pauseInvestment, resumeInvestment } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./InvestmentsManagementPage.css";
 
@@ -12,6 +12,7 @@ interface InvestmentsManagementPageProps {
 
 export function InvestmentsManagementPage({ token }: InvestmentsManagementPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [investments, setInvestments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -29,7 +30,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
 
   const loadInvestments = async () => {
     try {
-      const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
       setInvestments(res.data.investments || []);
     } catch (e) {
       console.error("Failed to load investments:", e);
@@ -42,14 +43,14 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     e.preventDefault();
     try {
       if (editingId) {
-        await updateInvestment(token, editingId, {
+        await api.updateInvestment(token, editingId, {
           name: formData.name,
           goal: formData.goal,
           monthlyAmount: Number(formData.monthlyAmount),
           status: formData.status
         });
       } else {
-        await createInvestment(token, {
+        await api.createInvestment(token, {
           name: formData.name,
           goal: formData.goal,
           monthlyAmount: Number(formData.monthlyAmount),
@@ -79,7 +80,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this investment?")) return;
     try {
-      await deleteInvestment(token, id);
+      await api.deleteInvestment(token, id);
       // Optimistic UI: Remove from state immediately
       setInvestments(prev => prev.filter(inv => inv.id !== id));
       await loadInvestments();
@@ -92,9 +93,9 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   const handleTogglePause = async (inv: any) => {
     try {
       if (inv.status === "active") {
-        await pauseInvestment(token, inv.id);
+        await api.pauseInvestment(token, inv.id);
       } else {
-        await resumeInvestment(token, inv.id);
+        await api.resumeInvestment(token, inv.id);
       }
       await loadInvestments();
     } catch (e: any) {
@@ -219,7 +220,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                       const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}\n\nEnter new amount:`);
                       if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
                         try {
-                          await updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
+                          await api.updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
                           await loadInvestments();
                         } catch (e: any) {
                           alert("Failed to update: " + e.message);

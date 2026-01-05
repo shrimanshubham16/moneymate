@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaMoneyBillWave, FaPlus } from "react-icons/fa";
-import { fetchDashboard, createIncome, deleteIncome } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./IncomePage.css";
@@ -12,6 +12,7 @@ interface IncomePageProps {
 
 export function IncomePage({ token }: IncomePageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [incomes, setIncomes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -27,7 +28,7 @@ export function IncomePage({ token }: IncomePageProps) {
 
   const loadIncomes = async () => {
     try {
-      const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
       setIncomes(res.data.incomes || []);
     } catch (e) {
       console.error("Failed to load incomes:", e);
@@ -39,7 +40,7 @@ export function IncomePage({ token }: IncomePageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createIncome(token, {
+      await api.createIncome(token, {
         source: form.source,
         amount: Number(form.amount),
         frequency: form.frequency
@@ -55,7 +56,7 @@ export function IncomePage({ token }: IncomePageProps) {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this income source?")) return;
     try {
-      await deleteIncome(token, id);
+      await api.deleteIncome(token, id);
       // Optimistic UI: Remove from state immediately
       setIncomes(prev => prev.filter(inc => inc.id !== id));
       await loadIncomes();

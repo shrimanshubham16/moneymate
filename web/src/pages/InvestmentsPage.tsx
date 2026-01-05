@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MdTrendingUp } from "react-icons/md";
 import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet } from "react-icons/fa";
-import { fetchDashboard, updateInvestment } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
@@ -17,6 +17,7 @@ interface InvestmentsPageProps {
 
 export function InvestmentsPage({ token }: InvestmentsPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [investments, setInvestments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +44,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
       }
       
       // Always fetch fresh data
-      const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
       setInvestments(res.data.investments || []);
       ClientCache.set('dashboard', res.data, userId);
     } catch (e) {
@@ -121,7 +122,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                     const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(currentFund).toLocaleString("en-IN")}\n\nEnter new amount:`);
                     if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
                       try {
-                        await updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
+                        await api.updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
                         // Clear client cache to ensure fresh data
                         let userId = 'unknown';
                         try {
