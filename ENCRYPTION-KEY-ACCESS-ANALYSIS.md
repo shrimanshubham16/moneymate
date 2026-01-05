@@ -292,3 +292,5 @@ User Data → [Encrypt with User Password] → Encrypted Storage
 > "Your data is encrypted at rest using AES-256. The encryption key is stored securely on our servers. While we have technical access to decrypt your data (necessary for features like health score calculations), we commit to never accessing your personal financial information without your explicit consent or a legal requirement. This is the same security model used by Mint, YNAB, and most financial applications."
 
 
+
+

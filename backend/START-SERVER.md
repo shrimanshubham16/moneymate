@@ -58,3 +58,5 @@ lsof -ti:12022 | xargs kill -9
 - Check `.env` file has correct credentials
 - Run: `npm run test-supabase`
 
+
+

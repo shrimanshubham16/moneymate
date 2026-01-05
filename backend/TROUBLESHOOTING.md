@@ -94,3 +94,5 @@ npm run test-supabase
    - Try logging in with an existing user
    - Check if data loads from Supabase
 
+
+

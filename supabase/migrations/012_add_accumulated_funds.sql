@@ -13,3 +13,5 @@ ADD COLUMN IF NOT EXISTS accumulated_funds DECIMAL(12, 2) DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_fixed_expenses_accumulated ON fixed_expenses(accumulated_funds) WHERE accumulated_funds > 0;
 CREATE INDEX IF NOT EXISTS idx_investments_accumulated ON investments(accumulated_funds) WHERE accumulated_funds > 0;
 
+
+

@@ -137,3 +137,5 @@ function printSummary(issues: string[], warnings: string[]) {
 
 checkConfig();
 
+
+

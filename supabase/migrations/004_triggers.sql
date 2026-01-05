@@ -32,3 +32,5 @@ FOR EACH ROW EXECUTE FUNCTION invalidate_health_cache();
 CREATE TRIGGER trg_loans_invalidate AFTER INSERT OR UPDATE OR DELETE ON loans
 FOR EACH ROW EXECUTE FUNCTION invalidate_health_cache();
 
+
+

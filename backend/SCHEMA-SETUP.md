@@ -61,3 +61,5 @@ Once schema is created and connection tested:
 
 **Note**: The schema file is at `backend/supabase/schema.sql`
 
+
+

@@ -66,3 +66,5 @@ Once Supabase is ready, you should see:
 
 **The migration is complete!** The errors are just Supabase initialization issues that will resolve automatically.
 
+
+

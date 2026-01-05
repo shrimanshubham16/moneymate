@@ -100,3 +100,5 @@ app.get("/dashboard", requireAuth, async (req, res) => {
 
 **Note**: This is a breaking change - all functions become async. We need to update all callers.
 
+
+

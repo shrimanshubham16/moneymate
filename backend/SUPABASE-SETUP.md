@@ -107,3 +107,5 @@ After running the schema, verify tables were created:
 - **Connection String**: Contains password, keep it secret
 - Add `.env` to `.gitignore` if not already there
 
+
+

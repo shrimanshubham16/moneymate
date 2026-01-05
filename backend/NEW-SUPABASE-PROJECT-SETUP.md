@@ -144,3 +144,5 @@ npm run test-existing-user testuser Test123!@#
 
 **Most Common Issue**: Schema not created! Make sure you run `schema.sql` in SQL Editor first!
 
+
+

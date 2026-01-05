@@ -101,3 +101,5 @@ The connection string in `.env` contains the database password. Make sure:
 
 **🎉 All user data has been successfully migrated to Supabase!**
 
+
+

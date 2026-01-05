@@ -88,3 +88,5 @@ $$ LANGUAGE plpgsql STABLE;
 GRANT EXECUTE ON FUNCTION get_next_due_date(DATE, VARCHAR, DATE) TO postgres, anon, authenticated;
 GRANT EXECUTE ON FUNCTION is_periodic_expense_due(DATE, VARCHAR, INTEGER, DATE) TO postgres, anon, authenticated;
 
+
+

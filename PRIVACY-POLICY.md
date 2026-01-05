@@ -287,3 +287,5 @@ This privacy policy will be updated as we add new security features:
 We take your privacy seriously. While we're not at the maximum privacy level yet (like 1Password), we're at the same level as most trusted financial apps, and we're committed to improving.
 
 
+
+

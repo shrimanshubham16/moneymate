@@ -200,3 +200,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION get_dashboard_data(UUID, TEXT) TO postgres, anon, authenticated;
 
+
+

@@ -66,3 +66,5 @@ The data migration worked because it used direct PostgreSQL connection, not the 
 
 **Action Required**: Enable Data API in Supabase Dashboard → Settings
 
+
+

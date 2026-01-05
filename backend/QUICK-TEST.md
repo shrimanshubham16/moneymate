@@ -73,3 +73,5 @@ curl -X POST http://localhost:12022/planning/income \
 3. Check Supabase connection: `npm run test-supabase`
 4. See `TESTING-GUIDE.md` for detailed troubleshooting
 
+
+
