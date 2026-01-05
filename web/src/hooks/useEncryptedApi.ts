@@ -1,6 +1,8 @@
 /**
  * useEncryptedApi - Hook for E2E encrypted API operations
  * 
+ * Phase 1: Parallel encryption/decryption for performance
+ * 
  * For new users (with encryption enabled):
  * - Encrypts sensitive data before sending to server
  * - Decrypts data when receiving from server
@@ -13,47 +15,64 @@ import { useCrypto } from '../contexts/CryptoContext';
 import { encryptString, decryptString } from '../lib/crypto';
 
 // Fields that contain sensitive financial data
-const SENSITIVE_FIELDS = [
+const SENSITIVE_FIELDS = new Set([
   'name', 'amount', 'planned', 'description', 'justification',
   'source', 'goal', 'limit', 'bill_amount', 'paid_amount',
-  'monthly_amount', 'total_amount', 'saved_amount'
-];
+  'monthly_amount', 'total_amount', 'saved_amount', 'accumulated_funds'
+]);
 
 /**
  * Check if a field should be encrypted
  */
 function isSensitiveField(field: string): boolean {
-  return SENSITIVE_FIELDS.some(sf => 
-    field === sf || field.endsWith(`_${sf}`) || field.startsWith(`${sf}_`)
-  );
+  if (SENSITIVE_FIELDS.has(field)) return true;
+  for (const sf of SENSITIVE_FIELDS) {
+    if (field.endsWith(`_${sf}`) || field.startsWith(`${sf}_`)) return true;
+  }
+  return false;
 }
 
 /**
- * Recursively encrypt sensitive fields in an object
+ * PARALLEL: Recursively encrypt sensitive fields in an object
  */
 async function encryptObject(obj: any, key: CryptoKey): Promise<any> {
   if (obj === null || obj === undefined) return obj;
   
   if (Array.isArray(obj)) {
+    // Process array items in parallel
     return Promise.all(obj.map(item => encryptObject(item, key)));
   }
   
   if (typeof obj === 'object') {
     const result: any = {};
+    const encryptionTasks: Promise<void>[] = [];
+    
     for (const [field, value] of Object.entries(obj)) {
+      // Skip already encrypted fields
+      if (field.endsWith('_enc') || field.endsWith('_iv')) continue;
+      
       if (isSensitiveField(field) && value !== null && value !== undefined) {
-        // Encrypt sensitive field
-        const { ciphertext, iv } = await encryptString(String(value), key);
-        result[`${field}_enc`] = ciphertext;
-        result[`${field}_iv`] = iv;
-        // Keep original for backward compatibility during transition
-        result[field] = value;
+        // Queue encryption task (parallel)
+        encryptionTasks.push(
+          encryptString(String(value), key).then(({ ciphertext, iv }) => {
+            result[`${field}_enc`] = ciphertext;
+            result[`${field}_iv`] = iv;
+            result[field] = value; // Keep plaintext during transition
+          })
+        );
       } else if (typeof value === 'object') {
-        result[field] = await encryptObject(value, key);
+        encryptionTasks.push(
+          encryptObject(value, key).then(encrypted => {
+            result[field] = encrypted;
+          })
+        );
       } else {
         result[field] = value;
       }
     }
+    
+    // Execute all encryption tasks in parallel
+    await Promise.all(encryptionTasks);
     return result;
   }
   
@@ -61,53 +80,66 @@ async function encryptObject(obj: any, key: CryptoKey): Promise<any> {
 }
 
 /**
- * Recursively decrypt sensitive fields in an object
+ * PARALLEL: Recursively decrypt sensitive fields in an object
  */
 async function decryptObject(obj: any, key: CryptoKey): Promise<any> {
   if (obj === null || obj === undefined) return obj;
   
   if (Array.isArray(obj)) {
+    // Process array items in parallel
     return Promise.all(obj.map(item => decryptObject(item, key)));
   }
   
   if (typeof obj === 'object') {
     const result: any = {};
     const processedFields = new Set<string>();
+    const decryptionTasks: Promise<void>[] = [];
     
+    // First pass: identify encrypted fields and queue decryption
     for (const [field, value] of Object.entries(obj)) {
-      // Check if this is an encrypted field
       if (field.endsWith('_enc')) {
-        const originalField = field.slice(0, -4); // Remove '_enc'
+        const originalField = field.slice(0, -4);
         const ivField = `${originalField}_iv`;
         
         if (obj[ivField]) {
-          try {
-            // Decrypt the field
-            const decrypted = await decryptString(value as string, obj[ivField] as string, key);
-            
-            // Determine if original was a number
-            const numValue = parseFloat(decrypted);
-            result[originalField] = isNaN(numValue) ? decrypted : numValue;
-            
-            processedFields.add(field);
-            processedFields.add(ivField);
-          } catch (e) {
-            console.warn(`Failed to decrypt field ${originalField}:`, e);
-            // Fall back to original value if decryption fails
-            if (obj[originalField] !== undefined) {
-              result[originalField] = obj[originalField];
-            }
-          }
+          processedFields.add(field);
+          processedFields.add(ivField);
+          
+          // Queue decryption task (parallel)
+          decryptionTasks.push(
+            decryptString(value as string, obj[ivField] as string, key)
+              .then(decrypted => {
+                const numValue = parseFloat(decrypted);
+                result[originalField] = isNaN(numValue) ? decrypted : numValue;
+              })
+              .catch(() => {
+                // Fall back to plaintext if decryption fails
+                if (obj[originalField] !== undefined) {
+                  result[originalField] = obj[originalField];
+                }
+              })
+          );
         }
-      } else if (!processedFields.has(field) && !field.endsWith('_iv')) {
-        // Regular field or fallback
+      }
+    }
+    
+    // Second pass: handle non-encrypted fields
+    for (const [field, value] of Object.entries(obj)) {
+      if (!processedFields.has(field) && !field.endsWith('_iv') && !field.endsWith('_enc')) {
         if (typeof value === 'object') {
-          result[field] = await decryptObject(value, key);
+          decryptionTasks.push(
+            decryptObject(value, key).then(decrypted => {
+              result[field] = decrypted;
+            })
+          );
         } else {
           result[field] = value;
         }
       }
     }
+    
+    // Execute all decryption tasks in parallel
+    await Promise.all(decryptionTasks);
     return result;
   }
   

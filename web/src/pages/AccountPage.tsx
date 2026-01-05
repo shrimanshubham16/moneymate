@@ -2,6 +2,9 @@ import { useState, useEffect, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { useCrypto } from "../contexts/CryptoContext";
+import { deriveKey, saltFromBase64 } from "../lib/crypto";
+import { reEncryptAllData, ReEncryptionProgress } from "../services/reEncryptionService";
 import "./AccountPage.css";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
@@ -99,8 +102,9 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
   );
 }
 
-// Password Reset Component
+// Password Reset Component with E2E Re-encryption
 function PasswordResetCard({ token }: { token: string }) {
+  const cryptoCtx = useCrypto();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     currentPassword: "",
@@ -108,6 +112,7 @@ function PasswordResetCard({ token }: { token: string }) {
     confirmPassword: ""
   });
   const [loading, setLoading] = useState(false);
+  const [reEncryptProgress, setReEncryptProgress] = useState<ReEncryptionProgress | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [passwordStrength, setPasswordStrength] = useState<string[]>([]);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -130,6 +135,7 @@ function PasswordResetCard({ token }: { token: string }) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setMessage(null);
+    setReEncryptProgress(null);
 
     // Validation
     if (formData.newPassword !== formData.confirmPassword) {
@@ -149,6 +155,31 @@ function PasswordResetCard({ token }: { token: string }) {
 
     setLoading(true);
     try {
+      // E2E Encryption: Re-encrypt all data with new password key
+      if (cryptoCtx.encryptionSalt) {
+        setMessage({ type: "success", text: "Re-encrypting your data with new password..." });
+        
+        // Re-encrypt all data
+        await reEncryptAllData(
+          formData.currentPassword,
+          formData.newPassword,
+          cryptoCtx.encryptionSalt,
+          token,
+          (progress) => {
+            setReEncryptProgress(progress);
+            if (progress.phase === 'error') {
+              throw new Error(progress.error || 'Re-encryption failed');
+            }
+          }
+        );
+        
+        // Update crypto context with new key
+        const salt = saltFromBase64(cryptoCtx.encryptionSalt);
+        const newKey = await deriveKey(formData.newPassword, salt);
+        cryptoCtx.setKey(newKey, cryptoCtx.encryptionSalt);
+      }
+      
+      // Update password on server
       const response = await fetch(`${BASE_URL}/auth/change-password`, {
         method: "POST",
         headers: {
@@ -167,6 +198,7 @@ function PasswordResetCard({ token }: { token: string }) {
         setShowSuccessToast(true);
         setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
         setPasswordStrength([]);
+        setReEncryptProgress(null);
         setShowForm(false);
 
         // Auto-logout after 3 seconds
@@ -179,10 +211,11 @@ function PasswordResetCard({ token }: { token: string }) {
           text: data.error?.message || "Failed to update password"
         });
       }
-    } catch (e) {
-      setMessage({ type: "error", text: "Network error. Please try again." });
+    } catch (e: any) {
+      setMessage({ type: "error", text: e.message || "Network error. Please try again." });
     } finally {
       setLoading(false);
+      setReEncryptProgress(null);
     }
   };
 
@@ -250,6 +283,30 @@ function PasswordResetCard({ token }: { token: string }) {
           {message && (
             <div className={`message ${message.type}`}>
               {message.text}
+            </div>
+          )}
+          
+          {/* Re-encryption Progress */}
+          {reEncryptProgress && reEncryptProgress.phase !== 'complete' && reEncryptProgress.phase !== 'error' && (
+            <div className="reencrypt-progress">
+              <div className="progress-label">
+                {reEncryptProgress.phase === 'deriving_keys' && '🔑 Deriving encryption keys...'}
+                {reEncryptProgress.phase === 'fetching_data' && '📥 Fetching your data...'}
+                {reEncryptProgress.phase === 'decrypting' && `🔓 Decrypting ${reEncryptProgress.entityType || 'data'}...`}
+                {reEncryptProgress.phase === 're_encrypting' && `🔐 Re-encrypting ${reEncryptProgress.entityType || 'data'}...`}
+                {reEncryptProgress.phase === 'uploading' && `📤 Uploading ${reEncryptProgress.entityType || 'data'}...`}
+              </div>
+              {reEncryptProgress.total > 0 && (
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ width: `${(reEncryptProgress.current / reEncryptProgress.total) * 100}%` }}
+                  />
+                </div>
+              )}
+              <div className="progress-count">
+                {reEncryptProgress.current} / {reEncryptProgress.total}
+              </div>
             </div>
           )}
 

@@ -287,3 +287,40 @@
   font-size: 16px;
   font-weight: 600;
 }
+
+/* Re-encryption Progress */
+.reencrypt-progress {
+  background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.reencrypt-progress .progress-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e40af;
+  margin-bottom: 12px;
+}
+
+.reencrypt-progress .progress-bar {
+  height: 8px;
+  background: #dbeafe;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.reencrypt-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.reencrypt-progress .progress-count {
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}

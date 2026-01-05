@@ -4,6 +4,7 @@ import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SplashScreen } from "./components/SplashScreen";
 import { CryptoProvider } from "./contexts/CryptoContext";
+import { EncryptedApiProvider } from "./contexts/EncryptedApiContext";
 import "./design-system.css";
 import "./styles.css";
 
@@ -155,7 +156,9 @@ function Root() {
   return (
     <ErrorBoundary>
       <CryptoProvider>
-        <App />
+        <EncryptedApiProvider>
+          <App />
+        </EncryptedApiProvider>
       </CryptoProvider>
     </ErrorBoundary>
   );

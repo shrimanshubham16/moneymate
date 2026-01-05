@@ -1,4 +1,4 @@
-import { encryptString } from "./lib/crypto";
+import { encryptString, decryptString } from "./lib/crypto";
 
 export type LoginResponse = { access_token: string; user: { id: string; username: string }; encryption_salt?: string };
 
@@ -31,7 +31,96 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 // Check if we're using Supabase Edge Functions
 const isSupabaseEdgeFunction = BASE_URL.includes('supabase.co/functions');
 
-async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+// E2E Encryption: Sensitive fields that need encryption
+const SENSITIVE_FIELDS = new Set([
+  'name', 'amount', 'planned', 'description', 'justification',
+  'source', 'goal', 'limit', 'bill_amount', 'paid_amount',
+  'monthly_amount', 'total_amount', 'saved_amount', 'accumulated_funds'
+]);
+
+function isSensitiveField(field: string): boolean {
+  if (SENSITIVE_FIELDS.has(field)) return true;
+  for (const sf of SENSITIVE_FIELDS) {
+    if (field.endsWith(`_${sf}`) || field.startsWith(`${sf}_`)) return true;
+  }
+  return false;
+}
+
+// E2E Encryption: Encrypt object fields in parallel
+async function encryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return Promise.all(obj.map(item => encryptObjectFields(item, key)));
+  if (typeof obj !== 'object') return obj;
+  
+  const result: any = {};
+  const tasks: Promise<void>[] = [];
+  
+  for (const [field, value] of Object.entries(obj)) {
+    if (field.endsWith('_enc') || field.endsWith('_iv')) continue;
+    
+    if (isSensitiveField(field) && value !== null && value !== undefined) {
+      tasks.push(
+        encryptString(String(value), key).then(({ ciphertext, iv }) => {
+          result[`${field}_enc`] = ciphertext;
+          result[`${field}_iv`] = iv;
+          result[field] = value; // Keep plaintext for backward compat
+        })
+      );
+    } else if (typeof value === 'object') {
+      tasks.push(encryptObjectFields(value, key).then(enc => { result[field] = enc; }));
+    } else {
+      result[field] = value;
+    }
+  }
+  
+  await Promise.all(tasks);
+  return result;
+}
+
+// E2E Encryption: Decrypt object fields in parallel
+async function decryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return Promise.all(obj.map(item => decryptObjectFields(item, key)));
+  if (typeof obj !== 'object') return obj;
+  
+  const result: any = {};
+  const processed = new Set<string>();
+  const tasks: Promise<void>[] = [];
+  
+  for (const [field, value] of Object.entries(obj)) {
+    if (field.endsWith('_enc')) {
+      const orig = field.slice(0, -4);
+      const ivField = `${orig}_iv`;
+      if (obj[ivField]) {
+        processed.add(field);
+        processed.add(ivField);
+        tasks.push(
+          decryptString(value as string, obj[ivField] as string, key)
+            .then(dec => {
+              const num = parseFloat(dec);
+              result[orig] = isNaN(num) ? dec : num;
+            })
+            .catch(() => { if (obj[orig] !== undefined) result[orig] = obj[orig]; })
+        );
+      }
+    }
+  }
+  
+  for (const [field, value] of Object.entries(obj)) {
+    if (!processed.has(field) && !field.endsWith('_iv') && !field.endsWith('_enc')) {
+      if (typeof value === 'object') {
+        tasks.push(decryptObjectFields(value, key).then(dec => { result[field] = dec; }));
+      } else {
+        result[field] = value;
+      }
+    }
+  }
+  
+  await Promise.all(tasks);
+  return result;
+}
+
+async function request<T>(path: string, options: RequestInit = {}, token?: string, cryptoKey?: CryptoKey): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string> || {}),
@@ -51,13 +140,21 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     const body = await res.json().catch(() => ({}));
     throw new Error(body?.error?.message || `Request failed: ${res.status}`);
   }
-  return res.json() as Promise<T>;
+  const data = await res.json() as any;
+  
+  // E2E: Decrypt response if crypto key is provided
+  if (cryptoKey && data.data) {
+    data.data = await decryptObjectFields(data.data, cryptoKey);
+  }
+  
+  return data as T;
 }
 
 async function buildBody(data: any, cryptoKey?: CryptoKey): Promise<string> {
   if (!cryptoKey) return JSON.stringify(data);
-  const encrypted = await encryptString(JSON.stringify(data), cryptoKey);
-  return JSON.stringify({ payload: encrypted.ciphertext, iv: encrypted.iv });
+  // E2E: Encrypt sensitive fields
+  const encrypted = await encryptObjectFields(data, cryptoKey);
+  return JSON.stringify(encrypted);
 }
 
 export async function signup(username: string, password: string, encryptionSalt: string, recoveryKeyHash: string): Promise<LoginResponse> {
@@ -72,9 +169,9 @@ export async function fetchSalt(username: string): Promise<{ encryption_salt: st
   return request<{ encryption_salt: string }>(`/auth/salt/${encodeURIComponent(username)}`, { method: "GET" });
 }
 
-export async function fetchDashboard(token: string, asOf?: string) {
+export async function fetchDashboard(token: string, asOf?: string, cryptoKey?: CryptoKey) {
   const query = asOf ? `?today=${encodeURIComponent(asOf)}` : "";
-  return request<{ data: any }>(`/dashboard${query}`, { method: "GET" }, token);
+  return request<{ data: any }>(`/dashboard${query}`, { method: "GET" }, token, cryptoKey);
 }
 
 export async function createIncome(token: string, payload: { source: string; amount: number; frequency: string }, cryptoKey?: CryptoKey) {
@@ -146,8 +243,8 @@ export async function rejectRequest(token: string, id: string) {
   return request<{ data: any }>(`/sharing/requests/${id}/reject`, { method: "POST" }, token);
 }
 
-export async function fetchCreditCards(token: string) {
-  return request<{ data: any[] }>("/debts/credit-cards", { method: "GET" }, token);
+export async function fetchCreditCards(token: string, cryptoKey?: CryptoKey) {
+  return request<{ data: any[] }>("/debts/credit-cards", { method: "GET" }, token, cryptoKey);
 }
 
 // v1.2: Updated to include billingDate
@@ -185,17 +282,17 @@ export async function updateCreditCardBill(token: string, cardId: string, billAm
   }, token);
 }
 
-export async function fetchLoans(token: string) {
-  return request<{ data: any[] }>("/debts/loans", { method: "GET" }, token);
+export async function fetchLoans(token: string, cryptoKey?: CryptoKey) {
+  return request<{ data: any[] }>("/debts/loans", { method: "GET" }, token, cryptoKey);
 }
 
-export async function fetchActivity(token: string, startDate?: string, endDate?: string) {
+export async function fetchActivity(token: string, startDate?: string, endDate?: string, cryptoKey?: CryptoKey) {
   const params = new URLSearchParams();
   if (startDate) params.append('start_date', startDate);
   if (endDate) params.append('end_date', endDate);
   const queryString = params.toString();
   const url = `/activity${queryString ? `?${queryString}` : ''}`;
-  return request<{ data: any[] }>(url, { method: "GET" }, token);
+  return request<{ data: any[] }>(url, { method: "GET" }, token, cryptoKey);
 }
 
 export async function fetchAlerts(token: string) {
@@ -307,7 +404,7 @@ export async function updateUserPreferences(token: string, preferences: { monthS
 }
 
 // Health details
-export async function fetchHealthDetails(token: string, asOf?: string) {
+export async function fetchHealthDetails(token: string, asOf?: string, cryptoKey?: CryptoKey) {
   const query = asOf ? `?today=${encodeURIComponent(asOf)}` : "";
-  return request<{ data: any }>(`/health/details${query}`, { method: "GET" }, token);
+  return request<{ data: any }>(`/health/details${query}`, { method: "GET" }, token, cryptoKey);
 }
