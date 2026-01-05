@@ -247,7 +247,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
           // #region agent log
           const t0 = performance.now();
           // #endregion
-          const res = await fetchSharingMembers(token);
+          const res = await api.fetchSharingMembers(token);
           // #region agent log
           const t1 = performance.now();
           apiTimings.sharingMembers = t1 - t0;

@@ -156,9 +156,19 @@ function AuthForm({ onAuth, onForgotPassword }: { onAuth: (token: string) => voi
         transition={{ duration: 0.5 }}
       >
         <div className="auth-header">
-          <h1>FinFlow</h1>
+          <h1>🌿 FinFlow</h1>
           <p>Your Financial Companion</p>
         </div>
+        
+        {/* E2E Encryption Badge */}
+        <div className="privacy-badge">
+          <div className="badge-icon">🔐</div>
+          <div className="badge-content">
+            <strong>End-to-End Encrypted</strong>
+            <small>Your data encrypted on YOUR device. Only you can read it.</small>
+          </div>
+        </div>
+        
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label>Username</label>

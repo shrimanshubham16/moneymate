@@ -79,8 +79,8 @@ export function EmailVerificationModal({ email, devCode, onClose }: EmailVerific
           <p>We sent a 6-digit code to <strong>{email}</strong></p>
         </div>
 
-        {/* Dev mode: show code */}
-        {devCode && (
+        {/* Dev mode only: show code (hidden in production) */}
+        {devCode && import.meta.env.DEV && (
           <div className="dev-code-notice">
             <small>🔧 Dev mode: Your code is <strong>{devCode}</strong></small>
           </div>

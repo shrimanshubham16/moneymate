@@ -228,42 +228,99 @@
 }
 
 /* Privacy Section Styles */
-.privacy-summary {
-  background: #f0f9ff;
-  padding: 24px;
-  border-radius: 12px;
-  border-left: 4px solid #667eea;
+.privacy-hero {
+  background: linear-gradient(135deg, rgba(0, 230, 118, 0.1) 0%, rgba(102, 126, 234, 0.1) 100%);
+  border: 2px solid rgba(0, 230, 118, 0.3);
 }
 
-.privacy-summary > p {
-  font-size: 18px;
-  color: #1e40af;
-  margin-bottom: 20px;
-  font-weight: 500;
+.privacy-hero h2 {
+  color: #00c853 !important;
+}
+
+.privacy-summary {
+  padding: 24px;
+  border-radius: 12px;
+}
+
+.e2e-badge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.e2e-badge .badge-new {
+  background: linear-gradient(135deg, #00e676 0%, #00c853 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.e2e-badge h3 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 24px;
+}
+
+.e2e-tagline {
+  font-size: 18px !important;
+  color: #374151 !important;
+  margin-bottom: 24px !important;
+  line-height: 1.5 !important;
 }
 
 .privacy-points {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .privacy-point {
   display: flex;
-  align-items: center;
-  color: #1e40af;
+  align-items: flex-start;
+  color: #374151;
   font-size: 15px;
+  line-height: 1.5;
 }
 
-.privacy-coming-soon {
-  background: #fef3c7;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  color: #92400e;
-  font-size: 14px;
-  border-left: 3px solid #f59e0b;
+.privacy-comparison {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.privacy-comparison h4 {
+  margin: 0 0 16px 0;
+  color: #1f2937;
+}
+
+.privacy-comparison table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.privacy-comparison th,
+.privacy-comparison td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.privacy-comparison th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+.privacy-comparison td {
+  color: #6b7280;
 }
 
 .privacy-button {

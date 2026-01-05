@@ -17,7 +17,7 @@ const commitId = typeof __COMMIT_ID__ !== 'undefined' ? __COMMIT_ID__ : 'dev';
 
 export const VERSION = {
   major: 2,
-  minor: 0,
+  minor: 1,
   patch: 0,
   build: commitId, // Git commit ID (short SHA)
   
@@ -32,18 +32,18 @@ export const VERSION = {
   },
   
   // Release date
-  releaseDate: "Dec 31, 2025",
+  releaseDate: "Jan 6, 2026",
   
   // Release notes
   releaseNotes: [
-    "🚀 Major architecture upgrade - moved to Supabase",
-    "⚡ Improved load times with optimized PostgreSQL functions",
-    "🔐 E2E encryption infrastructure ready (activation coming soon)",
-    "📱 PWA support - install as app on your phone",
-    "🎨 Enhanced psychedelic loader animations",
-    "📊 Overspend Risk tracking (replaces Financial Discipline)",
-    "🔧 Health score consistency across all pages",
-    "🏠 Health categories section with improved styling"
+    "🔐 End-to-End Encryption - Your data encrypted on YOUR device",
+    "🛡️ Zero-Knowledge Privacy - We can't see your financial data",
+    "🔑 24-Word Recovery Key - Backup your encryption key",
+    "📧 Email Verification - Secure account recovery",
+    "🔄 Password Reset with Recovery Key",
+    "⚡ AES-256 Military-grade encryption",
+    "🎨 Privacy-first architecture",
+    "📱 PWA support - install as app on your phone"
   ]
 };
 

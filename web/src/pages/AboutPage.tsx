@@ -117,36 +117,66 @@ export function AboutPage() {
           </div>
         </section>
 
-        <section className="about-section">
-          <h2><FaShieldAlt style={{ marginRight: '8px', color: '#667eea' }} />Privacy & Security</h2>
+        <section className="about-section privacy-hero">
+          <h2><FaShieldAlt style={{ marginRight: '8px', color: '#00e676' }} />🔐 End-to-End Encryption</h2>
           <div className="privacy-summary">
-            <p>
-              <strong>Your privacy is our priority.</strong> FinFlow v2.0 runs on Supabase with enterprise-grade security.
+            <div className="e2e-badge">
+              <span className="badge-new">NEW in v2.1</span>
+              <h3>Your Data, Your Control</h3>
+            </div>
+            <p className="e2e-tagline">
+              <strong>Your financial data is encrypted on your device.</strong> Only you can read it — not even us.
             </p>
             <div className="privacy-points">
               <div className="privacy-point">
-                <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
-                <span>Passwords are securely hashed (SHA-256)</span>
+                <FaCheckCircle style={{ color: '#00e676', marginRight: '8px' }} />
+                <span><strong>Client-Side Encryption:</strong> Data encrypted before leaving your device</span>
+              </div>
+              <div className="privacy-point">
+                <FaCheckCircle style={{ color: '#00e676', marginRight: '8px' }} />
+                <span><strong>Zero-Knowledge:</strong> We can't see your income, expenses, or investments</span>
+              </div>
+              <div className="privacy-point">
+                <FaCheckCircle style={{ color: '#00e676', marginRight: '8px' }} />
+                <span><strong>24-Word Recovery Key:</strong> Your backup if you forget your password</span>
+              </div>
+              <div className="privacy-point">
+                <FaCheckCircle style={{ color: '#00e676', marginRight: '8px' }} />
+                <span><strong>AES-256 Encryption:</strong> Military-grade security standard</span>
               </div>
               <div className="privacy-point">
                 <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
-                <span>Row-Level Security: Only you can access your data</span>
-              </div>
-              <div className="privacy-point">
-                <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
-                <span>HTTPS encryption for all connections</span>
-              </div>
-              <div className="privacy-point">
-                <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
-                <span>Database hosted on Supabase (SOC2, HIPAA compliant)</span>
-              </div>
-              <div className="privacy-point">
-                <FaCheckCircle style={{ color: '#10b981', marginRight: '8px' }} />
-                <span>Same security level as Mint, YNAB, Personal Capital</span>
+                <span>HTTPS + Row-Level Security + SOC2 Infrastructure</span>
               </div>
             </div>
-            <div className="privacy-coming-soon">
-              <strong>🔐 Coming in v2.1:</strong> Full End-to-End Encryption — your data encrypted with your password before it leaves your device. Not even we can read it!
+            <div className="privacy-comparison">
+              <h4>How We Compare</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Feature</th>
+                    <th>Most Apps</th>
+                    <th>FinFlow</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Server can read your data</td>
+                    <td style={{color: '#ef4444'}}>✓ Yes</td>
+                    <td style={{color: '#00e676'}}>✗ No</td>
+                  </tr>
+                  <tr>
+                    <td>Data encrypted at rest</td>
+                    <td style={{color: '#f59e0b'}}>Sometimes</td>
+                    <td style={{color: '#00e676'}}>✓ Always</td>
+                  </tr>
+                  <tr>
+                    <td>End-to-End encrypted</td>
+                    <td style={{color: '#ef4444'}}>✗ No</td>
+                    <td style={{color: '#00e676'}}>✓ Yes</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
             <button 
               className="privacy-button"

@@ -205,3 +205,34 @@ body {
 .auth-forgot-password:hover {
   opacity: 1;
 }
+
+/* Privacy Badge on Auth Page */
+.privacy-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(0, 230, 118, 0.1) 0%, rgba(0, 176, 255, 0.1) 100%);
+  border: 1px solid rgba(0, 230, 118, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+}
+
+.privacy-badge .badge-icon {
+  font-size: 24px;
+}
+
+.privacy-badge .badge-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.privacy-badge .badge-content strong {
+  color: #00c853;
+  font-size: 14px;
+}
+
+.privacy-badge .badge-content small {
+  color: #64748b;
+  font-size: 11px;
+}

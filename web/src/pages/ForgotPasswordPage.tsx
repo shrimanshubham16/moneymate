@@ -158,7 +158,8 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
               <h2>Step 2: Verify & Reset</h2>
               <p>Enter your reset code, recovery key, and new password.</p>
               
-              {devCode && (
+              {/* Dev mode only: show code (hidden in production) */}
+              {devCode && import.meta.env.DEV && (
                 <div className="dev-code-notice">
                   🔧 Dev mode: Your reset code is <strong>{devCode}</strong>
                 </div>
