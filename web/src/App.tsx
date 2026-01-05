@@ -29,6 +29,7 @@ import { PreferencesPage } from "./pages/PreferencesPage";
 import { HealthDetailsPage } from "./pages/HealthDetailsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { LandingPage } from "./pages/LandingPage";
 import { Header } from "./components/Header";
 import { MaintenanceNotice } from "./components/MaintenanceNotice";
 import { RecoveryKeyModal } from "./components/RecoveryKeyModal";
@@ -40,11 +41,11 @@ import "./App.css";
 // Enable maintenance mode - set to false when migration is complete
 const MAINTENANCE_MODE = false;
 
-function AuthForm({ onAuth, onForgotPassword }: { onAuth: (token: string) => void; onForgotPassword: () => void }) {
+function AuthForm({ onAuth, onForgotPassword, onShowLanding }: { onAuth: (token: string) => void; onForgotPassword: () => void; onShowLanding: () => void }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"login" | "signup">("signup");
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<string[]>([]);
@@ -263,6 +264,14 @@ function AuthForm({ onAuth, onForgotPassword }: { onAuth: (token: string) => voi
           >
             {mode === "login" ? "Don't have an account? Sign Up" : "Already have an account? Login"}
           </button>
+          
+          <button
+            type="button"
+            onClick={onShowLanding}
+            className="auth-landing-link"
+          >
+            What is FinFlow?
+          </button>
         </form>
       </motion.div>
       
@@ -332,6 +341,7 @@ export default function App() {
   const cryptoCtx = useCrypto();
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showLanding, setShowLanding] = useState(false);
 
   const handleAuth = (newToken: string) => {
     localStorage.setItem("token", newToken);
@@ -359,6 +369,16 @@ export default function App() {
           >
             <AppRoutes token={token} onLogout={handleLogout} />
           </motion.div>
+        ) : showLanding ? (
+          <motion.div
+            key="landing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <LandingPage />
+          </motion.div>
         ) : showForgotPassword ? (
           <motion.div
             key="forgot"
@@ -377,7 +397,7 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <AuthForm onAuth={handleAuth} onForgotPassword={() => setShowForgotPassword(true)} />
+            <AuthForm onAuth={handleAuth} onForgotPassword={() => setShowForgotPassword(true)} onShowLanding={() => setShowLanding(true)} />
           </motion.div>
         )}
       </AnimatePresence>

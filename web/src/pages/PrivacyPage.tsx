@@ -1,8 +1,11 @@
 import { motion } from "framer-motion";
-import { FaShieldAlt, FaLock, FaUserShield, FaCheckCircle, FaTimesCircle, FaInfoCircle } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { FaShieldAlt, FaLock, FaUserShield, FaCheckCircle, FaTimesCircle, FaInfoCircle, FaKey, FaArrowLeft } from "react-icons/fa";
 import "./PrivacyPage.css";
 
 export function PrivacyPage() {
+    const navigate = useNavigate();
+    
     return (
         <div className="privacy-page">
             <motion.div
@@ -11,196 +14,203 @@ export function PrivacyPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
+                <button className="back-btn" onClick={() => navigate(-1)}>
+                    <FaArrowLeft /> Back
+                </button>
+                
                 <div className="privacy-header">
-                    <FaShieldAlt className="privacy-icon" />
-                    <h1>Your Privacy Matters</h1>
-                    <p>Transparency about how we protect your financial data</p>
+                    <div className="privacy-badge-hero">
+                        <span className="version-badge">v2.1</span>
+                        <FaShieldAlt className="privacy-icon" />
+                    </div>
+                    <h1>End-to-End Encrypted</h1>
+                    <p className="privacy-tagline">Your financial data is encrypted on YOUR device. Only you can read it — not even us.</p>
                 </div>
 
                 <div className="privacy-content">
+                    {/* E2E Encryption Hero */}
+                    <section className="privacy-section e2e-hero">
+                        <div className="e2e-visual">
+                            <div className="encryption-flow">
+                                <div className="flow-step">
+                                    <div className="flow-icon">📱</div>
+                                    <span>Your Device</span>
+                                </div>
+                                <div className="flow-arrow">
+                                    <FaLock className="lock-icon" />
+                                    <span>Encrypted</span>
+                                </div>
+                                <div className="flow-step">
+                                    <div className="flow-icon">☁️</div>
+                                    <span>Our Server</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="e2e-explanation">
+                            <h3>How It Works</h3>
+                            <ol>
+                                <li><strong>You enter data</strong> — income, expenses, investments</li>
+                                <li><strong>Your device encrypts it</strong> — using AES-256 with your password</li>
+                                <li><strong>Encrypted data sent to server</strong> — we only see scrambled text</li>
+                                <li><strong>Only your device can decrypt</strong> — when you log in with your password</li>
+                            </ol>
+                        </div>
+                    </section>
+
                     {/* What We Protect */}
                     <section className="privacy-section">
                         <h2>
-                            <FaLock /> What We Protect
+                            <FaLock /> What's Protected
                         </h2>
                         <div className="protection-grid">
                             <div className="protection-card">
-                                <FaUserShield className="card-icon" />
-                                <h3>Your Password</h3>
-                                <p>Never stored in plain text. Hashed using SHA-256 before storage.</p>
+                                <FaKey className="card-icon" />
+                                <h3>Your Financial Data</h3>
+                                <p>Income, expenses, investments — all encrypted before leaving your device.</p>
                             </div>
                             <div className="protection-card">
-                                <FaLock className="card-icon" />
-                                <h3>Your Data</h3>
-                                <p>Completely isolated per user. Only you can access your financial information.</p>
+                                <FaUserShield className="card-icon" />
+                                <h3>Your Password</h3>
+                                <p>Never stored. Used only to derive your encryption key on your device.</p>
                             </div>
                             <div className="protection-card">
                                 <FaShieldAlt className="card-icon" />
-                                <h3>Your Connection</h3>
-                                <p>HTTPS encryption protects all data in transit between your device and our server.</p>
+                                <h3>Your Recovery Key</h3>
+                                <p>24-word backup phrase. Only stored as a hash — we can't recreate it.</p>
                             </div>
                         </div>
                     </section>
 
-                    {/* Transparency */}
+                    {/* Zero Knowledge */}
+                    <section className="privacy-section zero-knowledge">
+                        <h2>
+                            <FaTimesCircle /> Zero-Knowledge Architecture
+                        </h2>
+                        <div className="zk-box">
+                            <div className="zk-item cannot">
+                                <h3>What We CANNOT See</h3>
+                                <ul>
+                                    <li><FaTimesCircle /> Your income amounts</li>
+                                    <li><FaTimesCircle /> Your expense details</li>
+                                    <li><FaTimesCircle /> Your investment values</li>
+                                    <li><FaTimesCircle /> Your credit card numbers</li>
+                                    <li><FaTimesCircle /> Your password</li>
+                                    <li><FaTimesCircle /> Your actual financial health</li>
+                                </ul>
+                            </div>
+                            <div className="zk-item can">
+                                <h3>What We CAN See</h3>
+                                <ul>
+                                    <li><FaCheckCircle /> Your username (for login)</li>
+                                    <li><FaCheckCircle /> Your email (for recovery)</li>
+                                    <li><FaCheckCircle /> Encrypted blobs (meaningless data)</li>
+                                    <li><FaCheckCircle /> Timestamps (when data was modified)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Technical Details */}
                     <section className="privacy-section">
                         <h2>
-                            <FaInfoCircle /> Transparency
+                            <FaInfoCircle /> Technical Details
                         </h2>
-                        <div className="transparency-box">
-                            <h3>v2.0 Privacy Level: Enterprise-Grade</h3>
-                            <p>
-                                <strong>Powered by Supabase with Row-Level Security</strong>
-                            </p>
-                            <p>
-                                Your data is hosted on Supabase (SOC2, HIPAA compliant). Here's how we protect it:
-                            </p>
-                            <ul className="transparency-list">
-                                <li>
-                                    <FaCheckCircle className="check-icon" />
-                                    <strong>Row-Level Security (RLS)</strong> - Database enforces that you can ONLY access YOUR data
-                                </li>
-                                <li>
-                                    <FaCheckCircle className="check-icon" />
-                                    <strong>No direct database access</strong> - Even developers access data through secure APIs
-                                </li>
-                                <li>
-                                    <FaCheckCircle className="check-icon" />
-                                    <strong>Data is isolated</strong> - Your data is tied to your unique user ID, completely separate from others
-                                </li>
-                                <li>
-                                    <FaCheckCircle className="check-icon" />
-                                    <strong>Passwords are hashed</strong> - SHA-256 encryption, impossible to reverse
-                                </li>
-                                <li>
-                                    <FaCheckCircle className="check-icon" />
-                                    <strong>E2E encryption ready</strong> - Infrastructure in place, activation coming in v2.1
-                                </li>
-                            </ul>
-                        </div>
-                    </section>
-
-                    {/* What We See */}
-                    <section className="privacy-section">
-                        <h2>What We Actually See</h2>
-                        <div className="see-grid">
-                            <div className="see-card see-yes">
-                                <FaCheckCircle className="card-icon" />
-                                <h3>We See</h3>
-                                <ul>
-                                    <li>Server logs (for debugging - no financial details)</li>
-                                    <li>Error messages (if something breaks)</li>
-                                    <li>Usage statistics (how many users, not who)</li>
-                                </ul>
+                        <div className="tech-grid">
+                            <div className="tech-card">
+                                <h4>AES-256-GCM</h4>
+                                <p>Military-grade encryption. Same standard used by banks and governments.</p>
                             </div>
-                            <div className="see-card see-no">
-                                <FaTimesCircle className="card-icon" />
-                                <h3>We DON'T See</h3>
-                                <ul>
-                                    <li>Your actual financial numbers (unless we specifically access the data file)</li>
-                                    <li>Your passwords (they're hashed)</li>
-                                    <li>Your login activity (not logged)</li>
-                                    <li>Your spending patterns</li>
-                                </ul>
+                            <div className="tech-card">
+                                <h4>PBKDF2</h4>
+                                <p>Password-Based Key Derivation with 100,000 iterations. Resistant to brute-force.</p>
                             </div>
-                        </div>
-                    </section>
-
-                    {/* Future Enhancements */}
-                    <section className="privacy-section">
-                        <h2>Privacy Roadmap</h2>
-                        <div className="roadmap-grid">
-                            <div className="roadmap-card completed">
-                                <div className="roadmap-badge">v2.0 ✓</div>
-                                <h3>Supabase Migration</h3>
-                                <p>Enterprise-grade database with Row-Level Security. Your data is cryptographically isolated.</p>
+                            <div className="tech-card">
+                                <h4>BIP39 Recovery</h4>
+                                <p>24-word mnemonic phrase for account recovery. Industry standard (Bitcoin, Ethereum).</p>
                             </div>
-                            <div className="roadmap-card">
-                                <div className="roadmap-badge">v2.1</div>
-                                <h3>End-to-End Encryption</h3>
-                                <p>Encrypt data on your device before sending. Even we (developers) cannot read your data.</p>
-                                <small>🔐 Infrastructure ready, activation coming soon!</small>
+                            <div className="tech-card">
+                                <h4>Client-Side Only</h4>
+                                <p>All encryption/decryption happens in your browser. Server never sees plaintext.</p>
                             </div>
                         </div>
                     </section>
 
                     {/* Comparison */}
                     <section className="privacy-section">
-                        <h2>Privacy Comparison</h2>
+                        <h2>How We Compare</h2>
                         <div className="comparison-table">
                             <table>
                                 <thead>
                                     <tr>
                                         <th>Feature</th>
-                                        <th>FinFlow v2.0</th>
+                                        <th>FinFlow v2.1</th>
                                         <th>Mint</th>
                                         <th>YNAB</th>
-                                        <th>1Password</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td>Row-Level Security</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
+                                        <td>End-to-End Encrypted</td>
+                                        <td className="yes">✅ Yes</td>
+                                        <td className="no">❌ No</td>
+                                        <td className="no">❌ No</td>
                                     </tr>
                                     <tr>
-                                        <td>Encrypted in transit</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
+                                        <td>Server Can Read Data</td>
+                                        <td className="yes">❌ No</td>
+                                        <td className="no">✅ Yes</td>
+                                        <td className="no">✅ Yes</td>
                                     </tr>
                                     <tr>
-                                        <td>Encrypted at rest</td>
-                                        <td>✅ Yes (Supabase)</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
+                                        <td>Zero-Knowledge</td>
+                                        <td className="yes">✅ Yes</td>
+                                        <td className="no">❌ No</td>
+                                        <td className="no">❌ No</td>
                                     </tr>
                                     <tr>
-                                        <td>End-to-end encryption</td>
-                                        <td>🔜 v2.1</td>
-                                        <td>❌ No</td>
-                                        <td>❌ No</td>
-                                        <td>✅ Yes</td>
+                                        <td>Recovery Key Backup</td>
+                                        <td className="yes">✅ 24-word phrase</td>
+                                        <td className="no">❌ No</td>
+                                        <td className="no">❌ No</td>
                                     </tr>
                                     <tr>
-                                        <td>SOC2/HIPAA Compliant</td>
-                                        <td>✅ Yes (Supabase)</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
-                                        <td>✅ Yes</td>
+                                        <td>Open Infrastructure</td>
+                                        <td className="yes">✅ Supabase</td>
+                                        <td className="no">Proprietary</td>
+                                        <td className="no">Proprietary</td>
                                     </tr>
                                 </tbody>
                             </table>
-                            <p className="table-note">
-                                FinFlow v2.0 now matches enterprise security standards. E2E encryption coming in v2.1!
-                            </p>
                         </div>
                     </section>
 
                     {/* What We Don't Do */}
                     <section className="privacy-section">
-                        <h2>What We DON'T Do</h2>
-                        <div className="dont-do-grid">
-                            <div className="dont-do-item">
-                                <FaTimesCircle className="dont-icon" />
+                        <h2>Our Promise</h2>
+                        <div className="promise-grid">
+                            <div className="promise-item">
+                                <FaTimesCircle className="promise-icon" />
                                 <span>We don't sell your data</span>
                             </div>
-                            <div className="dont-do-item">
-                                <FaTimesCircle className="dont-icon" />
+                            <div className="promise-item">
+                                <FaTimesCircle className="promise-icon" />
                                 <span>We don't share your data</span>
                             </div>
-                            <div className="dont-do-item">
-                                <FaTimesCircle className="dont-icon" />
-                                <span>We don't access your financial information</span>
+                            <div className="promise-item">
+                                <FaTimesCircle className="promise-icon" />
+                                <span>We can't read your data</span>
                             </div>
-                            <div className="dont-do-item">
-                                <FaTimesCircle className="dont-icon" />
-                                <span>We don't track your spending patterns</span>
+                            <div className="promise-item">
+                                <FaTimesCircle className="promise-icon" />
+                                <span>We don't track your behavior</span>
+                            </div>
+                            <div className="promise-item">
+                                <FaTimesCircle className="promise-icon" />
+                                <span>We don't show ads</span>
+                            </div>
+                            <div className="promise-item">
+                                <FaTimesCircle className="promise-icon" />
+                                <span>We don't monetize you</span>
                             </div>
                         </div>
                     </section>
@@ -209,13 +219,10 @@ export function PrivacyPage() {
                     <section className="privacy-section">
                         <h2>Questions?</h2>
                         <div className="contact-box">
-                            <p>If you have privacy concerns or questions:</p>
+                            <p>If you have privacy concerns or questions about our encryption:</p>
                             <a href="mailto:shriman.shubham@gmail.com" className="contact-link">
                                 <FaInfoCircle /> Contact Us
                             </a>
-                            <p className="contact-note">
-                                We're happy to explain our security measures and open to implementing additional privacy features.
-                            </p>
                         </div>
                     </section>
                 </div>
@@ -223,5 +230,3 @@ export function PrivacyPage() {
         </div>
     );
 }
-
-

@@ -88,6 +88,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 32px;
   width: 32px;
   height: 32px;
   background: #3b82f6;
@@ -98,14 +99,22 @@
   flex-shrink: 0;
 }
 
+.step > div {
+  flex: 1;
+  min-width: 0;
+}
+
 .step h4 {
   margin: 0 0 8px 0;
   color: #1f2937;
+  font-size: 16px;
 }
 
 .step p {
   margin: 0;
   color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .health-categories {
