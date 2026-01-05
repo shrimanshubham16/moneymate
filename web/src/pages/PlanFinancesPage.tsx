@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaMoneyBillWave, FaChartBar, FaChartLine, FaHandHoldingUsd } from "react-icons/fa";
 import { MdTrendingUp } from "react-icons/md";
-import { fetchDashboard, fetchCreditCards } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import "./PlanFinancesPage.css";
 
 interface PlanFinancesPageProps {
@@ -12,6 +12,7 @@ interface PlanFinancesPageProps {
 
 export function PlanFinancesPage({ token }: PlanFinancesPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export function PlanFinancesPage({ token }: PlanFinancesPageProps) {
 
   const loadData = async () => {
     try {
-      const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
       setData(res.data);
     } catch (e) {
       console.error("Failed to load data:", e);

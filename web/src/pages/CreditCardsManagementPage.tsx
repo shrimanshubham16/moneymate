@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
-import { getBillingAlerts, getCreditCardUsage } from "../api";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { ClientCache } from "../utils/cache";
@@ -97,7 +96,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   // v1.2: Load billing alerts
   const loadBillingAlerts = async () => {
     try {
-      const res = await getBillingAlerts(token);
+      const res = await api.getBillingAlerts(token);
       setBillingAlerts(res.data || []);
     } catch (e) {
       console.error("Failed to load billing alerts:", e);
@@ -120,7 +119,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   // v1.2: Load credit card usage
   const loadCardUsage = async (cardId: string) => {
     try {
-      const res = await getCreditCardUsage(token, cardId);
+      const res = await api.getCreditCardUsage(token, cardId);
       
       // Normalize snake_case to camelCase (defensive)
       const normalizedUsage = (res.data || []).map((u: any) => ({

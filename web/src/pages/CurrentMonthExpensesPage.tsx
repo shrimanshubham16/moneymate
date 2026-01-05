@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaHistory } from "react-icons/fa";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { fetchDashboard } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { ActivityHistoryModal } from "../components/ActivityHistoryModal";
@@ -15,6 +15,7 @@ interface CurrentMonthExpensesPageProps {
 
 export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
 
   const loadExpenses = async () => {
     try {
-      const res = await fetchDashboard(token, new Date().toISOString());  // v1.2: Use current date
+      const res = await api.fetchDashboard(token, new Date().toISOString());  // v1.2: Use current date
       const today = new Date();
       const expensesList: any[] = [];
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { fetchLoans } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./LoansPage.css";
 
@@ -11,6 +11,7 @@ interface LoansPageProps {
 
 export function LoansPage({ token }: LoansPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [loans, setLoans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,7 +21,7 @@ export function LoansPage({ token }: LoansPageProps) {
 
   const loadLoans = async () => {
     try {
-      const res = await fetchLoans(token);
+      const res = await api.fetchLoans(token);
       setLoans(res.data);
     } catch (e) {
       console.error("Failed to load loans:", e);

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
-import { getUserSubcategories, addUserSubcategory } from "../api";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ProgressBar } from "../components/ProgressBar";
@@ -63,7 +62,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   // v1.2: Load user subcategories
   const loadSubcategories = async () => {
     try {
-      const res = await getUserSubcategories(token);
+      const res = await api.getUserSubcategories(token);
       const subs = res.data || [];
       // Always ensure "Unspecified" is first in the list
       if (!subs.includes("Unspecified")) {
@@ -124,7 +123,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const handleAddSubcategory = async () => {
     if (actualForm.newSubcategory.trim()) {
       try {
-        const res = await addUserSubcategory(token, actualForm.newSubcategory.trim());
+        const res = await api.addUserSubcategory(token, actualForm.newSubcategory.trim());
         setUserSubcategories(res.data.subcategories);
         setActualForm({ 
           ...actualForm, 

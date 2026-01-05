@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { fetchSharingRequests, fetchSharingMembers, sendInvite, approveRequest, rejectRequest } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import "./SharingPage.css";
 
 interface SharingPageProps {
@@ -10,6 +10,7 @@ interface SharingPageProps {
 
 export function SharingPage({ token }: SharingPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [requests, setRequests] = useState<{ incoming: any[]; outgoing: any[] }>({ incoming: [], outgoing: [] });
   const [members, setMembers] = useState<{ members: any[]; accounts: any[] }>({ members: [], accounts: [] });
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -24,8 +25,8 @@ export function SharingPage({ token }: SharingPageProps) {
   const loadData = async () => {
     try {
       const [reqRes, memRes] = await Promise.all([
-        fetchSharingRequests(token),
-        fetchSharingMembers(token)
+        api.fetchSharingRequests(token),
+        api.fetchSharingMembers(token)
       ]);
       setRequests(reqRes.data);
       setMembers(memRes.data);
@@ -38,7 +39,7 @@ export function SharingPage({ token }: SharingPageProps) {
     e.preventDefault();
     try {
       // Always merge finances when sharing (simplified model)
-      await sendInvite(token, {
+      await api.sendInvite(token, {
         username: inviteForm.username,
         role: "viewer", // Role not used anymore, but backend still expects it
         merge_finances: true
@@ -53,7 +54,7 @@ export function SharingPage({ token }: SharingPageProps) {
 
   const handleApprove = async (id: string) => {
     try {
-      await approveRequest(token, id);
+      await api.approveRequest(token, id);
       await loadData();
     } catch (e: any) {
       alert(e.message);
@@ -62,7 +63,7 @@ export function SharingPage({ token }: SharingPageProps) {
 
   const handleReject = async (id: string) => {
     try {
-      await rejectRequest(token, id);
+      await api.rejectRequest(token, id);
       await loadData();
     } catch (e: any) {
       alert(e.message);

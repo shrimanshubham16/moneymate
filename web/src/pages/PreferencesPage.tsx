@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCog, FaCalendar, FaMoneyBillWave, FaClock, FaSave, FaExclamationTriangle } from "react-icons/fa";
-import { getUserPreferences, updateUserPreferences } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./PreferencesPage.css";
 
@@ -11,6 +11,7 @@ interface PreferencesPageProps {
 
 export function PreferencesPage({ token }: PreferencesPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preferences, setPreferences] = useState({
@@ -25,7 +26,7 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
 
   const loadPreferences = async () => {
     try {
-      const res = await getUserPreferences(token);
+      const res = await api.getUserPreferences(token);
       setPreferences(res.data);
     } catch (e) {
       console.error("Failed to load preferences:", e);
@@ -37,7 +38,7 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateUserPreferences(token, preferences);
+      await api.updateUserPreferences(token, preferences);
       alert("Preferences saved successfully! Your billing cycle will be updated.");
       navigate("/settings");
     } catch (e: any) {

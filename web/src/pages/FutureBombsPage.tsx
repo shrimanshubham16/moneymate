@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { fetchDashboard } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./FutureBombsPage.css";
 
@@ -11,6 +11,7 @@ interface FutureBombsPageProps {
 
 export function FutureBombsPage({ token }: FutureBombsPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [bombs, setBombs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,7 +21,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
 
   const loadBombs = async () => {
     try {
-      const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
       setBombs(res.data.futureBombs || []);
     } catch (e) {
       console.error("Failed to load future bombs:", e);

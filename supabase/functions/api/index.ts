@@ -3,6 +3,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendVerificationEmail, sendPasswordResetEmail } from './email.ts';
 
 // SHA256 hashing (matches Railway backend)
 async function hashPassword(password: string): Promise<string> {
@@ -336,16 +337,19 @@ serve(async (req) => {
       await supabase.from('constraint_scores').insert({ user_id: user.id, score: 0, tier: 'green' });
 
       // TODO: Send verification email (integrate with email service)
-      // For now, we'll return the code in development (remove in production!)
-      console.log(`[EMAIL_VERIFY] User ${username}, code: ${verificationCode}`);
+      // Send verification email if email provided
+      let devCode: string | undefined;
+      if (email) {
+        const emailResult = await sendVerificationEmail(email, verificationCode);
+        devCode = emailResult.devCode;
+      }
 
       const token = await createToken(user.id, user.username);
       return json({ 
         access_token: token, 
         user: { id: user.id, username: user.username, email: user.email, email_verified: false }, 
         encryption_salt: encryptionSalt,
-        // Include verification code in dev (remove in production)
-        _dev_verification_code: email ? verificationCode : undefined
+        ...(devCode ? { _dev_verification_code: devCode } : {})
       }, 201);
     }
     
@@ -408,10 +412,13 @@ serve(async (req) => {
         email_verification_expires: verificationExpires
       }).eq('id', user.id);
       
-      // TODO: Send verification email
-      console.log(`[EMAIL_VERIFY_RESEND] Email ${email}, code: ${verificationCode}`);
+      // Send verification email
+      const emailResult = await sendVerificationEmail(email, verificationCode);
       
-      return json({ message: 'Verification code sent', _dev_code: verificationCode });
+      return json({ 
+        message: 'Verification code sent', 
+        ...(emailResult.devCode ? { _dev_code: emailResult.devCode } : {})
+      });
     }
     
     // FORGOT PASSWORD - Step 1: Request reset (email + sends code)
@@ -445,10 +452,13 @@ serve(async (req) => {
         password_reset_expires: resetExpires
       }).eq('id', user.id);
       
-      // TODO: Send reset email
-      console.log(`[PASSWORD_RESET] Email ${email}, code: ${resetCode}`);
+      // Send reset email
+      const emailResult = await sendPasswordResetEmail(email, resetCode);
       
-      return json({ message: 'If email exists, a reset code will be sent', _dev_code: resetCode });
+      return json({ 
+        message: 'If email exists, a reset code will be sent', 
+        ...(emailResult.devCode ? { _dev_code: emailResult.devCode } : {})
+      });
     }
     
     // FORGOT PASSWORD - Step 2: Verify code + recovery key + set new password
@@ -650,12 +660,12 @@ serve(async (req) => {
         email_verification_expires: verificationExpires
       }).eq('id', userId);
       
-      // TODO: Send verification email
-      console.log(`[EMAIL_UPDATE] User ${userId}, email: ${email}, code: ${verificationCode}`);
+      // Send verification email
+      const emailResult = await sendVerificationEmail(email, verificationCode);
       
       return json({ 
         message: 'Email updated. Please verify your email.',
-        _dev_code: verificationCode 
+        ...(emailResult.devCode ? { _dev_code: emailResult.devCode } : {})
       });
     }
     

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaBell, FaExclamationTriangle, FaInfoCircle, FaCheckCircle } from "react-icons/fa";
 import { MdAccountBalanceWallet } from "react-icons/md";
-import { fetchAlerts } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import "./AlertsPage.css";
 
 interface AlertsPageProps {
@@ -12,6 +12,7 @@ interface AlertsPageProps {
 
 export function AlertsPage({ token }: AlertsPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +22,7 @@ export function AlertsPage({ token }: AlertsPageProps) {
 
   const loadAlerts = async () => {
     try {
-      const res = await fetchAlerts(token);
+      const res = await api.fetchAlerts(token);
       setAlerts(res.data || []);
     } catch (e) {
       console.error("Failed to load alerts:", e);

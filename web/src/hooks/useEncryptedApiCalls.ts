@@ -80,6 +80,12 @@ export function useEncryptedApiCalls() {
       baseApi.updateCreditCardBill(token, id, billAmount),
     resetCreditCardBilling: (token: string, id: string) => 
       baseApi.resetCreditCardBilling(token, id),
+    payCreditCard: (token: string, id: string, amount: number) =>
+      baseApi.payCreditCard(token, id, amount),
+    getBillingAlerts: (token: string) =>
+      baseApi.getBillingAlerts(token),
+    getCreditCardUsage: (token: string, cardId: string) =>
+      baseApi.getCreditCardUsage(token, cardId),
     
     // Loans
     fetchLoans: (token: string) => 
@@ -109,17 +115,23 @@ export function useEncryptedApiCalls() {
     fetchAlerts: (token: string) => 
       baseApi.fetchAlerts(token),
     
+    // Subcategories
+    getUserSubcategories: (token: string) =>
+      baseApi.getUserSubcategories(token),
+    addUserSubcategory: (token: string, subcategory: string) =>
+      baseApi.addUserSubcategory(token, subcategory),
+    
     // Sharing
-    fetchSharingRequests: (token: string) => 
+    fetchSharingRequests: (token: string) =>
       baseApi.fetchSharingRequests(token),
-    fetchSharingMembers: (token: string) => 
+    fetchSharingMembers: (token: string) =>
       baseApi.fetchSharingMembers(token),
-    sendInvite: (token: string, email: string) => 
-      baseApi.sendInvite(token, email),
-    approveRequest: (token: string, requestId: string) => 
-      baseApi.approveRequest(token, requestId),
-    rejectRequest: (token: string, requestId: string) => 
-      baseApi.rejectRequest(token, requestId),
+    sendInvite: (token: string, data: any) =>
+      baseApi.sendInvite(token, data),
+    approveRequest: (token: string, id: string) =>
+      baseApi.approveRequest(token, id),
+    rejectRequest: (token: string, id: string) =>
+      baseApi.rejectRequest(token, id),
     
     // Theme
     fetchThemeState: (token: string) => 

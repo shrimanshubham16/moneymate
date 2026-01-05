@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaLightbulb } from "react-icons/fa";
-import { fetchDashboard } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./SIPExpensesPage.css";
 
@@ -12,6 +12,7 @@ interface SIPExpensesPageProps {
 
 export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [sipExpenses, setSipExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +22,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
 
   const loadSIPExpenses = async () => {
     try {
-      const res = await fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
       const sips = (res.data.fixedExpenses || []).filter((exp: any) => exp.is_sip_flag);
       setSipExpenses(sips);
     } catch (e) {

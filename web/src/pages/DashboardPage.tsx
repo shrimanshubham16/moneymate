@@ -8,7 +8,6 @@ import {
 } from "react-icons/fa";
 import { MdAccountBalanceWallet, MdSavings, MdTrendingUp } from "react-icons/md";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
-import { fetchSharingMembers } from "../api";
 import { DashboardWidget } from "../components/DashboardWidget";
 import { HealthIndicator } from "../components/HealthIndicator";
 import { MatrixLoader } from "../components/MatrixLoader";
@@ -52,7 +51,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         api.fetchCreditCards(token),
         api.fetchLoans(token),
         api.fetchActivity(token),
-        fetchSharingMembers(token)
+        api.fetchSharingMembers(token)
       ]);
       
       // Update state with fresh data (seamless refresh)

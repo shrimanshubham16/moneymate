@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { fetchCreditCards, payCreditCard } from "../api";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./CreditCardsPage.css";
 
@@ -11,6 +11,7 @@ interface CreditCardsPageProps {
 
 export function CreditCardsPage({ token }: CreditCardsPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -23,7 +24,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
 
   const loadCards = async () => {
     try {
-      const res = await fetchCreditCards(token);
+      const res = await api.fetchCreditCards(token);
       setCards(res.data);
     } catch (e) {
       console.error("Failed to load cards:", e);
@@ -36,7 +37,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
     e.preventDefault();
     if (!selectedCard) return;
     try {
-      await payCreditCard(token, selectedCard, Number(paymentAmount));
+      await api.payCreditCard(token, selectedCard, Number(paymentAmount));
       setShowPaymentForm(false);
       setPaymentAmount("");
       await loadCards();
