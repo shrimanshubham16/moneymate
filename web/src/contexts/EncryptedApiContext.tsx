@@ -162,7 +162,7 @@ export function EncryptedApiProvider({ children }: { children: React.ReactNode }
     return decryptObject(data, key) as Promise<T>;
   };
   
-  const request = async <T>(
+  const request = async <T,>(
     path: string,
     options: RequestInit = {},
     body?: any,
@@ -239,19 +239,19 @@ export function useEncryptedApi() {
     decrypt,
     
     // Convenience methods
-    get: <T>(path: string, token?: string) => 
+    get: <T,>(path: string, token?: string) => 
       request<T>(path, { method: 'GET' }, undefined, token),
     
-    post: <T>(path: string, body: any, token?: string) => 
+    post: <T,>(path: string, body: any, token?: string) => 
       request<T>(path, { method: 'POST' }, body, token),
     
-    put: <T>(path: string, body: any, token?: string) => 
+    put: <T,>(path: string, body: any, token?: string) => 
       request<T>(path, { method: 'PUT' }, body, token),
     
-    patch: <T>(path: string, body: any, token?: string) => 
+    patch: <T,>(path: string, body: any, token?: string) => 
       request<T>(path, { method: 'PATCH' }, body, token),
     
-    delete: <T>(path: string, token?: string) => 
+    delete: <T,>(path: string, token?: string) => 
       request<T>(path, { method: 'DELETE' }, undefined, token),
   };
 }
