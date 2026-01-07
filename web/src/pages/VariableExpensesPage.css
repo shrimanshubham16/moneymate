@@ -1,3 +1,20 @@
+.actual-form input,
+.actual-form select,
+.actual-form textarea {
+  color: #00ff88;
+  background: #0b1020;
+  border: 1px solid #1f2937;
+  caret-color: #00ff88;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.actual-form input:focus,
+.actual-form select:focus,
+.actual-form textarea:focus {
+  outline: none;
+  border-color: #00ff88;
+  box-shadow: 0 0 0 3px rgba(0,255,136,0.25);
+}
 .variable-expenses-page {
   max-width: 1200px;
   margin: 0 auto;

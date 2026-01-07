@@ -1094,10 +1094,24 @@ serve(async (req) => {
       const { data: directIncomes } = await supabase.from('incomes').select('*').eq('user_id', userId);
       const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').eq('user_id', userId);
       const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').eq('user_id', userId);
-      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*');
+      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*').eq('user_id', userId);
       const { data: directInvestments } = await supabase.from('investments').select('*').eq('user_id', userId);
       const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').eq('user_id', userId);
       
+      // Normalize variable plans with actuals/actualTotal
+      const variablePlans = (directVariablePlans || []).map((plan: any) => {
+        const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === plan.id || a.planId === plan.id);
+        const actualTotal = actuals.reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+        return { ...plan, actuals, actualTotal };
+      });
+
+      // Normalize variable plans with actuals/actualTotal
+      const variablePlans = (directVariablePlans || []).map((plan: any) => {
+        const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === plan.id || a.planId === plan.id);
+        const actualTotal = actuals.reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+        return { ...plan, actuals, actualTotal };
+      });
+
       timings.dashboardData = Date.now() - t0;
       
       // Query 2: Constraint score
@@ -1501,6 +1515,21 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('variable_expense_actuals')
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
+      // Instrumentation
+      try {
+        await fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'api:addVariableActual',
+            message: 'Inserted variable actual',
+            data: { userId, planId, amount: body.amount, payment_mode: body.payment_mode, subcategory: body.subcategory },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            hypothesisId: 'P0-variable-actual'
+          })
+        });
+      } catch {}
       
       // If paid via credit card, update the card's current_expenses
       if (body.payment_mode === 'CreditCard' && body.credit_card_id) {

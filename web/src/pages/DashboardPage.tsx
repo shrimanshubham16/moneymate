@@ -44,6 +44,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [quickAddSubcategory, setQuickAddSubcategory] = useState("");
   const [quickAddCardId, setQuickAddCardId] = useState<string>("");
   const [funFact, setFunFact] = useState<string>("");
+  const [userSubcategories, setUserSubcategories] = useState<string[]>([]);
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const keepAliveIntervalRef = useRef<number | null>(null);
 
@@ -172,6 +173,11 @@ export function DashboardPage({ token }: DashboardPageProps) {
         setFunFact(facts[Math.floor(Math.random() * facts.length)]);
       }
     });
+    api.getUserSubcategories(token).then(res => {
+      const subs = res.data || [];
+      setUserSubcategories(subs.length ? subs : ["Unspecified"]);
+      if (!quickAddSubcategory && subs.length) setQuickAddSubcategory(subs[0]);
+    }).catch(() => setUserSubcategories(["Unspecified"]));
     
     // KEEP-ALIVE: Ping Edge Function every 4 minutes to prevent cold starts
     // Only runs while dashboard is mounted (user is active)
@@ -437,7 +443,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
     return (
       <div className="dashboard-page loader-shell">
         <div className="loading-orb" />
-        <div className="loading-text">Warming up your dashboard...</div>
+        <div className="loading-text">Warming up your dashboard... client-side compute for privacy.</div>
+        <div className="loading-text" style={{ fontSize: 13, opacity: 0.8 }}>Numbers stay on your device; this adds a brief load.</div>
         {funFact && (
           <div className="health-crawl">
             <div className="crawl-inner">
@@ -811,8 +818,12 @@ export function DashboardPage({ token }: DashboardPageProps) {
                 </div>
               )}
               <div className="form-row">
-                <label>Subcategory (optional)</label>
-                <input value={quickAddSubcategory} onChange={(e) => setQuickAddSubcategory(e.target.value)} />
+                <label>Subcategory</label>
+                <select value={quickAddSubcategory} onChange={(e) => setQuickAddSubcategory(e.target.value)}>
+                  {(userSubcategories.length ? userSubcategories : ["Unspecified"]).map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </div>
               <div className="form-row">
                 <label>Note (optional)</label>

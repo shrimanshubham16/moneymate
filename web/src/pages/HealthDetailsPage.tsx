@@ -191,7 +191,6 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       <div className="crawl-inner">
         <p>“In a galaxy not so far away, your finances are assembling...”</p>
         <p>{funFact}</p>
-        <p>Fun fact stream: refreshed every time you load.</p>
       </div>
     </div>
   );
@@ -200,7 +199,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     return (
       <div className="health-details-page">
         <div className="loading-orb" />
-        <div className="loading-text">Crunching your health score...</div>
+        <div className="loading-text">Crunching your health score... client-side for privacy.</div>
+        <div className="loading-subtext">We keep calculations on your device; this adds a small load time.</div>
         {loadingCrawl}
       </div>
     );
