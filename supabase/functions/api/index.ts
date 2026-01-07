@@ -1397,12 +1397,14 @@ serve(async (req) => {
         .insert(insertData)
         .select().single();
       if (e) return error(e.message, 500);
-      // Activity log with full details for display
-      const logName = body.source || '[encrypted]';
-      const logAmount = body.amount || data.amount || 0;
+      // Activity log with full details for display (include encrypted fields for E2E)
       await logActivity(userId, 'income', 'added income source', { 
-        name: logName, 
-        amount: logAmount,
+        name: body.source || '[encrypted]',
+        name_enc: body.source_enc,
+        name_iv: body.source_iv, 
+        amount: body.amount || data.amount || 0,
+        amount_enc: body.amount_enc,
+        amount_iv: body.amount_iv,
         frequency: body.frequency || 'monthly',
         encrypted: hasEncryption 
       });
@@ -1456,11 +1458,13 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('fixed_expenses')
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
-      const logName = body.name || '[encrypted]';
-      const logAmount = body.amount || data.amount || 0;
       await logActivity(userId, 'fixed_expense', 'added fixed expense', { 
-        name: logName, 
-        amount: logAmount,
+        name: body.name || '[encrypted]',
+        name_enc: body.name_enc,
+        name_iv: body.name_iv, 
+        amount: body.amount || data.amount || 0,
+        amount_enc: body.amount_enc,
+        amount_iv: body.amount_iv,
         frequency: body.frequency || 'monthly',
         category: body.category,
         isSip: body.is_sip || false,
@@ -1517,11 +1521,13 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('variable_expense_plans')
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
-      const logName = body.name || '[encrypted]';
-      const logPlanned = body.planned || data.planned || 0;
       await logActivity(userId, 'variable_expense_plan', 'added variable expense plan', { 
-        name: logName, 
-        planned: logPlanned,
+        name: body.name || '[encrypted]',
+        name_enc: body.name_enc,
+        name_iv: body.name_iv, 
+        planned: body.planned || data.planned || 0,
+        planned_enc: body.planned_enc,
+        planned_iv: body.planned_iv,
         category: body.category,
         encrypted: hasEncryption 
       });
@@ -1698,15 +1704,19 @@ serve(async (req) => {
         cardName = cardData?.name;
       }
       
-      // Use body.amount for activity log since data.amount may be 0 placeholder for encrypted data
+      // E2E: Include encrypted amount fields in activity so frontend can decrypt them
       await logActivity(userId, 'variable_expense', 'added actual expense', { 
         planName: plan?.name,
         category: plan?.category,
-        amount: body.amount || data.amount || 0, 
+        amount: body.amount || data.amount || 0,
+        amount_enc: body.amount_enc || data.amount_enc,
+        amount_iv: body.amount_iv || data.amount_iv,
         subcategory: body.subcategory || data.subcategory,
         paymentMode: body.payment_mode || data.payment_mode,
         creditCard: cardName,
-        justification: body.justification || data.justification 
+        justification: body.justification || data.justification,
+        justification_enc: body.justification_enc || data.justification_enc,
+        justification_iv: body.justification_iv || data.justification_iv
       });
       
       await invalidateUserCache(userId);
