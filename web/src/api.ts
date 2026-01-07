@@ -164,6 +164,22 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   // E2E: Decrypt response if crypto key is provided
   if (cryptoKey && data.data) {
     data.data = await decryptObjectFields(data.data, cryptoKey);
+    
+    // Post-decryption: Recalculate aggregate fields that were computed with placeholder values
+    // This is necessary because backend calculates actualTotal using amount=0 placeholders
+    if (data.data.variablePlans && Array.isArray(data.data.variablePlans)) {
+      data.data.variablePlans = data.data.variablePlans.map((plan: any) => {
+        if (plan.actuals && Array.isArray(plan.actuals)) {
+          // Recalculate actualTotal from decrypted amounts
+          const recalculatedTotal = plan.actuals.reduce((sum: number, actual: any) => {
+            const amount = parseFloat(actual.amount) || 0;
+            return sum + amount;
+          }, 0);
+          return { ...plan, actualTotal: recalculatedTotal };
+        }
+        return plan;
+      });
+    }
   }
   
   return data as T;

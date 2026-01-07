@@ -1698,14 +1698,15 @@ serve(async (req) => {
         cardName = cardData?.name;
       }
       
+      // Use body.amount for activity log since data.amount may be 0 placeholder for encrypted data
       await logActivity(userId, 'variable_expense', 'added actual expense', { 
         planName: plan?.name,
         category: plan?.category,
-        amount: data.amount, 
-        subcategory: data.subcategory,
-        paymentMode: data.payment_mode,
+        amount: body.amount || data.amount || 0, 
+        subcategory: body.subcategory || data.subcategory,
+        paymentMode: body.payment_mode || data.payment_mode,
         creditCard: cardName,
-        justification: data.justification 
+        justification: body.justification || data.justification 
       });
       
       await invalidateUserCache(userId);
