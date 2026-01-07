@@ -783,10 +783,16 @@ serve(async (req) => {
       const { data: incomes } = await supabase.from('incomes').select('*').eq('user_id', userId);
       const { data: fixedExpenses } = await supabase.from('fixed_expenses').select('*').eq('user_id', userId);
       const { data: variablePlans } = await supabase.from('variable_expense_plans').select('*').eq('user_id', userId);
-      const { data: variableActuals } = await supabase.from('variable_expense_actuals').select('*');
+      // FIX: Added user_id filter - was missing and fetching ALL users' actuals!
+      const { data: variableActuals } = await supabase.from('variable_expense_actuals').select('*').eq('user_id', userId);
       const { data: investments } = await supabase.from('investments').select('*').eq('user_id', userId);
       const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
       const { data: loans } = await supabase.from('loans').select('*').eq('user_id', userId);
+      
+      // #region agent log - DEBUG: Log health details raw data
+      console.log('[DEBUG_HEALTH] variablePlans count:', variablePlans?.length || 0);
+      console.log('[DEBUG_HEALTH] variableActuals count:', variableActuals?.length || 0);
+      // #endregion
       
       // Calculate totals
       const incomeItems = (incomes || []).map((i: any) => ({
@@ -805,10 +811,17 @@ serve(async (req) => {
       
       const variablePlanItems = (variablePlans || []).map((p: any) => {
         const actuals = (variableActuals || []).filter((a: any) => a.plan_id === p.id);
-        return { ...p, actuals, actualTotal: actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0) };
+        const calcActualTotal = actuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
+        // #region agent log - DEBUG: Health variable plan actual
+        console.log(`[DEBUG_HEALTH_VAR] Plan ${p.id} (${p.name}): ${actuals.length} actuals, actualTotal=${calcActualTotal}`);
+        // #endregion
+        return { ...p, actuals, actualTotal: calcActualTotal };
       });
       const totalVariablePlanned = variablePlanItems.reduce((sum: number, p: any) => sum + (p.planned || 0), 0);
       const totalVariableActual = variablePlanItems.reduce((sum: number, p: any) => sum + p.actualTotal, 0);
+      // #region agent log
+      console.log(`[DEBUG_HEALTH_VAR_TOTAL] totalVariablePlanned=${totalVariablePlanned}, totalVariableActual=${totalVariableActual}`);
+      // #endregion
       
       const activeInvestments = (investments || []).filter((i: any) => i.status === 'active');
       const totalInvestments = activeInvestments.reduce((sum: number, i: any) => sum + (i.monthly_amount || 0), 0);
@@ -1098,17 +1111,21 @@ serve(async (req) => {
       const { data: directInvestments } = await supabase.from('investments').select('*').eq('user_id', userId);
       const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').eq('user_id', userId);
       
-      // Normalize variable plans with actuals/actualTotal
+      // #region agent log - DEBUG: Log raw variable actuals for hypothesis B/C
+      console.log('[DEBUG_DASH] directVariablePlans count:', directVariablePlans?.length || 0);
+      console.log('[DEBUG_DASH] directVariableActuals count:', directVariableActuals?.length || 0);
+      if (directVariableActuals?.length) {
+        console.log('[DEBUG_DASH] Sample actual:', JSON.stringify(directVariableActuals[0]));
+      }
+      // #endregion
+      
+      // Normalize variable plans with actuals/actualTotal (REMOVED DUPLICATE)
       const variablePlans = (directVariablePlans || []).map((plan: any) => {
         const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === plan.id || a.planId === plan.id);
         const actualTotal = actuals.reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
-        return { ...plan, actuals, actualTotal };
-      });
-
-      // Normalize variable plans with actuals/actualTotal
-      const variablePlans = (directVariablePlans || []).map((plan: any) => {
-        const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === plan.id || a.planId === plan.id);
-        const actualTotal = actuals.reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+        // #region agent log - DEBUG: Log per-plan actuals
+        console.log(`[DEBUG_DASH] Plan ${plan.id} (${plan.name}): ${actuals.length} actuals, actualTotal=${actualTotal}`);
+        // #endregion
         return { ...plan, actuals, actualTotal };
       });
 
@@ -1272,6 +1289,10 @@ serve(async (req) => {
           paymentMode: a.payment_mode,
           creditCardId: a.credit_card_id
         }));
+        const calcActualTotal = actuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
+        // #region agent log - DEBUG: Log finalVariablePlans actualTotal calculation
+        console.log(`[DEBUG_FINAL] Plan ${plan.id} finalActualTotal=${calcActualTotal}, actuals.length=${actuals.length}`);
+        // #endregion
         return {
           id: plan.id,
           userId: plan.user_id,
@@ -1285,7 +1306,7 @@ serve(async (req) => {
           startDate: plan.start_date,
           endDate: plan.end_date,
           actuals,
-          actualTotal: actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0)
+          actualTotal: calcActualTotal
         };
       });
       

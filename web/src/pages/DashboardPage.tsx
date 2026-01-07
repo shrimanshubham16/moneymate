@@ -45,6 +45,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [quickAddCardId, setQuickAddCardId] = useState<string>("");
   const [funFact, setFunFact] = useState<string>("");
   const [userSubcategories, setUserSubcategories] = useState<string[]>([]);
+  const [newQuickSub, setNewQuickSub] = useState<string>("");
+  const [showQuickNewSub, setShowQuickNewSub] = useState(false);
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const keepAliveIntervalRef = useRef<number | null>(null);
 
@@ -819,11 +821,41 @@ export function DashboardPage({ token }: DashboardPageProps) {
               )}
               <div className="form-row">
                 <label>Subcategory</label>
-                <select value={quickAddSubcategory} onChange={(e) => setQuickAddSubcategory(e.target.value)}>
-                  {(userSubcategories.length ? userSubcategories : ["Unspecified"]).map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select value={quickAddSubcategory} onChange={(e) => setQuickAddSubcategory(e.target.value)} style={{ flex: 1 }}>
+                    {(userSubcategories.length ? userSubcategories : ["Unspecified"]).map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <button className="secondary-btn" onClick={() => setShowQuickNewSub(!showQuickNewSub)}>+ Add</button>
+                </div>
+                {showQuickNewSub && (
+                  <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                    <input
+                      value={newQuickSub}
+                      onChange={(e) => setNewQuickSub(e.target.value)}
+                      placeholder="New subcategory"
+                    />
+                    <button
+                      className="primary-btn"
+                      onClick={async () => {
+                        if (!newQuickSub.trim()) return;
+                        try {
+                          const res = await api.addUserSubcategory(token, newQuickSub.trim());
+                          const subs = res.data.subcategories || [];
+                          setUserSubcategories(subs);
+                          setQuickAddSubcategory(newQuickSub.trim());
+                          setNewQuickSub("");
+                          setShowQuickNewSub(false);
+                        } catch (err: any) {
+                          alert(err.message);
+                        }
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="form-row">
                 <label>Note (optional)</label>

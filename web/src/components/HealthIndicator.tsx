@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircle, FaLock, FaShieldAlt } from "react-icons/fa";
+import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircle, FaEye, FaEyeSlash } from "react-icons/fa";
 import "./HealthIndicator.css";
 
 type HealthCategory = "good" | "ok" | "not well" | "worrisome";
@@ -97,17 +97,16 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
             <HealthIcon size={32} color={theme.ring} />
             <span className="hud-category">{category.toUpperCase()}</span>
             <button className="hud-lock" onClick={(e) => { e.stopPropagation(); toggleHidden(); }}>
-              {isHidden ? <FaLock /> : <FaShieldAlt />}
+              {isHidden ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
           <div className="hud-score" style={{ color: theme.text }}>
             {isHidden ? "••••••" : `${isPositive ? "₹" : "-₹"}${displayAmount.toLocaleString("en-IN")}`}
           </div>
-          <div className="hud-subtext">Tap to {isHidden ? "reveal" : "hide"} · Privacy on-device</div>
         </div>
       </div>
 
-      <div className="health-message">{isHidden ? "Encrypted view · tap shield to reveal" : config.message}</div>
+      <div className="health-message">{config.message}</div>
     </motion.div>
   );
 }

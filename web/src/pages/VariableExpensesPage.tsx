@@ -50,7 +50,10 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
 
   const loadPlans = async () => {
     try {
-      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, new Date().toISOString());
+      // #region agent log - DEBUG: Log plans received from API
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:loadPlans',message:'plans received',data:{plansCount: (res.data.variablePlans || []).length, plans: (res.data.variablePlans || []).map((p: any) => ({id: p.id, name: p.name, planned: p.planned, actualTotal: p.actualTotal, actualsCount: (p.actuals || []).length}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       setPlans(res.data.variablePlans || []);
     } catch (e) {
       console.error("Failed to load plans:", e);
@@ -171,7 +174,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         creditCardId: actualForm.paymentMode === "CreditCard" ? actualForm.creditCardId : undefined
       };
       
-      const updatedPlans = plans.map(p => {
+      setPlans(plans => plans.map(p => {
         if (p.id === selectedPlanId) {
           return {
             ...p,
@@ -180,8 +183,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           };
         }
         return p;
-      });
-      setPlans(updatedPlans);
+      }));
       
       // Update credit card current expenses optimistically if applicable
       if (actualForm.paymentMode === "CreditCard" && actualForm.creditCardId) {

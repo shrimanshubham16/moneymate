@@ -195,13 +195,19 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     </div>
   );
 
+  const pageLoader = (
+    <div className="loader-shell">
+      <div className="loading-orb" />
+      <div className="loading-text">Crunching your health score... client-side for privacy.</div>
+      <div className="loading-subtext">We keep calculations on your device; this adds a small load time.</div>
+      {loadingCrawl}
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="health-details-page">
-        <div className="loading-orb" />
-        <div className="loading-text">Crunching your health score... client-side for privacy.</div>
-        <div className="loading-subtext">We keep calculations on your device; this adds a small load time.</div>
-        {loadingCrawl}
+        {pageLoader}
       </div>
     );
   }
