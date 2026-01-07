@@ -28,9 +28,9 @@ export function IncomePage({ token }: IncomePageProps) {
 
   const loadIncomes = async () => {
     try {
-      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, new Date().toISOString());
       setIncomes(res.data.incomes || []);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to load incomes:", e);
     } finally {
       setLoading(false);
@@ -40,11 +40,12 @@ export function IncomePage({ token }: IncomePageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.createIncome(token, {
+      const payload = {
         source: form.source,
         amount: Number(form.amount),
         frequency: form.frequency
-      });
+      };
+      await api.createIncome(token, payload);
       setShowForm(false);
       setForm({ source: "", amount: "", frequency: "monthly" });
       await loadIncomes();

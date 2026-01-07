@@ -22,8 +22,8 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
 
   const loadSIPExpenses = async () => {
     try {
-      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
-      const sips = (res.data.fixedExpenses || []).filter((exp: any) => exp.is_sip_flag);
+      const res = await api.fetchDashboard(token, new Date().toISOString());
+      const sips = (res.data.fixedExpenses || []).filter((exp: any) => exp.is_sip_flag || exp.isSipFlag);
       setSipExpenses(sips);
     } catch (e) {
       console.error("Failed to load SIP expenses:", e);

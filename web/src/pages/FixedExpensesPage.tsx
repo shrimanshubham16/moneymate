@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaMoneyBillWave, FaEdit, FaTrashAlt } from "react-icons/fa";
+import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -334,7 +334,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                   <span>₹{expense.amount.toLocaleString("en-IN")}</span>
                   <span>{expense.frequency}</span>
                   <span>{expense.category}</span>
-                  {expense.is_sip_flag && <StatusBadge status="active" size="small" label="SIP" icon="🔄" />}
+                  {expense.is_sip_flag && <StatusBadge status="active" size="small" label="SIP" icon={<FaSync size={12} />} />}
                   {expense.paid && <StatusBadge status="paid" size="small" />}
                   {/* Show accumulated funds for SIPs */}
                   {expense.is_sip_flag && (expense.accumulatedFunds || expense.accumulated_funds || 0) > 0 && (

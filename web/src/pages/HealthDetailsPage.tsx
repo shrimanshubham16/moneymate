@@ -27,22 +27,14 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
 
   const loadHealthDetails = async () => {
     try {
-      // Use new /health/details endpoint which returns backend's calculation
-      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022";
-      const [healthResRaw, dashRes, cardsRes, loansRes] = await Promise.all([
-        fetch(`${BASE_URL}/health/details`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
+      // Use the api module's fetchHealthDetails
+      const [healthRes, dashRes, cardsRes, loansRes] = await Promise.all([
+        api.fetchHealthDetails(token),
         api.fetchDashboard(token, new Date().toISOString()),
         api.fetchCreditCards(token),
         api.fetchLoans(token)
       ]);
 
-      if (!healthResRaw.ok) {
-        throw new Error("Failed to fetch health details");
-      }
-
-      const healthRes = await healthResRaw.json();
       const data = dashRes.data;
       const healthData = healthRes.data;
       
@@ -55,78 +47,109 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       console.log("Formula:", healthData.formula);
       console.log("Calculation:", healthData.calculation);
 
-      // Trust the backend's calculation completely!
-      // FIX: Health is now an object with { remaining, category }
-      const backendHealth = healthData.health.remaining;
-      const backendCategory = healthData.health.category;
+      // Backend's health calculation doesn't respect 'paid' status properly
+      // So we calculate the correct remaining on the frontend
+      const unpaidFixedExpenses = (data.fixedExpenses || []).filter((exp: any) => !exp.paid);
+      const unpaidInvestmentsForCalc = (data.investments || []).filter((inv: any) => inv.status === 'active' && !inv.paid);
+      
+      const unpaidFixedTotalForHealth = unpaidFixedExpenses.reduce((sum: number, exp: any) => {
+        const amount = parseFloat(exp.amount) || 0;
+        const monthly = exp.frequency === 'monthly' ? amount :
+          exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
+        return sum + monthly;
+      }, 0);
+      
+      const unpaidInvestmentsTotalForHealth = unpaidInvestmentsForCalc.reduce((sum: number, inv: any) => {
+        return sum + (parseFloat(inv.monthlyAmount) || 0);
+      }, 0);
+      
+      const variableTotalForHealth = healthData.obligations?.unpaidProratedVariable || 0;
+      const creditCardTotalForHealth = healthData.obligations?.totalCreditCardDue || 0;
+      const totalOutflowForHealth = unpaidFixedTotalForHealth + variableTotalForHealth + unpaidInvestmentsTotalForHealth + creditCardTotalForHealth;
+      
+      // Calculate correct remaining using frontend's accurate unpaid totals
+      const correctRemaining = (healthData.totalIncome || 0) - totalOutflowForHealth;
+      
+      // Determine category based on correct remaining
+      let correctCategory: string;
+      if (correctRemaining > 10000) correctCategory = "good";
+      else if (correctRemaining >= 0) correctCategory = "ok";
+      else if (correctRemaining >= -3000) correctCategory = "not_well";
+      else correctCategory = "worrisome";
 
-      // Determine health description and advice based on backend's category
+      // Determine health description and advice based on CORRECT category
       let description = "";
       let advice = "";
 
-      if (backendCategory === "good") {
+      if (correctCategory === "good") {
         description = "Excellent! You're in great financial shape with healthy savings.";
         advice = "Consider increasing your investments or building an emergency fund.";
-      } else if (backendCategory === "ok") {
+      } else if (correctCategory === "ok") {
         description = "You're doing okay, but there's room for improvement.";
         advice = "Try to reduce non-essential expenses and increase your income sources.";
-      } else if (backendCategory === "not_well") {
+      } else if (correctCategory === "not_well") {
         description = "Warning! You're running tight on finances this month.";
         advice = "Review your variable expenses and consider pausing some investments temporarily.";
-      } else if (backendCategory === "worrisome") {
+      } else if (correctCategory === "worrisome") {
         description = "Critical! You're significantly short on funds this month.";
         advice = "Immediate action needed: Cut non-essential expenses, consider emergency loans, or find additional income.";
       }
 
       setHealth({
-        category: backendCategory,
-        remaining: backendHealth,
+        category: correctCategory,
+        remaining: correctRemaining,
         description,
         advice
       });
 
-      // Use backend's breakdown data directly
+      // Use backend's data directly
       const breakdown = healthData.breakdown;
+      const obligations = healthData.obligations || {};
 
-      // For display purposes, still get item lists from dashboard data
-      // P0 FIX: Use correct field names from updated health calculation
+      // Reuse the already calculated unpaid items and totals
+      const unpaidInvestments = unpaidInvestmentsForCalc;
+      const unpaidFixedTotal = unpaidFixedTotalForHealth;
+      const unpaidInvestmentsTotal = unpaidInvestmentsTotalForHealth;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthDetailsPage:correctHealth',message:'Health page calc',data:{totalIncome:healthData.totalIncome,unpaidFixedTotal:unpaidFixedTotalForHealth,variableTotal:variableTotalForHealth,unpaidInvestmentsTotal:unpaidInvestmentsTotalForHealth,creditCardTotal:creditCardTotalForHealth,totalOutflow:totalOutflowForHealth,remaining:correctRemaining,category:correctCategory},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
+      
       setBreakdown({
         income: {
-          total: breakdown.totalIncome,
+          total: healthData.totalIncome || breakdown?.income?.total || 0,
           sources: data.incomes || []
         },
         expenses: {
           fixed: {
-            // Now uses totalFixed (all fixed expenses) instead of unpaidFixed
-            total: breakdown.obligations.totalFixed || breakdown.obligations.unpaidFixed || 0,
-            items: data.fixedExpenses || []
+            total: unpaidFixedTotal,  // Use calculated unpaid total, not backend's total
+            items: unpaidFixedExpenses
           },
           variable: {
-            total: breakdown.obligations.unpaidProratedVariable || breakdown.obligations.unpaidVariable || 0,
+            total: obligations.unpaidProratedVariable || breakdown?.expenses?.variable?.total || 0,
             items: data.variablePlans || []
           }
         },
         investments: {
-          // Now uses totalInvestments (all active) instead of unpaidInvestments
-          total: breakdown.obligations.totalInvestments || breakdown.obligations.unpaidInvestments || 0,
-          items: data.investments?.filter((inv: any) => inv.status === 'active') || []
+          total: unpaidInvestmentsTotal,  // Use calculated unpaid total
+          items: unpaidInvestments
         },
         debts: {
           creditCards: {
-            total: breakdown.obligations.unpaidCreditCards,
+            total: obligations.totalCreditCardDue || breakdown?.debts?.creditCards?.total || 0,
             items: cardsRes.data.filter((card: any) => {
-              const dueDate = new Date(card.dueDate);
-              const isCurrentMonth = dueDate.getMonth() === new Date().getMonth();
-              return isCurrentMonth && (card.billAmount - card.paidAmount) > 0;
+              const billAmount = card.billAmount || card.bill_amount || 0;
+              const paidAmount = card.paidAmount || card.paid_amount || 0;
+              return (billAmount - paidAmount) > 0;
             })
           },
           loans: {
-            total: loansRes.data.reduce((sum: number, loan: any) => sum + (loan.emi || 0), 0),
+            total: breakdown?.debts?.loans?.total || loansRes.data.reduce((sum: number, loan: any) => sum + (loan.emi || 0), 0),
             items: loansRes.data
           }
         },
-        totalOutflow: breakdown.totalObligations,
-        monthProgress: breakdown.monthProgress // FIX: Include monthProgress for variable expense calculations
+        totalOutflow: unpaidFixedTotal + (obligations.unpaidProratedVariable || 0) + unpaidInvestmentsTotal + (obligations.totalCreditCardDue || 0),
+        monthProgress: healthData.monthProgress || 0
       });
 
     } catch (e) {

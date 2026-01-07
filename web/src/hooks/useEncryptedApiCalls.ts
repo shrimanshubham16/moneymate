@@ -18,16 +18,16 @@ export function useEncryptedApiCalls() {
   
   return {
     // Dashboard
-    fetchDashboard: (token: string, asOf?: string) => 
-      baseApi.fetchDashboard(token, asOf, key || undefined),
+    fetchDashboard: (token: string, asOf?: string, view?: string) => 
+      baseApi.fetchDashboard(token, asOf, view, key || undefined),
     
     // Health
-    fetchHealthDetails: (token: string) => 
-      baseApi.fetchHealthDetails(token, key || undefined),
+    fetchHealthDetails: (token: string, asOf?: string) => 
+      baseApi.fetchHealthDetails(token, asOf, key || undefined),
     
     // Income
     fetchIncomes: (token: string) => 
-      baseApi.fetchDashboard(token, undefined, key || undefined).then(r => r.data?.incomes || []),
+      baseApi.fetchDashboard(token, undefined, undefined, key || undefined).then(r => r.data?.incomes || []),
     createIncome: (token: string, data: any) => 
       baseApi.createIncome(token, data, key || undefined),
     updateIncome: (token: string, id: string, data: any) => 
@@ -108,8 +108,8 @@ export function useEncryptedApiCalls() {
       baseApi.updateUserPreferences(token, prefs),
     
     // Activities
-    fetchActivity: (token: string) => 
-      baseApi.fetchActivity(token, key || undefined),
+    fetchActivity: (token: string, startDate?: string, endDate?: string) => 
+      baseApi.fetchActivity(token, startDate, endDate, key || undefined),
     
     // Alerts
     fetchAlerts: (token: string) => 

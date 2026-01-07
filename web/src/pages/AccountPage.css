@@ -324,3 +324,211 @@
   color: #64748b;
   text-align: center;
 }
+
+/* Security / Encryption Card */
+.security-card {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 2px solid #334155;
+  border-radius: 20px;
+  padding: 28px;
+  margin-bottom: 24px;
+  color: #f1f5f9;
+}
+
+.security-card .card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.security-card h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+}
+
+.encryption-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.encryption-status.enabled {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.encryption-status.disabled {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.encryption-info {
+  color: #cbd5e1;
+}
+
+.encryption-info p {
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+}
+
+.encryption-info ul {
+  margin: 0 0 16px 0;
+  padding-left: 24px;
+}
+
+.encryption-info li {
+  margin-bottom: 6px;
+  color: #94a3b8;
+}
+
+.recovery-reminder {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #fcd34d !important;
+  display: flex;
+  align-items: flex-start;
+}
+
+.encryption-enable p {
+  color: #94a3b8;
+  margin: 0 0 20px 0;
+}
+
+.enable-encryption-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.enable-encryption-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+}
+
+.password-prompt {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.password-prompt .prompt-info {
+  margin: 0 0 12px 0;
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.password-prompt input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #475569;
+  border-radius: 8px;
+  color: #f8fafc;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.password-prompt input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.password-prompt input::placeholder {
+  color: #64748b;
+}
+
+.password-prompt .error-message {
+  color: #f87171;
+  font-size: 14px;
+  margin: 0 0 12px 0;
+}
+
+.encryption-progress {
+  margin: 12px 0;
+}
+
+.encryption-progress p {
+  font-size: 14px;
+  color: #94a3b8;
+  margin: 0 0 8px 0;
+}
+
+.encryption-progress .progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.encryption-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #3b82f6);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.prompt-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.prompt-actions button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.prompt-actions button:first-child {
+  background: transparent;
+  border: 1px solid #475569;
+  color: #94a3b8;
+}
+
+.prompt-actions button:first-child:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.prompt-actions button.primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  color: white;
+}
+
+.prompt-actions button.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.prompt-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

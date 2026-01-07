@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { login, signup, fetchSalt } from "./api";
@@ -30,6 +30,7 @@ import { HealthDetailsPage } from "./pages/HealthDetailsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { LandingPage } from "./pages/LandingPage";
+import { RecoveryPage } from "./pages/RecoveryPage";
 import { Header } from "./components/Header";
 import { MaintenanceNotice } from "./components/MaintenanceNotice";
 import { RecoveryKeyModal } from "./components/RecoveryKeyModal";
@@ -41,10 +42,11 @@ import "./App.css";
 // Enable maintenance mode - set to false when migration is complete
 const MAINTENANCE_MODE = false;
 
-function AuthForm({ onAuth, onForgotPassword, onShowLanding }: { onAuth: (token: string) => void; onForgotPassword: () => void; onShowLanding: () => void }) {
+function AuthForm({ onAuth, onForgotPassword, onShowLanding, onRecovery }: { onAuth: (token: string) => void; onForgotPassword: () => void; onShowLanding: () => void; onRecovery: () => void }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -86,6 +88,11 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding }: { onAuth: (token:
           setLoading(false);
           return;
         }
+        if (password !== confirmPassword) {
+          setError("Passwords do not match");
+          setLoading(false);
+          return;
+        }
         
         const { b64: saltB64 } = generateSalt();
         encryptionSalt = saltB64;
@@ -93,7 +100,8 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding }: { onAuth: (token:
         const recoveryKeyHash = await hashRecoveryKey(newRecoveryKey);
         const res = await signup(username, password, encryptionSalt, recoveryKeyHash, email || undefined);
         const key = await deriveKey(password, saltFromBase64(encryptionSalt));
-        cryptoCtx.setKey(key, encryptionSalt);
+        await cryptoCtx.setKey(key, encryptionSalt);
+        console.log('[AUTH] Encryption key set for new user');
         
         // Show recovery key modal before completing auth
         setRecoveryKey(newRecoveryKey);
@@ -114,7 +122,7 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding }: { onAuth: (token:
           throw new Error("Encryption salt not found for user");
         }
         const key = await deriveKey(password, saltFromBase64(encryptionSalt));
-        cryptoCtx.setKey(key, encryptionSalt);
+        await cryptoCtx.setKey(key, encryptionSalt);
         onAuth(res.access_token);
       }
     } catch (err: any) {
@@ -159,6 +167,7 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding }: { onAuth: (token:
         <div className="auth-header">
           <h1>FinFlow</h1>
           <p>Your Financial Companion</p>
+          <small className="free-tagline">Free forever. Privacy-first.</small>
         </div>
         
         {/* E2E Encryption Badge */}
@@ -229,6 +238,19 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding }: { onAuth: (token:
               </div>
             )}
           </div>
+          {mode === "signup" && (
+            <div className="form-group">
+              <label>Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={8}
+                placeholder="••••••••"
+              />
+            </div>
+          )}
           {error && (
             <motion.div
               className="error-message"
@@ -254,6 +276,16 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding }: { onAuth: (token:
               className="auth-forgot-password"
             >
               Forgot password?
+            </button>
+          )}
+          
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={onRecovery}
+              className="auth-forgot-password"
+            >
+              Recover with recovery key
             </button>
           )}
           
@@ -342,6 +374,11 @@ export default function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showLanding, setShowLanding] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
+  
+  // Check if we have a token but no encryption key (browser was closed)
+  // In this case, we need the user to re-authenticate to restore the key
+  const needsReauth = token && !cryptoCtx.key && !cryptoCtx.isRestoring;
 
   const handleAuth = (newToken: string) => {
     localStorage.setItem("token", newToken);
@@ -354,6 +391,14 @@ export default function App() {
     cryptoCtx.clearKey();
     setToken(null);
   };
+  
+  // Force re-login if token exists but key is missing
+  useEffect(() => {
+    if (needsReauth) {
+      localStorage.removeItem("token");
+      setToken(null);
+    }
+  }, [needsReauth]);
 
   return (
     <BrowserRouter>
@@ -379,6 +424,16 @@ export default function App() {
           >
             <LandingPage />
           </motion.div>
+        ) : showRecovery ? (
+          <motion.div
+            key="recovery"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <RecoveryPage onBack={() => setShowRecovery(false)} />
+          </motion.div>
         ) : showForgotPassword ? (
           <motion.div
             key="forgot"
@@ -397,7 +452,12 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <AuthForm onAuth={handleAuth} onForgotPassword={() => setShowForgotPassword(true)} onShowLanding={() => setShowLanding(true)} />
+            <AuthForm 
+              onAuth={handleAuth} 
+              onForgotPassword={() => setShowForgotPassword(true)} 
+              onShowLanding={() => setShowLanding(true)}
+              onRecovery={() => setShowRecovery(true)}
+            />
           </motion.div>
         )}
       </AnimatePresence>

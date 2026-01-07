@@ -32,7 +32,7 @@ export async function deriveKey(
     },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
-    false,
+    true,  // extractable: true - allows key to be exported for sessionStorage
     ["encrypt", "decrypt"]
   );
 }

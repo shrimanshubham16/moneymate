@@ -17,16 +17,16 @@ export function LandingPage() {
           transition={{ duration: 0.6 }}
         >
           <div className="hero-badge">
-            <FaShieldAlt /> End-to-End Encrypted
+            <FaShieldAlt /> End-to-End Encrypted & 100% FREE
           </div>
           <h1>Your Finances,<br /><span className="gradient-text">Truly Private</span></h1>
           <p className="hero-subtitle">
             The only personal finance app where <strong>even we can't see your data</strong>.
-            Plan expenses, track investments, and stay financially healthy — all encrypted on your device.
+            Plan expenses, track investments, and stay financially healthy — all encrypted on your device, forever free.
           </p>
           <div className="hero-actions">
-            <button className="cta-primary" onClick={() => navigate("/")}>
-              Get Started Free <FaArrowRight />
+            <button className="cta-primary" onClick={() => window.location.href = "/"}>
+              Start Free — No Credit Card <FaArrowRight />
             </button>
             <button className="cta-secondary" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
               Learn More
@@ -270,6 +270,38 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing (Free forever) */}
+      <section className="pricing-section">
+        <motion.div
+          className="section-header"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <h2>Free. Forever.</h2>
+          <p>No trials, no paywalls, no ads.</p>
+        </motion.div>
+        <div className="pricing-grid">
+          <div className="pricing-card competitor">
+            <h3>Others</h3>
+            <ul>
+              <li><FaTimes className="icon-no" /> Paywalls after trial</li>
+              <li><FaTimes className="icon-no" /> Data sold/used for ads</li>
+              <li><FaTimes className="icon-no" /> Limited features</li>
+            </ul>
+          </div>
+          <div className="pricing-card finflow">
+            <div className="recommended-badge">Free Forever</div>
+            <h3>FinFlow</h3>
+            <ul>
+              <li><FaCheckCircle className="icon-yes" /> ₹0 forever</li>
+              <li><FaCheckCircle className="icon-yes" /> No ads, no upsells</li>
+              <li><FaCheckCircle className="icon-yes" /> Full features unlocked</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="cta-section">
         <motion.div
@@ -280,7 +312,7 @@ export function LandingPage() {
         >
           <h2>Ready for Private Finance?</h2>
           <p>Join the few who truly own their financial data</p>
-          <button className="cta-primary large" onClick={() => navigate("/")}>
+          <button className="cta-primary large" onClick={() => window.location.href = "/"}>
             Start Free — Forever <FaArrowRight />
           </button>
           <p className="cta-note">No credit card required • Your data stays yours</p>

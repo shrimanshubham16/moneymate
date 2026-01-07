@@ -12,7 +12,9 @@ const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'noreply@finflow.app';
 const FROM_NAME = Deno.env.get('FROM_NAME') || 'FinFlow';
 const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'production';
 
-async function sendVerificationEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string }> {
+const POSTMARK_TOKEN = Deno.env.get('POSTMARK_TOKEN');
+
+async function sendVerificationEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string; error?: string }> {
   const subject = 'Verify your FinFlow email';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 32px; border-radius: 12px;">
@@ -40,15 +42,33 @@ async function sendVerificationEmail(to: string, code: string): Promise<{ succes
       return { success: response.ok || response.status === 202 };
     } catch (e) {
       console.error('[EMAIL_ERROR]', e);
-      return { success: false };
+      return { success: false, error: 'SendGrid send failed' };
     }
-  } else {
+  } else if (IS_PRODUCTION && POSTMARK_TOKEN) {
+    try {
+      const response = await fetch('https://api.postmarkapp.com/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
+        body: JSON.stringify({
+          From: FROM_EMAIL,
+          To: to,
+          Subject: subject,
+          HtmlBody: html,
+        })
+      });
+      return { success: response.ok };
+    } catch (e) {
+      console.error('[EMAIL_ERROR_POSTMARK]', e);
+      return { success: false, error: 'Postmark send failed' };
+    }
+  } else if (!IS_PRODUCTION) {
     console.log(`[EMAIL_DEV] Verification email to ${to}, code: ${code}`);
     return { success: true, devCode: code };
   }
+  return { success: false, error: 'Email provider not configured' };
 }
 
-async function sendPasswordResetEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string }> {
+async function sendPasswordResetEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string; error?: string }> {
   const subject = 'Reset your FinFlow password';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 32px; border-radius: 12px;">
@@ -77,12 +97,30 @@ async function sendPasswordResetEmail(to: string, code: string): Promise<{ succe
       return { success: response.ok || response.status === 202 };
     } catch (e) {
       console.error('[EMAIL_ERROR]', e);
-      return { success: false };
+      return { success: false, error: 'SendGrid send failed' };
     }
-  } else {
+  } else if (IS_PRODUCTION && POSTMARK_TOKEN) {
+    try {
+      const response = await fetch('https://api.postmarkapp.com/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
+        body: JSON.stringify({
+          From: FROM_EMAIL,
+          To: to,
+          Subject: subject,
+          HtmlBody: html,
+        })
+      });
+      return { success: response.ok };
+    } catch (e) {
+      console.error('[EMAIL_ERROR_POSTMARK]', e);
+      return { success: false, error: 'Postmark send failed' };
+    }
+  } else if (!IS_PRODUCTION) {
     console.log(`[EMAIL_DEV] Password reset email to ${to}, code: ${code}`);
     return { success: true, devCode: code };
   }
+  return { success: false, error: 'Email provider not configured' };
 }
 
 // SHA256 hashing (matches Railway backend)
@@ -421,6 +459,10 @@ serve(async (req) => {
       let devCode: string | undefined;
       if (email) {
         const emailResult = await sendVerificationEmail(email, verificationCode);
+        if (!emailResult.success) {
+          console.error('[EMAIL_SEND_FAILED]', emailResult.error || 'unknown');
+          return error('Failed to send verification email. Please try again later.', 502);
+        }
         devCode = emailResult.devCode;
       }
 
@@ -494,6 +536,10 @@ serve(async (req) => {
       
       // Send verification email
       const emailResult = await sendVerificationEmail(email, verificationCode);
+      if (!emailResult.success) {
+        console.error('[EMAIL_SEND_FAILED]', emailResult.error || 'unknown');
+        return error('Failed to send verification email. Please try again later.', 502);
+      }
       
       return json({ 
         message: 'Verification code sent', 
@@ -534,6 +580,10 @@ serve(async (req) => {
       
       // Send reset email
       const emailResult = await sendPasswordResetEmail(email, resetCode);
+      if (!emailResult.success) {
+        console.error('[EMAIL_SEND_FAILED]', emailResult.error || 'unknown');
+        return error('Failed to send reset email. Please try again later.', 502);
+      }
       
       return json({ 
         message: 'If email exists, a reset code will be sent', 
@@ -593,6 +643,44 @@ serve(async (req) => {
       return json({ 
         message: 'Password reset successfully. Please log in with your new password.',
         encryption_salt: user.encryption_salt 
+      });
+    }
+
+    // RECOVER WITH RECOVERY KEY (no email, no code)
+    if (path === '/auth/recover-with-key' && method === 'POST') {
+      const { username, recoveryKey, newPassword } = await req.json();
+      if (!username || !recoveryKey || !newPassword) return error('Username, recovery key, and new password required');
+      if (newPassword.length < 8) return error('Password must be at least 8 characters');
+
+      const { data: user, error: userErr } = await supabase
+        .from('users')
+        .select('id, recovery_key_hash, encryption_salt, password_hash')
+        .eq('username', username)
+        .single();
+      if (userErr || !user) return error('User not found', 404);
+
+      const encoder = new TextEncoder();
+      const recoveryData = encoder.encode(recoveryKey.trim().toLowerCase());
+      const recoveryHashBuffer = await crypto.subtle.digest('SHA-256', recoveryData);
+      const recoveryHashArray = Array.from(new Uint8Array(recoveryHashBuffer));
+      const recoveryHashB64 = btoa(String.fromCharCode(...recoveryHashArray));
+
+      if (recoveryHashB64 !== user.recovery_key_hash) {
+        return error('Invalid recovery key. Please check your 24-word recovery phrase.');
+      }
+
+      const newPasswordHash = await hashPassword(newPassword);
+      await supabase.from('users').update({
+        password_hash: newPasswordHash,
+        failed_login_attempts: 0,
+        account_locked_until: null
+      }).eq('id', user.id);
+
+      const token = await createToken(user.id, username);
+      return json({
+        message: 'Password reset via recovery key successful',
+        access_token: token,
+        encryption_salt: user.encryption_salt
       });
     }
 
@@ -691,7 +779,134 @@ serve(async (req) => {
 
     // HEALTH DETAILS - Full health calculation with breakdown
     if (path === '/health/details' && method === 'GET') {
-      const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
+      // Direct queries to bypass potentially broken RPC
+      const { data: incomes } = await supabase.from('incomes').select('*').eq('user_id', userId);
+      const { data: fixedExpenses } = await supabase.from('fixed_expenses').select('*').eq('user_id', userId);
+      const { data: variablePlans } = await supabase.from('variable_expense_plans').select('*').eq('user_id', userId);
+      const { data: variableActuals } = await supabase.from('variable_expense_actuals').select('*');
+      const { data: investments } = await supabase.from('investments').select('*').eq('user_id', userId);
+      const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
+      const { data: loans } = await supabase.from('loans').select('*').eq('user_id', userId);
+      
+      // Calculate totals
+      const incomeItems = (incomes || []).map((i: any) => ({
+        ...i,
+        monthlyEquivalent: i.frequency === 'monthly' ? i.amount : 
+          i.frequency === 'quarterly' ? i.amount / 3 : i.amount / 12
+      }));
+      const totalIncome = incomeItems.reduce((sum: number, i: any) => sum + i.monthlyEquivalent, 0);
+      
+      const fixedExpenseItems = (fixedExpenses || []).map((e: any) => ({
+        ...e,
+        monthlyEquivalent: e.frequency === 'monthly' ? e.amount :
+          e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12
+      }));
+      const totalFixedExpenses = fixedExpenseItems.reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
+      
+      const variablePlanItems = (variablePlans || []).map((p: any) => {
+        const actuals = (variableActuals || []).filter((a: any) => a.plan_id === p.id);
+        return { ...p, actuals, actualTotal: actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0) };
+      });
+      const totalVariablePlanned = variablePlanItems.reduce((sum: number, p: any) => sum + (p.planned || 0), 0);
+      const totalVariableActual = variablePlanItems.reduce((sum: number, p: any) => sum + p.actualTotal, 0);
+      
+      const activeInvestments = (investments || []).filter((i: any) => i.status === 'active');
+      const totalInvestments = activeInvestments.reduce((sum: number, i: any) => sum + (i.monthly_amount || 0), 0);
+      
+      const creditCardItems = (creditCards || []).map((c: any) => ({
+        ...c,
+        remaining: Math.max(0, (c.bill_amount || 0) - (c.paid_amount || 0))
+      }));
+      const totalCreditCardDue = creditCardItems.reduce((sum: number, c: any) => sum + c.remaining, 0);
+      
+      const totalLoanEmi = (loans || []).reduce((sum: number, l: any) => sum + (l.emi || 0), 0);
+      
+      // Calculate month progress FIRST (needed for proration)
+      const today = new Date();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const monthProgress = today.getDate() / daysInMonth;
+      const remainingDaysRatio = 1 - monthProgress;
+      
+      // Calculate prorated variable expenses (for remaining days of month)
+      const totalVariableProrated = totalVariablePlanned * remainingDaysRatio;
+      const effectiveVariable = Math.max(totalVariableActual, totalVariableProrated);
+      
+      // Calculate remaining (available funds)
+      const totalExpenses = totalFixedExpenses + effectiveVariable + totalInvestments + totalCreditCardDue;
+      const remaining = totalIncome - totalExpenses;
+      
+      // Determine category - MUST match PostgreSQL calculate_full_health function
+      // Good: Remaining > ₹10,000
+      // OK: Remaining >= 0 (but <= 10,000)
+      // Not Well: Short by ₹1 - ₹3,000 (remaining is -3000 to -1)
+      // Worrisome: Short by > ₹3,000 (remaining < -3000)
+      let category: string;
+      if (remaining > 10000) {
+        category = 'good';
+      } else if (remaining >= 0) {
+        category = 'ok';
+      } else if (remaining >= -3000) {
+        category = 'not_well';
+      } else {
+        category = 'worrisome';
+      }
+      
+      const healthData = {
+        health: {
+          remaining: Math.round(remaining),
+          category
+        },
+        formula: "Income - (Fixed + Prorated Variable + Investments + CreditCards)",
+        calculation: `${Math.round(totalIncome)} - (${Math.round(totalFixedExpenses)} + ${Math.round(effectiveVariable)} + ${Math.round(totalInvestments)} + ${Math.round(totalCreditCardDue)}) = ${Math.round(remaining)}`,
+        monthProgress,
+        // Structure expected by frontend
+        totalIncome: Math.round(totalIncome),
+        obligations: {
+          totalFixed: Math.round(totalFixedExpenses),
+          unpaidFixed: Math.round(totalFixedExpenses),
+          unpaidProratedVariable: Math.round(effectiveVariable),
+          totalVariablePlanned: Math.round(totalVariablePlanned),
+          totalVariableProrated: Math.round(totalVariableProrated),
+          unpaidVariable: Math.round(totalVariableActual),
+          totalInvestments: Math.round(totalInvestments),
+          unpaidInvestments: Math.round(totalInvestments),
+          totalCreditCardDue: Math.round(totalCreditCardDue)
+        },
+        breakdown: {
+          income: {
+            total: Math.round(totalIncome),
+            items: incomeItems
+          },
+          expenses: {
+            fixed: {
+              total: Math.round(totalFixedExpenses),
+              items: fixedExpenseItems
+            },
+            variable: {
+              total: Math.round(effectiveVariable),
+              planned: Math.round(totalVariablePlanned),
+              prorated: Math.round(totalVariableProrated),
+              actual: Math.round(totalVariableActual),
+              items: variablePlanItems
+            },
+            investments: {
+              total: Math.round(totalInvestments),
+              items: activeInvestments
+            }
+          },
+          debts: {
+            creditCards: {
+              total: Math.round(totalCreditCardDue),
+              items: creditCardItems
+            },
+            loans: {
+              total: Math.round(totalLoanEmi),
+              items: loans || []
+            }
+          }
+        }
+      };
+      
       return json({ data: healthData });
     }
     
@@ -787,6 +1002,61 @@ serve(async (req) => {
       return json({ message: 'Password updated successfully' });
     }
 
+    // ENABLE user encryption
+    if (path === '/user/enable-encryption' && method === 'POST') {
+      let body;
+      try {
+        body = await req.json();
+      } catch (e) {
+        console.error('[ENABLE_ENCRYPTION] Failed to parse request body:', e);
+        return error('Invalid request body');
+      }
+      
+      const { encryption_salt, recovery_key_hash, password } = body;
+      console.log('[ENABLE_ENCRYPTION] Received request for user:', userId);
+      console.log('[ENABLE_ENCRYPTION] Has salt:', !!encryption_salt, 'Has hash:', !!recovery_key_hash, 'Has password:', !!password);
+      
+      if (!encryption_salt || !recovery_key_hash || !password) {
+        return error('Salt, recovery key hash, and password required');
+      }
+      
+      // Verify password
+      const { data: currentUser, error: userErr } = await supabase
+        .from('users')
+        .select('password_hash, encryption_salt')
+        .eq('id', userId)
+        .single();
+      
+      console.log('[ENABLE_ENCRYPTION] User lookup:', { found: !!currentUser, hasPasswordHash: !!currentUser?.password_hash, error: userErr?.message });
+      
+      if (userErr || !currentUser) return error('User not found', 404);
+      
+      // Check if already encrypted
+      if (currentUser.encryption_salt) {
+        return error('Encryption is already enabled for this account');
+      }
+      
+      // If no password hash stored, user might be using Supabase Auth directly
+      if (!currentUser.password_hash) {
+        console.log('[ENABLE_ENCRYPTION] No password_hash found - user may need to set password first');
+        return error('Please set a password in your account settings first');
+      }
+      
+      const valid = await verifyPassword(password, currentUser.password_hash);
+      console.log('[ENABLE_ENCRYPTION] Password verification:', valid);
+      if (!valid) return error('Password is incorrect');
+      
+      // Update user with encryption settings
+      const { error: updateErr } = await supabase.from('users').update({
+        encryption_salt,
+        recovery_key_hash
+      }).eq('id', userId);
+      
+      if (updateErr) return error('Failed to enable encryption');
+      
+      return json({ message: 'Encryption enabled successfully' });
+    }
+
     // DASHBOARD
     if (path === '/dashboard' && method === 'GET') {
       // P0 FIX: Check and reset monthly payments if new month has started
@@ -818,7 +1088,16 @@ serve(async (req) => {
       
       // Query 1: Dashboard data
       const t0 = Date.now();
-      const { data } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
+      const { data, error: rpcError } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
+      
+      // WORKAROUND: Direct queries to bypass broken RPC function
+      const { data: directIncomes } = await supabase.from('incomes').select('*').eq('user_id', userId);
+      const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').eq('user_id', userId);
+      const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').eq('user_id', userId);
+      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*');
+      const { data: directInvestments } = await supabase.from('investments').select('*').eq('user_id', userId);
+      const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').eq('user_id', userId);
+      
       timings.dashboardData = Date.now() - t0;
       
       // Query 2: Constraint score
@@ -826,9 +1105,68 @@ serve(async (req) => {
       const { data: constraint } = await supabase.from('constraint_scores').select('*').eq('user_id', userId).single();
       timings.constraintScore = Date.now() - t1;
       
-      // Query 3: Health calculation
+      // Query 2.5: Credit cards (needed for health calc)
+      const { data: directCreditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
+      
+      // Query 3: Health calculation - INLINE to match /health/details exactly
       const t2 = Date.now();
-      const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
+      const today = new Date();
+      
+      // Calculate health using same logic as /health/details endpoint
+      const incomeItems = (directIncomes || []).map((i: any) => ({
+        monthlyEquivalent: i.frequency === 'monthly' ? i.amount : 
+          i.frequency === 'quarterly' ? i.amount / 3 : i.amount / 12
+      }));
+      const calcTotalIncome = incomeItems.reduce((sum: number, i: any) => sum + i.monthlyEquivalent, 0);
+      
+      const fixedItems = (directFixedExpenses || []).map((e: any) => ({
+        monthlyEquivalent: e.frequency === 'monthly' ? e.amount :
+          e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12
+      }));
+      const calcTotalFixed = fixedItems.reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
+      
+      const calcTotalVariablePlanned = (directVariablePlans || []).reduce((sum: number, p: any) => sum + (p.planned || 0), 0);
+      const calcTotalVariableActual = (directVariablePlans || []).reduce((sum: number, p: any) => {
+        const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === p.id);
+        return sum + actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+      }, 0);
+      
+      const activeInv = (directInvestments || []).filter((i: any) => i.status === 'active');
+      const calcTotalInvestments = activeInv.reduce((sum: number, i: any) => sum + (i.monthly_amount || 0), 0);
+      
+      const calcTotalCreditCard = (directCreditCards || []).reduce((sum: number, c: any) => 
+        sum + Math.max(0, (c.bill_amount || 0) - (c.paid_amount || 0)), 0);
+      
+      // Calculate month progress for proration
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const monthProgress = today.getDate() / daysInMonth;
+      const remainingDaysRatio = 1 - monthProgress;
+      
+      // Prorated variable expenses
+      const calcVariableProrated = calcTotalVariablePlanned * remainingDaysRatio;
+      const calcEffectiveVariable = Math.max(calcTotalVariableActual, calcVariableProrated);
+      
+      // Final remaining
+      const calcRemaining = calcTotalIncome - (calcTotalFixed + calcEffectiveVariable + calcTotalInvestments + calcTotalCreditCard);
+      
+      // Category - must match /health/details exactly
+      let calcCategory: string;
+      if (calcRemaining > 10000) {
+        calcCategory = 'good';
+      } else if (calcRemaining >= 0) {
+        calcCategory = 'ok';
+      } else if (calcRemaining >= -3000) {
+        calcCategory = 'not_well';
+      } else {
+        calcCategory = 'worrisome';
+      }
+      
+      const healthData = {
+        health: {
+          remaining: Math.round(calcRemaining),
+          category: calcCategory
+        }
+      };
       timings.healthCalc = Date.now() - t2;
       
       // Query 4: Payment status - P0 FIX: Use billing period month, not calendar month
@@ -839,7 +1177,7 @@ serve(async (req) => {
         .select('month_start_day').eq('user_id', userId).single();
       const monthStartDay = prefs?.month_start_day || 1;
       
-      const today = new Date();
+      // Note: 'today' already defined above for health calc
       let billingMonthStart: Date;
       if (today.getDate() >= monthStartDay) {
         billingMonthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
@@ -863,25 +1201,124 @@ serve(async (req) => {
         paymentStatus[`${p.entity_type}:${p.entity_id}`] = true;
       });
       
-      // Format response
-      const variablePlans = (data?.variablePlans || []).map((plan: any) => {
-        const actuals = (data?.variableActuals || []).filter((a: any) => a.planId === plan.id);
-        return { ...plan, actuals, actualTotal: actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0) };
+      // Format response using DIRECT QUERIES (bypassing broken RPC function)
+      
+      // Map incomes
+      const finalIncomes = (directIncomes || []).map((i: any) => ({
+        id: i.id,
+        userId: i.user_id,
+        source: i.name,
+        source_enc: i.source_enc,
+        source_iv: i.source_iv,
+        amount: i.amount,
+        amount_enc: i.amount_enc,
+        amount_iv: i.amount_iv,
+        frequency: i.frequency,
+        category: i.category,
+        startDate: i.start_date,
+        endDate: i.end_date
+      }));
+      
+      // Map fixed expenses
+      const finalFixedExpenses = (directFixedExpenses || []).map((e: any) => ({
+        id: e.id,
+        userId: e.user_id,
+        name: e.name,
+        name_enc: e.name_enc,
+        name_iv: e.name_iv,
+        amount: e.amount,
+        amount_enc: e.amount_enc,
+        amount_iv: e.amount_iv,
+        frequency: e.frequency,
+        category: e.category,
+        startDate: e.start_date,
+        endDate: e.end_date,
+        is_sip_flag: e.is_sip || e.is_sip_flag || false,
+        isSipFlag: e.is_sip || e.is_sip_flag || false,
+        accumulated_funds: e.accumulated_funds || 0,
+        accumulated_funds_enc: e.accumulated_funds_enc,
+        accumulated_funds_iv: e.accumulated_funds_iv,
+        paid: paymentStatus[`fixed_expense:${e.id}`] || false
+      }));
+      
+      // Map variable plans with actuals
+      const finalVariablePlans = (directVariablePlans || []).map((plan: any) => {
+        const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === plan.id).map((a: any) => ({
+          id: a.id,
+          planId: a.plan_id,
+          userId: a.user_id,
+          amount: a.amount,
+          amount_enc: a.amount_enc,
+          amount_iv: a.amount_iv,
+          incurredAt: a.incurred_at,
+          justification: a.justification,
+          justification_enc: a.justification_enc,
+          justification_iv: a.justification_iv,
+          subcategory: a.subcategory,
+          paymentMode: a.payment_mode,
+          creditCardId: a.credit_card_id
+        }));
+        return {
+          id: plan.id,
+          userId: plan.user_id,
+          name: plan.name,
+          name_enc: plan.name_enc,
+          name_iv: plan.name_iv,
+          planned: plan.planned,
+          planned_enc: plan.planned_enc,
+          planned_iv: plan.planned_iv,
+          category: plan.category,
+          startDate: plan.start_date,
+          endDate: plan.end_date,
+          actuals,
+          actualTotal: actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0)
+        };
       });
-
+      
+      // Map investments
+      const finalInvestments = (directInvestments || []).map((i: any) => ({
+        id: i.id,
+        userId: i.user_id,
+        name: i.name,
+        name_enc: i.name_enc,
+        name_iv: i.name_iv,
+        goal: i.goal,
+        goal_enc: i.goal_enc,
+        goal_iv: i.goal_iv,
+        monthlyAmount: i.monthly_amount,
+        monthly_amount_enc: i.monthly_amount_enc,
+        monthly_amount_iv: i.monthly_amount_iv,
+        status: i.status,
+        accumulated_funds: i.accumulated_funds || 0,
+        accumulated_funds_enc: i.accumulated_funds_enc,
+        accumulated_funds_iv: i.accumulated_funds_iv,
+        startDate: i.start_date,
+        paid: paymentStatus[`investment:${i.id}`] || false
+      }));
+      
+      // Map future bombs
+      const finalFutureBombs = (directFutureBombs || []).map((fb: any) => ({
+        id: fb.id,
+        userId: fb.user_id,
+        name: fb.name,
+        name_enc: fb.name_enc,
+        name_iv: fb.name_iv,
+        totalAmount: fb.total_amount,
+        total_amount_enc: fb.total_amount_enc,
+        total_amount_iv: fb.total_amount_iv,
+        savedAmount: fb.saved_amount,
+        saved_amount_enc: fb.saved_amount_enc,
+        saved_amount_iv: fb.saved_amount_iv,
+        targetDate: fb.target_date,
+        status: fb.status
+      }));
+      
       const responseData = {
-        incomes: data?.incomes || [],
-        fixedExpenses: (data?.fixedExpenses || []).map((e: any) => ({ 
-          ...e, 
-          is_sip_flag: e.isSipFlag,
-          paid: paymentStatus[`fixed_expense:${e.id}`] || false 
-        })),
-        variablePlans,
-        investments: (data?.investments || []).map((i: any) => ({ 
-          ...i, 
-          paid: paymentStatus[`investment:${i.id}`] || false 
-        })),
-        futureBombs: data?.futureBombs || [],
+        incomes: finalIncomes,
+        fixedExpenses: finalFixedExpenses,
+        variablePlans: finalVariablePlans,
+        investments: finalInvestments,
+        futureBombs: finalFutureBombs,
         health: healthData?.health || { remaining: 0, category: 'ok' },
         constraintScore: constraint ? {
           score: constraint.score,
@@ -905,11 +1342,29 @@ serve(async (req) => {
     // INCOMES
     if (path === '/planning/income' && method === 'POST') {
       const body = await req.json();
+      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
+      const hasEncryption = body.source_enc && body.source_iv;
+      const insertData: any = { 
+        user_id: userId, 
+        // Use plaintext if provided, else placeholder for E2E
+        name: body.source || (hasEncryption ? '[encrypted]' : null), 
+        amount: body.amount ?? (body.amount_enc ? 0 : null), 
+        frequency: body.frequency, 
+        category: 'employment' 
+      };
+      // Store encrypted versions if provided
+      if (body.source_enc) insertData.source_enc = body.source_enc;
+      if (body.source_iv) insertData.source_iv = body.source_iv;
+      if (body.amount_enc) insertData.amount_enc = body.amount_enc;
+      if (body.amount_iv) insertData.amount_iv = body.amount_iv;
+      
       const { data, error: e } = await supabase.from('incomes')
-        .insert({ user_id: userId, name: body.source, amount: body.amount, frequency: body.frequency, category: 'employment' })
+        .insert(insertData)
         .select().single();
       if (e) return error(e.message, 500);
-      await logActivity(userId, 'income', 'added income source', { name: data.name, amount: data.amount, frequency: data.frequency });
+      // Activity log uses placeholder for encrypted data
+      const logName = body.source || '[encrypted]';
+      await logActivity(userId, 'income', 'added income source', { name: logName, encrypted: hasEncryption });
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
@@ -920,6 +1375,12 @@ serve(async (req) => {
       if (body.source) updates.name = body.source;
       if (body.amount) updates.amount = body.amount;
       if (body.frequency) updates.frequency = body.frequency;
+      // E2E: Include encrypted fields if provided
+      if (body.source_enc) updates.source_enc = body.source_enc;
+      if (body.source_iv) updates.source_iv = body.source_iv;
+      if (body.amount_enc) updates.amount_enc = body.amount_enc;
+      if (body.amount_iv) updates.amount_iv = body.amount_iv;
+      
       const { data, error: e } = await supabase.from('incomes').update(updates).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       return json({ data });
@@ -936,11 +1397,26 @@ serve(async (req) => {
     // FIXED EXPENSES
     if (path === '/planning/fixed-expenses' && method === 'POST') {
       const body = await req.json();
+      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
+      const hasEncryption = body.name_enc && body.name_iv;
+      const insertData: any = { 
+        user_id: userId, 
+        name: body.name || (hasEncryption ? '[encrypted]' : null), 
+        amount: body.amount ?? (body.amount_enc ? 0 : null), 
+        frequency: body.frequency, 
+        category: body.category, 
+        is_sip: body.is_sip_flag 
+      };
+      if (body.name_enc) insertData.name_enc = body.name_enc;
+      if (body.name_iv) insertData.name_iv = body.name_iv;
+      if (body.amount_enc) insertData.amount_enc = body.amount_enc;
+      if (body.amount_iv) insertData.amount_iv = body.amount_iv;
+      
       const { data, error: e } = await supabase.from('fixed_expenses')
-        .insert({ user_id: userId, name: body.name, amount: body.amount, frequency: body.frequency, category: body.category, is_sip: body.is_sip_flag })
-        .select().single();
+        .insert(insertData).select().single();
       if (e) return error(e.message, 500);
-      await logActivity(userId, 'fixed_expense', 'added fixed expense', { name: data.name, amount: data.amount, category: data.category, frequency: data.frequency });
+      const logName = body.name || '[encrypted]';
+      await logActivity(userId, 'fixed_expense', 'added fixed expense', { name: logName, encrypted: hasEncryption });
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
@@ -953,6 +1429,12 @@ serve(async (req) => {
       if (body.frequency) updates.frequency = body.frequency;
       if (body.category) updates.category = body.category;
       if (body.is_sip_flag !== undefined) updates.is_sip = body.is_sip_flag;
+      // E2E: Include encrypted fields if provided
+      if (body.name_enc) updates.name_enc = body.name_enc;
+      if (body.name_iv) updates.name_iv = body.name_iv;
+      if (body.amount_enc) updates.amount_enc = body.amount_enc;
+      if (body.amount_iv) updates.amount_iv = body.amount_iv;
+      
       const { data, error: e } = await supabase.from('fixed_expenses').update(updates).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       return json({ data });
@@ -969,11 +1451,25 @@ serve(async (req) => {
     // VARIABLE EXPENSES
     if (path === '/planning/variable-expenses' && method === 'POST') {
       const body = await req.json();
+      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
+      const hasEncryption = body.name_enc && body.name_iv;
+      const insertData: any = { 
+        user_id: userId, 
+        name: body.name || (hasEncryption ? '[encrypted]' : null), 
+        planned: body.planned ?? (body.planned_enc ? 0 : null), 
+        category: body.category, 
+        start_date: body.start_date 
+      };
+      if (body.name_enc) insertData.name_enc = body.name_enc;
+      if (body.name_iv) insertData.name_iv = body.name_iv;
+      if (body.planned_enc) insertData.planned_enc = body.planned_enc;
+      if (body.planned_iv) insertData.planned_iv = body.planned_iv;
+      
       const { data, error: e } = await supabase.from('variable_expense_plans')
-        .insert({ user_id: userId, name: body.name, planned: body.planned, category: body.category, start_date: body.start_date })
-        .select().single();
+        .insert(insertData).select().single();
       if (e) return error(e.message, 500);
-      await logActivity(userId, 'variable_expense_plan', 'added variable expense plan', { name: data.name, planned: data.planned, category: data.category });
+      const logName = body.name || '[encrypted]';
+      await logActivity(userId, 'variable_expense_plan', 'added variable expense plan', { name: logName, encrypted: hasEncryption });
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
@@ -985,9 +1481,25 @@ serve(async (req) => {
       const { data: plan } = await supabase.from('variable_expense_plans')
         .select('name, category, planned').eq('id', planId).single();
       
+      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
+      const hasEncryption = body.amount_enc && body.amount_iv;
+      const insertData: any = { 
+        user_id: userId, 
+        plan_id: planId, 
+        amount: body.amount ?? (hasEncryption ? 0 : null), 
+        incurred_at: body.incurred_at, 
+        justification: body.justification || (body.justification_enc ? '[encrypted]' : null), 
+        subcategory: body.subcategory, 
+        payment_mode: body.payment_mode, 
+        credit_card_id: body.credit_card_id 
+      };
+      if (body.amount_enc) insertData.amount_enc = body.amount_enc;
+      if (body.amount_iv) insertData.amount_iv = body.amount_iv;
+      if (body.justification_enc) insertData.justification_enc = body.justification_enc;
+      if (body.justification_iv) insertData.justification_iv = body.justification_iv;
+      
       const { data, error: e } = await supabase.from('variable_expense_actuals')
-        .insert({ user_id: userId, plan_id: planId, amount: body.amount, incurred_at: body.incurred_at, justification: body.justification, subcategory: body.subcategory, payment_mode: body.payment_mode, credit_card_id: body.credit_card_id })
-        .select().single();
+        .insert(insertData).select().single();
       if (e) return error(e.message, 500);
       
       // If paid via credit card, update the card's current_expenses
@@ -1141,9 +1653,24 @@ serve(async (req) => {
     if (path === '/planning/investments' && method === 'POST') {
       const body = await req.json();
       console.log(`[INVESTMENT_CREATE] Creating investment for user ${userId}, body:`, body);
+      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
+      const hasEncryption = body.name_enc && body.name_iv;
+      const insertData: any = { 
+        user_id: userId, 
+        name: body.name || (hasEncryption ? '[encrypted]' : null), 
+        goal: body.goal || (body.goal_enc ? '[encrypted]' : null), 
+        monthly_amount: body.monthly_amount ?? (body.monthly_amount_enc ? 0 : null), 
+        status: body.status || 'active' 
+      };
+      if (body.name_enc) insertData.name_enc = body.name_enc;
+      if (body.name_iv) insertData.name_iv = body.name_iv;
+      if (body.goal_enc) insertData.goal_enc = body.goal_enc;
+      if (body.goal_iv) insertData.goal_iv = body.goal_iv;
+      if (body.monthly_amount_enc) insertData.monthly_amount_enc = body.monthly_amount_enc;
+      if (body.monthly_amount_iv) insertData.monthly_amount_iv = body.monthly_amount_iv;
+      
       const { data, error: e } = await supabase.from('investments')
-        .insert({ user_id: userId, name: body.name, goal: body.goal, monthly_amount: body.monthly_amount, status: body.status || 'active' })
-        .select().single();
+        .insert(insertData).select().single();
       if (e) {
         console.error(`[INVESTMENT_CREATE_ERROR] Database error:`, e);
         return error(e.message, 500);
@@ -1169,6 +1696,13 @@ serve(async (req) => {
       if (body.monthly_amount !== undefined) updateData.monthly_amount = body.monthly_amount;
       if (body.status !== undefined) updateData.status = body.status;
       if (body.accumulated_funds !== undefined) updateData.accumulated_funds = body.accumulated_funds;
+      // E2E: Include encrypted fields if provided
+      if (body.name_enc) updateData.name_enc = body.name_enc;
+      if (body.name_iv) updateData.name_iv = body.name_iv;
+      if (body.goal_enc) updateData.goal_enc = body.goal_enc;
+      if (body.goal_iv) updateData.goal_iv = body.goal_iv;
+      if (body.monthly_amount_enc) updateData.monthly_amount_enc = body.monthly_amount_enc;
+      if (body.monthly_amount_iv) updateData.monthly_amount_iv = body.monthly_amount_iv;
       
       const { data, error: e } = await supabase.from('investments')
         .update(updateData)
@@ -1211,11 +1745,27 @@ serve(async (req) => {
     // FUTURE BOMBS
     if (path === '/future-bombs' && method === 'POST') {
       const body = await req.json();
+      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
+      const hasEncryption = body.name_enc && body.name_iv;
+      const insertData: any = { 
+        user_id: userId, 
+        name: body.name || (hasEncryption ? '[encrypted]' : null), 
+        due_date: body.due_date, 
+        total_amount: body.total_amount ?? (body.total_amount_enc ? 0 : null), 
+        saved_amount: body.saved_amount ?? (body.saved_amount_enc ? 0 : 0) 
+      };
+      if (body.name_enc) insertData.name_enc = body.name_enc;
+      if (body.name_iv) insertData.name_iv = body.name_iv;
+      if (body.total_amount_enc) insertData.total_amount_enc = body.total_amount_enc;
+      if (body.total_amount_iv) insertData.total_amount_iv = body.total_amount_iv;
+      if (body.saved_amount_enc) insertData.saved_amount_enc = body.saved_amount_enc;
+      if (body.saved_amount_iv) insertData.saved_amount_iv = body.saved_amount_iv;
+      
       const { data, error: e } = await supabase.from('future_bombs')
-        .insert({ user_id: userId, name: body.name, due_date: body.due_date, total_amount: body.total_amount, saved_amount: body.saved_amount || 0 })
-        .select().single();
+        .insert(insertData).select().single();
       if (e) return error(e.message, 500);
-      await logActivity(userId, 'future_bomb', 'added future bomb', { name: data.name, totalAmount: data.total_amount, dueDate: data.due_date });
+      const logName = body.name || '[encrypted]';
+      await logActivity(userId, 'future_bomb', 'added future bomb', { name: logName, encrypted: hasEncryption });
       return json({ data }, 201);
     }
     if (path.startsWith('/future-bombs/') && method === 'DELETE') {
@@ -1261,7 +1811,7 @@ serve(async (req) => {
 
     // AUTH/ME - Get current user info
     if (path === '/auth/me' && method === 'GET') {
-      const { data: userData } = await supabase.from('users').select('id, username, created_at').eq('id', userId).single();
+      const { data: userData } = await supabase.from('users').select('id, username, email, email_verified, encryption_salt, created_at').eq('id', userId).single();
       return json({ data: userData });
     }
 
@@ -1388,17 +1938,26 @@ serve(async (req) => {
       const body = await req.json();
       // statement_date is required - default to today if not provided
       const statementDate = body.statementDate || new Date().toISOString().split('T')[0];
+      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
+      const hasEncryption = body.name_enc && body.name_iv;
+      const insertData: any = { 
+        user_id: userId, 
+        name: body.name || (hasEncryption ? '[encrypted]' : null), 
+        statement_date: statementDate,
+        bill_amount: body.billAmount ?? (body.bill_amount_enc ? 0 : 0), 
+        paid_amount: body.paidAmount ?? (body.paid_amount_enc ? 0 : 0), 
+        due_date: body.dueDate, 
+        billing_date: body.billingDate 
+      };
+      if (body.name_enc) insertData.name_enc = body.name_enc;
+      if (body.name_iv) insertData.name_iv = body.name_iv;
+      if (body.bill_amount_enc) insertData.bill_amount_enc = body.bill_amount_enc;
+      if (body.bill_amount_iv) insertData.bill_amount_iv = body.bill_amount_iv;
+      if (body.paid_amount_enc) insertData.paid_amount_enc = body.paid_amount_enc;
+      if (body.paid_amount_iv) insertData.paid_amount_iv = body.paid_amount_iv;
+      
       const { data, error: e } = await supabase.from('credit_cards')
-        .insert({ 
-          user_id: userId, 
-          name: body.name, 
-          statement_date: statementDate,
-          bill_amount: body.billAmount || 0, 
-          paid_amount: body.paidAmount || 0, 
-          due_date: body.dueDate, 
-          billing_date: body.billingDate 
-        })
-        .select().single();
+        .insert(insertData).select().single();
       if (e) return error(e.message, 500);
       
       // If paidAmount provided, update it
@@ -1422,6 +1981,14 @@ serve(async (req) => {
       if (body.paidAmount !== undefined) updates.paid_amount = body.paidAmount;
       if (body.dueDate) updates.due_date = body.dueDate;
       if (body.billingDate) updates.billing_date = body.billingDate;
+      // E2E: Include encrypted fields if provided
+      if (body.name_enc) updates.name_enc = body.name_enc;
+      if (body.name_iv) updates.name_iv = body.name_iv;
+      if (body.bill_amount_enc) updates.bill_amount_enc = body.bill_amount_enc;
+      if (body.bill_amount_iv) updates.bill_amount_iv = body.bill_amount_iv;
+      if (body.paid_amount_enc) updates.paid_amount_enc = body.paid_amount_enc;
+      if (body.paid_amount_iv) updates.paid_amount_iv = body.paid_amount_iv;
+      
       const { data, error: e } = await supabase.from('credit_cards').update(updates).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
       if (!data) return error('Credit card not found', 404);
@@ -1521,9 +2088,24 @@ serve(async (req) => {
     }
     if (path === '/debts/loans' && method === 'POST') {
       const body = await req.json();
+      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
+      const hasEncryption = body.name_enc && body.name_iv;
+      const insertData: any = { 
+        user_id: userId, 
+        name: body.name || (hasEncryption ? '[encrypted]' : null), 
+        principal: body.principal ?? (body.principal_enc ? 0 : null), 
+        remaining_tenure_months: body.remainingTenureMonths, 
+        emi: body.emi ?? (body.emi_enc ? 0 : null) 
+      };
+      if (body.name_enc) insertData.name_enc = body.name_enc;
+      if (body.name_iv) insertData.name_iv = body.name_iv;
+      if (body.principal_enc) insertData.principal_enc = body.principal_enc;
+      if (body.principal_iv) insertData.principal_iv = body.principal_iv;
+      if (body.emi_enc) insertData.emi_enc = body.emi_enc;
+      if (body.emi_iv) insertData.emi_iv = body.emi_iv;
+      
       const { data, error: e } = await supabase.from('loans')
-        .insert({ user_id: userId, name: body.name, principal: body.principal, remaining_tenure_months: body.remainingTenureMonths, emi: body.emi })
-        .select().single();
+        .insert(insertData).select().single();
       if (e) return error(e.message, 500);
       return json({ data }, 201);
     }

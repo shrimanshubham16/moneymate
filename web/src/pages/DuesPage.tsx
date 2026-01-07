@@ -39,10 +39,10 @@ export function DuesPage({ token }: DuesPageProps) {
       setTotalDues(prevTotal => prevTotal - (wasPaid ? 0 : dueAmount));
 
       if (wasPaid) {
-        await api.markAsUnpaid(token, due.itemType, due.id);
+        await api.markAsUnpaid(token, due.id, due.itemType);  // FIX: Swapped parameters
         setToast({ show: true, message: `${dueName} marked as unpaid` });
       } else {
-        await api.markAsPaid(token, due.itemType, due.id, due.amount);
+        await api.markAsPaid(token, due.id, due.itemType, due.amount);  // FIX: Swapped parameters
         setToast({ show: true, message: `Hurray!! ${dueName} Due paid` });
       }
       

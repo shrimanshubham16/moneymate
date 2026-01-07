@@ -39,6 +39,8 @@ export function SharingPage({ token }: SharingPageProps) {
     e.preventDefault();
     try {
       // Always merge finances when sharing (simplified model)
+      const proceed = window.confirm(`You're about to request ${inviteForm.username} to share finances. If they accept, they will see your finances. Continue?`);
+      if (!proceed) return;
       await api.sendInvite(token, {
         username: inviteForm.username,
         role: "viewer", // Role not used anymore, but backend still expects it

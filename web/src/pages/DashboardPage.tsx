@@ -1,10 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaWallet, FaChartLine, FaChartBar, FaUniversity, FaCreditCard,
   FaBomb, FaClipboardList, FaClock, FaCalendar, FaBell, FaMoneyBillWave,
-  FaExchangeAlt, FaHandHoldingUsd
+  FaExchangeAlt, FaHandHoldingUsd, FaPlus
 } from "react-icons/fa";
 import { MdAccountBalanceWallet, MdSavings, MdTrendingUp } from "react-icons/md";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
@@ -35,8 +35,88 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [loans, setLoans] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
+  const [selectedView, setSelectedView] = useState<string>("me");
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddPlanId, setQuickAddPlanId] = useState<string>("");
+  const [quickAddAmount, setQuickAddAmount] = useState<string>("");
+  const [quickAddMode, setQuickAddMode] = useState<"UPI" | "Cash" | "ExtraCash" | "CreditCard">("UPI");
+  const [quickAddJustification, setQuickAddJustification] = useState("");
+  const [quickAddSubcategory, setQuickAddSubcategory] = useState("");
+  const [quickAddCardId, setQuickAddCardId] = useState<string>("");
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const keepAliveIntervalRef = useRef<number | null>(null);
+
+  // Calculate CORRECT health score on frontend (backend doesn't respect 'paid' status properly)
+  // This MUST be called unconditionally (before any early returns) to follow React hooks rules
+  const correctHealth = useMemo(() => {
+    if (!data) return { remaining: 0, category: 'ok' };
+    
+    // Calculate credit card dues first (needed for health calculation)
+    const ccDues = (creditCards || []).reduce((sum: number, c: any) => {
+      const billAmount = parseFloat(c.billAmount || 0);
+      const paidAmount = parseFloat(c.paidAmount || 0);
+      const remaining = billAmount - paidAmount;
+      if (remaining > 0) {
+        const dueDate = new Date(c.dueDate);
+        const isCurrentMonth = dueDate.getMonth() === new Date().getMonth() && 
+                              dueDate.getFullYear() === new Date().getFullYear();
+        if (isCurrentMonth) return sum + remaining;
+      }
+      return sum;
+    }, 0);
+    
+    // Calculate total income
+    const totalIncome = (data.incomes || []).reduce((sum: number, inc: any) => {
+      const amount = parseFloat(inc.amount) || 0;
+      const monthly = inc.frequency === 'monthly' ? amount :
+        inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
+      return sum + monthly;
+    }, 0);
+    
+    // Calculate unpaid fixed expenses (respecting 'paid' status)
+    const unpaidFixedTotal = (data.fixedExpenses || [])
+      .filter((exp: any) => !exp.paid)
+      .reduce((sum: number, exp: any) => {
+        const amount = parseFloat(exp.amount) || 0;
+        const monthly = exp.frequency === 'monthly' ? amount :
+          exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
+        return sum + monthly;
+      }, 0);
+    
+    // Calculate unpaid investments (respecting 'paid' status)
+    const unpaidInvestmentsTotal = (data.investments || [])
+      .filter((inv: any) => inv.status === 'active' && !inv.paid)
+      .reduce((sum: number, inv: any) => sum + (parseFloat(inv.monthlyAmount) || 0), 0);
+    
+    // Variable expenses - MUST match backend /health/details calculation exactly
+    const today = new Date();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const monthProgress = today.getDate() / daysInMonth;
+    const remainingDaysRatio = 1 - monthProgress;
+    
+    // Backend formula: effectiveVariable = Math.max(totalVariableActual, totalVariablePlanned * remainingDaysRatio)
+    const totalVariableActual = (data.variablePlans || []).reduce((sum: number, p: any) => 
+      sum + (parseFloat(p.actualTotal) || 0), 0);
+    const totalVariablePlanned = (data.variablePlans || []).reduce((sum: number, p: any) => 
+      sum + (parseFloat(p.planned) || 0), 0);
+    const totalVariableProrated = totalVariablePlanned * remainingDaysRatio;
+    const variableTotal = Math.max(totalVariableActual, totalVariableProrated);
+    
+    const totalOutflow = unpaidFixedTotal + variableTotal + unpaidInvestmentsTotal + ccDues;
+    const remaining = totalIncome - totalOutflow;
+    
+    // Determine category
+    let category: string;
+    if (remaining > 10000) category = "good";
+    else if (remaining >= 0) category = "ok";
+    else if (remaining >= -3000) category = "not_well";
+    else category = "worrisome";
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage:correctHealth',message:'Dashboard health calc',data:{totalIncome,unpaidFixedTotal,variableTotal,unpaidInvestmentsTotal,ccDues,totalOutflow,remaining,category},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
+    return { remaining, category };
+  }, [data, creditCards]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -44,10 +124,10 @@ export function DashboardPage({ token }: DashboardPageProps) {
   };
 
   // Background revalidation function
-  const fetchFreshData = async (userId: string, wasStale = false) => {
+  const fetchFreshData = async (userId: string, wasStale = false, viewParam?: string) => {
     try {
       const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
-        api.fetchDashboard(token, new Date().toISOString()),
+        api.fetchDashboard(token, new Date().toISOString(), viewParam === "me" ? undefined : viewParam),
         api.fetchCreditCards(token),
         api.fetchLoans(token),
         api.fetchActivity(token),
@@ -60,6 +140,9 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setLoans(loansRes.data);
       setActivities(activityRes.data);
       setSharingMembers(membersRes.data);
+      if (!quickAddPlanId && dashboardRes.data?.variablePlans?.length) {
+        setQuickAddPlanId(dashboardRes.data.variablePlans[0].id);
+      }
       setIsStale(false); // Data is now fresh
       
       // Update cache
@@ -116,7 +199,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     };
   }, []);
 
-  const loadData = async (forceRefresh = false) => {
+  const loadData = async (forceRefresh = false, viewOverride?: string) => {
     try {
       setLoadProgress(0);
       
@@ -162,7 +245,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         
         // REVALIDATE: Fetch fresh data in background
         console.log('[REVALIDATE] Fetching fresh data in background...');
-        fetchFreshData(userId, isDataStale).catch(err => {
+        fetchFreshData(userId, isDataStale, selectedView).catch(err => {
           console.error('[REVALIDATE_ERROR] Background refresh failed:', err);
           // Keep showing stale data - better than blank screen
         });
@@ -178,12 +261,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
       
       setLoadProgress(30); // Connecting to server
       
+      const viewParam = viewOverride ?? selectedView ?? "me";
+
       const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
         (async () => {
           // #region agent log
           const t0 = performance.now();
           // #endregion
-          const res = await api.fetchDashboard(token, new Date().toISOString());
+          const res = await api.fetchDashboard(token, new Date().toISOString(), viewParam === "me" ? undefined : viewParam);
           // #region agent log
           const t1 = performance.now();
           apiTimings.dashboard = t1 - t0;
@@ -282,6 +367,9 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setLoans(loansRes.data);
       setActivities(activityRes.data);
       setSharingMembers(membersRes.data);
+      if (!quickAddPlanId && dashboardRes.data?.variablePlans?.length) {
+        setQuickAddPlanId(dashboardRes.data.variablePlans[0].id);
+      }
       
       setLoadProgress(95); // Rendering
       
@@ -305,8 +393,54 @@ export function DashboardPage({ token }: DashboardPageProps) {
     }
   };
 
+  const handleQuickAddSubmit = async () => {
+    try {
+      if (!quickAddPlanId) {
+        alert("Select a variable plan");
+        return;
+      }
+      const amountNum = parseFloat(quickAddAmount);
+      if (!amountNum || amountNum <= 0) {
+        alert("Enter a valid amount");
+        return;
+      }
+      await api.addVariableActual(token, quickAddPlanId, {
+        amount: amountNum,
+        incurred_at: new Date().toISOString(),
+        justification: quickAddJustification || undefined,
+        subcategory: quickAddSubcategory || undefined,
+        payment_mode: quickAddMode,
+        credit_card_id: quickAddMode === "CreditCard" ? quickAddCardId || undefined : undefined
+      });
+      setShowQuickAdd(false);
+      setQuickAddAmount("");
+      setQuickAddJustification("");
+      setQuickAddSubcategory("");
+      setQuickAddCardId("");
+      await loadData(true);
+    } catch (e: any) {
+      alert(e.message || "Failed to add expense");
+    }
+  };
+
   if (loading) {
-    return <SplashScreen isLoading={loading} progress={loadProgress} />;
+    return (
+      <div className="dashboard-page">
+        <div className="skeleton-header">
+          <div className="skeleton-pill shimmer" style={{ width: 140, height: 16 }}></div>
+          <div className="skeleton-pill shimmer" style={{ width: 80, height: 16 }}></div>
+        </div>
+        <div className="skeleton-grid">
+          {[...Array(8)].map((_, idx) => (
+            <div key={idx} className="skeleton-card shimmer">
+              <div className="skeleton-bar" style={{ width: '60%', height: 18 }}></div>
+              <div className="skeleton-bar" style={{ width: '40%', height: 14, marginTop: 12 }}></div>
+              <div className="skeleton-bar" style={{ width: '80%', height: 10, marginTop: 18 }}></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (!data) {
@@ -392,6 +526,16 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   const duesTotal = (unpaidFixed || 0) + (unpaidInvestments || 0) + (creditCardDues || 0);
 
+  const viewOptions = [
+    { value: "me", label: "My Finances" },
+    { value: "merged", label: "Combined (Shared)" },
+    ...(sharingMembers?.members || []).map((m: any) => {
+      const id = m.shared_user_id || m.user_id || m.userId || m.id;
+      const label = m.username || m.email || id || "Shared Member";
+      return { value: id, label };
+    })
+  ];
+
   return (
     <div className="dashboard-page">
       {/* Stale Data Banner */}
@@ -443,9 +587,26 @@ export function DashboardPage({ token }: DashboardPageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <div className="view-selector">
+            <label style={{ fontSize: 12, color: '#6b7280' }}>Shared View</label>
+            <select
+              value={selectedView}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedView(val);
+                loadData(true, val);
+              }}
+            >
+              {viewOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         <HealthIndicator
-          category={data.health.category}
-          remaining={data.health.remaining}
+          category={correctHealth.category}
+          remaining={correctHealth.remaining}
           onClick={() => navigate("/health")}
         />
       </motion.div>
@@ -455,12 +616,20 @@ export function DashboardPage({ token }: DashboardPageProps) {
           title="Variable Expenses"
           value={data.variablePlans?.length || 0}
           subtitle={
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
               <TrendIndicator
                 value={variableTotal}
                 format="currency"
                 size="small"
               />
+              <button
+                className="icon-btn"
+                title="Add an expense"
+                style={{ background: '#10b981', color: 'white', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={(e) => { e.stopPropagation(); setShowQuickAdd(true); }}
+              >
+                <FaPlus />
+              </button>
             </div>
           }
           icon={<FaChartBar />}
@@ -577,6 +746,77 @@ export function DashboardPage({ token }: DashboardPageProps) {
           />
         )}
       </div>
+      <AnimatePresence>
+        {showQuickAdd && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowQuickAdd(false)}
+          >
+            <motion.div
+              className="modal-card"
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3>Quick Add Expense</h3>
+              <div className="form-row">
+                <label>Plan</label>
+                <select value={quickAddPlanId} onChange={(e) => setQuickAddPlanId(e.target.value)}>
+                  {(data.variablePlans || []).map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Amount</label>
+                <input
+                  type="number"
+                  value={quickAddAmount}
+                  onChange={(e) => setQuickAddAmount(e.target.value)}
+                  placeholder="Enter amount"
+                />
+              </div>
+              <div className="form-row">
+                <label>Payment Mode</label>
+                <select value={quickAddMode} onChange={(e) => setQuickAddMode(e.target.value as any)}>
+                  <option value="UPI">UPI</option>
+                  <option value="Cash">Cash</option>
+                  <option value="ExtraCash">Extra Cash</option>
+                  <option value="CreditCard">Credit Card</option>
+                </select>
+              </div>
+              {quickAddMode === "CreditCard" && (
+                <div className="form-row">
+                  <label>Credit Card</label>
+                  <select value={quickAddCardId} onChange={(e) => setQuickAddCardId(e.target.value)}>
+                    <option value="">Select card</option>
+                    {(creditCards || []).map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="form-row">
+                <label>Subcategory (optional)</label>
+                <input value={quickAddSubcategory} onChange={(e) => setQuickAddSubcategory(e.target.value)} />
+              </div>
+              <div className="form-row">
+                <label>Note (optional)</label>
+                <textarea value={quickAddJustification} onChange={(e) => setQuickAddJustification(e.target.value)} />
+              </div>
+              <div className="modal-actions">
+                <button onClick={() => setShowQuickAdd(false)} className="secondary-btn">Cancel</button>
+                <button onClick={handleQuickAddSubmit} className="primary-btn">Add Expense</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

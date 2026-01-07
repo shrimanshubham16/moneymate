@@ -40,7 +40,8 @@ const isSupabaseEdgeFunction = BASE_URL.includes('supabase.co/functions');
 const SENSITIVE_FIELDS = new Set([
   'name', 'amount', 'planned', 'description', 'justification',
   'source', 'goal', 'limit', 'bill_amount', 'paid_amount',
-  'monthly_amount', 'total_amount', 'saved_amount', 'accumulated_funds'
+  'monthly_amount', 'total_amount', 'saved_amount', 'accumulated_funds',
+  'principal', 'emi'  // loans
 ]);
 
 function isSensitiveField(field: string): boolean {
@@ -52,6 +53,7 @@ function isSensitiveField(field: string): boolean {
 }
 
 // E2E Encryption: Encrypt object fields in parallel
+// PHASE 2: Only send encrypted data, NO plaintext for sensitive fields
 async function encryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) return Promise.all(obj.map(item => encryptObjectFields(item, key)));
@@ -68,7 +70,8 @@ async function encryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
         encryptString(String(value), key).then(({ ciphertext, iv }) => {
           result[`${field}_enc`] = ciphertext;
           result[`${field}_iv`] = iv;
-          result[field] = value; // Keep plaintext for backward compat
+          // PHASE 2: NO plaintext - server stores only encrypted data
+          // result[field] = value; // REMOVED - true zero-knowledge
         })
       );
     } else if (typeof value === 'object') {
@@ -83,6 +86,7 @@ async function encryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
 }
 
 // E2E Encryption: Decrypt object fields in parallel
+// PHASE 2: No plaintext fallback - encrypted data is the source of truth
 async function decryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) return Promise.all(obj.map(item => decryptObjectFields(item, key)));
@@ -99,13 +103,18 @@ async function decryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
       if (obj[ivField]) {
         processed.add(field);
         processed.add(ivField);
+        processed.add(orig); // Mark original field as processed (will be replaced by decrypted)
         tasks.push(
           decryptString(value as string, obj[ivField] as string, key)
             .then(dec => {
               const num = parseFloat(dec);
               result[orig] = isNaN(num) ? dec : num;
             })
-            .catch(() => { if (obj[orig] !== undefined) result[orig] = obj[orig]; })
+            .catch((err) => { 
+              console.error(`[E2E_DECRYPT_ERROR] Failed to decrypt ${orig}:`, err);
+              // PHASE 2: Use placeholder on decrypt failure, NOT plaintext
+              result[orig] = typeof obj[orig] === 'number' ? 0 : '[decrypt error]';
+            })
         );
       }
     }
@@ -116,7 +125,11 @@ async function decryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
       if (typeof value === 'object') {
         tasks.push(decryptObjectFields(value, key).then(dec => { result[field] = dec; }));
       } else {
-        result[field] = value;
+        // PHASE 2: Don't copy '[encrypted]' placeholder values from server
+        // Only copy if value is NOT a placeholder
+        if (value !== '[encrypted]') {
+          result[field] = value;
+        }
       }
     }
   }
@@ -141,6 +154,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     ...options,
     headers
   });
+  
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body?.error?.message || `Request failed: ${res.status}`);
@@ -156,7 +170,9 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
 }
 
 async function buildBody(data: any, cryptoKey?: CryptoKey): Promise<string> {
-  if (!cryptoKey) return JSON.stringify(data);
+  if (!cryptoKey) {
+    return JSON.stringify(data);
+  }
   // E2E: Encrypt sensitive fields
   const encrypted = await encryptObjectFields(data, cryptoKey);
   return JSON.stringify(encrypted);
@@ -218,6 +234,17 @@ export async function resetPassword(
   });
 }
 
+export async function recoverWithKey(
+  username: string,
+  recoveryKey: string,
+  newPassword: string
+): Promise<{ access_token: string; encryption_salt: string }> {
+  return request<{ access_token: string; encryption_salt: string }>("/auth/recover-with-key", {
+    method: "POST",
+    body: JSON.stringify({ username, recoveryKey, newPassword })
+  });
+}
+
 // User profile
 export async function getUserProfile(token: string): Promise<{ data: any }> {
   return request<{ data: any }>("/user/profile", { method: "GET" }, token);
@@ -241,8 +268,11 @@ export async function updateUserPassword(
   }, token);
 }
 
-export async function fetchDashboard(token: string, asOf?: string, cryptoKey?: CryptoKey) {
-  const query = asOf ? `?today=${encodeURIComponent(asOf)}` : "";
+export async function fetchDashboard(token: string, asOf?: string, view?: string, cryptoKey?: CryptoKey) {
+  const params = new URLSearchParams();
+  if (asOf) params.set("today", asOf);
+  if (view) params.set("view", view);
+  const query = params.toString() ? `?${params.toString()}` : "";
   return request<{ data: any }>(`/dashboard${query}`, { method: "GET" }, token, cryptoKey);
 }
 

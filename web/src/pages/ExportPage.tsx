@@ -19,7 +19,18 @@ export function ExportPage({ token }: ExportPageProps) {
     setExporting(true);
     setError(null); // Reset error state
     try {
-      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:12022"; // Added BASE_URL
+      // Get the correct API URL
+      const envUrl = import.meta.env.VITE_API_URL;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      let BASE_URL: string;
+      if (envUrl) {
+        BASE_URL = envUrl;
+      } else if (supabaseUrl) {
+        const base = supabaseUrl.replace('/rest/v1', '').replace(/\/$/, '');
+        BASE_URL = `${base}/functions/v1/api`;
+      } else {
+        BASE_URL = 'https://eklennfapovprkebdsml.supabase.co/functions/v1/api';
+      }
       const response = await fetch(`${BASE_URL}/export/finances`, { // Used BASE_URL
         headers: {
           Authorization: `Bearer ${token}`

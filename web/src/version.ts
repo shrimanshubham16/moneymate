@@ -36,14 +36,14 @@ export const VERSION = {
   
   // Release notes
   releaseNotes: [
-    "🔐 End-to-End Encryption - Your data encrypted on YOUR device",
-    "🛡️ Zero-Knowledge Privacy - We can't see your financial data",
-    "🔑 24-Word Recovery Key - Backup your encryption key",
-    "📧 Email Verification - Secure account recovery",
-    "🔄 Password Reset with Recovery Key",
-    "⚡ AES-256 Military-grade encryption",
-    "🎨 Privacy-first architecture",
-    "📱 PWA support - install as app on your phone"
+    "End-to-End Encryption — Your data encrypted on YOUR device",
+    "Zero-Knowledge Privacy — We can't see your financial data",
+    "24-Word Recovery Key — Backup your encryption key",
+    "Email Verification — Secure account recovery",
+    "Password Reset with Recovery Key",
+    "AES-256 Military-grade encryption",
+    "Privacy-first architecture",
+    "PWA support — install as app on your phone"
   ]
 };
 

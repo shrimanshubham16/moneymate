@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
+import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircle, FaEye, FaEyeSlash } from "react-icons/fa";
 import "./HealthIndicator.css";
 
 type HealthCategory = "good" | "ok" | "not well" | "worrisome";
@@ -38,6 +39,21 @@ const healthConfig = {
 };
 
 export function HealthIndicator({ category, remaining, onClick }: HealthIndicatorProps) {
+  const [isHidden, setIsHidden] = useState<boolean>(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("finflow_health_hidden");
+    if (saved !== null) {
+      setIsHidden(saved === "true");
+    }
+  }, []);
+
+  const toggleHidden = () => {
+    const next = !isHidden;
+    setIsHidden(next);
+    localStorage.setItem("finflow_health_hidden", String(next));
+  };
+
   const config = healthConfig[category];
   const HealthIcon = config.icon;
   const isPositive = remaining > 0;
@@ -63,10 +79,19 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
       <div className="health-emoji"><HealthIcon size={48} color={config.color} /></div>
       <div className="health-category">{category.toUpperCase()}</div>
       <div className="health-amount" style={{ color: config.color }}>
-        {isPositive ? "₹" : "-₹"}
-        {displayAmount.toLocaleString("en-IN")}
+        <button className="health-eye" onClick={(e) => { e.stopPropagation(); toggleHidden(); }}>
+          {isHidden ? <FaEyeSlash /> : <FaEye />}
+        </button>
+        {isHidden ? (
+          <span className="hidden-dots">•••••</span>
+        ) : (
+          <>
+            {isPositive ? "₹" : "-₹"}
+            {displayAmount.toLocaleString("en-IN")}
+          </>
+        )}
       </div>
-      <div className="health-message">{config.message}</div>
+      <div className="health-message">{isHidden ? "Tap eye to reveal privately" : config.message}</div>
       <motion.div
         className="health-pulse"
         style={{ borderColor: config.color }}

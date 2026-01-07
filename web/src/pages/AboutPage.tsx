@@ -42,42 +42,90 @@ export function AboutPage() {
           </ul>
         </section>
 
-        <section className="about-section">
+        <section className="about-section usage-guide-section">
           <h2><FaPalette style={{ marginRight: '8px', color: '#8b5cf6' }} />Usage Guide</h2>
-          <div className="usage-steps">
-            <div className="step">
-              <span className="step-number">1</span>
-              <div>
-                <h4>Set Up Your Income</h4>
-                <p>Go to Settings → Plan Finances → Income to add your income sources</p>
+          <div className="usage-steps-grid">
+            <div className="usage-step-card">
+              <div className="usage-step-header">
+                <span className="usage-step-number">1</span>
+                <h4 className="usage-step-title">Set Up Your Income</h4>
+              </div>
+              <p className="usage-step-desc">
+                Navigate to Settings → Plan Finances → Income to add all your income sources (salary, freelance, etc.)
+              </p>
+              <div className="usage-step-tip">
+                <FaBullseye size={14} />
+                Tip: Set frequency accurately for prorated calculations
               </div>
             </div>
-            <div className="step">
-              <span className="step-number">2</span>
-              <div>
-                <h4>Plan Your Expenses</h4>
-                <p>Add fixed and variable expenses. Mark periodic expenses for SIP accumulation</p>
+            
+            <div className="usage-step-card">
+              <div className="usage-step-header">
+                <span className="usage-step-number">2</span>
+                <h4 className="usage-step-title">Plan Your Expenses</h4>
+              </div>
+              <p className="usage-step-desc">
+                Add fixed expenses (rent, EMIs) and variable expense budgets (groceries, entertainment). Enable SIP for periodic expenses.
+              </p>
+              <div className="usage-step-tip">
+                <FaBullseye size={14} />
+                Tip: Use SIP for yearly/quarterly bills to accumulate funds
               </div>
             </div>
-            <div className="step">
-              <span className="step-number">3</span>
-              <div>
-                <h4>Track Investments</h4>
-                <p>Set investment goals and track monthly contributions</p>
+            
+            <div className="usage-step-card">
+              <div className="usage-step-header">
+                <span className="usage-step-number">3</span>
+                <h4 className="usage-step-title">Track Investments</h4>
+              </div>
+              <p className="usage-step-desc">
+                Create investment goals with monthly contribution targets. FinFlow tracks your progress and accumulated funds.
+              </p>
+              <div className="usage-step-tip">
+                <FaBullseye size={14} />
+                Tip: Pause investments when finances are tight
               </div>
             </div>
-            <div className="step">
-              <span className="step-number">4</span>
-              <div>
-                <h4>Monitor Dashboard</h4>
-                <p>Your dashboard shows financial health, dues, and upcoming liabilities</p>
+            
+            <div className="usage-step-card">
+              <div className="usage-step-header">
+                <span className="usage-step-number">4</span>
+                <h4 className="usage-step-title">Monitor Dashboard</h4>
+              </div>
+              <p className="usage-step-desc">
+                Your dashboard shows real-time financial health, pending dues, and a summary of all obligations for the month.
+              </p>
+              <div className="usage-step-tip">
+                <FaBullseye size={14} />
+                Tip: Health score updates as you mark payments
               </div>
             </div>
-            <div className="step">
-              <span className="step-number">5</span>
-              <div>
-                <h4>Stay Alert</h4>
-                <p>Check alerts for overspends and missed payments</p>
+            
+            <div className="usage-step-card">
+              <div className="usage-step-header">
+                <span className="usage-step-number">5</span>
+                <h4 className="usage-step-title">Clear Your Dues</h4>
+              </div>
+              <p className="usage-step-desc">
+                Visit the Dues page to see everything due this month. Mark items as paid to update your financial health instantly.
+              </p>
+              <div className="usage-step-tip">
+                <FaBullseye size={14} />
+                Tip: Dues auto-reset at the start of each billing period
+              </div>
+            </div>
+            
+            <div className="usage-step-card">
+              <div className="usage-step-header">
+                <span className="usage-step-number">6</span>
+                <h4 className="usage-step-title">Stay Alert</h4>
+              </div>
+              <p className="usage-step-desc">
+                Check alerts for overspends, missed investment payments, and upcoming credit card due dates.
+              </p>
+              <div className="usage-step-tip">
+                <FaBullseye size={14} />
+                Tip: Activity log shows complete financial history
               </div>
             </div>
           </div>
@@ -186,6 +234,11 @@ export function AboutPage() {
               View Full Privacy Policy
             </button>
           </div>
+        </section>
+
+        <section className="about-section">
+          <h2><FaCheckCircle style={{ marginRight: '8px', color: '#10b981' }} />Pricing</h2>
+          <p>FinFlow is and always will be FREE. No ads, no paywalls, no upsells. Your data stays private and the tools stay open.</p>
         </section>
 
         <section className="about-section">
