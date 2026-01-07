@@ -13,18 +13,17 @@ export function SettingsPage() {
   const settingsItems = [
     { id: "account", title: "Account", icon: <FaUser size={32} />, description: "Manage username and profile" },
     { id: "preferences", title: "Billing Preferences", icon: <FaCog size={32} />, description: "Set month start day & currency" },
-    // FIX: Sharing feature hidden - not functional yet
-    // { 
-    //   id: "sharing", 
-    //   title: (
-    //     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-    //       Sharing
-    //       <StatusBadge status="error" size="small" label="BETA" />
-    //     </div>
-    //   ), 
-    //   icon: <FaHandshake size={32} />, 
-    //   description: "Share account and manage members" 
-    // },
+    { 
+      id: "sharing", 
+      title: (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          Sharing
+          <StatusBadge status="info" size="small" label="BETA" />
+        </div>
+      ), 
+      icon: <FaHandshake size={32} />, 
+      description: "Share account and manage members" 
+    },
     { id: "plan-finances", title: "Plan Finances", icon: <FaChartLine size={32} />, description: "Plan income, expenses, and investments" },
     { id: "credit-cards", title: "Credit Cards", icon: <FaCreditCard size={32} />, description: "Manage credit card bills" },
     { id: "privacy", title: "Privacy & Security", icon: <FaShieldAlt size={32} />, description: "How we protect your financial data" },

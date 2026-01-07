@@ -236,6 +236,9 @@ export function DashboardPage({ token }: DashboardPageProps) {
         setLoading(false);
         setLoadProgress(100);
         setIsStale(isDataStale);
+        if (!quickAddPlanId && cachedDashboard?.variablePlans?.length) {
+          setQuickAddPlanId(cachedDashboard.variablePlans[0].id);
+        }
         
         if (isDataStale) {
           console.log('[OFFLINE_FIRST] Showing stale cache to prevent blank screen');
@@ -622,14 +625,16 @@ export function DashboardPage({ token }: DashboardPageProps) {
                 format="currency"
                 size="small"
               />
-              <button
-                className="icon-btn"
-                title="Add an expense"
-                style={{ background: '#10b981', color: 'white', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                onClick={(e) => { e.stopPropagation(); setShowQuickAdd(true); }}
-              >
-                <FaPlus />
-              </button>
+              <div className="quick-add-tooltip-container" onClick={(e) => e.stopPropagation()}>
+                <button
+                  className="icon-btn quick-add-floating"
+                  title="Log your spend"
+                  onClick={(e) => { e.stopPropagation(); setShowQuickAdd(true); }}
+                >
+                  <FaPlus />
+                </button>
+                <div className="quick-add-tooltip">Log your spend</div>
+              </div>
             </div>
           }
           icon={<FaChartBar />}

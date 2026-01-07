@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircle, FaEye, FaEyeSlash } from "react-icons/fa";
 import "./HealthIndicator.css";
@@ -40,6 +40,7 @@ const healthConfig = {
 
 export function HealthIndicator({ category, remaining, onClick }: HealthIndicatorProps) {
   const [isHidden, setIsHidden] = useState<boolean>(true);
+  const [isMouthOpen, setIsMouthOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("finflow_health_hidden");
@@ -54,6 +55,15 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
     localStorage.setItem("finflow_health_hidden", String(next));
   };
 
+  const theme = useMemo(() => {
+    switch (category) {
+      case "good": return { glow: "#10b981", bg: "linear-gradient(135deg, #0f172a, #0b1b29)", mouth: "#10b981" };
+      case "ok": return { glow: "#f59e0b", bg: "linear-gradient(135deg, #1f1305, #2a1d0c)", mouth: "#f59e0b" };
+      case "not well": return { glow: "#f97316", bg: "linear-gradient(135deg, #2a1106, #3a1a0a)", mouth: "#f97316" };
+      default: return { glow: "#ef4444", bg: "linear-gradient(135deg, #2b0c0c, #3c1515)", mouth: "#ef4444" };
+    }
+  }, [category]);
+
   const config = healthConfig[category];
   const HealthIcon = config.icon;
   const isPositive = remaining > 0;
@@ -63,10 +73,13 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
   return (
     <motion.div
       className="health-indicator"
-      onClick={onClick}
-      style={{ background: config.bgGradient, cursor: onClick ? "pointer" : "default" }}
-      whileHover={onClick ? { scale: 1.05 } : {}}
-      whileTap={onClick ? { scale: 0.95 } : {}}
+      onClick={() => {
+        setIsMouthOpen(!isMouthOpen);
+        if (onClick) onClick();
+      }}
+      style={{ background: theme.bg, cursor: "pointer", boxShadow: `0 12px 40px ${theme.glow}44` }}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       animate={{
         scale: [1, 1.02, 1],
       }}
@@ -78,33 +91,45 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
     >
       <div className="health-emoji"><HealthIcon size={48} color={config.color} /></div>
       <div className="health-category">{category.toUpperCase()}</div>
-      <div className="health-amount" style={{ color: config.color }}>
-        <button className="health-eye" onClick={(e) => { e.stopPropagation(); toggleHidden(); }}>
-          {isHidden ? <FaEyeSlash /> : <FaEye />}
-        </button>
-        {isHidden ? (
-          <span className="hidden-dots">•••••</span>
-        ) : (
-          <>
-            {isPositive ? "₹" : "-₹"}
-            {displayAmount.toLocaleString("en-IN")}
-          </>
-        )}
+
+      <div className="health-mouth" style={{ boxShadow: `0 0 20px ${theme.glow}55` }}>
+        <motion.div
+          className="mouth-top"
+          style={{ background: theme.mouth }}
+          animate={{ y: isMouthOpen ? -6 : 0 }}
+          transition={{ type: "spring", stiffness: 220, damping: 18 }}
+        />
+        <motion.div
+          className="mouth-bottom"
+          style={{ background: theme.mouth }}
+          animate={{ y: isMouthOpen ? 6 : 0 }}
+          transition={{ type: "spring", stiffness: 220, damping: 18 }}
+        />
+        <motion.div
+          className="mouth-inner"
+          animate={{ height: isMouthOpen ? 46 : 12, opacity: isHidden ? 0.3 : 1 }}
+          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+        >
+          <button className="health-eye" onClick={(e) => { e.stopPropagation(); toggleHidden(); }}>
+            {isHidden ? <FaEyeSlash /> : <FaEye />}
+          </button>
+          <motion.span
+            className="mouth-score"
+            animate={{ opacity: isHidden ? 0 : 1, scale: isHidden ? 0.9 : 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            {isHidden ? "•••••" : `${isPositive ? "₹" : "-₹"}${displayAmount.toLocaleString("en-IN")}`}
+          </motion.span>
+        </motion.div>
+        <motion.div
+          className="mouth-sparkles"
+          style={{ borderColor: theme.glow }}
+          animate={{ opacity: isMouthOpen && !isHidden ? [0.2, 0.7, 0.2] : 0 }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        />
       </div>
+
       <div className="health-message">{isHidden ? "Tap eye to reveal privately" : config.message}</div>
-      <motion.div
-        className="health-pulse"
-        style={{ borderColor: config.color }}
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.5, 0, 0.5]
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
     </motion.div>
   );
 }

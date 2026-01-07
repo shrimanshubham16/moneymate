@@ -78,6 +78,65 @@
   min-width: 200px;
 }
 
+.quick-add-tooltip-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.quick-add-floating {
+  background: radial-gradient(circle at 30% 30%, #34d399, #10b981);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(16,185,129,0.6);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.quick-add-floating::after {
+  content: "";
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  background: radial-gradient(circle, rgba(255,255,255,0.3), transparent 60%);
+  top: -10%;
+  left: -10%;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.quick-add-floating:hover::after {
+  opacity: 1;
+}
+
+.quick-add-tooltip {
+  position: absolute;
+  bottom: -26px;
+  left: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: all 0.2s ease;
+}
+
+.quick-add-tooltip-container:hover .quick-add-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* Widgets Grid -  Generous spacing (Blissy style) */
 .widgets-grid {
   display: grid;

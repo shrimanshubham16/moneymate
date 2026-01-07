@@ -2406,25 +2406,26 @@ serve(async (req) => {
       return json({ data: { subcategory: body.subcategory, subcategories: updated } });
     }
 
-    // EXPORT
-    // EXPORT - Match old backend structure exactly
-    if (path === '/export' && method === 'GET' || path === '/export/finances' && method === 'GET') {
-      // Get user data with error handling
+    // EXPORT - reliable direct queries (bypass RPC)
+    if ((path === '/export' && method === 'GET') || (path === '/export/finances' && method === 'GET')) {
       const { data: userData, error: userErr } = await supabase.from('users').select('id, username').eq('id', userId).single();
-      if (userErr || !userData) {
-        console.error('Export: User fetch error:', userErr);
-        return error('Failed to fetch user data', 500);
-      }
-      
-      // Get all data needed for export
-      const { data: dashboardData } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
-      
-      // Get loans (auto-fetched from fixed expenses)
-      const { data: loanExpenses } = await supabase
-        .from('fixed_expenses')
-        .select('*')
-        .eq('user_id', userId);
-      const loans = (loanExpenses || []).filter((exp: any) => 
+      if (userErr || !userData) return error('Failed to fetch user data', 500);
+
+      const { data: directIncomes } = await supabase.from('incomes').select('*').eq('user_id', userId);
+      const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').eq('user_id', userId);
+      const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').eq('user_id', userId);
+      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*');
+      const { data: directInvestments } = await supabase.from('investments').select('*').eq('user_id', userId);
+      const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').eq('user_id', userId);
+      const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
+
+      const variableExpenses = (directVariablePlans || []).map((plan: any) => {
+        const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === plan.id || a.planId === plan.id);
+        const actualTotal = actuals.reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+        return { ...plan, actuals, actualTotal };
+      });
+
+      const loans = (directFixedExpenses || []).filter((exp: any) => 
         exp.category && exp.category.toLowerCase() === 'loan'
       ).map((exp: any) => {
         const amount = parseFloat(exp.amount) || 0;
@@ -2442,29 +2443,58 @@ serve(async (req) => {
           principal: Math.round((emi * remainingMonths) * 100) / 100
         };
       });
-      
-      // Get activities
+
       const { data: activities } = await supabase
         .from('activities')
         .select('*')
         .eq('actor_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
-      
-      // Get credit cards
-      const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
-      
-      // Get health data
-      const { data: healthData } = await supabase.rpc('calculate_full_health', { p_user_id: userId });
-      
-      // Get constraint score
+
+      const totalIncome = (directIncomes || []).reduce((sum: number, i: any) => {
+        const amount = parseFloat(i.amount) || 0;
+        const monthly = i.frequency === 'monthly' ? amount :
+          i.frequency === 'quarterly' ? amount / 3 : amount / 12;
+        return sum + monthly;
+      }, 0);
+
+      const totalFixedExpenses = (directFixedExpenses || []).reduce((sum: number, e: any) => {
+        const amount = parseFloat(e.amount) || 0;
+        const monthly = e.frequency === 'monthly' ? amount :
+          e.frequency === 'quarterly' ? amount / 3 : e.amount / 12;
+        return sum + monthly;
+      }, 0);
+
+      const totalVariableActual = variableExpenses.reduce((sum: number, p: any) => sum + (p.actualTotal || 0), 0);
+      const totalInvestments = (directInvestments || []).reduce((sum: number, inv: any) => sum + (parseFloat(inv.monthly_amount || inv.monthlyAmount || 0)), 0);
+
+      const today = new Date();
+      const creditCardDues = (creditCards || []).reduce((sum: number, c: any) => {
+        const billAmount = parseFloat(c.bill_amount || c.billAmount || 0);
+        const paidAmount = parseFloat(c.paid_amount || c.paidAmount || 0);
+        const remaining = billAmount - paidAmount;
+        if (remaining > 0) {
+          const dueDate = new Date(c.due_date || c.dueDate);
+          if (dueDate.getMonth() === today.getMonth() && dueDate.getFullYear() === today.getFullYear()) {
+            return sum + remaining;
+          }
+        }
+        return sum;
+      }, 0);
+
+      const remainingBalance = totalIncome - (totalFixedExpenses + totalVariableActual + totalInvestments + creditCardDues);
+      let healthCategory = 'ok';
+      if (remainingBalance > 10000) healthCategory = 'good';
+      else if (remainingBalance >= 0) healthCategory = 'ok';
+      else if (remainingBalance >= -3000) healthCategory = 'not_well';
+      else healthCategory = 'worrisome';
+
       const { data: constraint } = await supabase.from('constraint_scores').select('*').eq('user_id', userId).single();
-      
-      // Build export structure matching old backend
+
       const exportData = {
         exportDate: new Date().toISOString(),
         user: { id: userData.id, username: userData.username },
-        health: healthData?.health || { remaining: 0, category: 'ok' },
+        health: { remaining: remainingBalance, category: healthCategory },
         constraintScore: constraint ? {
           score: constraint.score,
           tier: constraint.tier,
@@ -2472,25 +2502,18 @@ serve(async (req) => {
           decayAppliedAt: constraint.decay_applied_at,
           updatedAt: constraint.updated_at
         } : { score: 0, tier: 'green', recentOverspends: 0 },
-        incomes: dashboardData?.incomes || [],
-        fixedExpenses: (dashboardData?.fixedExpenses || []).map((e: any) => ({
+        incomes: directIncomes || [],
+        fixedExpenses: (directFixedExpenses || []).map((e: any) => ({
           ...e,
           monthlyEquivalent: e.frequency === 'monthly' ? e.amount :
             e.frequency === 'quarterly' ? e.amount / 3 :
             e.amount / 12
         })),
-        variableExpenses: (dashboardData?.variablePlans || []).map((plan: any) => {
-          const actuals = (dashboardData?.variableActuals || []).filter((a: any) => a.planId === plan.id);
-          return {
-            ...plan,
-            actuals,
-            actualTotal: actuals.reduce((sum: number, a: any) => sum + (a.amount || 0), 0)
-          };
-        }),
-        investments: dashboardData?.investments || [],
-        futureBombs: dashboardData?.futureBombs || [],
+        variableExpenses,
+        investments: directInvestments || [],
+        futureBombs: directFutureBombs || [],
         creditCards: creditCards || [],
-        loans: loans,
+        loans,
         activities: (activities || []).map((a: any) => ({
           id: a.id,
           actorId: a.actor_id,
@@ -2501,27 +2524,17 @@ serve(async (req) => {
         })),
         alerts: [],
         summary: {
-          totalIncome: (dashboardData?.incomes || []).reduce((sum: number, i: any) => 
-            sum + ((i.amount || 0) / (i.frequency === 'monthly' ? 1 : i.frequency === 'quarterly' ? 3 : 12)), 0),
-          totalFixedExpenses: (dashboardData?.fixedExpenses || []).reduce((sum: number, e: any) => {
-            const monthly = e.frequency === 'monthly' ? e.amount : e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12;
-            return sum + monthly;
-          }, 0),
-          totalVariableActual: (dashboardData?.variablePlans || []).reduce((sum: number, plan: any) => {
-            const actuals = (dashboardData?.variableActuals || []).filter((a: any) => a.planId === plan.id);
-            return sum + actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0);
-          }, 0),
-          totalInvestments: (dashboardData?.investments || []).reduce((sum: number, i: any) => sum + (i.monthlyAmount || 0), 0),
-          healthCategory: healthData?.health?.category || 'ok',
-          remainingBalance: healthData?.health?.remaining || 0
-        }
+          totalIncome,
+          totalFixedExpenses,
+          totalVariableActual,
+          totalInvestments,
+          remainingBalance,
+          healthCategory
+        },
+        healthDetails: {}
       };
-      
-      // Old backend returns exportData directly, not wrapped in { data: ... }
-      return new Response(
-        JSON.stringify(exportData),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+
+      return json(exportData);
     }
 
     return error('Not found', 404);

@@ -13,11 +13,13 @@ interface ExportPageProps {
 export function ExportPage({ token }: ExportPageProps) {
   const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
-  const [error, setError] = useState<string | null>(null); // Added error state
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
 
   const handleExport = async () => { // Renamed function
     setExporting(true);
     setError(null); // Reset error state
+    setStatus("Preparing your export...");
     try {
       // Get the correct API URL
       const envUrl = import.meta.env.VITE_API_URL;
@@ -42,6 +44,7 @@ export function ExportPage({ token }: ExportPageProps) {
       }
 
       const data = await response.json(); // Keep this line as the server returns JSON data for client-side XLSX processing
+      setStatus("Building workbook...");
 
       // Create workbook
       const wb = XLSX.utils.book_new();
@@ -185,7 +188,7 @@ export function ExportPage({ token }: ExportPageProps) {
         const categoryData = Array.from(categoryMap.entries()).map(([category, amount]) => ({
           Category: category,
           "Total Spend": amount,
-          "% of Total": ((amount / data.summary.totalFixedExpenses + data.summary.totalVariableActual) * 100).toFixed(1) + "%"
+          "% of Total": (((amount) / Math.max(1, data.summary.totalFixedExpenses + data.summary.totalVariableActual)) * 100).toFixed(1) + "%"
         }));
         const wsCategory = XLSX.utils.json_to_sheet(categoryData);
         wsCategory["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }];
@@ -199,9 +202,10 @@ export function ExportPage({ token }: ExportPageProps) {
 
       alert("Excel export successful! Check your downloads folder.");
     } catch (e: any) {
-      alert("Export failed: " + e.message);
+      setError(e.message || "Export failed");
     } finally {
       setExporting(false);
+      setStatus(null);
     }
   };
 
@@ -243,6 +247,8 @@ export function ExportPage({ token }: ExportPageProps) {
             <FaFileExcel style={{ marginRight: '8px' }} />
             {exporting ? "Exporting..." : "Export to Excel"}
           </button>
+          {status && <div className="export-status">{status}</div>}
+          {error && <div className="export-error">Export failed: {error}</div>}
 
           <div className="export-info">
             <h3><FaLightbulb style={{ marginRight: '8px', color: '#f59e0b' }} />What can you do with the export?</h3>
