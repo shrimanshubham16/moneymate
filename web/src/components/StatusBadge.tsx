@@ -2,7 +2,7 @@ import { FaCheckCircle, FaPause, FaCircle, FaExclamationCircle, FaClock, FaExcla
 import "./StatusBadge.css";
 
 interface StatusBadgeProps {
-  status: "active" | "paused" | "paid" | "unpaid" | "overdue" | "pending" | "completed" | "error";
+  status: "active" | "paused" | "paid" | "unpaid" | "overdue" | "pending" | "completed" | "error" | "info";
   icon?: React.ReactNode;
   label?: string;
   size?: "small" | "medium" | "large";
@@ -17,10 +17,11 @@ export function StatusBadge({ status, icon, label, size = "medium" }: StatusBadg
     overdue: { icon: <FaExclamationCircle size={size === "small" ? 12 : size === "large" ? 16 : 14} />, label: "Overdue", color: "red" },
     pending: { icon: <FaClock size={size === "small" ? 12 : size === "large" ? 16 : 14} />, label: "Pending", color: "blue" },
     completed: { icon: <FaCheckCircle size={size === "small" ? 12 : size === "large" ? 16 : 14} />, label: "Completed", color: "green" },
-    error: { icon: <FaExclamationTriangle size={size === "small" ? 12 : size === "large" ? 16 : 14} />, label: "Error", color: "red" }
+    error: { icon: <FaExclamationTriangle size={size === "small" ? 12 : size === "large" ? 16 : 14} />, label: "Error", color: "red" },
+    info: { icon: <FaExclamationCircle size={size === "small" ? 12 : size === "large" ? 16 : 14} />, label: "Info", color: "blue" }
   };
 
-  const { icon: defaultIcon, label: defaultLabel, color } = config[status];
+  const { icon: defaultIcon, label: defaultLabel, color } = config[status] || config.info;
 
   return (
     <span className={`status-badge ${color} ${size}`}>
