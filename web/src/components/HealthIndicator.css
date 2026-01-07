@@ -66,7 +66,7 @@
   position: relative;
   width: 240px;
   margin: 0 auto 12px auto;
-  height: 64px;
+  height: 72px;
 }
 
 .mouth-top, .mouth-bottom {
@@ -75,6 +75,7 @@
   right: 0;
   height: 16px;
   border-radius: 999px;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.25));
 }
 
 .mouth-top {
@@ -91,8 +92,8 @@
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0,0,0,0.55);
-  border-radius: 18px;
+  background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.06), rgba(0,0,0,0.55));
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,15 +103,16 @@
 }
 
 .mouth-score {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
 }
 
 .mouth-sparkles {
   position: absolute;
   inset: 8px;
   border: 1px dashed;
-  border-radius: 18px;
+  border-radius: 20px;
   pointer-events: none;
 }
 

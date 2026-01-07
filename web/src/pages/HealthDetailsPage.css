@@ -290,11 +290,44 @@
   font-weight: var(--font-bold);
 }
 
-.loading {
+.loading-orb {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  margin: 40px auto 12px;
+  background: radial-gradient(circle, #22d3ee, #0ea5e9);
+  animation: pulse-orb 1.5s infinite ease-in-out;
+  box-shadow: 0 0 30px rgba(14,165,233,0.45);
+}
+
+.loading-text {
   text-align: center;
-  padding: var(--space-16);
-  color: var(--text-secondary);
-  font-size: var(--text-lg);
+  color: #e2e8f0;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.health-crawl {
+  max-width: 520px;
+  margin: 0 auto;
+  color: #cbd5e1;
+  font-family: "Courier New", monospace;
+  text-align: center;
+  animation: float-crawl 8s infinite ease-in-out;
+}
+
+.crawl-inner p {
+  margin: 4px 0;
+}
+
+@keyframes pulse-orb {
+  0%, 100% { transform: scale(0.96); opacity: 0.9; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes float-crawl {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 /* Health Categories Explanation Section */

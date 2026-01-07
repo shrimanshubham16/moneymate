@@ -14,6 +14,7 @@ interface HealthDetailsPageProps {
 export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [heroLoading, setHeroLoading] = useState(true);
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
   const { showIntro, closeIntro } = useIntroModal("health");
@@ -27,6 +28,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
 
   const loadHealthDetails = async () => {
     try {
+      setHeroLoading(true);
       // Use the api module's fetchHealthDetails
       const [healthRes, dashRes, cardsRes, loansRes] = await Promise.all([
         api.fetchHealthDetails(token),
@@ -156,6 +158,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       console.error("Failed to load health details:", e);
     } finally {
       setLoading(false);
+      setHeroLoading(false);
     }
   };
 
@@ -180,10 +183,22 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     }
   };
 
+  const loadingCrawl = (
+    <div className="health-crawl">
+      <div className="crawl-inner">
+        <p>“In a galaxy not so far away, your finances are assembling...”</p>
+        <p>Did you know? The first credit card was introduced in 1950.</p>
+        <p>Fun fact: Lightsabers are powered by kyber crystals—our budgets by discipline.</p>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="health-details-page">
-        <div className="loading">Loading health details...</div>
+        <div className="loading-orb" />
+        <div className="loading-text">Crunching your health score...</div>
+        {loadingCrawl}
       </div>
     );
   }

@@ -41,6 +41,7 @@ const healthConfig = {
 export function HealthIndicator({ category, remaining, onClick }: HealthIndicatorProps) {
   const [isHidden, setIsHidden] = useState<boolean>(true);
   const [isMouthOpen, setIsMouthOpen] = useState<boolean>(false);
+  const [revealDelay, setRevealDelay] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("finflow_health_hidden");
@@ -70,6 +71,14 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
   // Ensure integer display (backend already returns integer, but round here for safety)
   const displayAmount = Math.round(Math.abs(remaining));
 
+  useEffect(() => {
+    if (isMouthOpen) {
+      const t = setTimeout(() => setRevealDelay(true), 160);
+      return () => clearTimeout(t);
+    }
+    setRevealDelay(false);
+  }, [isMouthOpen]);
+
   return (
     <motion.div
       className="health-indicator"
@@ -92,22 +101,22 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
       <div className="health-emoji"><HealthIcon size={48} color={config.color} /></div>
       <div className="health-category">{category.toUpperCase()}</div>
 
-      <div className="health-mouth" style={{ boxShadow: `0 0 20px ${theme.glow}55` }}>
+      <div className="health-mouth" style={{ boxShadow: `0 0 30px ${theme.glow}33` }}>
         <motion.div
           className="mouth-top"
           style={{ background: theme.mouth }}
-          animate={{ y: isMouthOpen ? -6 : 0 }}
-          transition={{ type: "spring", stiffness: 220, damping: 18 }}
+          animate={{ y: isMouthOpen ? -10 : 0, borderRadius: isMouthOpen ? "24px 24px 8px 8px" : "999px" }}
+          transition={{ type: "spring", stiffness: 200, damping: 16 }}
         />
         <motion.div
           className="mouth-bottom"
           style={{ background: theme.mouth }}
-          animate={{ y: isMouthOpen ? 6 : 0 }}
-          transition={{ type: "spring", stiffness: 220, damping: 18 }}
+          animate={{ y: isMouthOpen ? 10 : 0, borderRadius: isMouthOpen ? "8px 8px 24px 24px" : "999px" }}
+          transition={{ type: "spring", stiffness: 200, damping: 16 }}
         />
         <motion.div
           className="mouth-inner"
-          animate={{ height: isMouthOpen ? 46 : 12, opacity: isHidden ? 0.3 : 1 }}
+          animate={{ height: isMouthOpen ? 54 : 10, opacity: isHidden ? 0.25 : 1 }}
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
         >
           <button className="health-eye" onClick={(e) => { e.stopPropagation(); toggleHidden(); }}>
@@ -115,8 +124,8 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
           </button>
           <motion.span
             className="mouth-score"
-            animate={{ opacity: isHidden ? 0 : 1, scale: isHidden ? 0.9 : 1 }}
-            transition={{ duration: 0.2 }}
+            animate={{ opacity: isHidden ? 0 : (revealDelay ? 1 : 0), scale: isHidden ? 0.9 : 1 }}
+            transition={{ duration: 0.28 }}
           >
             {isHidden ? "•••••" : `${isPositive ? "₹" : "-₹"}${displayAmount.toLocaleString("en-IN")}`}
           </motion.span>
@@ -124,8 +133,8 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
         <motion.div
           className="mouth-sparkles"
           style={{ borderColor: theme.glow }}
-          animate={{ opacity: isMouthOpen && !isHidden ? [0.2, 0.7, 0.2] : 0 }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+          animate={{ opacity: isMouthOpen && !isHidden ? [0.1, 0.35, 0.1] : 0, scale: isMouthOpen ? [1, 1.04, 1] : 1 }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
 
