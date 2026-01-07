@@ -1761,7 +1761,19 @@ serve(async (req) => {
         return error('Failed to create investment', 500);
       }
       console.log(`[INVESTMENT_CREATE] Successfully created investment ${data.id}`);
-      await logActivity(userId, 'investment', 'added investment', { name: data.name, goal: data.goal, monthlyAmount: data.monthly_amount });
+      // E2E: Include encrypted fields in activity so frontend can decrypt
+      await logActivity(userId, 'investment', 'added investment', { 
+        name: body.name || data.name,
+        name_enc: body.name_enc,
+        name_iv: body.name_iv,
+        goal: body.goal || data.goal,
+        goal_enc: body.goal_enc,
+        goal_iv: body.goal_iv,
+        monthlyAmount: body.monthly_amount || data.monthly_amount || 0,
+        monthly_amount_enc: body.monthly_amount_enc,
+        monthly_amount_iv: body.monthly_amount_iv,
+        status: data.status
+      });
       await invalidateUserCache(userId); // P0 FIX: Invalidate cache after creation
       return json({ data }, 201);
     }
@@ -2289,6 +2301,126 @@ serve(async (req) => {
       const { data: outgoing } = await supabase.from('sharing_requests').select('*').eq('inviter_id', userId);
       return json({ data: { incoming: incoming || [], outgoing: outgoing || [] } });
     }
+    
+    // Send sharing invite
+    if (path === '/sharing/invite' && method === 'POST') {
+      const body = await req.json();
+      const { email_or_username, role, merge_finances } = body;
+      
+      if (!email_or_username || !role) {
+        return error('email_or_username and role required', 400);
+      }
+      
+      // Find invitee by username or email
+      const { data: invitee } = await supabase.from('users')
+        .select('id, username, email')
+        .or(`username.eq.${email_or_username},email.eq.${email_or_username}`)
+        .single();
+      
+      if (!invitee) {
+        return error('User not found', 404);
+      }
+      
+      if (invitee.id === userId) {
+        return error('Cannot invite yourself', 400);
+      }
+      
+      // Check for existing request
+      const { data: existing } = await supabase.from('sharing_requests')
+        .select('*')
+        .eq('inviter_id', userId)
+        .eq('invitee_id', invitee.id)
+        .eq('status', 'pending')
+        .single();
+      
+      if (existing) {
+        return error('Invite already sent to this user', 400);
+      }
+      
+      // Create sharing request
+      const { data: request, error: reqErr } = await supabase.from('sharing_requests')
+        .insert({
+          inviter_id: userId,
+          invitee_id: invitee.id,
+          role: role,
+          merge_finances: merge_finances || false,
+          status: 'pending'
+        })
+        .select()
+        .single();
+      
+      if (reqErr) {
+        console.error('[SHARING_INVITE_ERROR]', reqErr);
+        return error(reqErr.message, 500);
+      }
+      
+      await logActivity(userId, 'sharing', 'sent_invite', { invitee: invitee.username, role });
+      return json({ data: request }, 201);
+    }
+    
+    // Approve sharing request
+    if (path.match(/\/sharing\/requests\/[^/]+\/approve$/) && method === 'POST') {
+      const requestId = path.split('/')[3];
+      
+      // Get the request
+      const { data: request } = await supabase.from('sharing_requests')
+        .select('*')
+        .eq('id', requestId)
+        .eq('invitee_id', userId)
+        .eq('status', 'pending')
+        .single();
+      
+      if (!request) {
+        return error('Request not found or already processed', 404);
+      }
+      
+      // Update request status
+      await supabase.from('sharing_requests')
+        .update({ status: 'approved' })
+        .eq('id', requestId);
+      
+      // Create shared_member entry
+      await supabase.from('shared_members').insert({
+        user_id: request.inviter_id,
+        member_id: userId,
+        role: request.role,
+        merge_finances: request.merge_finances
+      });
+      
+      // Get inviter username for activity log
+      const { data: inviter } = await supabase.from('users').select('username').eq('id', request.inviter_id).single();
+      
+      await logActivity(userId, 'sharing', 'approved_request', { inviter: inviter?.username, role: request.role });
+      return json({ data: { success: true } });
+    }
+    
+    // Reject sharing request
+    if (path.match(/\/sharing\/requests\/[^/]+\/reject$/) && method === 'POST') {
+      const requestId = path.split('/')[3];
+      
+      // Get the request
+      const { data: request } = await supabase.from('sharing_requests')
+        .select('*')
+        .eq('id', requestId)
+        .eq('invitee_id', userId)
+        .eq('status', 'pending')
+        .single();
+      
+      if (!request) {
+        return error('Request not found or already processed', 404);
+      }
+      
+      // Update request status
+      await supabase.from('sharing_requests')
+        .update({ status: 'rejected' })
+        .eq('id', requestId);
+      
+      // Get inviter username for activity log
+      const { data: inviter } = await supabase.from('users').select('username').eq('id', request.inviter_id).single();
+      
+      await logActivity(userId, 'sharing', 'rejected_request', { inviter: inviter?.username });
+      return json({ data: { success: true } });
+    }
 
     // PAYMENTS
     if (path === '/payments/mark-paid' && method === 'POST') {
@@ -2512,7 +2644,8 @@ serve(async (req) => {
       const { data: directIncomes } = await supabase.from('incomes').select('*').eq('user_id', userId);
       const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').eq('user_id', userId);
       const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').eq('user_id', userId);
-      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*');
+      // FIX: Filter variableActuals by user_id to prevent data leak
+      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*').eq('user_id', userId);
       const { data: directInvestments } = await supabase.from('investments').select('*').eq('user_id', userId);
       const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').eq('user_id', userId);
       const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
