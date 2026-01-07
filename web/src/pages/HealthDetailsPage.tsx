@@ -68,7 +68,20 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         return sum + (parseFloat(inv.monthlyAmount) || 0);
       }, 0);
       
-      const variableTotalForHealth = healthData.obligations?.unpaidProratedVariable || 0;
+      // Calculate variable total from dashboard's decrypted/recalculated data (NOT backend's placeholder values)
+      const today = new Date();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const monthProgress = today.getDate() / daysInMonth;
+      const remainingDaysRatio = 1 - monthProgress;
+      
+      // Use recalculated actualTotal from dashboard data (decrypted amounts)
+      const totalVariableActual = (data.variablePlans || []).reduce((sum: number, p: any) => 
+        sum + (parseFloat(p.actualTotal) || 0), 0);
+      const totalVariablePlanned = (data.variablePlans || []).reduce((sum: number, p: any) => 
+        sum + (parseFloat(p.planned) || 0), 0);
+      const variableProrated = totalVariablePlanned * remainingDaysRatio;
+      const variableTotalForHealth = Math.max(totalVariableActual, variableProrated);
+      
       const creditCardTotalForHealth = healthData.obligations?.totalCreditCardDue || 0;
       const totalOutflowForHealth = unpaidFixedTotalForHealth + variableTotalForHealth + unpaidInvestmentsTotalForHealth + creditCardTotalForHealth;
       
@@ -117,7 +130,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const unpaidInvestmentsTotal = unpaidInvestmentsTotalForHealth;
       
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthDetailsPage:correctHealth',message:'Health page calc',data:{totalIncome:healthData.totalIncome,unpaidFixedTotal:unpaidFixedTotalForHealth,variableTotal:variableTotalForHealth,unpaidInvestmentsTotal:unpaidInvestmentsTotalForHealth,creditCardTotal:creditCardTotalForHealth,totalOutflow:totalOutflowForHealth,remaining:correctRemaining,category:correctCategory},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthDetailsPage:correctHealth',message:'Health page calc',data:{totalIncome:healthData.totalIncome,unpaidFixedTotal:unpaidFixedTotalForHealth,variableTotal:variableTotalForHealth,totalVariableActual,totalVariablePlanned,variableProrated,unpaidInvestmentsTotal:unpaidInvestmentsTotalForHealth,creditCardTotal:creditCardTotalForHealth,totalOutflow:totalOutflowForHealth,remaining:correctRemaining,category:correctCategory},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
       // #endregion
       
       setBreakdown({
@@ -131,7 +144,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             items: unpaidFixedExpenses
           },
           variable: {
-            total: obligations.unpaidProratedVariable || breakdown?.expenses?.variable?.total || 0,
+            total: variableTotalForHealth,  // Use recalculated variable total from decrypted data
             items: data.variablePlans || []
           }
         },
@@ -153,7 +166,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             items: loansRes.data
           }
         },
-        totalOutflow: unpaidFixedTotal + (obligations.unpaidProratedVariable || 0) + unpaidInvestmentsTotal + (obligations.totalCreditCardDue || 0),
+        totalOutflow: unpaidFixedTotal + variableTotalForHealth + unpaidInvestmentsTotal + (obligations.totalCreditCardDue || 0),
         monthProgress: healthData.monthProgress || 0
       });
 
