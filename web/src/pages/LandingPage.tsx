@@ -279,7 +279,7 @@ export function LandingPage() {
           viewport={{ once: true }}
         >
           <h2>Free. Forever.</h2>
-          <p>No trials, no paywalls, no ads.</p>
+          <p>No trials, no paywalls, no ads. Current infra comfortably handles ~10,000 users at optimal performance; if we outgrow it, we may ask for donations to keep scaling.</p>
         </motion.div>
         <div className="pricing-grid">
           <div className="pricing-card competitor">

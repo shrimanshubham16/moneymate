@@ -43,6 +43,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [quickAddJustification, setQuickAddJustification] = useState("");
   const [quickAddSubcategory, setQuickAddSubcategory] = useState("");
   const [quickAddCardId, setQuickAddCardId] = useState<string>("");
+  const [funFact, setFunFact] = useState<string>("");
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const keepAliveIntervalRef = useRef<number | null>(null);
 
@@ -165,6 +166,12 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   useEffect(() => {
     loadData();
+    import("../data/funFacts").then((m) => {
+      const facts = m.funFacts || [];
+      if (facts.length) {
+        setFunFact(facts[Math.floor(Math.random() * facts.length)]);
+      }
+    });
     
     // KEEP-ALIVE: Ping Edge Function every 4 minutes to prevent cold starts
     // Only runs while dashboard is mounted (user is active)
@@ -428,20 +435,17 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   if (loading) {
     return (
-      <div className="dashboard-page">
-        <div className="skeleton-header">
-          <div className="skeleton-pill shimmer" style={{ width: 140, height: 16 }}></div>
-          <div className="skeleton-pill shimmer" style={{ width: 80, height: 16 }}></div>
-        </div>
-        <div className="skeleton-grid">
-          {[...Array(8)].map((_, idx) => (
-            <div key={idx} className="skeleton-card shimmer">
-              <div className="skeleton-bar" style={{ width: '60%', height: 18 }}></div>
-              <div className="skeleton-bar" style={{ width: '40%', height: 14, marginTop: 12 }}></div>
-              <div className="skeleton-bar" style={{ width: '80%', height: 10, marginTop: 18 }}></div>
+      <div className="dashboard-page loader-shell">
+        <div className="loading-orb" />
+        <div className="loading-text">Warming up your dashboard...</div>
+        {funFact && (
+          <div className="health-crawl">
+            <div className="crawl-inner">
+              <p>“Patience, young padawan. Data is assembling...”</p>
+              <p>{funFact}</p>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     );
   }

@@ -5,6 +5,7 @@ import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaM
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
+import { funFacts } from "../data/funFacts";
 import "./HealthDetailsPage.css";
 
 interface HealthDetailsPageProps {
@@ -15,6 +16,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [heroLoading, setHeroLoading] = useState(true);
+  const [funFact, setFunFact] = useState<string>("");
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
   const { showIntro, closeIntro } = useIntroModal("health");
@@ -24,6 +26,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
 
   useEffect(() => {
     loadHealthDetails();
+    setFunFact(funFacts[Math.floor(Math.random() * funFacts.length)]);
   }, [token]);
 
   const loadHealthDetails = async () => {
@@ -187,8 +190,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     <div className="health-crawl">
       <div className="crawl-inner">
         <p>“In a galaxy not so far away, your finances are assembling...”</p>
-        <p>Did you know? The first credit card was introduced in 1950.</p>
-        <p>Fun fact: Lightsabers are powered by kyber crystals—our budgets by discipline.</p>
+        <p>{funFact}</p>
+        <p>Fun fact stream: refreshed every time you load.</p>
       </div>
     </div>
   );

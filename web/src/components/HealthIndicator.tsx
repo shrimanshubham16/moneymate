@@ -58,10 +58,10 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
 
   const theme = useMemo(() => {
     switch (category) {
-      case "good": return { glow: "#10b981", bg: "linear-gradient(135deg, #0f172a, #0b1b29)", mouth: "#10b981" };
-      case "ok": return { glow: "#f59e0b", bg: "linear-gradient(135deg, #1f1305, #2a1d0c)", mouth: "#f59e0b" };
-      case "not well": return { glow: "#f97316", bg: "linear-gradient(135deg, #2a1106, #3a1a0a)", mouth: "#f97316" };
-      default: return { glow: "#ef4444", bg: "linear-gradient(135deg, #2b0c0c, #3c1515)", mouth: "#ef4444" };
+      case "good": return { glow: "#22d3ee", bg: "radial-gradient(circle at 20% 20%, #0ea5e9 0%, #0b1220 60%)", mouth: "#22d3ee" };
+      case "ok": return { glow: "#f59e0b", bg: "radial-gradient(circle at 20% 20%, #f59e0b 0%, #1f1305 60%)", mouth: "#f59e0b" };
+      case "not well": return { glow: "#f97316", bg: "radial-gradient(circle at 20% 20%, #fb923c 0%, #2a1106 60%)", mouth: "#f97316" };
+      default: return { glow: "#ef4444", bg: "radial-gradient(circle at 20% 20%, #ef4444 0%, #2b0c0c 60%)", mouth: "#ef4444" };
     }
   }, [category]);
 
