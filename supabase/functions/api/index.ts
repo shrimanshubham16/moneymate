@@ -1397,9 +1397,15 @@ serve(async (req) => {
         .insert(insertData)
         .select().single();
       if (e) return error(e.message, 500);
-      // Activity log uses placeholder for encrypted data
+      // Activity log with full details for display
       const logName = body.source || '[encrypted]';
-      await logActivity(userId, 'income', 'added income source', { name: logName, encrypted: hasEncryption });
+      const logAmount = body.amount || data.amount || 0;
+      await logActivity(userId, 'income', 'added income source', { 
+        name: logName, 
+        amount: logAmount,
+        frequency: body.frequency || 'monthly',
+        encrypted: hasEncryption 
+      });
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
@@ -1451,7 +1457,15 @@ serve(async (req) => {
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
       const logName = body.name || '[encrypted]';
-      await logActivity(userId, 'fixed_expense', 'added fixed expense', { name: logName, encrypted: hasEncryption });
+      const logAmount = body.amount || data.amount || 0;
+      await logActivity(userId, 'fixed_expense', 'added fixed expense', { 
+        name: logName, 
+        amount: logAmount,
+        frequency: body.frequency || 'monthly',
+        category: body.category,
+        isSip: body.is_sip || false,
+        encrypted: hasEncryption 
+      });
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
@@ -1504,7 +1518,13 @@ serve(async (req) => {
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
       const logName = body.name || '[encrypted]';
-      await logActivity(userId, 'variable_expense_plan', 'added variable expense plan', { name: logName, encrypted: hasEncryption });
+      const logPlanned = body.planned || data.planned || 0;
+      await logActivity(userId, 'variable_expense_plan', 'added variable expense plan', { 
+        name: logName, 
+        planned: logPlanned,
+        category: body.category,
+        encrypted: hasEncryption 
+      });
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
@@ -1815,7 +1835,13 @@ serve(async (req) => {
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
       const logName = body.name || '[encrypted]';
-      await logActivity(userId, 'future_bomb', 'added future bomb', { name: logName, encrypted: hasEncryption });
+      const logTotal = body.total_amount || data.total_amount || 0;
+      await logActivity(userId, 'future_bomb', 'added future bomb', { 
+        name: logName, 
+        totalAmount: logTotal,
+        targetDate: body.target_date,
+        encrypted: hasEncryption 
+      });
       return json({ data }, 201);
     }
     if (path.startsWith('/future-bombs/') && method === 'DELETE') {
@@ -2172,6 +2198,10 @@ serve(async (req) => {
       const startDate = url.searchParams.get('start_date');
       const endDate = url.searchParams.get('end_date');
       
+      // #region agent log - DEBUG: Activity fetch
+      console.log(`[DEBUG_ACTIVITY] Fetching activities for user ${userId}`);
+      // #endregion
+      
       // activities table uses actor_id, not user_id
       let query = supabase
         .from('activities')
@@ -2226,6 +2256,13 @@ serve(async (req) => {
           username: usernameMap.get(act.actor_id) || 'Unknown User'
         };
       });
+      
+      // #region agent log - DEBUG: Sample activities being returned
+      console.log(`[DEBUG_ACTIVITY] Returning ${formatted.length} activities`);
+      if (formatted.length > 0) {
+        console.log(`[DEBUG_ACTIVITY_SAMPLE]`, JSON.stringify(formatted.slice(0, 3)));
+      }
+      // #endregion
       
       return json({ data: formatted });
     }

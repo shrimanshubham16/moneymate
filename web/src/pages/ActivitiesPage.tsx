@@ -33,6 +33,10 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
   const loadActivities = async () => {
     try {
       const res = await api.fetchActivity(token);
+      
+      // #region agent log - DEBUG: Raw activities from API
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActivitiesPage.tsx:loadActivities',message:'raw activities',data:{count: (res.data || []).length, sample: (res.data || []).slice(0, 3).map((a: any) => ({entity: a.entity, action: a.action, payload: a.payload}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'ACT'})}).catch(()=>{});
+      // #endregion
 
       // Ensure each activity has the required fields and sanitize payload
       const sanitizedActivities = (res.data || []).map((activity: any) => {
@@ -89,13 +93,17 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
     const iconMap: Record<string, JSX.Element> = {
       income: <FaMoneyBillWave />,
       fixed: <FaWallet />,
+      fixed_expense: <FaWallet />,
       variable: <FaChartBar />,
+      variable_expense: <FaChartBar />,
+      variable_expense_plan: <FaChartBar />,
       investment: <FaChartLine />,
       credit_card: <FaCreditCard />,
       loan: <FaUniversity />,
       future_bomb: <FaBomb />,
       sharing: <FaHandshake />,
-      alert: <FaBell />
+      alert: <FaBell />,
+      system: <MdAccountBalanceWallet />
     };
     return iconMap[entity] || <FaFileAlt />;
   };
