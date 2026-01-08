@@ -120,10 +120,11 @@ export function SharingPage({ token }: SharingPageProps) {
               {requests.incoming.map((req) => (
                 <div key={req.id} className="request-card">
                   <div className="request-info">
-                    <h3>From: {req.ownerEmail || req.ownerId}</h3>
+                    <h3>From: {req.inviterUsername || req.ownerEmail || req.ownerId || 'Unknown'}</h3>
                     <div className="request-meta">
                       <span className={`role-badge ${req.role}`}>{req.role}</span>
                       {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}
+                      <span className="status-badge">{req.status}</span>
                     </div>
                   </div>
                   <div className="request-actions">
@@ -148,7 +149,7 @@ export function SharingPage({ token }: SharingPageProps) {
               {requests.outgoing.map((req) => (
                 <div key={req.id} className="request-card outgoing">
                   <div className="request-info">
-                    <h3>To: {req.inviteeEmail || req.inviteeId}</h3>
+                    <h3>To: {req.inviteeUsername || req.inviteeEmail || req.inviteeId || 'Unknown'}</h3>
                     <div className="request-meta">
                       <span className={`role-badge ${req.role}`}>{req.role}</span>
                       {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}

@@ -261,10 +261,13 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                   }
                   return `${username} added variable expense plan`;
                 case 'added investment':
-                  if (payload.monthlyAmount) {
-                    const goal = payload.goal ? ` (Goal: ${payload.goal})` : '';
-                    const status = payload.status ? ` [${payload.status}]` : '';
-                    return `${username} added investment ${formatCurrency(payload.monthlyAmount)}/month${goal}${status}`;
+                  // Handle both camelCase and snake_case field names
+                  const invAmount = payload.monthlyAmount || payload.monthly_amount || 0;
+                  const invName = payload.name || '';
+                  const invGoal = payload.goal ? ` (Goal: ${payload.goal})` : '';
+                  const invStatus = payload.status ? ` [${payload.status}]` : '';
+                  if (invAmount > 0 || invName) {
+                    return `${username} added investment${invName ? ` "${invName}"` : ''} ${invAmount > 0 ? formatCurrency(invAmount) + '/month' : ''}${invGoal}${invStatus}`.trim();
                   }
                   return `${username} added investment`;
                 case 'payment':

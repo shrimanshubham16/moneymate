@@ -1086,8 +1086,41 @@ serve(async (req) => {
         console.error('[AUTO_ACCUMULATE_ERROR]', err);
       }
       
+      // Handle shared view
+      const dashUrl = new URL(req.url);
+      const viewParam = dashUrl.searchParams.get('view') || 'me';
+      
+      // Get target user IDs for data fetching
+      let targetUserIds: string[] = [userId];
+      
+      if (viewParam === 'merged') {
+        // Fetch all shared members and include their IDs
+        const { data: sharedMembers } = await supabase.from('shared_members')
+          .select('member_id')
+          .eq('user_id', userId);
+        
+        if (sharedMembers?.length) {
+          targetUserIds = [userId, ...sharedMembers.map((m: any) => m.member_id)];
+        }
+        console.log('[DASHBOARD_VIEW] Merged view, target users:', targetUserIds);
+      } else if (viewParam !== 'me' && viewParam) {
+        // Specific user view - verify access
+        const { data: hasAccess } = await supabase.from('shared_members')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('member_id', viewParam)
+          .single();
+        
+        if (hasAccess) {
+          targetUserIds = [viewParam];
+          console.log('[DASHBOARD_VIEW] Viewing user:', viewParam);
+        } else {
+          console.log('[DASHBOARD_VIEW] No access to user:', viewParam);
+        }
+      }
+      
       const perfStart = Date.now();
-      const cacheKey = `dashboard:${userId}`;
+      const cacheKey = `dashboard:${userId}:${viewParam}`;
       
       // Try Redis cache first
       const cached = await redisGet(cacheKey);
@@ -1104,12 +1137,13 @@ serve(async (req) => {
       const { data, error: rpcError } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
       
       // WORKAROUND: Direct queries to bypass broken RPC function
-      const { data: directIncomes } = await supabase.from('incomes').select('*').eq('user_id', userId);
-      const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').eq('user_id', userId);
-      const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').eq('user_id', userId);
-      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*').eq('user_id', userId);
-      const { data: directInvestments } = await supabase.from('investments').select('*').eq('user_id', userId);
-      const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').eq('user_id', userId);
+      // Use .in() for merged view support
+      const { data: directIncomes } = await supabase.from('incomes').select('*').in('user_id', targetUserIds);
+      const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').in('user_id', targetUserIds);
+      const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').in('user_id', targetUserIds);
+      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*').in('user_id', targetUserIds);
+      const { data: directInvestments } = await supabase.from('investments').select('*').in('user_id', targetUserIds);
+      const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').in('user_id', targetUserIds);
       
       // #region agent log - DEBUG: Log raw variable actuals for hypothesis B/C
       console.log('[DEBUG_DASH] directVariablePlans count:', directVariablePlans?.length || 0);
@@ -2299,7 +2333,44 @@ serve(async (req) => {
     if (path === '/sharing/requests' && method === 'GET') {
       const { data: incoming } = await supabase.from('sharing_requests').select('*').eq('invitee_id', userId);
       const { data: outgoing } = await supabase.from('sharing_requests').select('*').eq('inviter_id', userId);
-      return json({ data: { incoming: incoming || [], outgoing: outgoing || [] } });
+      
+      // Fetch usernames for all users involved
+      const allUserIds = [...new Set([
+        ...(incoming || []).map((r: any) => r.inviter_id),
+        ...(outgoing || []).map((r: any) => r.invitee_id)
+      ])];
+      
+      const { data: users } = await supabase.from('users')
+        .select('id, username, email')
+        .in('id', allUserIds);
+      
+      const userMap = new Map((users || []).map((u: any) => [u.id, u]));
+      
+      // Enrich incoming requests with inviter info (show as "From")
+      const enrichedIncoming = (incoming || []).map((req: any) => {
+        const inviter = userMap.get(req.inviter_id) || {};
+        return {
+          ...req,
+          ownerEmail: inviter.email,
+          ownerId: req.inviter_id,
+          inviterUsername: inviter.username,
+          mergeFinances: req.merge_finances
+        };
+      });
+      
+      // Enrich outgoing requests with invitee info (show as "To")
+      const enrichedOutgoing = (outgoing || []).map((req: any) => {
+        const invitee = userMap.get(req.invitee_id) || {};
+        return {
+          ...req,
+          inviteeEmail: invitee.email,
+          inviteeId: req.invitee_id,
+          inviteeUsername: invitee.username,
+          mergeFinances: req.merge_finances
+        };
+      });
+      
+      return json({ data: { incoming: enrichedIncoming, outgoing: enrichedOutgoing } });
     }
     
     // Send sharing invite
