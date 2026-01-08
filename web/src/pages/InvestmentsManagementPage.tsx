@@ -41,28 +41,56 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const investmentData = {
+      name: formData.name,
+      goal: formData.goal,
+      monthlyAmount: Number(formData.monthlyAmount),
+      status: formData.status
+    };
+    
+    // OPTIMISTIC UPDATE: Add/update immediately in UI
+    const tempId = `temp-${Date.now()}`;
+    const optimisticInvestment = {
+      id: editingId || tempId,
+      ...investmentData,
+      savedAmount: 0,
+      accumulatedFunds: 0,
+      paid: false
+    };
+    
+    if (editingId) {
+      setInvestments(prev => prev.map(inv => inv.id === editingId ? { ...inv, ...optimisticInvestment } : inv));
+    } else {
+      setInvestments(prev => [optimisticInvestment, ...prev]);
+    }
+    
+    // Close form immediately
+    setShowForm(false);
+    setEditingId(null);
+    setFormData({ name: "", goal: "", monthlyAmount: "", status: "active" });
+    
     try {
+      let response;
       if (editingId) {
-        await api.updateInvestment(token, editingId, {
-          name: formData.name,
-          goal: formData.goal,
-          monthlyAmount: Number(formData.monthlyAmount),
-          status: formData.status
-        });
+        response = await api.updateInvestment(token, editingId, investmentData);
       } else {
-        await api.createInvestment(token, {
-          name: formData.name,
-          goal: formData.goal,
-          monthlyAmount: Number(formData.monthlyAmount),
-          status: formData.status
-        });
+        response = await api.createInvestment(token, investmentData);
+        // Replace temp item with real one
+        if (response?.data) {
+          setInvestments(prev => prev.map(inv => inv.id === tempId ? response.data : inv));
+        }
       }
-      setShowForm(false);
-      setEditingId(null);
-      setFormData({ name: "", goal: "", monthlyAmount: "", status: "active" });
-      await loadInvestments();
+      // Background refresh
+      loadInvestments();
     } catch (e: any) {
       alert(e.message);
+      // Rollback on error
+      if (editingId) {
+        loadInvestments();
+      } else {
+        setInvestments(prev => prev.filter(inv => inv.id !== tempId));
+      }
     }
   };
 

@@ -94,31 +94,56 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     e.preventDefault();
     if (isSubmitting) return; // Prevent multiple submissions
     setIsSubmitting(true);
+    
+    const planData = {
+      name: planForm.name,
+      planned: Number(planForm.planned),
+      category: planForm.category,
+      start_date: planForm.start_date,
+      end_date: planForm.end_date
+    };
+    
+    // OPTIMISTIC UPDATE: Add/update immediately in UI
+    const tempId = `temp-${Date.now()}`;
+    const optimisticPlan = {
+      id: editingId || tempId,
+      ...planData,
+      actuals: [],
+      actualTotal: 0
+    };
+    
+    if (editingId) {
+      setPlans(prev => prev.map(p => p.id === editingId ? { ...p, ...optimisticPlan } : p));
+    } else {
+      setPlans(prev => [optimisticPlan, ...prev]);
+    }
+    
+    // Close form immediately
+    setShowPlanForm(false);
+    setEditingId(null);
+    setIsSubmitting(false);
+    
     try {
+      let response;
       if (editingId) {
-        await api.updateVariableExpensePlan(token, editingId, {
-          name: planForm.name,
-          planned: Number(planForm.planned),
-          category: planForm.category,
-          start_date: planForm.start_date,
-          end_date: planForm.end_date
-        });
+        response = await api.updateVariableExpensePlan(token, editingId, planData);
       } else {
-        await api.createVariablePlan(token, {
-          name: planForm.name,
-          planned: Number(planForm.planned),
-          category: planForm.category,
-          start_date: planForm.start_date,
-          end_date: planForm.end_date
-        });
+        response = await api.createVariablePlan(token, planData);
+        // Replace temp item with real one
+        if (response?.data) {
+          setPlans(prev => prev.map(p => p.id === tempId ? { ...response.data, actuals: [], actualTotal: 0 } : p));
+        }
       }
-      setShowPlanForm(false);
-      setEditingId(null);
-      await loadPlans();
+      // Background refresh
+      loadPlans();
     } catch (e: any) {
       alert(e.message);
-    } finally {
-      setIsSubmitting(false);
+      // Rollback on error
+      if (editingId) {
+        loadPlans();
+      } else {
+        setPlans(prev => prev.filter(p => p.id !== tempId));
+      }
     }
   };
 

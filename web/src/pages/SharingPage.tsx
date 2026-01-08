@@ -54,9 +54,15 @@ export function SharingPage({ token }: SharingPageProps) {
     }
   };
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, inviterUsername: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to approve this sharing request from "${inviterUsername}"?\n\nThis will allow both of you to see each other's financial data in the Combined view.`
+    );
+    if (!confirmed) return;
+    
     try {
       await api.approveRequest(token, id);
+      alert('Request approved! You can now see each other\'s finances in the Combined (Shared) view on your Dashboard.');
       await loadData();
     } catch (e: any) {
       alert(e.message);
@@ -128,7 +134,7 @@ export function SharingPage({ token }: SharingPageProps) {
                     </div>
                   </div>
                   <div className="request-actions">
-                    <button onClick={() => handleApprove(req.id)} className="approve-btn">Approve</button>
+                    <button onClick={() => handleApprove(req.id, req.inviterUsername || req.ownerEmail || 'Unknown')} className="approve-btn">Approve</button>
                     <button onClick={() => handleReject(req.id)} className="reject-btn">Reject</button>
                   </div>
                 </div>

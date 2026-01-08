@@ -2780,10 +2780,23 @@ serve(async (req) => {
         return sum + monthly;
       }, 0);
 
-      const totalVariableActual = variableExpenses.reduce((sum: number, p: any) => sum + (p.actualTotal || 0), 0);
-      const totalInvestments = (directInvestments || []).reduce((sum: number, inv: any) => sum + (parseFloat(inv.monthly_amount || inv.monthlyAmount || 0)), 0);
-
+      // Calculate variable expenses as max(actual, prorated) for health calculation
       const today = new Date();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const remainingDaysRatio = 1 - (today.getDate() / daysInMonth);
+      
+      const totalVariablePlanned = variableExpenses.reduce((sum: number, p: any) => sum + (parseFloat(p.planned) || 0), 0);
+      const totalVariableActual = variableExpenses.reduce((sum: number, p: any) => sum + (p.actualTotal || 0), 0);
+      const totalVariableProrated = totalVariablePlanned * remainingDaysRatio;
+      const effectiveVariableExpense = Math.max(totalVariableActual, totalVariableProrated);
+      
+      // Parse investments - handle encrypted values by using numeric field
+      const totalInvestments = (directInvestments || []).reduce((sum: number, inv: any) => {
+        // Try numeric fields first, avoid encrypted strings
+        const amount = parseFloat(inv.monthly_amount) || parseFloat(inv.monthlyAmount) || 0;
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+
       const creditCardDues = (creditCards || []).reduce((sum: number, c: any) => {
         const billAmount = parseFloat(c.bill_amount || c.billAmount || 0);
         const paidAmount = parseFloat(c.paid_amount || c.paidAmount || 0);
@@ -2797,7 +2810,7 @@ serve(async (req) => {
         return sum;
       }, 0);
 
-      const remainingBalance = totalIncome - (totalFixedExpenses + totalVariableActual + totalInvestments + creditCardDues);
+      const remainingBalance = totalIncome - (totalFixedExpenses + effectiveVariableExpense + totalInvestments + creditCardDues);
       let healthCategory = 'ok';
       if (remainingBalance > 10000) healthCategory = 'good';
       else if (remainingBalance >= 0) healthCategory = 'ok';
@@ -2842,6 +2855,9 @@ serve(async (req) => {
           totalIncome,
           totalFixedExpenses,
           totalVariableActual,
+          totalVariablePlanned,
+          totalVariableProrated,
+          effectiveVariableExpense,
           totalInvestments,
           remainingBalance,
           healthCategory

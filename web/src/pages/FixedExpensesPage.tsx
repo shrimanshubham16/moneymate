@@ -71,46 +71,72 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     if (isSubmitting) return; // Prevent multiple submissions
     setIsSubmitting(true);
     console.log("💾 Submitting form with is_sip_flag:", formData.is_sip_flag);
+    
+    const expenseData = {
+      name: formData.name,
+      amount: Number(formData.amount),
+      frequency: formData.frequency,
+      category: formData.category,
+      start_date: formData.start_date,
+      end_date: formData.end_date,
+      is_sip_flag: formData.is_sip_flag
+    };
+    
+    // OPTIMISTIC UPDATE: Add/update immediately in UI
+    const tempId = `temp-${Date.now()}`;
+    const optimisticExpense = {
+      id: editingId || tempId,
+      ...expenseData,
+      startDate: formData.start_date,
+      endDate: formData.end_date,
+      paid: false
+    };
+    
+    if (editingId) {
+      // Update existing
+      setExpenses(prev => prev.map(exp => exp.id === editingId ? optimisticExpense : exp));
+    } else {
+      // Add new
+      setExpenses(prev => [optimisticExpense, ...prev]);
+    }
+    
+    // Close form immediately
+    setShowForm(false);
+    setEditingId(null);
+    setFormData({
+      name: "",
+      amount: "",
+      frequency: "monthly",
+      category: "General",
+      start_date: new Date().toISOString().split("T")[0],
+      end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      is_sip_flag: false
+    });
+    setIsSubmitting(false);
+    
     try {
+      let response;
       if (editingId) {
-        const response = await api.updateFixedExpense(token, editingId, {
-          name: formData.name,
-          amount: Number(formData.amount),
-          frequency: formData.frequency,
-          category: formData.category,
-          start_date: formData.start_date,
-          end_date: formData.end_date,
-          is_sip_flag: formData.is_sip_flag
-        });
+        response = await api.updateFixedExpense(token, editingId, expenseData);
         console.log("✅ Update response:", response);
       } else {
-        const response = await api.createFixedExpense(token, {
-          name: formData.name,
-          amount: Number(formData.amount),
-          frequency: formData.frequency,
-          category: formData.category,
-          start_date: formData.start_date,
-          end_date: formData.end_date,
-          is_sip_flag: formData.is_sip_flag
-        });
+        response = await api.createFixedExpense(token, expenseData);
         console.log("✅ Create response:", response);
+        // Replace temp item with real one
+        if (response?.data) {
+          setExpenses(prev => prev.map(exp => exp.id === tempId ? { ...response.data, startDate: response.data.start_date, endDate: response.data.end_date } : exp));
+        }
       }
-      setShowForm(false);
-      setEditingId(null);
-      setFormData({
-        name: "",
-        amount: "",
-        frequency: "monthly",
-        category: "General",
-        start_date: new Date().toISOString().split("T")[0],
-        end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        is_sip_flag: false
-      });
-      await loadExpenses();
+      // Background refresh to sync state
+      loadExpenses();
     } catch (e: any) {
       alert(e.message);
-    } finally {
-      setIsSubmitting(false);
+      // Rollback on error
+      if (editingId) {
+        loadExpenses(); // Reload original data
+      } else {
+        setExpenses(prev => prev.filter(exp => exp.id !== tempId));
+      }
     }
   };
 
