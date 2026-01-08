@@ -1095,9 +1095,13 @@ serve(async (req) => {
       
       if (viewParam === 'merged') {
         // Fetch all shared members and include their IDs
-        const { data: sharedMembers } = await supabase.from('shared_members')
-          .select('member_id')
+        const { data: sharedMembers, error: smErr } = await supabase.from('shared_members')
+          .select('*')
           .eq('user_id', userId);
+        
+        // #region agent log - H2: Debug shared members for combined view
+        console.log('[DEBUG_H2] Merged view - userId:', userId, 'sharedMembers:', JSON.stringify(sharedMembers), 'error:', smErr);
+        // #endregion
         
         if (sharedMembers?.length) {
           targetUserIds = [userId, ...sharedMembers.map((m: any) => m.member_id)];
@@ -2331,8 +2335,9 @@ serve(async (req) => {
       return json({ data: { members: members || [], accounts: accounts || [] } });
     }
     if (path === '/sharing/requests' && method === 'GET') {
-      const { data: incoming } = await supabase.from('sharing_requests').select('*').eq('invitee_id', userId);
-      const { data: outgoing } = await supabase.from('sharing_requests').select('*').eq('inviter_id', userId);
+      // Only return PENDING requests - approved/rejected should not show
+      const { data: incoming } = await supabase.from('sharing_requests').select('*').eq('invitee_id', userId).eq('status', 'pending');
+      const { data: outgoing } = await supabase.from('sharing_requests').select('*').eq('inviter_id', userId).eq('status', 'pending');
       
       // Fetch usernames for all users involved
       const allUserIds = [...new Set([
@@ -2450,10 +2455,18 @@ serve(async (req) => {
         .update({ status: 'approved' })
         .eq('id', requestId);
       
-      // Create shared_member entry
+      // Create BIDIRECTIONAL shared_member entries so both users can see each other's data
+      // Entry 1: inviter can see invitee's data
       await supabase.from('shared_members').insert({
         user_id: request.inviter_id,
         member_id: userId,
+        role: request.role,
+        merge_finances: request.merge_finances
+      });
+      // Entry 2: invitee can see inviter's data
+      await supabase.from('shared_members').insert({
+        user_id: userId,
+        member_id: request.inviter_id,
         role: request.role,
         merge_finances: request.merge_finances
       });
