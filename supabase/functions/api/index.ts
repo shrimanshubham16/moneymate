@@ -1122,6 +1122,22 @@ serve(async (req) => {
           console.log('[DASHBOARD_VIEW] No access to user:', viewParam);
         }
       }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'post-fix',
+          hypothesisId:'HCV',
+          location:'api/index.ts:/dashboard',
+          message:'Dashboard view target users',
+          data:{ userId, viewParam, targetUserIds },
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
       
       const perfStart = Date.now();
       const cacheKey = `dashboard:${userId}:${viewParam}`;
@@ -2105,6 +2121,21 @@ serve(async (req) => {
       }
       
       await logActivity(userId, 'credit_card', 'created', { id: data.id, name: data.name });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'post-fix',
+          hypothesisId:'CC1',
+          location:'api/index.ts:credit_card_create',
+          message:'Credit card created (activity details)',
+          data:{ id:data.id, name:data.name },
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
       await invalidateUserCache(userId);
       return json({ data: transformCreditCard(data) }, 201);
     }
@@ -2338,6 +2369,26 @@ serve(async (req) => {
       // Only return PENDING requests - approved/rejected should not show
       const { data: incoming } = await supabase.from('sharing_requests').select('*').eq('invitee_id', userId).eq('status', 'pending');
       const { data: outgoing } = await supabase.from('sharing_requests').select('*').eq('inviter_id', userId).eq('status', 'pending');
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'post-fix',
+          hypothesisId:'SHR1',
+          location:'api/index.ts:/sharing/requests',
+          message:'Sharing requests counts',
+          data:{
+            incomingCount: incoming?.length || 0,
+            outgoingCount: outgoing?.length || 0,
+            userId
+          },
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
       
       // Fetch usernames for all users involved
       const allUserIds = [...new Set([

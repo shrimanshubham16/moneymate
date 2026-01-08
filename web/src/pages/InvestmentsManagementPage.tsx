@@ -228,7 +228,11 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                   <h3>{inv.name}</h3>
                   <div className="investment-details">
                     <span>Goal: {inv.goal}</span>
-                    <span>₹{inv.monthlyAmount.toLocaleString("en-IN")}/month</span>
+                    {(() => {
+                      const monthlyVal = parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0);
+                      const formatted = isNaN(monthlyVal) ? "0" : monthlyVal.toLocaleString("en-IN");
+                      return <span>₹{formatted}/month</span>;
+                    })()}
                     {(inv.accumulatedFunds || inv.accumulated_funds || 0) > 0 && (
                       <span className="accumulated-funds">
                         Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
