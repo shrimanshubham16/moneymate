@@ -48,12 +48,24 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         setConstraintScore(data.constraintScore);
       }
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthDetailsPage:loadData',message:'Health data loaded',data:{hasHealthData:!!healthData,hasDashData:!!data,incomeCount:data?.incomes?.length,fixedCount:data?.fixedExpenses?.length,variableCount:data?.variablePlans?.length,investmentCount:data?.investments?.length,sampleIncome:data?.incomes?.[0],sampleFixed:data?.fixedExpenses?.[0],sampleVariable:data?.variablePlans?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-HEALTH'})}).catch(()=>{});
+      // #endregion
       console.log("✅ Using backend's health calculation:", healthData);
       console.log("Formula:", healthData.formula);
       console.log("Calculation:", healthData.calculation);
 
-      // Backend's health calculation doesn't respect 'paid' status properly
-      // So we calculate the correct remaining on the frontend
+      // Backend's health calculation uses encrypted placeholder values - must use decrypted dashboard data
+      // Calculate ALL values from dashboard's decrypted data (NOT backend's healthData which uses encrypted placeholders)
+      
+      // Calculate TOTAL INCOME from decrypted dashboard data
+      const totalIncomeForHealth = (data.incomes || []).reduce((sum: number, inc: any) => {
+        const amount = parseFloat(inc.amount) || 0;
+        const monthly = inc.frequency === 'monthly' ? amount :
+          inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
+        return sum + monthly;
+      }, 0);
+      
       const unpaidFixedExpenses = (data.fixedExpenses || []).filter((exp: any) => !exp.paid);
       const unpaidInvestmentsForCalc = (data.investments || []).filter((inv: any) => inv.status === 'active' && !inv.paid);
       
@@ -68,13 +80,12 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         return sum + (parseFloat(inv.monthlyAmount) || 0);
       }, 0);
       
-      // Calculate variable total from dashboard's decrypted/recalculated data (NOT backend's placeholder values)
+      // Calculate variable total from dashboard's decrypted/recalculated data
       const today = new Date();
       const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
       const monthProgress = today.getDate() / daysInMonth;
       const remainingDaysRatio = 1 - monthProgress;
       
-      // Use recalculated actualTotal from dashboard data (decrypted amounts)
       const totalVariableActual = (data.variablePlans || []).reduce((sum: number, p: any) => 
         sum + (parseFloat(p.actualTotal) || 0), 0);
       const totalVariablePlanned = (data.variablePlans || []).reduce((sum: number, p: any) => 
@@ -82,11 +93,18 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const variableProrated = totalVariablePlanned * remainingDaysRatio;
       const variableTotalForHealth = Math.max(totalVariableActual, variableProrated);
       
-      const creditCardTotalForHealth = healthData.obligations?.totalCreditCardDue || 0;
+      // Calculate credit card dues from decrypted cards data (NOT backend's totalCreditCardDue)
+      const creditCardTotalForHealth = (cardsRes.data || []).reduce((sum: number, c: any) => {
+        const billAmount = parseFloat(c.billAmount || c.bill_amount) || 0;
+        const paidAmount = parseFloat(c.paidAmount || c.paid_amount) || 0;
+        const remaining = Math.max(0, billAmount - paidAmount);
+        return sum + remaining;
+      }, 0);
+      
       const totalOutflowForHealth = unpaidFixedTotalForHealth + variableTotalForHealth + unpaidInvestmentsTotalForHealth + creditCardTotalForHealth;
       
-      // Calculate correct remaining using frontend's accurate unpaid totals
-      const correctRemaining = (healthData.totalIncome || 0) - totalOutflowForHealth;
+      // Calculate correct remaining using frontend's decrypted totals
+      const correctRemaining = totalIncomeForHealth - totalOutflowForHealth;
       
       // Determine category based on correct remaining
       let correctCategory: string;
@@ -130,12 +148,12 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const unpaidInvestmentsTotal = unpaidInvestmentsTotalForHealth;
       
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthDetailsPage:correctHealth',message:'Health page calc',data:{totalIncome:healthData.totalIncome,unpaidFixedTotal:unpaidFixedTotalForHealth,variableTotal:variableTotalForHealth,totalVariableActual,totalVariablePlanned,variableProrated,unpaidInvestmentsTotal:unpaidInvestmentsTotalForHealth,creditCardTotal:creditCardTotalForHealth,totalOutflow:totalOutflowForHealth,remaining:correctRemaining,category:correctCategory},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthDetailsPage:correctHealth',message:'Health page calc (all from decrypted dashboard)',data:{totalIncome:totalIncomeForHealth,unpaidFixedTotal:unpaidFixedTotalForHealth,variableTotal:variableTotalForHealth,totalVariableActual,totalVariablePlanned,variableProrated,unpaidInvestmentsTotal:unpaidInvestmentsTotalForHealth,creditCardTotal:creditCardTotalForHealth,totalOutflow:totalOutflowForHealth,remaining:correctRemaining,category:correctCategory,sampleIncome:data?.incomes?.[0],sampleFixed:data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-HEALTH'})}).catch(()=>{});
       // #endregion
       
       setBreakdown({
         income: {
-          total: healthData.totalIncome || breakdown?.income?.total || 0,
+          total: totalIncomeForHealth,  // Use frontend-calculated total from decrypted data
           sources: data.incomes || []
         },
         expenses: {

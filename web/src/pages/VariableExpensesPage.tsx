@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
+import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -48,11 +48,11 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     loadCreditCards();  // v1.2: Load credit cards
   }, []);
 
-  const loadPlans = async () => {
+  const loadPlans = async (forceRefresh = false) => {
     try {
-      const res = await api.fetchDashboard(token, new Date().toISOString());
+      const res = await api.fetchDashboard(token, new Date().toISOString(), undefined, forceRefresh);
       // #region agent log - DEBUG: Log plans received from API
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:loadPlans',message:'plans received',data:{plansCount: (res.data.variablePlans || []).length, plans: (res.data.variablePlans || []).map((p: any) => ({id: p.id, name: p.name, planned: p.planned, actualTotal: p.actualTotal, actualsCount: (p.actuals || []).length}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:loadPlans',message:'plans received',data:{forceRefresh, plansCount: (res.data.variablePlans || []).length, plans: (res.data.variablePlans || []).map((p: any) => ({id: p.id, name: p.name, planned: p.planned, actualTotal: p.actualTotal, actualsCount: (p.actuals || []).length}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
       setPlans(res.data.variablePlans || []);
     } catch (e) {
@@ -134,13 +134,13 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           setPlans(prev => prev.map(p => p.id === tempId ? { ...response.data, actuals: [], actualTotal: 0 } : p));
         }
       }
-      // Background refresh
-      loadPlans();
+      // Background refresh with cache bypass
+      loadPlans(true);
     } catch (e: any) {
       alert(e.message);
       // Rollback on error
       if (editingId) {
-        loadPlans();
+        loadPlans(true);
       } else {
         setPlans(prev => prev.filter(p => p.id !== tempId));
       }
@@ -174,7 +174,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     const planStillExists = plans.find(p => p.id === selectedPlanId);
     if (!planStillExists) {
       alert("This plan no longer exists. Refreshing plans...");
-      await loadPlans();
+      await loadPlans(true);
       setShowActualForm(false);
       setSelectedPlanId(null);
       return;
@@ -242,13 +242,13 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         credit_card_id: tempActual.creditCardId
       });
       
-      // Refresh data in PARALLEL after successful save
-      await Promise.all([loadPlans(), loadCreditCards()]);
+      // Refresh data in PARALLEL after successful save (bypass cache)
+      await Promise.all([loadPlans(true), loadCreditCards()]);
 
     } catch (e: any) {
       alert(e.message);
       // Revert optimistic update on error
-      await loadPlans();
+      await loadPlans(true);
       await loadCreditCards();
     } finally {
       setIsSubmitting(false);
@@ -280,14 +280,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           />
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            className="icon-btn" 
-            onClick={() => setShowActualForm(true)}
-            title="Add an expense"
-            style={{ background: '#10b981', color: 'white', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}
-          >
-            <FaPlus />
-          </button>
           <button className="add-button" onClick={() => { setShowPlanForm(true); setEditingId(null); }}>
             + Add New Plan
           </button>
@@ -556,7 +548,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                     <h3>{plan.name}</h3>
                     <div className="plan-actions">
                       <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
-                      <button className="delete-btn" onClick={() => { if (confirm("Delete?")) api.deleteVariableExpensePlan(token, plan.id).then(loadPlans); }} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
+                      <button className="delete-btn" onClick={() => { if (confirm("Delete?")) api.deleteVariableExpensePlan(token, plan.id).then(() => loadPlans(true)); }} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
                     </div>
                   </div>
                 </div>

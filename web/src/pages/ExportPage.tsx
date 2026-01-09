@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FaFileExcel, FaCheckCircle, FaLightbulb, FaTable } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import "./ExportPage.css";
 
 interface ExportPageProps {
@@ -12,38 +13,63 @@ interface ExportPageProps {
 
 export function ExportPage({ token }: ExportPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
-  const handleExport = async () => { // Renamed function
+  const handleExport = async () => {
     setExporting(true);
-    setError(null); // Reset error state
-    setStatus("Preparing your export...");
+    setError(null);
+    setStatus("Preparing your export (decrypting data)...");
     try {
-      // Get the correct API URL
-      const envUrl = import.meta.env.VITE_API_URL;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      let BASE_URL: string;
-      if (envUrl) {
-        BASE_URL = envUrl;
-      } else if (supabaseUrl) {
-        const base = supabaseUrl.replace('/rest/v1', '').replace(/\/$/, '');
-        BASE_URL = `${base}/functions/v1/api`;
-      } else {
-        BASE_URL = 'https://eklennfapovprkebdsml.supabase.co/functions/v1/api';
-      }
-      const response = await fetch(`${BASE_URL}/export/finances`, { // Used BASE_URL
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      // Use encrypted API calls to automatically decrypt sensitive fields
+      const result = await api.exportFinances(token);
+      const data = result.data;
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExportPage:export',message:'Export data received',data:{hasData:!!data,incomeCount:data?.incomes?.length,fixedCount:data?.fixedExpenses?.length,variableCount:data?.variableExpenses?.length,investmentCount:data?.investments?.length,sampleIncome:data?.incomes?.[0],sampleFixed:data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3-EXPORT'})}).catch(()=>{});
+      // #endregion
+
+      // Recalculate totals after decryption (backend calculates with encrypted placeholder values)
+      const recalcTotalIncome = (data.incomes || []).reduce((sum: number, i: any) => {
+        const amount = parseFloat(i.amount) || 0;
+        const monthly = i.frequency === 'monthly' ? amount : i.frequency === 'quarterly' ? amount / 3 : amount / 12;
+        return sum + monthly;
+      }, 0);
+      
+      const recalcTotalFixed = (data.fixedExpenses || []).reduce((sum: number, e: any) => {
+        const amount = parseFloat(e.amount) || 0;
+        const monthly = e.frequency === 'monthly' ? amount : e.frequency === 'quarterly' ? amount / 3 : amount / 12;
+        return sum + monthly;
+      }, 0);
+      
+      // Recalculate variable actuals after decryption
+      const variableExpensesWithActuals = (data.variableExpenses || []).map((exp: any) => {
+        const recalcActualTotal = (exp.actuals || []).reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+        return { ...exp, actualTotal: recalcActualTotal };
       });
-
-      if (!response.ok) {
-        throw new Error("Export failed");
-      }
-
-      const data = await response.json(); // Keep this line as the server returns JSON data for client-side XLSX processing
+      
+      const recalcTotalVariableActual = variableExpensesWithActuals.reduce((sum: number, e: any) => sum + (e.actualTotal || 0), 0);
+      
+      const recalcTotalInvestments = (data.investments || []).reduce((sum: number, inv: any) => {
+        return sum + (parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0);
+      }, 0);
+      
+      const recalcRemaining = recalcTotalIncome - (recalcTotalFixed + recalcTotalVariableActual + recalcTotalInvestments);
+      
+      // Update summary with recalculated values
+      data.summary = {
+        ...data.summary,
+        totalIncome: recalcTotalIncome,
+        totalFixedExpenses: recalcTotalFixed,
+        totalVariableActual: recalcTotalVariableActual,
+        totalInvestments: recalcTotalInvestments,
+        remainingBalance: recalcRemaining,
+      };
+      
+      // Use recalculated variable expenses
+      data.variableExpenses = variableExpensesWithActuals;
       setStatus("Building workbook...");
 
       // Create workbook
@@ -72,12 +98,15 @@ export function ExportPage({ token }: ExportPageProps) {
 
       // Income Sheet
       if (data.incomes && data.incomes.length > 0) {
-        const incomeData = data.incomes.map((inc: any) => ({
-          Source: inc.source,
-          Amount: inc.amount,
-          Frequency: inc.frequency,
-          "Monthly Equivalent": inc.frequency === "monthly" ? inc.amount : inc.amount / 12
-        }));
+        const incomeData = data.incomes.map((inc: any) => {
+          const amount = parseFloat(inc.amount) || 0;
+          return {
+            Source: inc.source || inc.name || '[No Source]',
+            Amount: amount,
+            Frequency: inc.frequency || 'monthly',
+            "Monthly Equivalent": inc.frequency === "monthly" ? amount : inc.frequency === "quarterly" ? amount / 3 : amount / 12
+          };
+        });
         const wsIncome = XLSX.utils.json_to_sheet(incomeData);
         wsIncome["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 18 }];
         XLSX.utils.book_append_sheet(wb, wsIncome, "Income");
@@ -85,14 +114,18 @@ export function ExportPage({ token }: ExportPageProps) {
 
       // Fixed Expenses Sheet
       if (data.fixedExpenses && data.fixedExpenses.length > 0) {
-        const fixedData = data.fixedExpenses.map((exp: any) => ({
-          Name: exp.name,
-          Amount: exp.amount,
-          Frequency: exp.frequency,
-          Category: exp.category,
-          "Monthly Equivalent": exp.monthlyEquivalent,
-          "SIP Enabled": exp.is_sip_flag ? "Yes" : "No"
-        }));
+        const fixedData = data.fixedExpenses.map((exp: any) => {
+          const amount = parseFloat(exp.amount) || 0;
+          const monthlyEquiv = exp.frequency === 'monthly' ? amount : exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
+          return {
+            Name: exp.name || '[No Name]',
+            Amount: amount,
+            Frequency: exp.frequency || 'monthly',
+            Category: exp.category || '',
+            "Monthly Equivalent": monthlyEquiv,
+            "SIP Enabled": (exp.is_sip_flag || exp.is_sip) ? "Yes" : "No"
+          };
+        });
         const wsFixed = XLSX.utils.json_to_sheet(fixedData);
         wsFixed["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 18 }, { wch: 12 }];
         XLSX.utils.book_append_sheet(wb, wsFixed, "Fixed Expenses");
@@ -100,15 +133,21 @@ export function ExportPage({ token }: ExportPageProps) {
 
       // Variable Expenses Sheet
       if (data.variableExpenses && data.variableExpenses.length > 0) {
-        const variableData = data.variableExpenses.map((exp: any) => ({
-          Name: exp.name,
-          Planned: exp.planned,
-          Actual: exp.actualTotal,
-          Difference: exp.actualTotal - exp.planned,
-          "% of Plan": ((exp.actualTotal / exp.planned) * 100).toFixed(1) + "%",
-          Category: exp.category,
-          Status: exp.actualTotal > exp.planned ? "OVERSPEND" : "OK"
-        }));
+        const variableData = data.variableExpenses.map((exp: any) => {
+          const planned = parseFloat(exp.planned) || 0;
+          const actualTotal = parseFloat(exp.actualTotal) || 0;
+          const diff = actualTotal - planned;
+          const pctOfPlan = planned > 0 ? ((actualTotal / planned) * 100).toFixed(1) + "%" : "N/A";
+          return {
+            Name: exp.name || '[No Name]',
+            Planned: planned,
+            Actual: actualTotal,
+            Difference: diff,
+            "% of Plan": pctOfPlan,
+            Category: exp.category || '',
+            Status: actualTotal > planned ? "OVERSPEND" : "OK"
+          };
+        });
         const wsVariable = XLSX.utils.json_to_sheet(variableData);
         wsVariable["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }];
         XLSX.utils.book_append_sheet(wb, wsVariable, "Variable Expenses");
@@ -116,13 +155,16 @@ export function ExportPage({ token }: ExportPageProps) {
 
       // Investments Sheet
       if (data.investments && data.investments.length > 0) {
-        const investmentData = data.investments.map((inv: any) => ({
-          Name: inv.name,
-          Goal: inv.goal,
-          "Monthly Amount": inv.monthlyAmount,
-          "Annual Amount": inv.monthlyAmount * 12,
-          Status: inv.status.toUpperCase()
-        }));
+        const investmentData = data.investments.map((inv: any) => {
+          const monthlyAmt = parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0;
+          return {
+            Name: inv.name || '[No Name]',
+            Goal: inv.goal || '',
+            "Monthly Amount": monthlyAmt,
+            "Annual Amount": monthlyAmt * 12,
+            Status: (inv.status || 'active').toUpperCase()
+          };
+        });
         const wsInvestments = XLSX.utils.json_to_sheet(investmentData);
         wsInvestments["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
         XLSX.utils.book_append_sheet(wb, wsInvestments, "Investments");
@@ -130,15 +172,21 @@ export function ExportPage({ token }: ExportPageProps) {
 
       // Future Bombs Sheet
       if (data.futureBombs && data.futureBombs.length > 0) {
-        const bombData = data.futureBombs.map((bomb: any) => ({
-          Name: bomb.name,
-          "Due Date": new Date(bomb.dueDate).toLocaleDateString(),
-          "Total Amount": bomb.totalAmount,
-          "Saved Amount": bomb.savedAmount,
-          "Remaining": bomb.totalAmount - bomb.savedAmount,
-          "Preparedness %": (bomb.preparednessRatio * 100).toFixed(1) + "%",
-          "Monthly Target": bomb.monthlyEquivalent
-        }));
+        const bombData = data.futureBombs.map((bomb: any) => {
+          const totalAmount = parseFloat(bomb.totalAmount || bomb.total_amount) || 0;
+          const savedAmount = parseFloat(bomb.savedAmount || bomb.saved_amount) || 0;
+          const remaining = totalAmount - savedAmount;
+          const prepRatio = totalAmount > 0 ? (savedAmount / totalAmount) : 0;
+          return {
+            Name: bomb.name || '[No Name]',
+            "Due Date": bomb.dueDate || bomb.due_date ? new Date(bomb.dueDate || bomb.due_date).toLocaleDateString() : 'N/A',
+            "Total Amount": totalAmount,
+            "Saved Amount": savedAmount,
+            "Remaining": remaining,
+            "Preparedness %": (prepRatio * 100).toFixed(1) + "%",
+            "Monthly Target": parseFloat(bomb.monthlyEquivalent || bomb.monthly_equivalent) || 0
+          };
+        });
         const wsBombs = XLSX.utils.json_to_sheet(bombData);
         wsBombs["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
         XLSX.utils.book_append_sheet(wb, wsBombs, "Future Bombs");
@@ -146,14 +194,19 @@ export function ExportPage({ token }: ExportPageProps) {
 
       // Credit Cards Sheet
       if (data.creditCards && data.creditCards.length > 0) {
-        const cardData = data.creditCards.map((card: any) => ({
-          Name: card.name,
-          "Bill Amount": card.billAmount,
-          "Paid Amount": card.paidAmount,
-          "Remaining": card.billAmount - card.paidAmount,
-          "Due Date": new Date(card.dueDate).toLocaleDateString(),
-          Status: (card.billAmount - card.paidAmount) === 0 ? "PAID" : "PENDING"
-        }));
+        const cardData = data.creditCards.map((card: any) => {
+          const billAmount = parseFloat(card.billAmount || card.bill_amount) || 0;
+          const paidAmount = parseFloat(card.paidAmount || card.paid_amount) || 0;
+          const remaining = billAmount - paidAmount;
+          return {
+            Name: card.name || '[No Name]',
+            "Bill Amount": billAmount,
+            "Paid Amount": paidAmount,
+            "Remaining": remaining,
+            "Due Date": card.dueDate || card.due_date ? new Date(card.dueDate || card.due_date).toLocaleDateString() : 'N/A',
+            Status: remaining === 0 ? "PAID" : "PENDING"
+          };
+        });
         const wsCards = XLSX.utils.json_to_sheet(cardData);
         wsCards["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }];
         XLSX.utils.book_append_sheet(wb, wsCards, "Credit Cards");

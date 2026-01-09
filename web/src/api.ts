@@ -163,21 +163,57 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   
   // E2E: Decrypt response if crypto key is provided
   if (cryptoKey && data.data) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:request:preDecrypt',message:'Before decryption',data:{path,hasKey:!!cryptoKey,sampleInvestment:data.data?.investments?.[0],sampleFixed:data.data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4-DECRYPT'})}).catch(()=>{});
+    // #endregion
+    
     data.data = await decryptObjectFields(data.data, cryptoKey);
     
-    // Post-decryption: Recalculate aggregate fields that were computed with placeholder values
-    // This is necessary because backend calculates actualTotal using amount=0 placeholders
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:request:postDecrypt',message:'After decryption',data:{path,sampleInvestment:data.data?.investments?.[0],sampleFixed:data.data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4-DECRYPT'})}).catch(()=>{});
+    // #endregion
+    
+    // Post-decryption: Normalize field names and recalculate aggregates
+    // This is necessary because:
+    // 1. Backend stores snake_case but frontend expects camelCase for some fields
+    // 2. Backend calculates totals using placeholder values (0)
+    
+    // Normalize investments: monthly_amount -> monthlyAmount
+    if (data.data.investments && Array.isArray(data.data.investments)) {
+      data.data.investments = data.data.investments.map((inv: any) => ({
+        ...inv,
+        monthlyAmount: parseFloat(inv.monthly_amount) || parseFloat(inv.monthlyAmount) || 0
+      }));
+    }
+    
+    // Normalize fixed expenses: ensure amount is numeric
+    if (data.data.fixedExpenses && Array.isArray(data.data.fixedExpenses)) {
+      data.data.fixedExpenses = data.data.fixedExpenses.map((exp: any) => ({
+        ...exp,
+        amount: parseFloat(exp.amount) || 0
+      }));
+    }
+    
+    // Normalize incomes: ensure amount is numeric
+    if (data.data.incomes && Array.isArray(data.data.incomes)) {
+      data.data.incomes = data.data.incomes.map((inc: any) => ({
+        ...inc,
+        amount: parseFloat(inc.amount) || 0
+      }));
+    }
+    
+    // Recalculate variable plan totals
     if (data.data.variablePlans && Array.isArray(data.data.variablePlans)) {
       data.data.variablePlans = data.data.variablePlans.map((plan: any) => {
+        const planned = parseFloat(plan.planned) || 0;
         if (plan.actuals && Array.isArray(plan.actuals)) {
-          // Recalculate actualTotal from decrypted amounts
           const recalculatedTotal = plan.actuals.reduce((sum: number, actual: any) => {
             const amount = parseFloat(actual.amount) || 0;
             return sum + amount;
           }, 0);
-          return { ...plan, actualTotal: recalculatedTotal };
+          return { ...plan, planned, actualTotal: recalculatedTotal };
         }
-        return plan;
+        return { ...plan, planned };
       });
     }
   }
@@ -284,10 +320,11 @@ export async function updateUserPassword(
   }, token);
 }
 
-export async function fetchDashboard(token: string, asOf?: string, view?: string, cryptoKey?: CryptoKey) {
+export async function fetchDashboard(token: string, asOf?: string, view?: string, cryptoKey?: CryptoKey, nocache?: boolean) {
   const params = new URLSearchParams();
   if (asOf) params.set("today", asOf);
   if (view) params.set("view", view);
+  if (nocache) params.set("nocache", "true");
   const query = params.toString() ? `?${params.toString()}` : "";
   return request<{ data: any }>(`/dashboard${query}`, { method: "GET" }, token, cryptoKey);
 }
@@ -421,6 +458,11 @@ export async function fetchActivity(token: string, startDate?: string, endDate?:
 
 export async function fetchAlerts(token: string) {
   return request<{ data: any[] }>("/alerts", { method: "GET" }, token);
+}
+
+// Export finances with decryption support
+export async function exportFinances(token: string, cryptoKey?: CryptoKey) {
+  return request<{ data: any }>("/export/finances", { method: "GET" }, token, cryptoKey);
 }
 
 export async function fetchThemeState(token: string) {

@@ -35,7 +35,11 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [loans, setLoans] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
-  const [selectedView, setSelectedView] = useState<string>("me");
+  // Persist selectedView in localStorage so it survives navigation
+  const [selectedView, setSelectedView] = useState<string>(() => {
+    const saved = localStorage.getItem('finflow_selected_view');
+    return saved || 'me';
+  });
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAddPlanId, setQuickAddPlanId] = useState<string>("");
   const [quickAddAmount, setQuickAddAmount] = useState<string>("");
@@ -49,6 +53,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [showQuickNewSub, setShowQuickNewSub] = useState(false);
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const keepAliveIntervalRef = useRef<number | null>(null);
+
+  // Persist selectedView when it changes
+  useEffect(() => {
+    localStorage.setItem('finflow_selected_view', selectedView);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage:viewChange',message:'View changed and persisted',data:{selectedView},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-VIEW'})}).catch(()=>{});
+    // #endregion
+  }, [selectedView]);
 
   // Calculate CORRECT health score on frontend (backend doesn't respect 'paid' status properly)
   // This MUST be called unconditionally (before any early returns) to follow React hooks rules
@@ -247,7 +259,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
         setCreditCards(cachedCards);
         setLoans(cachedLoans);
         setActivities(cachedActivities);
-        setSharingMembers({ members: [] });
+        // Don't hardcode empty - fetch sharing members fresh (needed for combined view)
+        api.fetchSharingMembers(token).then(res => setSharingMembers(res.data)).catch(() => setSharingMembers({ members: [] }));
         setLoading(false);
         setLoadProgress(100);
         setIsStale(isDataStale);

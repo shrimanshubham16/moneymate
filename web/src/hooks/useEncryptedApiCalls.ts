@@ -18,8 +18,8 @@ export function useEncryptedApiCalls() {
   
   return {
     // Dashboard
-    fetchDashboard: (token: string, asOf?: string, view?: string) => 
-      baseApi.fetchDashboard(token, asOf, view, key || undefined),
+    fetchDashboard: (token: string, asOf?: string, view?: string, nocache?: boolean) => 
+      baseApi.fetchDashboard(token, asOf, view, key || undefined, nocache),
     
     // Health
     fetchHealthDetails: (token: string, asOf?: string) => 
@@ -114,6 +114,10 @@ export function useEncryptedApiCalls() {
     // Alerts
     fetchAlerts: (token: string) => 
       baseApi.fetchAlerts(token),
+    
+    // Export (with decryption)
+    exportFinances: (token: string) =>
+      baseApi.exportFinances(token, key || undefined),
     
     // Subcategories
     getUserSubcategories: (token: string) =>

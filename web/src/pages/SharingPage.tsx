@@ -28,6 +28,10 @@ export function SharingPage({ token }: SharingPageProps) {
         api.fetchSharingRequests(token),
         api.fetchSharingMembers(token)
       ]);
+      // #region agent log - Enhanced sharing debug
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:loadData',message:'Sharing data loaded',data:{userId:tokenPayload.userId,username:tokenPayload.username,incomingCount:reqRes.data?.incoming?.length||0,outgoingCount:reqRes.data?.outgoing?.length||0,membersCount:memRes.data?.members?.length||0,rawRequests:reqRes.data,rawMembers:memRes.data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-SHARING-DETAIL'})}).catch(()=>{});
+      // #endregion
       setRequests(reqRes.data);
       setMembers(memRes.data);
     } catch (e) {
@@ -61,10 +65,19 @@ export function SharingPage({ token }: SharingPageProps) {
     if (!confirmed) return;
     
     try {
-      await api.approveRequest(token, id);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:handleApprove:before',message:'Approving request',data:{requestId:id,inviterUsername},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-APPROVAL'})}).catch(()=>{});
+      // #endregion
+      const result = await api.approveRequest(token, id);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:handleApprove:after',message:'Approval result',data:{requestId:id,result},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-APPROVAL'})}).catch(()=>{});
+      // #endregion
       alert('Request approved! You can now see each other\'s finances in the Combined (Shared) view on your Dashboard.');
       await loadData();
     } catch (e: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:handleApprove:error',message:'Approval failed',data:{requestId:id,error:e.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-APPROVAL'})}).catch(()=>{});
+      // #endregion
       alert(e.message);
     }
   };
@@ -72,6 +85,38 @@ export function SharingPage({ token }: SharingPageProps) {
   const handleReject = async (id: string) => {
     try {
       await api.rejectRequest(token, id);
+      await loadData();
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleRevoke = async (memberId: string, sharedAccountId: string, username: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to revoke sharing with "${username}"?\n\nThis will remove the shared access for both of you.`
+    );
+    if (!confirmed) return;
+    
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:handleRevoke',message:'Revoking sharing',data:{memberId,sharedAccountId,username},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3-REVOKE'})}).catch(()=>{});
+      // #endregion
+      
+      const result = await fetch(`${api.getBaseUrl()}/sharing/revoke`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ sharedAccountId })
+      });
+      
+      if (!result.ok) {
+        const errData = await result.json();
+        throw new Error(errData.message || 'Failed to revoke');
+      }
+      
+      alert('Sharing revoked successfully');
       await loadData();
     } catch (e: any) {
       alert(e.message);
@@ -175,18 +220,28 @@ export function SharingPage({ token }: SharingPageProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <h2>Members ({members.members.length})</h2>
+            <h2>Sharing With ({members.members.length})</h2>
             <div className="members-list">
               {members.members.map((member) => (
-                <div key={member.userId} className="member-card">
+                <div key={member.userId || member.user_id} className="member-card">
                   <div className="member-avatar">
                     {member.username?.charAt(0).toUpperCase() || "U"}
                   </div>
                   <div className="member-info">
                     <h3>{member.username || "User"}</h3>
                     <p>{member.email || "No email"}</p>
-                    <span className={`role-badge ${member.role}`}>{member.role}</span>
+                    <div className="member-meta">
+                      <span className={`role-badge ${member.role}`}>{member.role}</span>
+                      {member.merge_finances && <span className="merge-badge">Merged</span>}
+                    </div>
                   </div>
+                  <button 
+                    className="revoke-btn"
+                    onClick={() => handleRevoke(member.userId || member.user_id, member.shared_account_id, member.username || 'User')}
+                    title="Revoke sharing access"
+                  >
+                    Revoke
+                  </button>
                 </div>
               ))}
             </div>

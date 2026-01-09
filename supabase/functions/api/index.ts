@@ -919,6 +919,33 @@ serve(async (req) => {
           }
         }
       };
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'diag2',
+          hypothesisId:'VAR-HEALTH',
+          location:'api/index.ts:/health/details',
+          message:'Health variable totals',
+          data:{
+            userId,
+            totalVariableActual,
+            totalVariablePlanned,
+            totalVariableProrated,
+            effectiveVariable,
+            totalFixedExpenses,
+            totalInvestments,
+            totalCreditCardDue,
+            totalIncome,
+            remaining
+          },
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
       
       return json({ data: healthData });
     }
@@ -1094,28 +1121,44 @@ serve(async (req) => {
       let targetUserIds: string[] = [userId];
       
       if (viewParam === 'merged') {
-        // Fetch all shared members and include their IDs
-        const { data: sharedMembers, error: smErr } = await supabase.from('shared_members')
-          .select('*')
+        // Get all shared accounts this user is a member of
+        const { data: myMemberships, error: smErr } = await supabase.from('shared_members')
+          .select('shared_account_id')
           .eq('user_id', userId);
         
         // #region agent log - H2: Debug shared members for combined view
-        console.log('[DEBUG_H2] Merged view - userId:', userId, 'sharedMembers:', JSON.stringify(sharedMembers), 'error:', smErr);
+        console.log('[DEBUG_H2] Merged view - userId:', userId, 'myMemberships:', JSON.stringify(myMemberships), 'error:', smErr);
         // #endregion
         
-        if (sharedMembers?.length) {
-          targetUserIds = [userId, ...sharedMembers.map((m: any) => m.member_id)];
+        if (myMemberships?.length) {
+          const sharedAccountIds = myMemberships.map((m: any) => m.shared_account_id);
+          
+          // Get all other members in those shared accounts
+          const { data: otherMembers } = await supabase.from('shared_members')
+            .select('user_id')
+            .in('shared_account_id', sharedAccountIds)
+            .neq('user_id', userId);
+          
+          if (otherMembers?.length) {
+            targetUserIds = [userId, ...otherMembers.map((m: any) => m.user_id)];
+          }
         }
         console.log('[DASHBOARD_VIEW] Merged view, target users:', targetUserIds);
       } else if (viewParam !== 'me' && viewParam) {
-        // Specific user view - verify access
+        // Specific user view - verify access via shared accounts
+        const { data: myMemberships } = await supabase.from('shared_members')
+          .select('shared_account_id')
+          .eq('user_id', userId);
+        
+        const sharedAccountIds = (myMemberships || []).map((m: any) => m.shared_account_id);
+        
         const { data: hasAccess } = await supabase.from('shared_members')
           .select('id')
-          .eq('user_id', userId)
-          .eq('member_id', viewParam)
-          .single();
+          .in('shared_account_id', sharedAccountIds)
+          .eq('user_id', viewParam)
+          .limit(1);
         
-        if (hasAccess) {
+        if (hasAccess?.length) {
           targetUserIds = [viewParam];
           console.log('[DASHBOARD_VIEW] Viewing user:', viewParam);
         } else {
@@ -1141,12 +1184,28 @@ serve(async (req) => {
       
       const perfStart = Date.now();
       const cacheKey = `dashboard:${userId}:${viewParam}`;
+      const nocache = dashUrl.searchParams.get('nocache') === 'true';
       
-      // Try Redis cache first
-      const cached = await redisGet(cacheKey);
+      // Try Redis cache first (skip if nocache=true)
+      const cached = nocache ? null : await redisGet(cacheKey);
       if (cached) {
         const cacheTime = Date.now() - perfStart;
-        console.log('[EDGE_PERF_CACHE] Dashboard from cache', { cacheTime, userId });
+        console.log('[EDGE_PERF_CACHE] Dashboard from cache', { cacheTime, userId, viewParam });
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            sessionId:'debug-session',
+            runId:'diag3',
+            hypothesisId:'CACHE',
+            location:'api/index.ts:/dashboard',
+            message:'Cache hit',
+            data:{ userId, viewParam, cacheTime },
+            timestamp:Date.now()
+          })
+        }).catch(()=>{});
+        // #endregion
         return json({ data: cached });
       }
       
@@ -1182,6 +1241,27 @@ serve(async (req) => {
         // #endregion
         return { ...plan, actuals, actualTotal };
       });
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'diag2',
+          hypothesisId:'VAR-DASH',
+          location:'api/index.ts:/dashboard',
+          message:'Variable plans normalized',
+          data:{
+            userId,
+            viewParam,
+            plansCount: variablePlans.length,
+            sample: variablePlans.slice(0,2)
+          },
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
 
       timings.dashboardData = Date.now() - t0;
       
@@ -2361,9 +2441,74 @@ serve(async (req) => {
 
     // SHARING
     if (path === '/sharing/members' && method === 'GET') {
-      const { data: members } = await supabase.from('shared_members').select('*').eq('user_id', userId);
-      const { data: accounts } = await supabase.from('shared_accounts').select('*');
-      return json({ data: { members: members || [], accounts: accounts || [] } });
+      // Get all shared accounts that this user is a member of
+      const { data: myMemberships, error: membersErr } = await supabase
+        .from('shared_members')
+        .select('*, shared_accounts(*)')
+        .eq('user_id', userId);
+      
+      // Get all other members in those shared accounts
+      const sharedAccountIds = (myMemberships || []).map((m: any) => m.shared_account_id);
+      let enrichedMembers: any[] = [];
+      
+      if (sharedAccountIds.length > 0) {
+        // Get all members of these shared accounts (excluding current user)
+        const { data: otherMembers } = await supabase
+          .from('shared_members')
+          .select('*')
+          .in('shared_account_id', sharedAccountIds)
+          .neq('user_id', userId);
+        
+        // Get user details for those members
+        const otherUserIds = (otherMembers || []).map((m: any) => m.user_id);
+        
+        if (otherUserIds.length > 0) {
+          const { data: users } = await supabase
+            .from('users')
+            .select('id, username, email')
+            .in('id', otherUserIds);
+          
+          const userMap = new Map((users || []).map((u: any) => [u.id, u]));
+          
+          enrichedMembers = (otherMembers || []).map((m: any) => {
+            const user = userMap.get(m.user_id) || {};
+            return {
+              ...m,
+              userId: m.user_id,
+              username: user.username || 'Unknown',
+              email: user.email || '',
+              role: m.role
+            };
+          });
+        }
+      }
+      
+      const { data: accounts } = await supabase.from('shared_accounts').select('*').in('id', sharedAccountIds);
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'diag2',
+          hypothesisId:'SHR-LIST',
+          location:'api/index.ts:/sharing/members',
+          message:'Sharing members fetched',
+          data:{
+            userId,
+            myMembershipsCount: myMemberships?.length || 0,
+            sharedAccountIds,
+            enrichedMembersCount: enrichedMembers?.length || 0,
+            enrichedSample: enrichedMembers?.slice(0,2) || [],
+            membersErr: membersErr?.message || null
+          },
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
+
+      return json({ data: { members: enrichedMembers, accounts: accounts || [] } });
     }
     if (path === '/sharing/requests' && method === 'GET') {
       // Only return PENDING requests - approved/rejected should not show
@@ -2506,24 +2651,59 @@ serve(async (req) => {
         .update({ status: 'approved' })
         .eq('id', requestId);
       
-      // Create BIDIRECTIONAL shared_member entries so both users can see each other's data
-      // Entry 1: inviter can see invitee's data
-      await supabase.from('shared_members').insert({
+      // Create a shared_account first, then add both users as members
+      // Step 1: Create the shared account (only use columns that exist in the table)
+      const { data: sharedAccount, error: accountErr } = await supabase.from('shared_accounts').insert({
+        name: `Shared: ${request.inviter_id.substring(0,8)} & ${userId.substring(0,8)}`
+      }).select().single();
+      
+      if (accountErr || !sharedAccount) {
+        console.log('[DEBUG_APPROVAL] Failed to create shared_account:', accountErr?.message);
+        return error('Failed to create shared account: ' + (accountErr?.message || 'unknown'), 500);
+      }
+      
+      // Step 2: Add inviter to the shared account
+      const { error: insert1Err } = await supabase.from('shared_members').insert({
         user_id: request.inviter_id,
-        member_id: userId,
-        role: request.role,
+        shared_account_id: sharedAccount.id,
+        role: 'owner',
         merge_finances: request.merge_finances
       });
-      // Entry 2: invitee can see inviter's data
-      await supabase.from('shared_members').insert({
+      
+      // Step 3: Add invitee (approver) to the shared account
+      const { error: insert2Err } = await supabase.from('shared_members').insert({
         user_id: userId,
-        member_id: request.inviter_id,
+        shared_account_id: sharedAccount.id,
         role: request.role,
         merge_finances: request.merge_finances
       });
       
+      console.log('[DEBUG_APPROVAL] Results:', { 
+        sharedAccountId: sharedAccount.id,
+        insert1Err: insert1Err?.message, 
+        insert2Err: insert2Err?.message, 
+        inviterId: request.inviter_id, 
+        inviteeId: userId 
+      });
+      
+      if (insert1Err || insert2Err) {
+        return error('Failed to add members to shared account: ' + (insert1Err?.message || insert2Err?.message), 500);
+      }
+      
       // Get inviter username for activity log
       const { data: inviter } = await supabase.from('users').select('username').eq('id', request.inviter_id).single();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/sharing/approve',message:'Sharing approved - bidirectional entries created',data:{requestId,inviterId:request.inviter_id,inviteeId:userId,entry1:{user_id:request.inviter_id,member_id:userId},entry2:{user_id:userId,member_id:request.inviter_id}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-SHARING-APPROVE'})}).catch(()=>{});
+      // #endregion
+      
+      // Invalidate dashboard caches for both users (critical for merged view to work)
+      await Promise.all([
+        invalidateUserCache(userId),
+        invalidateUserCache(request.inviter_id),
+        redisInvalidate(`dashboard:${userId}:merged`),
+        redisInvalidate(`dashboard:${request.inviter_id}:merged`)
+      ]);
       
       await logActivity(userId, 'sharing', 'approved_request', { inviter: inviter?.username, role: request.role });
       return json({ data: { success: true } });
@@ -2554,6 +2734,55 @@ serve(async (req) => {
       const { data: inviter } = await supabase.from('users').select('username').eq('id', request.inviter_id).single();
       
       await logActivity(userId, 'sharing', 'rejected_request', { inviter: inviter?.username });
+      return json({ data: { success: true } });
+    }
+    
+    // Revoke sharing (delete shared account and all members)
+    if (path === '/sharing/revoke' && method === 'POST') {
+      const body = await req.json();
+      const { sharedAccountId } = body;
+      
+      if (!sharedAccountId) {
+        return error('sharedAccountId required', 400);
+      }
+      
+      // Verify user is a member of this shared account
+      const { data: membership } = await supabase.from('shared_members')
+        .select('*')
+        .eq('shared_account_id', sharedAccountId)
+        .eq('user_id', userId)
+        .single();
+      
+      if (!membership) {
+        return error('Not authorized to revoke this sharing', 403);
+      }
+      
+      // Get all members before deleting for activity logging
+      const { data: allMembers } = await supabase.from('shared_members')
+        .select('user_id')
+        .eq('shared_account_id', sharedAccountId);
+      
+      // Delete all members from this shared account
+      await supabase.from('shared_members')
+        .delete()
+        .eq('shared_account_id', sharedAccountId);
+      
+      // Delete the shared account itself
+      await supabase.from('shared_accounts')
+        .delete()
+        .eq('id', sharedAccountId);
+      
+      // Log activity for all affected users
+      for (const member of (allMembers || [])) {
+        await logActivity(member.user_id, 'sharing', 'revoked_sharing', { 
+          revokedBy: userId,
+          sharedAccountId 
+        });
+        // Invalidate cache for each affected user
+        await redisDel(`dashboard:${member.user_id}:me`);
+        await redisDel(`dashboard:${member.user_id}:merged`);
+      }
+      
       return json({ data: { success: true } });
     }
 
@@ -2776,6 +3005,11 @@ serve(async (req) => {
       const { data: userData, error: userErr } = await supabase.from('users').select('id, username').eq('id', userId).single();
       if (userErr || !userData) return error('Failed to fetch user data', 500);
 
+      const num = (v: any) => {
+        const n = parseFloat(v);
+        return isNaN(n) ? 0 : n;
+      };
+
       const { data: directIncomes } = await supabase.from('incomes').select('*').eq('user_id', userId);
       const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').eq('user_id', userId);
       const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').eq('user_id', userId);
@@ -2787,14 +3021,14 @@ serve(async (req) => {
 
       const variableExpenses = (directVariablePlans || []).map((plan: any) => {
         const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === plan.id || a.planId === plan.id);
-        const actualTotal = actuals.reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+        const actualTotal = actuals.reduce((sum: number, a: any) => sum + num(a.amount), 0);
         return { ...plan, actuals, actualTotal };
       });
 
       const loans = (directFixedExpenses || []).filter((exp: any) => 
         exp.category && exp.category.toLowerCase() === 'loan'
       ).map((exp: any) => {
-        const amount = parseFloat(exp.amount) || 0;
+        const amount = num(exp.amount);
         const emi = exp.frequency === 'monthly' ? amount :
           exp.frequency === 'quarterly' ? amount / 3 :
           exp.frequency === 'yearly' ? amount / 12 : amount;
@@ -2818,16 +3052,16 @@ serve(async (req) => {
         .limit(50);
 
       const totalIncome = (directIncomes || []).reduce((sum: number, i: any) => {
-        const amount = parseFloat(i.amount) || 0;
+        const amount = num(i.amount);
         const monthly = i.frequency === 'monthly' ? amount :
           i.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
       }, 0);
 
       const totalFixedExpenses = (directFixedExpenses || []).reduce((sum: number, e: any) => {
-        const amount = parseFloat(e.amount) || 0;
+        const amount = num(e.amount);
         const monthly = e.frequency === 'monthly' ? amount :
-          e.frequency === 'quarterly' ? amount / 3 : e.amount / 12;
+          e.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
       }, 0);
 
@@ -2836,21 +3070,21 @@ serve(async (req) => {
       const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
       const remainingDaysRatio = 1 - (today.getDate() / daysInMonth);
       
-      const totalVariablePlanned = variableExpenses.reduce((sum: number, p: any) => sum + (parseFloat(p.planned) || 0), 0);
-      const totalVariableActual = variableExpenses.reduce((sum: number, p: any) => sum + (p.actualTotal || 0), 0);
+      const totalVariablePlanned = variableExpenses.reduce((sum: number, p: any) => sum + num(p.planned), 0);
+      const totalVariableActual = variableExpenses.reduce((sum: number, p: any) => sum + num(p.actualTotal), 0);
       const totalVariableProrated = totalVariablePlanned * remainingDaysRatio;
       const effectiveVariableExpense = Math.max(totalVariableActual, totalVariableProrated);
       
       // Parse investments - handle encrypted values by using numeric field
       const totalInvestments = (directInvestments || []).reduce((sum: number, inv: any) => {
         // Try numeric fields first, avoid encrypted strings
-        const amount = parseFloat(inv.monthly_amount) || parseFloat(inv.monthlyAmount) || 0;
-        return sum + (isNaN(amount) ? 0 : amount);
+        const amount = num(inv.monthly_amount || inv.monthlyAmount || 0);
+        return sum + amount;
       }, 0);
 
       const creditCardDues = (creditCards || []).reduce((sum: number, c: any) => {
-        const billAmount = parseFloat(c.bill_amount || c.billAmount || 0);
-        const paidAmount = parseFloat(c.paid_amount || c.paidAmount || 0);
+        const billAmount = num(c.bill_amount || c.billAmount || 0);
+        const paidAmount = num(c.paid_amount || c.paidAmount || 0);
         const remaining = billAmount - paidAmount;
         if (remaining > 0) {
           const dueDate = new Date(c.due_date || c.dueDate);
@@ -2916,7 +3150,35 @@ serve(async (req) => {
         healthDetails: {}
       };
 
-      return json(exportData);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'diag3',
+          hypothesisId:'EXPORT',
+          location:'api/index.ts:/export',
+          message:'Export summary totals',
+          data:{
+            userId,
+            totalIncome,
+            totalFixedExpenses,
+            totalVariableActual,
+            totalVariablePlanned,
+            totalVariableProrated,
+            effectiveVariableExpense,
+            totalInvestments,
+            creditCardDues,
+            remainingBalance
+          },
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
+
+      // Wrap in { data: ... } to match frontend expectation
+      return json({ data: exportData });
     }
 
     return error('Not found', 404);
