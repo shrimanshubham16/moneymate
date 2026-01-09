@@ -57,9 +57,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
   // Persist selectedView when it changes
   useEffect(() => {
     localStorage.setItem('finflow_selected_view', selectedView);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage:viewChange',message:'View changed and persisted',data:{selectedView},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-VIEW'})}).catch(()=>{});
-    // #endregion
   }, [selectedView]);
 
   // Calculate CORRECT health score on frontend (backend doesn't respect 'paid' status properly)
@@ -67,8 +64,40 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const correctHealth = useMemo(() => {
     if (!data) return { remaining: 0, category: 'ok' };
     
+    // Get current user ID from token to filter own items
+    let currentUserId: string | null = null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Token may use 'userId', 'user_id', or 'sub' depending on how it was created
+      currentUserId = payload.userId || payload.user_id || payload.sub;
+    } catch (e) { /* ignore */ }
+    
+    // Filter to only OWN items (not shared users' items)
+    // This prevents double-counting when aggregates are also used
+    const ownIncomes = (data.incomes || []).filter((i: any) => i.userId === currentUserId || i.user_id === currentUserId);
+    const ownFixedExpenses = (data.fixedExpenses || []).filter((e: any) => e.userId === currentUserId || e.user_id === currentUserId);
+    const ownInvestments = (data.investments || []).filter((i: any) => i.userId === currentUserId || i.user_id === currentUserId);
+    const ownVariablePlans = (data.variablePlans || []).filter((p: any) => p.userId === currentUserId || p.user_id === currentUserId);
+    
+    // Get shared users' aggregates (pre-computed totals from user_aggregates table)
+    // This allows combined health calculation even with E2E encryption!
+    const sharedAggregates = data.sharedUserAggregates || [];
+    const sharedIncomeTotal = sharedAggregates.reduce((sum: number, agg: any) => 
+      sum + (parseFloat(agg.total_income_monthly) || 0), 0);
+    const sharedFixedTotal = sharedAggregates.reduce((sum: number, agg: any) => 
+      sum + (parseFloat(agg.total_fixed_monthly) || 0), 0);
+    const sharedInvestmentsTotal = sharedAggregates.reduce((sum: number, agg: any) => 
+      sum + (parseFloat(agg.total_investments_monthly) || 0), 0);
+    const sharedVariablePlanned = sharedAggregates.reduce((sum: number, agg: any) => 
+      sum + (parseFloat(agg.total_variable_planned) || 0), 0);
+    const sharedVariableActual = sharedAggregates.reduce((sum: number, agg: any) => 
+      sum + (parseFloat(agg.total_variable_actual) || 0), 0);
+    const sharedCreditCardDues = sharedAggregates.reduce((sum: number, agg: any) => 
+      sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
+    
+    
     // Calculate credit card dues first (needed for health calculation)
-    const ccDues = (creditCards || []).reduce((sum: number, c: any) => {
+    const ownCcDues = (creditCards || []).reduce((sum: number, c: any) => {
       const billAmount = parseFloat(c.billAmount || 0);
       const paidAmount = parseFloat(c.paidAmount || 0);
       const remaining = billAmount - paidAmount;
@@ -80,17 +109,19 @@ export function DashboardPage({ token }: DashboardPageProps) {
       }
       return sum;
     }, 0);
+    const ccDues = ownCcDues + sharedCreditCardDues;
     
-    // Calculate total income
-    const totalIncome = (data.incomes || []).reduce((sum: number, inc: any) => {
+    // Calculate total income (own + shared) - use filtered ownIncomes
+    const ownIncome = ownIncomes.reduce((sum: number, inc: any) => {
       const amount = parseFloat(inc.amount) || 0;
       const monthly = inc.frequency === 'monthly' ? amount :
         inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
       return sum + monthly;
     }, 0);
+    const totalIncome = ownIncome + sharedIncomeTotal;
     
-    // Calculate unpaid fixed expenses (respecting 'paid' status)
-    const unpaidFixedTotal = (data.fixedExpenses || [])
+    // Calculate unpaid fixed expenses (respecting 'paid' status) - use filtered ownFixedExpenses
+    const ownUnpaidFixed = ownFixedExpenses
       .filter((exp: any) => !exp.paid)
       .reduce((sum: number, exp: any) => {
         const amount = parseFloat(exp.amount) || 0;
@@ -98,11 +129,13 @@ export function DashboardPage({ token }: DashboardPageProps) {
           exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
       }, 0);
+    const unpaidFixedTotal = ownUnpaidFixed + sharedFixedTotal;
     
-    // Calculate unpaid investments (respecting 'paid' status)
-    const unpaidInvestmentsTotal = (data.investments || [])
+    // Calculate unpaid investments (respecting 'paid' status) - use filtered ownInvestments
+    const ownUnpaidInvestments = ownInvestments
       .filter((inv: any) => inv.status === 'active' && !inv.paid)
       .reduce((sum: number, inv: any) => sum + (parseFloat(inv.monthlyAmount) || 0), 0);
+    const unpaidInvestmentsTotal = ownUnpaidInvestments + sharedInvestmentsTotal;
     
     // Variable expenses - FIXED: Calculate per-plan max(actual, prorated) then sum
     // This matches the /health page breakdown exactly
@@ -111,8 +144,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const monthProgress = today.getDate() / daysInMonth;
     const remainingDaysRatio = 1 - monthProgress;
     
-    // Calculate per-plan effective amounts (matching /health breakdown display)
-    const variableTotal = (data.variablePlans || []).reduce((sum: number, plan: any) => {
+    // Calculate per-plan effective amounts (matching /health breakdown display) - use filtered ownVariablePlans
+    const ownVariableTotal = ownVariablePlans.reduce((sum: number, plan: any) => {
       // Get actuals excluding ExtraCash and CreditCard (they don't reduce available funds)
       const actuals = (plan.actuals || []).filter((a: any) => 
         a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
@@ -122,6 +155,9 @@ export function DashboardPage({ token }: DashboardPageProps) {
       // Use higher of actual vs prorated per plan
       return sum + Math.max(actualTotal, proratedForRemainingDays);
     }, 0);
+    // For shared variable, use max of their actual vs prorated planned
+    const sharedVariableEffective = Math.max(sharedVariableActual, sharedVariablePlanned * remainingDaysRatio);
+    const variableTotal = ownVariableTotal + sharedVariableEffective;
     
     const totalOutflow = unpaidFixedTotal + variableTotal + unpaidInvestmentsTotal + ccDues;
     const remaining = totalIncome - totalOutflow;
@@ -133,11 +169,32 @@ export function DashboardPage({ token }: DashboardPageProps) {
     else if (remaining >= -3000) category = "not_well";
     else category = "worrisome";
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DashboardPage:correctHealth',message:'Dashboard health calc',data:{totalIncome,unpaidFixedTotal,variableTotal,unpaidInvestmentsTotal,ccDues,totalOutflow,remaining,category},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
-    return { remaining, category };
-  }, [data, creditCards]);
+    
+    // Return both combined values AND own values for aggregate push
+    return { 
+      remaining, 
+      category,
+      // Own values for aggregate push (so shared users can see our totals)
+      // Use filtered ownVariablePlans to avoid including shared users' data
+      ownAggregates: {
+        total_income_monthly: ownIncome,
+        total_fixed_monthly: ownUnpaidFixed,
+        total_investments_monthly: ownUnpaidInvestments,
+        total_variable_planned: ownVariablePlans.reduce((sum: number, p: any) => sum + (parseFloat(p.planned) || 0), 0),
+        total_variable_actual: ownVariableTotal,
+        total_credit_card_dues: ownCcDues
+      }
+    };
+  }, [data, creditCards, token]);
+
+  // Push own aggregates to server (for shared users to see our totals)
+  // This runs in background - fire and forget
+  useEffect(() => {
+    if (correctHealth.ownAggregates && selectedView === "me" && token) {
+      api.updateUserAggregates(token, correctHealth.ownAggregates)
+        .catch(err => console.warn('[AGGREGATES] Failed to push:', err));
+    }
+  }, [correctHealth.ownAggregates, selectedView, token]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -151,7 +208,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         api.fetchDashboard(token, new Date().toISOString(), viewParam === "me" ? undefined : viewParam),
         api.fetchCreditCards(token),
         api.fetchLoans(token),
-        api.fetchActivity(token),
+        api.fetchActivity(token, undefined, undefined, viewParam),
         api.fetchSharingMembers(token)
       ]);
       
@@ -304,14 +361,17 @@ export function DashboardPage({ token }: DashboardPageProps) {
           // #region agent log
           const t0 = performance.now();
           // #endregion
-          const res = await api.fetchDashboard(token, new Date().toISOString(), viewParam === "me" ? undefined : viewParam);
+          // Pass forceRefresh to bypass server-side cache when view changes
+          const res = await api.fetchDashboard(token, new Date().toISOString(), viewParam === "me" ? undefined : viewParam, forceRefresh);
           // #region agent log
           const t1 = performance.now();
           apiTimings.dashboard = t1 - t0;
           console.log('[PERF_H1_H3_H7] fetchDashboard completed', { 
             duration: apiTimings.dashboard, 
             payloadSize: JSON.stringify(res).length,
-            hasData: !!res.data
+            hasData: !!res.data,
+            forceRefresh,
+            viewParam
           });
           // #endregion
           return res;
@@ -352,7 +412,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
           // #region agent log
           const t0 = performance.now();
           // #endregion
-          const res = await api.fetchActivity(token);
+          const res = await api.fetchActivity(token, undefined, undefined, viewParam);
           // #region agent log
           const t1 = performance.now();
           apiTimings.activity = t1 - t0;

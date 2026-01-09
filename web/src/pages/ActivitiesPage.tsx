@@ -36,7 +36,8 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
 
   const loadActivities = async () => {
     try {
-      const res = await api.fetchActivity(token);
+      // Pass view parameter for combined activities
+      const res = await api.fetchActivity(token, undefined, undefined, selectedView);
       
       // #region agent log - DEBUG: Raw activities from API
       fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActivitiesPage.tsx:loadActivities',message:'raw activities',data:{count: (res.data || []).length, sample: (res.data || []).slice(0, 3).map((a: any) => ({entity: a.entity, action: a.action, payload: a.payload}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'ACT'})}).catch(()=>{});

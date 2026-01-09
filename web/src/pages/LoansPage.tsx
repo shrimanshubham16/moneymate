@@ -22,6 +22,9 @@ export function LoansPage({ token }: LoansPageProps) {
   const loadLoans = async () => {
     try {
       const res = await api.fetchLoans(token);
+      // #region agent log - H5: Debug loan EMI calculation
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoansPage:loadLoans',message:'Loans loaded',data:{loanCount:res.data?.length,sampleLoan:res.data?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5-LOAN-EMI'})}).catch(()=>{});
+      // #endregion
       setLoans(res.data);
     } catch (e) {
       console.error("Failed to load loans:", e);

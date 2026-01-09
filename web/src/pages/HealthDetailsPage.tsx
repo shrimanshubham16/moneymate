@@ -53,37 +53,66 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         setConstraintScore(data.constraintScore);
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthDetailsPage:loadData',message:'Health data loaded',data:{hasHealthData:!!healthData,hasDashData:!!data,incomeCount:data?.incomes?.length,fixedCount:data?.fixedExpenses?.length,variableCount:data?.variablePlans?.length,investmentCount:data?.investments?.length,sampleIncome:data?.incomes?.[0],sampleFixed:data?.fixedExpenses?.[0],sampleVariable:data?.variablePlans?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-HEALTH'})}).catch(()=>{});
-      // #endregion
-      console.log("✅ Using backend's health calculation:", healthData);
-      console.log("Formula:", healthData.formula);
-      console.log("Calculation:", healthData.calculation);
 
       // Backend's health calculation uses encrypted placeholder values - must use decrypted dashboard data
       // Calculate ALL values from dashboard's decrypted data (NOT backend's healthData which uses encrypted placeholders)
       
-      // Calculate TOTAL INCOME from decrypted dashboard data
-      const totalIncomeForHealth = (data.incomes || []).reduce((sum: number, inc: any) => {
+      // Get current user ID from token to filter own items (prevent double-counting with aggregates)
+      let currentUserId: string | null = null;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        // Token may use 'userId', 'user_id', or 'sub' depending on how it was created
+        currentUserId = payload.userId || payload.user_id || payload.sub;
+      } catch (e) {
+        console.error('[HEALTH_TOKEN_DEBUG] Failed to parse token:', e);
+      }
+      
+      // Filter to only OWN items (not shared users' items)
+      const ownIncomes = (data.incomes || []).filter((i: any) => i.userId === currentUserId || i.user_id === currentUserId);
+      const ownFixedExpenses = (data.fixedExpenses || []).filter((e: any) => e.userId === currentUserId || e.user_id === currentUserId);
+      const ownInvestmentsData = (data.investments || []).filter((i: any) => i.userId === currentUserId || i.user_id === currentUserId);
+      const ownVariablePlansData = (data.variablePlans || []).filter((p: any) => p.userId === currentUserId || p.user_id === currentUserId);
+      
+      // Get shared users' aggregates for combined health calculation
+      const sharedAggregates = data.sharedUserAggregates || [];
+      const sharedIncomeTotal = sharedAggregates.reduce((sum: number, agg: any) => 
+        sum + (parseFloat(agg.total_income_monthly) || 0), 0);
+      const sharedFixedTotal = sharedAggregates.reduce((sum: number, agg: any) => 
+        sum + (parseFloat(agg.total_fixed_monthly) || 0), 0);
+      const sharedInvestmentsTotal = sharedAggregates.reduce((sum: number, agg: any) => 
+        sum + (parseFloat(agg.total_investments_monthly) || 0), 0);
+      const sharedVariablePlanned = sharedAggregates.reduce((sum: number, agg: any) => 
+        sum + (parseFloat(agg.total_variable_planned) || 0), 0);
+      const sharedVariableActual = sharedAggregates.reduce((sum: number, agg: any) => 
+        sum + (parseFloat(agg.total_variable_actual) || 0), 0);
+      const sharedCreditCardDues = sharedAggregates.reduce((sum: number, agg: any) => 
+        sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
+      
+      // Calculate TOTAL INCOME from decrypted dashboard data (own only - use filtered ownIncomes)
+      const ownIncomeTotal = ownIncomes.reduce((sum: number, inc: any) => {
         const amount = parseFloat(inc.amount) || 0;
         const monthly = inc.frequency === 'monthly' ? amount :
           inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
       }, 0);
+      const totalIncomeForHealth = ownIncomeTotal + sharedIncomeTotal;
       
-      const unpaidFixedExpenses = (data.fixedExpenses || []).filter((exp: any) => !exp.paid);
-      const unpaidInvestmentsForCalc = (data.investments || []).filter((inv: any) => inv.status === 'active' && !inv.paid);
+      // Use filtered own items (not all items which includes shared users')
+      const unpaidFixedExpenses = ownFixedExpenses.filter((exp: any) => !exp.paid);
+      const unpaidInvestmentsForCalc = ownInvestmentsData.filter((inv: any) => inv.status === 'active' && !inv.paid);
       
-      const unpaidFixedTotalForHealth = unpaidFixedExpenses.reduce((sum: number, exp: any) => {
+      const ownUnpaidFixedTotal = unpaidFixedExpenses.reduce((sum: number, exp: any) => {
         const amount = parseFloat(exp.amount) || 0;
         const monthly = exp.frequency === 'monthly' ? amount :
           exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
       }, 0);
+      const unpaidFixedTotalForHealth = ownUnpaidFixedTotal + sharedFixedTotal;
       
-      const unpaidInvestmentsTotalForHealth = unpaidInvestmentsForCalc.reduce((sum: number, inv: any) => {
+      const ownUnpaidInvestmentsTotal = unpaidInvestmentsForCalc.reduce((sum: number, inv: any) => {
         return sum + (parseFloat(inv.monthlyAmount) || 0);
       }, 0);
+      const unpaidInvestmentsTotalForHealth = ownUnpaidInvestmentsTotal + sharedInvestmentsTotal;
       
       // Calculate variable total from dashboard's decrypted/recalculated data
       // FIXED: Calculate per-plan max(actual, prorated) then sum - matches breakdown display
@@ -92,8 +121,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const monthProgress = today.getDate() / daysInMonth;
       const remainingDaysRatio = 1 - monthProgress;
       
-      // Calculate per-plan effective amounts (matching breakdown display logic)
-      const variableTotalForHealth = (data.variablePlans || []).reduce((sum: number, plan: any) => {
+      // Calculate per-plan effective amounts (matching breakdown display logic) - use filtered ownVariablePlansData
+      const ownVariableTotal = ownVariablePlansData.reduce((sum: number, plan: any) => {
         // Get actuals excluding ExtraCash and CreditCard (they don't reduce available funds)
         const actuals = (plan.actuals || []).filter((a: any) => 
           a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
@@ -103,6 +132,9 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         // Use higher of actual vs prorated per plan
         return sum + Math.max(actualTotal, proratedForRemainingDays);
       }, 0);
+      // For shared variable, use max of their actual vs prorated planned
+      const sharedVariableEffective = Math.max(sharedVariableActual, sharedVariablePlanned * remainingDaysRatio);
+      const variableTotalForHealth = ownVariableTotal + sharedVariableEffective;
       
       // For logging purposes
       const totalVariableActual = (data.variablePlans || []).reduce((sum: number, p: any) => 
@@ -111,13 +143,14 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         sum + (parseFloat(p.planned) || 0), 0);
       const variableProrated = totalVariablePlanned * remainingDaysRatio;
       
-      // Calculate credit card dues from decrypted cards data (NOT backend's totalCreditCardDue)
-      const creditCardTotalForHealth = (cardsRes.data || []).reduce((sum: number, c: any) => {
+      // Calculate credit card dues from decrypted cards data (NOT backend's totalCreditCardDue) - own only
+      const ownCreditCardTotal = (cardsRes.data || []).reduce((sum: number, c: any) => {
         const billAmount = parseFloat(c.billAmount || c.bill_amount) || 0;
         const paidAmount = parseFloat(c.paidAmount || c.paid_amount) || 0;
         const remaining = Math.max(0, billAmount - paidAmount);
         return sum + remaining;
       }, 0);
+      const creditCardTotalForHealth = ownCreditCardTotal + sharedCreditCardDues;
       
       const totalOutflowForHealth = unpaidFixedTotalForHealth + variableTotalForHealth + unpaidInvestmentsTotalForHealth + creditCardTotalForHealth;
       
@@ -164,10 +197,6 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const unpaidInvestments = unpaidInvestmentsForCalc;
       const unpaidFixedTotal = unpaidFixedTotalForHealth;
       const unpaidInvestmentsTotal = unpaidInvestmentsTotalForHealth;
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HealthDetailsPage:correctHealth',message:'Health page calc (all from decrypted dashboard)',data:{totalIncome:totalIncomeForHealth,unpaidFixedTotal:unpaidFixedTotalForHealth,variableTotal:variableTotalForHealth,totalVariableActual,totalVariablePlanned,variableProrated,unpaidInvestmentsTotal:unpaidInvestmentsTotalForHealth,creditCardTotal:creditCardTotalForHealth,totalOutflow:totalOutflowForHealth,remaining:correctRemaining,category:correctCategory,sampleIncome:data?.incomes?.[0],sampleFixed:data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-HEALTH'})}).catch(()=>{});
-      // #endregion
       
       setBreakdown({
         income: {

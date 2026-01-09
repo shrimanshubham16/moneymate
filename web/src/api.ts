@@ -113,7 +113,7 @@ async function decryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
             .catch((err) => { 
               console.error(`[E2E_DECRYPT_ERROR] Failed to decrypt ${orig}:`, err);
               // PHASE 2: Use placeholder on decrypt failure, NOT plaintext
-              result[orig] = typeof obj[orig] === 'number' ? 0 : '[decrypt error]';
+              result[orig] = typeof obj[orig] === 'number' ? 0 : '[Private]';
             })
         );
       }
@@ -170,7 +170,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     data.data = await decryptObjectFields(data.data, cryptoKey);
     
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:request:postDecrypt',message:'After decryption',data:{path,sampleInvestment:data.data?.investments?.[0],sampleFixed:data.data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4-DECRYPT'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:request:postDecrypt',message:'After decryption',data:{path,_debug:data.data?._debug,sampleInvestment:data.data?.investments?.[0],sampleFixed:data.data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4-DECRYPT'})}).catch(()=>{});
     // #endregion
     
     // Post-decryption: Normalize field names and recalculate aggregates
@@ -215,6 +215,37 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
         }
         return { ...plan, planned };
       });
+    }
+    
+    // Recalculate loan EMI after decryption (loans have amount_enc that was decrypted to amount)
+    // This handles both direct loan array and nested data structure
+    const loansArray = Array.isArray(data.data) ? data.data : data.data.loans;
+    if (loansArray && Array.isArray(loansArray)) {
+      const processedLoans = loansArray.map((loan: any) => {
+        const amount = parseFloat(loan.amount) || 0;
+        const frequency = loan.frequency || 'monthly';
+        
+        // Recalculate EMI from decrypted amount
+        const emi = frequency === 'monthly' ? amount :
+          frequency === 'quarterly' ? amount / 3 :
+          frequency === 'yearly' ? amount / 12 : amount;
+        
+        const remainingMonths = loan.remainingTenureMonths || 12;
+        
+        return {
+          ...loan,
+          amount,
+          emi: Math.round(emi * 100) / 100,
+          principal: Math.round((emi * remainingMonths) * 100) / 100
+        };
+      });
+      
+      // Update the correct location
+      if (Array.isArray(data.data)) {
+        data.data = processedLoans;
+      } else if (data.data.loans) {
+        data.data.loans = processedLoans;
+      }
     }
   }
   
@@ -379,6 +410,25 @@ export async function fetchSharingMembers(token: string) {
   return request<{ data: { members: any[]; accounts: any[] } }>("/sharing/members", { method: "GET" }, token);
 }
 
+// Update user aggregates (for E2E encryption - client calculates, server stores)
+export async function updateUserAggregates(
+  token: string,
+  aggregates: {
+    total_income_monthly: number;
+    total_fixed_monthly: number;
+    total_investments_monthly: number;
+    total_variable_planned: number;
+    total_variable_actual: number;
+    total_credit_card_dues: number;
+  }
+) {
+  // No encryption needed - aggregates are plaintext totals (no cryptoKey passed)
+  return request<{ data: { success: boolean } }>("/user/aggregates", {
+    method: "PUT",
+    body: JSON.stringify(aggregates)
+  }, token);
+}
+
 export async function sendInvite(token: string, payload: { username: string; role: "editor" | "viewer"; merge_finances?: boolean }) {
   // Map frontend 'username' field to backend 'email_or_username' field
   const requestData = {
@@ -447,10 +497,11 @@ export async function fetchLoans(token: string, cryptoKey?: CryptoKey) {
   return request<{ data: any[] }>("/debts/loans", { method: "GET" }, token, cryptoKey);
 }
 
-export async function fetchActivity(token: string, startDate?: string, endDate?: string, cryptoKey?: CryptoKey) {
+export async function fetchActivity(token: string, startDate?: string, endDate?: string, cryptoKey?: CryptoKey, view?: string) {
   const params = new URLSearchParams();
   if (startDate) params.append('start_date', startDate);
   if (endDate) params.append('end_date', endDate);
+  if (view && view !== 'me') params.append('view', view);
   const queryString = params.toString();
   const url = `/activity${queryString ? `?${queryString}` : ''}`;
   return request<{ data: any[] }>(url, { method: "GET" }, token, cryptoKey);

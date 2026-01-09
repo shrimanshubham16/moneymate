@@ -1122,27 +1122,30 @@ serve(async (req) => {
       
       if (viewParam === 'merged') {
         // Get all shared accounts this user is a member of
+        // FIX: Select only columns that actually exist in the table
         const { data: myMemberships, error: smErr } = await supabase.from('shared_members')
-          .select('shared_account_id')
+          .select('id, shared_account_id, user_id, role')
           .eq('user_id', userId);
         
-        // #region agent log - H2: Debug shared members for combined view
-        console.log('[DEBUG_H2] Merged view - userId:', userId, 'myMemberships:', JSON.stringify(myMemberships), 'error:', smErr);
-        // #endregion
+        console.log('[DEBUG_MERGED_1] User memberships for', userId, ':', JSON.stringify(myMemberships), 'error:', smErr?.message);
         
         if (myMemberships?.length) {
           const sharedAccountIds = myMemberships.map((m: any) => m.shared_account_id);
           
           // Get all other members in those shared accounts
-          const { data: otherMembers } = await supabase.from('shared_members')
-            .select('user_id')
+          const { data: otherMembers, error: omErr } = await supabase.from('shared_members')
+            .select('id, user_id, shared_account_id')
             .in('shared_account_id', sharedAccountIds)
             .neq('user_id', userId);
+          
+          console.log('[DEBUG_MERGED_2] Other members in accounts', sharedAccountIds, ':', JSON.stringify(otherMembers), 'error:', omErr?.message);
           
           if (otherMembers?.length) {
             targetUserIds = [userId, ...otherMembers.map((m: any) => m.user_id)];
           }
         }
+        
+        console.log('[DEBUG_MERGED_3] Final targetUserIds:', targetUserIds);
         console.log('[DASHBOARD_VIEW] Merged view, target users:', targetUserIds);
       } else if (viewParam !== 'me' && viewParam) {
         // Specific user view - verify access via shared accounts
@@ -1216,13 +1219,28 @@ serve(async (req) => {
       const { data, error: rpcError } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
       
       // WORKAROUND: Direct queries to bypass broken RPC function
-      // Use .in() for merged view support
-      const { data: directIncomes } = await supabase.from('incomes').select('*').in('user_id', targetUserIds);
-      const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').in('user_id', targetUserIds);
-      const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').in('user_id', targetUserIds);
-      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*').in('user_id', targetUserIds);
-      const { data: directInvestments } = await supabase.from('investments').select('*').in('user_id', targetUserIds);
-      const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').in('user_id', targetUserIds);
+      // For merged view: Fetch ALL users' items (own + shared) for widget display
+      // Shared users' encrypted items will show as [Private] on frontend
+      const queryUserIds = viewParam === 'merged' ? targetUserIds : [userId];
+      
+      const { data: directIncomes } = await supabase.from('incomes').select('*').in('user_id', queryUserIds);
+      const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').in('user_id', queryUserIds);
+      const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').in('user_id', queryUserIds);
+      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*').in('user_id', queryUserIds);
+      const { data: directInvestments } = await supabase.from('investments').select('*').in('user_id', queryUserIds);
+      const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').in('user_id', queryUserIds);
+      
+      // For merged view: Also fetch shared users' aggregates for accurate health calculation
+      // (Individual encrypted items can't be summed, but aggregates are plaintext)
+      let sharedUserAggregates: any[] = [];
+      if (viewParam === 'merged' && targetUserIds.length > 1) {
+        const sharedUserIds = targetUserIds.filter(id => id !== userId);
+        const { data: aggregates } = await supabase.from('user_aggregates')
+          .select('*')
+          .in('user_id', sharedUserIds);
+        sharedUserAggregates = aggregates || [];
+        console.log('[MERGED_AGGREGATES] Fetched aggregates for shared users:', JSON.stringify(sharedUserAggregates));
+      }
       
       // #region agent log - DEBUG: Log raw variable actuals for hypothesis B/C
       console.log('[DEBUG_DASH] directVariablePlans count:', directVariablePlans?.length || 0);
@@ -1496,7 +1514,21 @@ serve(async (req) => {
           decayAppliedAt: constraint.decay_applied_at,
           updatedAt: constraint.updated_at
         } : { score: 0, tier: 'green', recentOverspends: 0 },
-        alerts: []
+        alerts: [],
+        // Include shared users' aggregates for combined health calculation
+        sharedUserAggregates: sharedUserAggregates.length > 0 ? sharedUserAggregates : undefined,
+        // DEBUG: Include targetUserIds to diagnose merged view issue
+        _debug: { 
+          userId, 
+          viewParam, 
+          targetUserIds, 
+          targetUserCount: targetUserIds.length,
+          incomeCount: finalIncomes.length,
+          fixedCount: finalFixedExpenses.length,
+          variableCount: finalVariablePlans.length,
+          investmentCount: finalInvestments.length,
+          sharedAggregatesCount: sharedUserAggregates.length
+        }
       };
 
       // Cache the result (60s TTL)
@@ -2302,6 +2334,7 @@ serve(async (req) => {
       }
       
       // Convert fixed expenses to loan format
+      // NOTE: With E2E encryption, amount may be 0 (placeholder) - frontend will decrypt and recalculate EMI
       const t1 = Date.now();
       const autoLoans = (loanExpenses || []).map((exp: any) => {
         const amount = parseFloat(exp.amount) || 0;
@@ -2316,6 +2349,12 @@ serve(async (req) => {
         return {
           id: exp.id,
           name: exp.name,
+          name_enc: exp.name_enc,
+          name_iv: exp.name_iv,
+          amount: amount,  // May be 0 (placeholder) for encrypted data
+          amount_enc: exp.amount_enc,
+          amount_iv: exp.amount_iv,
+          frequency: exp.frequency,
           emi: Math.round(emi * 100) / 100,
           remainingTenureMonths: remainingMonths,
           principal: Math.round((emi * remainingMonths) * 100) / 100
@@ -2369,16 +2408,41 @@ serve(async (req) => {
       const url = new URL(req.url);
       const startDate = url.searchParams.get('start_date');
       const endDate = url.searchParams.get('end_date');
+      const viewParam = url.searchParams.get('view') || 'me';
+      
+      // Get target user IDs based on view parameter (same logic as dashboard)
+      let activityUserIds: string[] = [userId];
+      
+      if (viewParam === 'merged') {
+        // Get all shared accounts this user is a member of
+        const { data: myMemberships } = await supabase.from('shared_members')
+          .select('id, shared_account_id, user_id, role')
+          .eq('user_id', userId);
+        
+        if (myMemberships?.length) {
+          const sharedAccountIds = myMemberships.map((m: any) => m.shared_account_id);
+          
+          // Get all other members in those shared accounts
+          const { data: otherMembers } = await supabase.from('shared_members')
+            .select('id, user_id, shared_account_id')
+            .in('shared_account_id', sharedAccountIds)
+            .neq('user_id', userId);
+          
+          if (otherMembers?.length) {
+            activityUserIds = [userId, ...otherMembers.map((m: any) => m.user_id)];
+          }
+        }
+      }
       
       // #region agent log - DEBUG: Activity fetch
-      console.log(`[DEBUG_ACTIVITY] Fetching activities for user ${userId}`);
+      console.log(`[DEBUG_ACTIVITY] Fetching activities for users ${activityUserIds.join(', ')} (view: ${viewParam})`);
       // #endregion
       
       // activities table uses actor_id, not user_id
       let query = supabase
         .from('activities')
         .select('*')
-        .eq('actor_id', userId);
+        .in('actor_id', activityUserIds);
       
       // Apply date filters if provided
       if (startDate) {
@@ -2437,6 +2501,42 @@ serve(async (req) => {
       // #endregion
       
       return json({ data: formatted });
+    }
+
+    // USER AGGREGATES - Update from client-side calculations (for E2E encryption)
+    if (path === '/user/aggregates' && method === 'PUT') {
+      const body = await req.json();
+      
+      // Validate required fields
+      const { 
+        total_income_monthly,
+        total_fixed_monthly,
+        total_investments_monthly,
+        total_variable_planned,
+        total_variable_actual,
+        total_credit_card_dues
+      } = body;
+      
+      // Upsert the user's aggregates
+      const { error: aggErr } = await supabase.from('user_aggregates')
+        .upsert({
+          user_id: userId,
+          total_income_monthly: total_income_monthly || 0,
+          total_fixed_monthly: total_fixed_monthly || 0,
+          total_investments_monthly: total_investments_monthly || 0,
+          total_variable_planned: total_variable_planned || 0,
+          total_variable_actual: total_variable_actual || 0,
+          total_credit_card_dues: total_credit_card_dues || 0,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+      
+      if (aggErr) {
+        console.error('[USER_AGGREGATES] Failed to update:', aggErr);
+        return error(aggErr.message, 500);
+      }
+      
+      console.log('[USER_AGGREGATES] Updated for user:', userId);
+      return json({ data: { success: true } });
     }
 
     // SHARING

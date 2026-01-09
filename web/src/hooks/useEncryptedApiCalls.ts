@@ -108,8 +108,8 @@ export function useEncryptedApiCalls() {
       baseApi.updateUserPreferences(token, prefs),
     
     // Activities
-    fetchActivity: (token: string, startDate?: string, endDate?: string) => 
-      baseApi.fetchActivity(token, startDate, endDate, key || undefined),
+    fetchActivity: (token: string, startDate?: string, endDate?: string, view?: string) => 
+      baseApi.fetchActivity(token, startDate, endDate, key || undefined, view),
     
     // Alerts
     fetchAlerts: (token: string) => 
@@ -150,6 +150,16 @@ export function useEncryptedApiCalls() {
       baseApi.updateUserEmail(token, email),
     updateUserPassword: (token: string, oldPassword: string, newPassword: string) => 
       baseApi.updateUserPassword(token, oldPassword, newPassword),
+    
+    // User Aggregates (for sharing with E2E encryption)
+    updateUserAggregates: (token: string, aggregates: {
+      total_income_monthly: number;
+      total_fixed_monthly: number;
+      total_investments_monthly: number;
+      total_variable_planned: number;
+      total_variable_actual: number;
+      total_credit_card_dues: number;
+    }) => baseApi.updateUserAggregates(token, aggregates),
     
     // Expose encryption key status
     isEncryptionEnabled: key !== null,
