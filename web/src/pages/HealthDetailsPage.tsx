@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaMoneyBillWave, FaShoppingCart, FaChartLine, FaCreditCard, FaUniversity, FaHeart } from "react-icons/fa";
+import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaMoneyBillWave, FaShoppingCart, FaChartLine, FaCreditCard, FaUniversity, FaHeart, FaUsers } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { funFacts } from "../data/funFacts";
@@ -23,19 +24,23 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
   const [health, setHealth] = useState<any>(null);
   const [breakdown, setBreakdown] = useState<any>(null);
   const [constraintScore, setConstraintScore] = useState<any>(null);
+  
+  // Shared view support
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
 
   useEffect(() => {
     loadHealthDetails();
     setFunFact(funFacts[Math.floor(Math.random() * funFacts.length)]);
-  }, [token]);
+  }, [token, selectedView]); // Re-fetch when view changes
 
   const loadHealthDetails = async () => {
     try {
       setHeroLoading(true);
-      // Use the api module's fetchHealthDetails
+      // Use the api module's fetchHealthDetails - pass view param for combined data
+      const viewParam = getViewParam();
       const [healthRes, dashRes, cardsRes, loansRes] = await Promise.all([
         api.fetchHealthDetails(token),
-        api.fetchDashboard(token, new Date().toISOString()),
+        api.fetchDashboard(token, new Date().toISOString(), viewParam),
         api.fetchCreditCards(token),
         api.fetchLoans(token)
       ]);
@@ -279,11 +284,22 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           "Fixed expenses are monthly bills, Variable are categories like food/transport"
         ]}
       />
+      
+      {/* Combined View Banner */}
+      {isSharedView && (
+        <div className="combined-view-banner">
+          <FaUsers style={{ marginRight: 8 }} />
+          <span>Combined View: Showing merged finances from shared members</span>
+        </div>
+      )}
+      
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>
           ← Back to Dashboard
         </button>
-        <h1><FaHeart style={{ marginRight: 8, verticalAlign: 'middle' }} color="#10b981" />Financial Health Details</h1>
+        <h1><FaHeart style={{ marginRight: 8, verticalAlign: 'middle' }} color="#10b981" />
+          {isSharedView ? "Combined Financial Health" : "Financial Health Details"}
+        </h1>
       </div>
 
       {/* Health Summary Card */}

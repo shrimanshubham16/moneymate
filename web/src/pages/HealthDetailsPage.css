@@ -7,6 +7,19 @@
   min-height: calc(100vh - 72px);
 }
 
+/* Combined View Banner */
+.combined-view-banner {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
 /* Hero Health Card */
 .health-summary-card {
   background: var(--bg-elevated);

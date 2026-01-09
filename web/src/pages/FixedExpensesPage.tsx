@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync } from "react-icons/fa";
+import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync, FaUserCircle, FaLock, FaUsers } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
@@ -32,10 +33,13 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     is_sip_flag: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);  // Prevent multiple submissions
+  
+  // Shared view support
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
 
   useEffect(() => {
     loadExpenses();
-  }, []);
+  }, [selectedView]); // Re-fetch when view changes
 
   const loadExpenses = async () => {
     try {
@@ -48,15 +52,17 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
         console.error('[CACHE_ERROR] Failed to extract userId from token:', e);
       }
 
-      // Try cache first for faster load
-      const cached = ClientCache.get<any>('dashboard', userId);
-      if (cached?.fixedExpenses) {
-        setExpenses(cached.fixedExpenses);
-        setLoading(false);
+      // Skip cache for shared views
+      if (!isSharedView) {
+        const cached = ClientCache.get<any>('dashboard', userId);
+        if (cached?.fixedExpenses) {
+          setExpenses(cached.fixedExpenses);
+          setLoading(false);
+        }
       }
       
-      // Fetch fresh data
-      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
+      // Fetch fresh data with view parameter
+      const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       setExpenses(res.data.fixedExpenses || []);
       ClientCache.set('dashboard', res.data, userId);
     } catch (e) {
@@ -322,6 +328,14 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
         </motion.div>
       )}
 
+      {/* Combined View Banner */}
+      {isSharedView && (
+        <div className="combined-view-banner">
+          <FaUsers style={{ marginRight: 8 }} />
+          <span>Combined View: Showing merged finances from shared members</span>
+        </div>
+      )}
+
       {loading ? (
         <SkeletonLoader type="list" count={5} />
       ) : expenses.length === 0 ? (
@@ -346,40 +360,65 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
         />
       ) : (
         <div className="expenses-list">
-          {expenses.map((expense, index) => (
-            <motion.div
-              key={expense.id}
-              className="expense-card"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <div className="expense-info">
-                <h3>{expense.name}</h3>
-                <div className="expense-details">
-                  <span>₹{expense.amount.toLocaleString("en-IN")}</span>
-                  <span>{expense.frequency}</span>
-                  <span>{expense.category}</span>
-                  {expense.is_sip_flag && <StatusBadge status="active" size="small" label="SIP" icon={<FaSync size={12} />} />}
-                  {expense.paid && <StatusBadge status="paid" size="small" />}
-                  {/* Show accumulated funds for SIPs */}
-                  {expense.is_sip_flag && (expense.accumulatedFunds || expense.accumulated_funds || 0) > 0 && (
-                    <span style={{ color: '#10b981', fontWeight: 600 }}>
-                      Accumulated: ₹{Math.round(expense.accumulatedFunds || expense.accumulated_funds || 0).toLocaleString("en-IN")}
+          {expenses.map((expense, index) => {
+            const itemUserId = expense.userId || expense.user_id;
+            const isOwn = isOwnItem(itemUserId);
+            const displayName = isOwn ? expense.name : formatSharedField(expense.name, isOwn);
+            const displayAmount = isOwn ? expense.amount : (expense.amount || 0);
+            
+            return (
+              <motion.div
+                key={expense.id}
+                className={`expense-card ${isSharedView && !isOwn ? 'shared-item' : ''}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <div className="expense-info">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h3>{displayName}</h3>
+                    {/* Owner badge for shared views */}
+                    {isSharedView && (
+                      <span className={`owner-badge ${isOwn ? 'own' : 'shared'}`}>
+                        <FaUserCircle size={12} style={{ marginRight: 4 }} />
+                        {getOwnerName(itemUserId)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="expense-details">
+                    <span>₹{displayAmount.toLocaleString("en-IN")}</span>
+                    <span>{expense.frequency}</span>
+                    <span>{expense.category}</span>
+                    {expense.is_sip_flag && <StatusBadge status="active" size="small" label="SIP" icon={<FaSync size={12} />} />}
+                    {expense.paid && <StatusBadge status="paid" size="small" />}
+                    {/* Show accumulated funds for SIPs */}
+                    {expense.is_sip_flag && (expense.accumulatedFunds || expense.accumulated_funds || 0) > 0 && (
+                      <span style={{ color: '#10b981', fontWeight: 600 }}>
+                        Accumulated: ₹{Math.round(expense.accumulatedFunds || expense.accumulated_funds || 0).toLocaleString("en-IN")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="expense-actions">
+                  {/* Only show edit/delete for user's own items */}
+                  {isOwn ? (
+                    <>
+                      <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">
+                        <FaEdit />
+                      </button>
+                      <button onClick={() => handleDelete(expense.id)} className="delete-btn" title="Delete" aria-label="Delete expense">
+                        <FaTrashAlt />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="read-only-badge" title="View only - belongs to shared member">
+                      <FaLock size={12} /> View Only
                     </span>
                   )}
                 </div>
-              </div>
-              <div className="expense-actions">
-                <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">
-                  <FaEdit />
-                </button>
-                <button onClick={() => handleDelete(expense.id)} className="delete-btn" title="Delete" aria-label="Delete expense">
-                  <FaTrashAlt />
-                </button>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </div>

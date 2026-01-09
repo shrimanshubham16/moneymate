@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet } from "react-icons/fa";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaUsers } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./InvestmentsManagementPage.css";
 
@@ -23,14 +24,17 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     monthlyAmount: "",
     status: "active" as "active" | "paused"
   });
+  
+  // Shared view support
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
 
   useEffect(() => {
     loadInvestments();
-  }, []);
+  }, [selectedView]); // Re-fetch when view changes
 
   const loadInvestments = async () => {
     try {
-      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       setInvestments(res.data.investments || []);
     } catch (e) {
       console.error("Failed to load investments:", e);
@@ -209,6 +213,14 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
         </motion.div>
       )}
 
+      {/* Combined View Banner */}
+      {isSharedView && (
+        <div className="combined-view-banner">
+          <FaUsers style={{ marginRight: 8 }} />
+          <span>Combined View: Showing merged finances from shared members</span>
+        </div>
+      )}
+
       {loading ? (
         <SkeletonLoader type="card" count={3} />
       ) : (
@@ -216,77 +228,102 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
           {investments.length === 0 ? (
             <div className="empty-state">No investments. Add one to get started!</div>
           ) : (
-            investments.map((inv, index) => (
-              <motion.div
-                key={inv.id}
-                className="investment-card"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <div className="investment-info">
-                  <h3>{inv.name}</h3>
-                  <div className="investment-details">
-                    <span>Goal: {inv.goal}</span>
-                    {(() => {
-                      const monthlyVal = parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0);
-                      const formatted = isNaN(monthlyVal) ? "0" : monthlyVal.toLocaleString("en-IN");
-                      return <span>₹{formatted}/month</span>;
-                    })()}
-                    {(inv.accumulatedFunds || inv.accumulated_funds || 0) > 0 && (
-                      <span className="accumulated-funds">
-                        Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
+            investments.map((inv, index) => {
+              const itemUserId = inv.userId || inv.user_id;
+              const isOwn = isOwnItem(itemUserId);
+              const displayName = isOwn ? inv.name : formatSharedField(inv.name, isOwn);
+              const displayGoal = isOwn ? inv.goal : formatSharedField(inv.goal, isOwn);
+              
+              return (
+                <motion.div
+                  key={inv.id}
+                  className={`investment-card ${isSharedView && !isOwn ? 'shared-item' : ''}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <div className="investment-info">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <h3>{displayName}</h3>
+                      {/* Owner badge for shared views */}
+                      {isSharedView && (
+                        <span className={`owner-badge ${isOwn ? 'own' : 'shared'}`}>
+                          <FaUserCircle size={12} style={{ marginRight: 4 }} />
+                          {getOwnerName(itemUserId)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="investment-details">
+                      <span>Goal: {displayGoal}</span>
+                      {(() => {
+                        const monthlyVal = parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0);
+                        const formatted = isNaN(monthlyVal) ? "0" : monthlyVal.toLocaleString("en-IN");
+                        return <span>₹{formatted}/month</span>;
+                      })()}
+                      {(inv.accumulatedFunds || inv.accumulated_funds || 0) > 0 && (
+                        <span className="accumulated-funds">
+                          Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
+                        </span>
+                      )}
+                      <span className={`status ${inv.status}`}>
+                        {inv.status === "active" ? "● Active" : "⏸ Paused"}
+                      </span>
+                      {inv.paid && <span className="paid-badge">✓ Paid This Month</span>}
+                      {!inv.paid && <span className="unpaid-badge">⚠ Not Paid</span>}
+                    </div>
+                  </div>
+                  <div className="investment-actions">
+                    {/* Only show edit actions for own items */}
+                    {isOwn ? (
+                      <>
+                        <button 
+                          className="icon-btn wallet-btn" 
+                          onClick={async () => {
+                            const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}\n\nEnter new amount:`);
+                            if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
+                              try {
+                                await api.updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
+                                await loadInvestments();
+                              } catch (e: any) {
+                                alert("Failed to update: " + e.message);
+                              }
+                            }
+                          }}
+                          title="Update Available Fund"
+                        >
+                          <FaWallet />
+                        </button>
+                        <button 
+                          className="icon-btn edit-btn" 
+                          onClick={() => handleEdit(inv)}
+                          title="Edit"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button 
+                          className="icon-btn pause-btn" 
+                          onClick={() => handleTogglePause(inv)}
+                          title={inv.status === "active" ? "Pause" : "Resume"}
+                        >
+                          {inv.status === "active" ? <FaPause /> : <FaPlay />}
+                        </button>
+                        <button 
+                          className="icon-btn delete-btn" 
+                          onClick={() => handleDelete(inv.id)}
+                          title="Delete"
+                        >
+                          <FaTrashAlt />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="read-only-badge" title="View only - belongs to shared member">
+                        <FaLock size={12} /> View Only
                       </span>
                     )}
-                    <span className={`status ${inv.status}`}>
-                      {inv.status === "active" ? "● Active" : "⏸ Paused"}
-                    </span>
-                    {inv.paid && <span className="paid-badge">✓ Paid This Month</span>}
-                    {!inv.paid && <span className="unpaid-badge">⚠ Not Paid</span>}
                   </div>
-                </div>
-                <div className="investment-actions">
-                  <button 
-                    className="icon-btn wallet-btn" 
-                    onClick={async () => {
-                      const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}\n\nEnter new amount:`);
-                      if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
-                        try {
-                          await api.updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
-                          await loadInvestments();
-                        } catch (e: any) {
-                          alert("Failed to update: " + e.message);
-                        }
-                      }
-                    }}
-                    title="Update Available Fund"
-                  >
-                    <FaWallet />
-                  </button>
-                  <button 
-                    className="icon-btn edit-btn" 
-                    onClick={() => handleEdit(inv)}
-                    title="Edit"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button 
-                    className="icon-btn pause-btn" 
-                    onClick={() => handleTogglePause(inv)}
-                    title={inv.status === "active" ? "Pause" : "Resume"}
-                  >
-                    {inv.status === "active" ? <FaPause /> : <FaPlay />}
-                  </button>
-                  <button 
-                    className="icon-btn delete-btn" 
-                    onClick={() => handleDelete(inv.id)}
-                    title="Delete"
-                  >
-                    <FaTrashAlt />
-                  </button>
-                </div>
-              </motion.div>
-            ))
+                </motion.div>
+              );
+            })
           )}
         </div>
       )}

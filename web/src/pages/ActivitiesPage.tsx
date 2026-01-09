@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
-import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt, FaHistory, FaCalendarAlt } from "react-icons/fa";
+import { useSharedView } from "../hooks/useSharedView";
+import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt, FaHistory, FaCalendarAlt, FaUsers, FaUserCircle } from "react-icons/fa";
 import { MdAccountBalanceWallet } from "react-icons/md";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
@@ -25,10 +26,13 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [usePeriodFilter, setUsePeriodFilter] = useState(false);
+  
+  // Shared view support - activities are always user-specific but we show attribution
+  const { selectedView, isSharedView, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
 
   useEffect(() => {
     loadActivities();
-  }, [startDate, endDate, usePeriodFilter]);
+  }, [startDate, endDate, usePeriodFilter, selectedView]);
 
   const loadActivities = async () => {
     try {

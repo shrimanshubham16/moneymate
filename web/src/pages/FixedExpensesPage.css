@@ -289,3 +289,52 @@
 .toggle-button.active .toggle-slider {
   transform: translateX(24px);
 }
+
+/* Sharing UX Styles */
+.combined-view-banner {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.expense-card.shared-item {
+  border-left: 4px solid #6366f1;
+  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+}
+
+.owner-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.owner-badge.own {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.owner-badge.shared {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.read-only-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 500;
+}
