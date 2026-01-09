@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash } from "react-icons/fa";
+import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaUserCircle, FaLock } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -11,6 +11,16 @@ import "./VariableExpensesPage.css";
 
 interface VariableExpensesPageProps {
   token: string;
+}
+
+// Helper to extract user ID from JWT token
+function getUserIdFromToken(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.sub || payload.user_id || null;
+  } catch {
+    return null;
+  }
 }
 
 export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
@@ -41,18 +51,27 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const [userSubcategories, setUserSubcategories] = useState<string[]>(["Unspecified"]);  // v1.2: User's subcategories
   const [creditCards, setCreditCards] = useState<any[]>([]);  // v1.2: User's credit cards
   const [isSubmitting, setIsSubmitting] = useState(false);  // Prevent multiple submissions
+  const [sharingMembers, setSharingMembers] = useState<any[]>([]);  // Sharing: List of shared members
+
+  // Get current user ID and selected view for sharing
+  const currentUserId = useMemo(() => getUserIdFromToken(token), [token]);
+  const selectedView = localStorage.getItem('finflow_selected_view') || 'me';
+  const isSharedView = selectedView !== 'me';
 
   useEffect(() => {
     loadPlans();
     loadSubcategories();  // v1.2: Load subcategories
     loadCreditCards();  // v1.2: Load credit cards
+    if (isSharedView) loadSharingMembers();  // Load sharing members for attribution
   }, []);
 
   const loadPlans = async (forceRefresh = false) => {
     try {
-      const res = await api.fetchDashboard(token, new Date().toISOString(), undefined, forceRefresh);
+      // Use the selected view for shared data (merged or specific user)
+      const viewParam = selectedView === 'me' ? undefined : selectedView;
+      const res = await api.fetchDashboard(token, new Date().toISOString(), viewParam, forceRefresh);
       // #region agent log - DEBUG: Log plans received from API
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:loadPlans',message:'plans received',data:{forceRefresh, plansCount: (res.data.variablePlans || []).length, plans: (res.data.variablePlans || []).map((p: any) => ({id: p.id, name: p.name, planned: p.planned, actualTotal: p.actualTotal, actualsCount: (p.actuals || []).length}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:loadPlans',message:'plans received',data:{forceRefresh, selectedView, plansCount: (res.data.variablePlans || []).length, plans: (res.data.variablePlans || []).map((p: any) => ({id: p.id, name: p.name, planned: p.planned, actualTotal: p.actualTotal, actualsCount: (p.actuals || []).length, userId: p.userId || p.user_id}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
       setPlans(res.data.variablePlans || []);
     } catch (e) {
@@ -60,6 +79,28 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Load sharing members for attribution
+  const loadSharingMembers = async () => {
+    try {
+      const res = await api.fetchSharingMembers(token);
+      setSharingMembers(res.data?.members || []);
+    } catch (e) {
+      console.error("Failed to load sharing members:", e);
+    }
+  };
+
+  // Helper to get owner name for shared items
+  const getOwnerName = (itemUserId: string): string => {
+    if (itemUserId === currentUserId) return "You";
+    const member = sharingMembers.find((m: any) => m.userId === itemUserId);
+    return member?.username || "Shared User";
+  };
+
+  // Check if current user owns this item
+  const isOwnItem = (itemUserId: string): boolean => {
+    return itemUserId === currentUserId;
   };
 
   // v1.2: Load user subcategories
@@ -538,17 +579,35 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
             return (
               <motion.div
                 key={plan.id}
-                className={`plan-card ${overspend ? "overspend" : ""}`}
+                className={`plan-card ${overspend ? "overspend" : ""} ${isSharedView && !isOwnItem(plan.userId || plan.user_id) ? "shared-item" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
                 <div className="plan-header">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <h3>{plan.name}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <h3>{plan.name}</h3>
+                      {/* Owner attribution badge for shared views */}
+                      {isSharedView && (
+                        <span className={`owner-badge ${isOwnItem(plan.userId || plan.user_id) ? 'own' : 'shared'}`}>
+                          <FaUserCircle size={12} style={{ marginRight: 4 }} />
+                          {getOwnerName(plan.userId || plan.user_id)}
+                        </span>
+                      )}
+                    </div>
                     <div className="plan-actions">
-                      <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
-                      <button className="delete-btn" onClick={() => { if (confirm("Delete?")) api.deleteVariableExpensePlan(token, plan.id).then(() => loadPlans(true)); }} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
+                      {/* Only show edit/delete for user's own items */}
+                      {isOwnItem(plan.userId || plan.user_id) ? (
+                        <>
+                          <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
+                          <button className="delete-btn" onClick={() => { if (confirm("Delete?")) api.deleteVariableExpensePlan(token, plan.id).then(() => loadPlans(true)); }} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
+                        </>
+                      ) : (
+                        <span className="read-only-badge" title="View only - belongs to shared member">
+                          <FaLock size={12} /> View Only
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -237,3 +237,40 @@
   color: #64748b;
   font-style: italic;
 }
+
+/* Sharing UX Styles */
+.plan-card.shared-item {
+  border-left: 4px solid #6366f1;
+  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+}
+
+.owner-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.owner-badge.own {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.owner-badge.shared {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.read-only-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 500;
+}

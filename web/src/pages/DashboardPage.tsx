@@ -104,19 +104,24 @@ export function DashboardPage({ token }: DashboardPageProps) {
       .filter((inv: any) => inv.status === 'active' && !inv.paid)
       .reduce((sum: number, inv: any) => sum + (parseFloat(inv.monthlyAmount) || 0), 0);
     
-    // Variable expenses - MUST match backend /health/details calculation exactly
+    // Variable expenses - FIXED: Calculate per-plan max(actual, prorated) then sum
+    // This matches the /health page breakdown exactly
     const today = new Date();
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const monthProgress = today.getDate() / daysInMonth;
     const remainingDaysRatio = 1 - monthProgress;
     
-    // Backend formula: effectiveVariable = Math.max(totalVariableActual, totalVariablePlanned * remainingDaysRatio)
-    const totalVariableActual = (data.variablePlans || []).reduce((sum: number, p: any) => 
-      sum + (parseFloat(p.actualTotal) || 0), 0);
-    const totalVariablePlanned = (data.variablePlans || []).reduce((sum: number, p: any) => 
-      sum + (parseFloat(p.planned) || 0), 0);
-    const totalVariableProrated = totalVariablePlanned * remainingDaysRatio;
-    const variableTotal = Math.max(totalVariableActual, totalVariableProrated);
+    // Calculate per-plan effective amounts (matching /health breakdown display)
+    const variableTotal = (data.variablePlans || []).reduce((sum: number, plan: any) => {
+      // Get actuals excluding ExtraCash and CreditCard (they don't reduce available funds)
+      const actuals = (plan.actuals || []).filter((a: any) => 
+        a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
+      );
+      const actualTotal = actuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
+      const proratedForRemainingDays = (parseFloat(plan.planned) || 0) * remainingDaysRatio;
+      // Use higher of actual vs prorated per plan
+      return sum + Math.max(actualTotal, proratedForRemainingDays);
+    }, 0);
     
     const totalOutflow = unpaidFixedTotal + variableTotal + unpaidInvestmentsTotal + ccDues;
     const remaining = totalIncome - totalOutflow;

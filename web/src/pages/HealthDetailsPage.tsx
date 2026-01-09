@@ -81,17 +81,30 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       }, 0);
       
       // Calculate variable total from dashboard's decrypted/recalculated data
+      // FIXED: Calculate per-plan max(actual, prorated) then sum - matches breakdown display
       const today = new Date();
       const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
       const monthProgress = today.getDate() / daysInMonth;
       const remainingDaysRatio = 1 - monthProgress;
       
+      // Calculate per-plan effective amounts (matching breakdown display logic)
+      const variableTotalForHealth = (data.variablePlans || []).reduce((sum: number, plan: any) => {
+        // Get actuals excluding ExtraCash and CreditCard (they don't reduce available funds)
+        const actuals = (plan.actuals || []).filter((a: any) => 
+          a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
+        );
+        const actualTotal = actuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
+        const proratedForRemainingDays = (parseFloat(plan.planned) || 0) * remainingDaysRatio;
+        // Use higher of actual vs prorated per plan
+        return sum + Math.max(actualTotal, proratedForRemainingDays);
+      }, 0);
+      
+      // For logging purposes
       const totalVariableActual = (data.variablePlans || []).reduce((sum: number, p: any) => 
         sum + (parseFloat(p.actualTotal) || 0), 0);
       const totalVariablePlanned = (data.variablePlans || []).reduce((sum: number, p: any) => 
         sum + (parseFloat(p.planned) || 0), 0);
       const variableProrated = totalVariablePlanned * remainingDaysRatio;
-      const variableTotalForHealth = Math.max(totalVariableActual, variableProrated);
       
       // Calculate credit card dues from decrypted cards data (NOT backend's totalCreditCardDue)
       const creditCardTotalForHealth = (cardsRes.data || []).reduce((sum: number, c: any) => {
