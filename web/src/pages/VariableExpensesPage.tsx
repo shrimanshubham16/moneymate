@@ -103,6 +103,23 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     return itemUserId === currentUserId;
   };
 
+  // Format a field value - shows [Private] for encrypted/error fields from shared users
+  const formatSharedField = (value: any, isOwn: boolean): string => {
+    if (isOwn) {
+      // Own data - show as-is
+      if (value === '[decrypt error]' || value === '[encrypted]') {
+        return value;
+      }
+      return String(value ?? '');
+    } else {
+      // Shared user data - show [Private] for encrypted/error fields
+      if (value === '[decrypt error]' || value === '[encrypted]' || value === null || value === undefined) {
+        return '[Private]';
+      }
+      return String(value);
+    }
+  };
+
   // v1.2: Load user subcategories
   const loadSubcategories = async () => {
     try {
@@ -576,10 +593,15 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           {plans.map((plan, index) => {
             const overspend = plan.actualTotal > plan.planned;
             const percentUsed = plan.planned > 0 ? (plan.actualTotal / plan.planned) * 100 : 0;
+            const itemUserId = plan.userId || plan.user_id;
+            const isOwn = isOwnItem(itemUserId);
+            // Format name - shows [Private] for encrypted shared user data
+            const displayName = formatSharedField(plan.name, isOwn);
+            
             return (
               <motion.div
                 key={plan.id}
-                className={`plan-card ${overspend ? "overspend" : ""} ${isSharedView && !isOwnItem(plan.userId || plan.user_id) ? "shared-item" : ""}`}
+                className={`plan-card ${overspend ? "overspend" : ""} ${isSharedView && !isOwn ? "shared-item" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
@@ -587,18 +609,18 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                 <div className="plan-header">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <h3>{plan.name}</h3>
+                      <h3>{displayName}</h3>
                       {/* Owner attribution badge for shared views */}
                       {isSharedView && (
-                        <span className={`owner-badge ${isOwnItem(plan.userId || plan.user_id) ? 'own' : 'shared'}`}>
+                        <span className={`owner-badge ${isOwn ? 'own' : 'shared'}`}>
                           <FaUserCircle size={12} style={{ marginRight: 4 }} />
-                          {getOwnerName(plan.userId || plan.user_id)}
+                          {getOwnerName(itemUserId)}
                         </span>
                       )}
                     </div>
                     <div className="plan-actions">
                       {/* Only show edit/delete for user's own items */}
-                      {isOwnItem(plan.userId || plan.user_id) ? (
+                      {isOwn ? (
                         <>
                           <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
                           <button className="delete-btn" onClick={() => { if (confirm("Delete?")) api.deleteVariableExpensePlan(token, plan.id).then(() => loadPlans(true)); }} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
