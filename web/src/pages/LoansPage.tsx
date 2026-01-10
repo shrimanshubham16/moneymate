@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { FaUserCircle, FaLock } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./LoansPage.css";
 
@@ -14,15 +16,23 @@ export function LoansPage({ token }: LoansPageProps) {
   const api = useEncryptedApiCalls();
   const [loans, setLoans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasFetchedRef = useRef(false);
+  const lastViewRef = useRef<string>("");
+  
+  // Shared view support
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
 
   useEffect(() => {
+    if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
+    hasFetchedRef.current = true;
+    lastViewRef.current = selectedView;
     loadLoans();
-  }, []);
+  }, [selectedView]);
 
   const loadLoans = async () => {
     try {
       const res = await api.fetchLoans(token);
-      setLoans(res.data);
+      setLoans(res.data || []);
     } catch (e) {
       console.error("Failed to load loans:", e);
     } finally {
@@ -41,31 +51,43 @@ export function LoansPage({ token }: LoansPageProps) {
         <div className="empty-state">No loans found. Add a fixed expense with category=Loan to see it here.</div>
       ) : (
         <div className="loans-list">
-          {loans.map((loan, index) => (
-            <motion.div
-              key={loan.id}
-              className="loan-card"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <h3>{loan.name}</h3>
-              <div className="loan-details">
-                <div className="detail-item">
-                  <span className="label">EMI</span>
-                  <span className="value">₹{(loan.emi || 0).toLocaleString("en-IN")}/month</span>
+          {loans.map((loan, index) => {
+            const loanUserId = loan.userId || loan.user_id;
+            const isOwn = !loanUserId || isOwnItem(loanUserId);
+            return (
+              <motion.div
+                key={loan.id}
+                className={`loan-card ${!isOwn ? "shared-item" : ""}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <div className="loan-header">
+                  <h3>{formatSharedField(loan.name, isOwn)}</h3>
+                  {isSharedView && (
+                    <span className="owner-badge">
+                      {isOwn ? <FaUserCircle /> : <FaLock />}
+                      {getOwnerName(loanUserId)}
+                    </span>
+                  )}
                 </div>
-                <div className="detail-item">
-                  <span className="label">Remaining Tenure</span>
-                  <span className="value">{loan.remainingTenureMonths || 0} months</span>
+                <div className="loan-details">
+                  <div className="detail-item">
+                    <span className="label">EMI</span>
+                    <span className="value">₹{(parseFloat(loan.emi) || 0).toLocaleString("en-IN")}/month</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Remaining Tenure</span>
+                    <span className="value">{loan.remainingTenureMonths || 0} months</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Principal</span>
+                    <span className="value">₹{(parseFloat(loan.principal) || 0).toLocaleString("en-IN")}</span>
+                  </div>
                 </div>
-                <div className="detail-item">
-                  <span className="label">Principal</span>
-                  <span className="value">₹{(loan.principal || 0).toLocaleString("en-IN")}</span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </div>

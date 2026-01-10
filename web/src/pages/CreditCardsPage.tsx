@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { FaUserCircle, FaLock } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./CreditCardsPage.css";
 
@@ -17,15 +19,32 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const hasFetchedRef = useRef(false);
+  const lastViewRef = useRef<string>("");
+  
+  // Shared view support
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
 
   useEffect(() => {
+    if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
+    hasFetchedRef.current = true;
+    lastViewRef.current = selectedView;
     loadCards();
-  }, []);
+  }, [selectedView]);
 
   const loadCards = async () => {
     try {
-      const res = await api.fetchCreditCards(token);
-      setCards(res.data);
+      // For shared view, fetch from dashboard which includes all users' data
+      if (isSharedView) {
+        const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
+        // Extract credit cards from dashboard (would need backend support)
+        // For now, just fetch own cards since credit cards endpoint doesn't support view param
+        const cardsRes = await api.fetchCreditCards(token);
+        setCards(cardsRes.data);
+      } else {
+        const res = await api.fetchCreditCards(token);
+        setCards(res.data);
+      }
     } catch (e) {
       console.error("Failed to load cards:", e);
     } finally {
@@ -95,33 +114,41 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
       ) : (
         <div className="cards-list">
           {cards.map((card, index) => {
-            const remaining = card.billAmount - card.paidAmount;
+            const remaining = (parseFloat(card.billAmount) || 0) - (parseFloat(card.paidAmount) || 0);
             const dueDate = new Date(card.dueDate);
             const isOverdue = dueDate < new Date() && remaining > 0;
+            const cardUserId = card.userId || card.user_id;
+            const isOwn = !cardUserId || isOwnItem(cardUserId);
             return (
               <motion.div
                 key={card.id}
-                className={`card-item ${isOverdue ? "overdue" : ""}`}
+                className={`card-item ${isOverdue ? "overdue" : ""} ${!isOwn ? "shared-item" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
                 <div className="card-header">
-                  <h3>{card.name}</h3>
+                  <h3>{formatSharedField(card.name, isOwn)}</h3>
+                  {isSharedView && (
+                    <span className="owner-badge">
+                      {isOwn ? <FaUserCircle /> : <FaLock />}
+                      {getOwnerName(cardUserId)}
+                    </span>
+                  )}
                   {isOverdue && <span className="overdue-badge">OVERDUE</span>}
                 </div>
                 <div className="card-details">
                   <div className="detail-item">
                     <span className="label">Current Unbilled</span>
-                    <span className="value">₹{(card.currentExpenses || 0).toLocaleString("en-IN")}</span>
+                    <span className="value">₹{(parseFloat(card.currentExpenses) || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Bill Amount</span>
-                    <span className="value">₹{card.billAmount.toLocaleString("en-IN")}</span>
+                    <span className="value">₹{(parseFloat(card.billAmount) || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Paid</span>
-                    <span className="value paid">₹{card.paidAmount.toLocaleString("en-IN")}</span>
+                    <span className="value paid">₹{(parseFloat(card.paidAmount) || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Remaining</span>
@@ -134,7 +161,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                     <span className="value">{dueDate.toLocaleDateString()}</span>
                   </div>
                 </div>
-                {remaining > 0 && (
+                {remaining > 0 && isOwn && (
                   <button className="pay-button" onClick={() => { setSelectedCard(card.id); setPaymentAmount(remaining.toString()); setShowPaymentForm(true); }}>
                     Pay ₹{remaining.toLocaleString("en-IN")}
                   </button>
