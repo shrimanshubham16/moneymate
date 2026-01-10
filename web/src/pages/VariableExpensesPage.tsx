@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaUserCircle, FaLock } from "react-icons/fa";
@@ -52,6 +52,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const [creditCards, setCreditCards] = useState<any[]>([]);  // v1.2: User's credit cards
   const [isSubmitting, setIsSubmitting] = useState(false);  // Prevent multiple submissions
   const [sharingMembers, setSharingMembers] = useState<any[]>([]);  // Sharing: List of shared members
+  const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
 
   // Get current user ID and selected view for sharing
   const currentUserId = useMemo(() => getUserIdFromToken(token), [token]);
@@ -59,6 +60,10 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const isSharedView = selectedView !== 'me';
 
   useEffect(() => {
+    // Prevent double fetch in React Strict Mode
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+    
     loadPlans();
     loadSubcategories();  // v1.2: Load subcategories
     loadCreditCards();  // v1.2: Load credit cards
@@ -70,9 +75,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       // Use the selected view for shared data (merged or specific user)
       const viewParam = selectedView === 'me' ? undefined : selectedView;
       const res = await api.fetchDashboard(token, new Date().toISOString(), viewParam, forceRefresh);
-      // #region agent log - DEBUG: Log plans received from API
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VariableExpensesPage.tsx:loadPlans',message:'plans received',data:{forceRefresh, selectedView, plansCount: (res.data.variablePlans || []).length, plans: (res.data.variablePlans || []).map((p: any) => ({id: p.id, name: p.name, planned: p.planned, actualTotal: p.actualTotal, actualsCount: (p.actuals || []).length, userId: p.userId || p.user_id}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       setPlans(res.data.variablePlans || []);
     } catch (e) {
       console.error("Failed to load plans:", e);

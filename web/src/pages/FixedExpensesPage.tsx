@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync, FaUserCircle, FaLock, FaUsers } from "react-icons/fa";
@@ -33,11 +33,17 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     is_sip_flag: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);  // Prevent multiple submissions
+  const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
+  const lastViewRef = useRef<string>(""); // Track view changes
   
   // Shared view support
   const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
 
   useEffect(() => {
+    // Prevent double fetch in React Strict Mode, but allow on view change
+    if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
+    hasFetchedRef.current = true;
+    lastViewRef.current = selectedView;
     loadExpenses();
   }, [selectedView]); // Re-fetch when view changes
 

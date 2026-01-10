@@ -53,6 +53,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [showQuickNewSub, setShowQuickNewSub] = useState(false);
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const keepAliveIntervalRef = useRef<number | null>(null);
+  const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
+  const lastAggPushRef = useRef<number>(0); // Debounce aggregate pushes
 
   // Persist selectedView when it changes
   useEffect(() => {
@@ -188,9 +190,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
   }, [data, creditCards, token]);
 
   // Push own aggregates to server (for shared users to see our totals)
-  // This runs in background - fire and forget
+  // This runs in background - debounced to prevent spam
   useEffect(() => {
     if (correctHealth.ownAggregates && selectedView === "me" && token) {
+      // Debounce: Only push if 5 seconds have passed since last push
+      const now = Date.now();
+      if (now - lastAggPushRef.current < 5000) return;
+      lastAggPushRef.current = now;
+      
       api.updateUserAggregates(token, correctHealth.ownAggregates)
         .catch(err => console.warn('[AGGREGATES] Failed to push:', err));
     }
@@ -242,6 +249,10 @@ export function DashboardPage({ token }: DashboardPageProps) {
   };
 
   useEffect(() => {
+    // Prevent double fetch in React Strict Mode
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+    
     loadData();
     import("../data/funFacts").then((m) => {
       const facts = m.funFacts || [];
@@ -292,10 +303,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     try {
       setLoadProgress(0);
       
-      // #region agent log
-      const startTime = performance.now();
-      console.log('[PERF_H1_H4] Dashboard loadData started', { timestamp: Date.now(), forceRefresh });
-      // #endregion
+      console.log('[PERF] Dashboard loadData started', { forceRefresh });
 
       // Extract userId from token for cache key
       let userId = 'unknown';
@@ -349,111 +357,17 @@ export function DashboardPage({ token }: DashboardPageProps) {
       console.log('[CACHE_MISS_CLIENT] No cached data, fetching from API');
       setIsStale(false);
       setLoadProgress(10); // Starting fetch
-
-      const apiTimings: any = {};
-      
       setLoadProgress(30); // Connecting to server
       
       const viewParam = viewOverride ?? selectedView ?? "me";
 
       const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
-        (async () => {
-          // #region agent log
-          const t0 = performance.now();
-          // #endregion
-          // Pass forceRefresh to bypass server-side cache when view changes
-          const res = await api.fetchDashboard(token, new Date().toISOString(), viewParam === "me" ? undefined : viewParam, forceRefresh);
-          // #region agent log
-          const t1 = performance.now();
-          apiTimings.dashboard = t1 - t0;
-          console.log('[PERF_H1_H3_H7] fetchDashboard completed', { 
-            duration: apiTimings.dashboard, 
-            payloadSize: JSON.stringify(res).length,
-            hasData: !!res.data,
-            forceRefresh,
-            viewParam
-          });
-          // #endregion
-          return res;
-        })(),
-        (async () => {
-          // #region agent log
-          const t0 = performance.now();
-          // #endregion
-          const res = await api.fetchCreditCards(token);
-          // #region agent log
-          const t1 = performance.now();
-          apiTimings.creditCards = t1 - t0;
-          console.log('[PERF_H1_H5] fetchCreditCards completed', { 
-            duration: apiTimings.creditCards, 
-            payloadSize: JSON.stringify(res).length,
-            count: res.data?.length || 0
-          });
-          // #endregion
-          return res;
-        })(),
-        (async () => {
-          // #region agent log
-          const t0 = performance.now();
-          // #endregion
-          const res = await api.fetchLoans(token);
-          // #region agent log
-          const t1 = performance.now();
-          apiTimings.loans = t1 - t0;
-          console.log('[PERF_H1_H5] fetchLoans completed', { 
-            duration: apiTimings.loans, 
-            payloadSize: JSON.stringify(res).length,
-            count: res.data?.length || 0
-          });
-          // #endregion
-          return res;
-        })(),
-        (async () => {
-          // #region agent log
-          const t0 = performance.now();
-          // #endregion
-          const res = await api.fetchActivity(token, undefined, undefined, viewParam);
-          // #region agent log
-          const t1 = performance.now();
-          apiTimings.activity = t1 - t0;
-          console.log('[PERF_H1_H5] fetchActivity completed', { 
-            duration: apiTimings.activity, 
-            payloadSize: JSON.stringify(res).length,
-            count: res.data?.length || 0
-          });
-          // #endregion
-          return res;
-        })(),
-        (async () => {
-          // #region agent log
-          const t0 = performance.now();
-          // #endregion
-          const res = await api.fetchSharingMembers(token);
-          // #region agent log
-          const t1 = performance.now();
-          apiTimings.sharingMembers = t1 - t0;
-          console.log('[PERF_H1_H5] fetchSharingMembers completed', { 
-            duration: apiTimings.sharingMembers, 
-            payloadSize: JSON.stringify(res).length,
-            count: res.data?.members?.length || 0
-          });
-          // #endregion
-          return res;
-        })()
+        api.fetchDashboard(token, new Date().toISOString(), viewParam === "me" ? undefined : viewParam, forceRefresh),
+        api.fetchCreditCards(token),
+        api.fetchLoans(token),
+        api.fetchActivity(token, undefined, undefined, viewParam),
+        api.fetchSharingMembers(token)
       ]);
-      
-      // #region agent log
-      const endTime = performance.now();
-      const totalTime = endTime - startTime;
-      const maxTime = Math.max(...Object.values(apiTimings));
-      console.log('[PERF_H1_H4_H6] Dashboard loadData completed', { 
-        totalTime,
-        maxTime,
-        apiTimings,
-        parallelEfficiency: (maxTime / totalTime) * 100,
-        timestamp: Date.now()
-      });
-      // #endregion
       
       setLoadProgress(80); // Data received
       

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaMoneyBillWave, FaShoppingCart, FaChartLine, FaCreditCard, FaUniversity, FaHeart, FaUsers } from "react-icons/fa";
@@ -27,8 +27,14 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
   
   // Shared view support
   const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
+  const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
+  const lastViewRef = useRef<string>(""); // Track view changes
 
   useEffect(() => {
+    // Prevent double fetch in React Strict Mode, but allow on view change
+    if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
+    hasFetchedRef.current = true;
+    lastViewRef.current = selectedView;
     loadHealthDetails();
     setFunFact(funFacts[Math.floor(Math.random() * funFacts.length)]);
   }, [token, selectedView]); // Re-fetch when view changes

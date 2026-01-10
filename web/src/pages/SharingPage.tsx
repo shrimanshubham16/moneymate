@@ -28,10 +28,6 @@ export function SharingPage({ token }: SharingPageProps) {
         api.fetchSharingRequests(token),
         api.fetchSharingMembers(token)
       ]);
-      // #region agent log - Enhanced sharing debug
-      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:loadData',message:'Sharing data loaded',data:{userId:tokenPayload.userId,username:tokenPayload.username,incomingCount:reqRes.data?.incoming?.length||0,outgoingCount:reqRes.data?.outgoing?.length||0,membersCount:memRes.data?.members?.length||0,rawRequests:reqRes.data,rawMembers:memRes.data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-SHARING-DETAIL'})}).catch(()=>{});
-      // #endregion
       setRequests(reqRes.data);
       setMembers(memRes.data);
     } catch (e) {
@@ -65,19 +61,10 @@ export function SharingPage({ token }: SharingPageProps) {
     if (!confirmed) return;
     
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:handleApprove:before',message:'Approving request',data:{requestId:id,inviterUsername},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-APPROVAL'})}).catch(()=>{});
-      // #endregion
-      const result = await api.approveRequest(token, id);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:handleApprove:after',message:'Approval result',data:{requestId:id,result},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-APPROVAL'})}).catch(()=>{});
-      // #endregion
+      await api.approveRequest(token, id);
       alert('Request approved! You can now see each other\'s finances in the Combined (Shared) view on your Dashboard.');
       await loadData();
     } catch (e: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:handleApprove:error',message:'Approval failed',data:{requestId:id,error:e.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-APPROVAL'})}).catch(()=>{});
-      // #endregion
       alert(e.message);
     }
   };
@@ -98,10 +85,6 @@ export function SharingPage({ token }: SharingPageProps) {
     if (!confirmed) return;
     
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SharingPage:handleRevoke',message:'Revoking sharing',data:{memberId,sharedAccountId,username},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3-REVOKE'})}).catch(()=>{});
-      // #endregion
-      
       const result = await fetch(`${api.getBaseUrl()}/sharing/revoke`, {
         method: 'POST',
         headers: { 

@@ -163,15 +163,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   
   // E2E: Decrypt response if crypto key is provided
   if (cryptoKey && data.data) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:request:preDecrypt',message:'Before decryption',data:{path,hasKey:!!cryptoKey,sampleInvestment:data.data?.investments?.[0],sampleFixed:data.data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4-DECRYPT'})}).catch(()=>{});
-    // #endregion
-    
     data.data = await decryptObjectFields(data.data, cryptoKey);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:request:postDecrypt',message:'After decryption',data:{path,_debug:data.data?._debug,sampleInvestment:data.data?.investments?.[0],sampleFixed:data.data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4-DECRYPT'})}).catch(()=>{});
-    // #endregion
     
     // Post-decryption: Normalize field names and recalculate aggregates
     // This is necessary because:

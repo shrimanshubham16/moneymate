@@ -88,10 +88,6 @@ export function ExportPage({ token }: ExportPageProps) {
         data = result.data;
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ExportPage:export',message:'Export data received',data:{hasData:!!data,incomeCount:data?.incomes?.length,fixedCount:data?.fixedExpenses?.length,variableCount:data?.variableExpenses?.length,investmentCount:data?.investments?.length,sampleIncome:data?.incomes?.[0],sampleFixed:data?.fixedExpenses?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3-EXPORT'})}).catch(()=>{});
-      // #endregion
-
       // Recalculate totals after decryption (backend calculates with encrypted placeholder values)
       const recalcTotalIncome = (data.incomes || []).reduce((sum: number, i: any) => {
         const amount = parseFloat(i.amount) || 0;
