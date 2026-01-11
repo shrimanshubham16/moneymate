@@ -28,6 +28,8 @@ import { IncomePage } from "./pages/IncomePage";
 import { PreferencesPage } from "./pages/PreferencesPage";
 import { HealthDetailsPage } from "./pages/HealthDetailsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { NotificationSettingsPage } from "./pages/NotificationSettingsPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { LandingPage } from "./pages/LandingPage";
 import { RecoveryPage } from "./pages/RecoveryPage";
@@ -347,6 +349,8 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/settings/sharing" element={<SharingPage token={token} />} />
           <Route path="/settings/support" element={<SupportPage />} />
           <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />
+          <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/settings/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/settings/manage-debts/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/investments" element={<InvestmentsPage token={token} />} />

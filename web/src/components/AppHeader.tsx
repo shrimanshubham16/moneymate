@@ -1,5 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaChartLine, FaCog } from "react-icons/fa";
+import { useAuth } from "../contexts/AuthContext";
+import { NotificationCenter } from "./NotificationCenter";
 import "./AppHeader.css";
 
 interface AppHeaderProps {
@@ -9,6 +11,7 @@ interface AppHeaderProps {
 export function AppHeader({ onLogout }: AppHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { token } = useAuth();
   const isSettings = location.pathname.startsWith("/settings");
 
   return (
@@ -25,6 +28,7 @@ export function AppHeader({ onLogout }: AppHeaderProps) {
       </div>
       
       <div className="header-right">
+        {token && <NotificationCenter token={token} />}
         <button 
           className="header-nav-button"
           onClick={() => navigate("/settings")}

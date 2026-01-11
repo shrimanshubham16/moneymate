@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaUser, FaCreditCard, FaHandshake, FaPalette, FaInfoCircle, FaChartLine, FaCog, FaShieldAlt } from "react-icons/fa";
+import { FaUser, FaCreditCard, FaHandshake, FaPalette, FaInfoCircle, FaChartLine, FaCog, FaShieldAlt, FaBell } from "react-icons/fa";
 import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
@@ -12,6 +12,7 @@ export function SettingsPage() {
 
   const settingsItems = [
     { id: "account", title: "Account", icon: <FaUser size={32} />, description: "Manage username and profile" },
+    { id: "notifications", title: "Notifications", icon: <FaBell size={32} />, description: "Manage alerts and email digests" },
     { id: "preferences", title: "Billing Preferences", icon: <FaCog size={32} />, description: "Set month start day & currency" },
     { 
       id: "sharing", 

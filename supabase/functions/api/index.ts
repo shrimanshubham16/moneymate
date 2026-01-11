@@ -123,6 +123,152 @@ async function sendPasswordResetEmail(to: string, code: string): Promise<{ succe
   return { success: false, error: 'Email provider not configured' };
 }
 
+// ============================================================================
+// NOTIFICATION HELPERS
+// ============================================================================
+
+type NotificationType = 'sharing_request' | 'sharing_accepted' | 'sharing_rejected' | 
+                        'payment_reminder' | 'budget_alert' | 'health_update' | 'system';
+
+interface CreateNotificationParams {
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  entityType?: string;
+  entityId?: string;
+  actionUrl?: string;
+  groupKey?: string;
+}
+
+async function createNotification(supabase: any, params: CreateNotificationParams): Promise<boolean> {
+  try {
+    // Check user preferences first
+    const { data: prefs } = await supabase
+      .from('notification_preferences')
+      .select('*')
+      .eq('user_id', params.userId)
+      .single();
+    
+    // Determine if we should send based on type and preferences
+    const shouldNotify = {
+      sharing_request: prefs?.in_app_sharing ?? true,
+      sharing_accepted: prefs?.in_app_sharing ?? true,
+      sharing_rejected: prefs?.in_app_sharing ?? true,
+      payment_reminder: prefs?.in_app_payments ?? true,
+      budget_alert: prefs?.in_app_budget_alerts ?? true,
+      health_update: prefs?.in_app_system ?? true,
+      system: prefs?.in_app_system ?? true,
+    };
+    
+    if (!shouldNotify[params.type]) {
+      console.log(`[NOTIFICATION] Skipping ${params.type} for user ${params.userId} - disabled in preferences`);
+      return true;
+    }
+    
+    const { error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: params.userId,
+        type: params.type,
+        title: params.title,
+        message: params.message,
+        entity_type: params.entityType,
+        entity_id: params.entityId,
+        action_url: params.actionUrl,
+        group_key: params.groupKey
+      });
+    
+    if (error) {
+      console.error('[NOTIFICATION_ERROR]', error);
+      return false;
+    }
+    
+    return true;
+  } catch (e) {
+    console.error('[NOTIFICATION_ERROR]', e);
+    return false;
+  }
+}
+
+async function sendNotificationEmail(supabase: any, userId: string, type: NotificationType, title: string, message: string): Promise<void> {
+  try {
+    // Check email preferences
+    const { data: prefs } = await supabase
+      .from('notification_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    const shouldEmail = {
+      sharing_request: prefs?.email_sharing ?? true,
+      sharing_accepted: prefs?.email_sharing ?? true,
+      sharing_rejected: prefs?.email_sharing ?? true,
+      payment_reminder: prefs?.email_payments ?? false,
+      budget_alert: prefs?.email_budget_alerts ?? false,
+      health_update: prefs?.email_system ?? true,
+      system: prefs?.email_system ?? true,
+    };
+    
+    if (!shouldEmail[type]) {
+      return;
+    }
+    
+    // Get user email
+    const { data: user } = await supabase
+      .from('users')
+      .select('email, email_verified')
+      .eq('id', userId)
+      .single();
+    
+    if (!user?.email || !user?.email_verified) {
+      return;
+    }
+    
+    // Send email
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 32px; border-radius: 12px;">
+        <h1 style="color: #00e676; text-align: center;">🌿 FinFlow</h1>
+        <h2 style="color: #fff;">${title}</h2>
+        <p style="color: #ccc;">${message}</p>
+        <div style="text-align: center; margin-top: 24px;">
+          <a href="https://finflow.app" style="background: #00e676; color: #000; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Open FinFlow</a>
+        </div>
+        <p style="color: #666; font-size: 12px; margin-top: 24px; text-align: center;">
+          You received this because you have email notifications enabled.<br/>
+          <a href="https://finflow.app/settings" style="color: #888;">Manage preferences</a>
+        </p>
+      </div>
+    `;
+    
+    if (IS_PRODUCTION && SENDGRID_API_KEY) {
+      await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: user.email }] }],
+          from: { email: FROM_EMAIL, name: FROM_NAME },
+          subject: `FinFlow: ${title}`,
+          content: [{ type: 'text/html', value: html }]
+        })
+      });
+    } else if (IS_PRODUCTION && POSTMARK_TOKEN) {
+      await fetch('https://api.postmarkapp.com/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
+        body: JSON.stringify({
+          From: FROM_EMAIL,
+          To: user.email,
+          Subject: `FinFlow: ${title}`,
+          HtmlBody: html,
+        })
+      });
+    }
+  } catch (e) {
+    console.error('[NOTIFICATION_EMAIL_ERROR]', e);
+  }
+}
+
 // SHA256 hashing (matches Railway backend)
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -2566,6 +2712,26 @@ serve(async (req) => {
         return error(reqErr.message, 500);
       }
       
+      // Get inviter username for notification
+      const { data: inviter } = await supabase.from('users').select('username').eq('id', userId).single();
+      
+      // Create notification for invitee
+      await createNotification(supabase, {
+        userId: invitee.id,
+        type: 'sharing_request',
+        title: 'New Sharing Request',
+        message: `${inviter?.username || 'Someone'} wants to share finances with you`,
+        entityType: 'sharing_request',
+        entityId: request.id,
+        actionUrl: '/sharing'
+      });
+      
+      // Send email notification
+      await sendNotificationEmail(supabase, invitee.id, 'sharing_request', 
+        'New Sharing Request', 
+        `${inviter?.username || 'Someone'} has invited you to share finances. Log in to accept or decline.`
+      );
+      
       await logActivity(userId, 'sharing', 'sent_invite', { invitee: invitee.username, role });
       return json({ data: request }, 201);
     }
@@ -2633,6 +2799,9 @@ serve(async (req) => {
       // Get inviter username for activity log
       const { data: inviter } = await supabase.from('users').select('username').eq('id', request.inviter_id).single();
       
+      // Get current user's username for notification
+      const { data: currentUser } = await supabase.from('users').select('username').eq('id', userId).single();
+      
       // Invalidate dashboard caches for both users (critical for merged view to work)
       await Promise.all([
         invalidateUserCache(userId),
@@ -2640,6 +2809,20 @@ serve(async (req) => {
         redisInvalidate(`dashboard:${userId}:merged`),
         redisInvalidate(`dashboard:${request.inviter_id}:merged`)
       ]);
+      
+      // Notify the inviter that their request was accepted
+      await createNotification(supabase, {
+        userId: request.inviter_id,
+        type: 'sharing_accepted',
+        title: 'Sharing Request Accepted!',
+        message: `${currentUser?.username || 'User'} accepted your sharing request. You can now view combined finances.`,
+        actionUrl: '/dashboard?view=merged'
+      });
+      
+      await sendNotificationEmail(supabase, request.inviter_id, 'sharing_accepted',
+        'Sharing Request Accepted!',
+        `${currentUser?.username || 'User'} has accepted your sharing request. You can now view combined finances in FinFlow.`
+      );
       
       await logActivity(userId, 'sharing', 'approved_request', { inviter: inviter?.username, role: request.role });
       return json({ data: { success: true } });
@@ -2668,6 +2851,18 @@ serve(async (req) => {
       
       // Get inviter username for activity log
       const { data: inviter } = await supabase.from('users').select('username').eq('id', request.inviter_id).single();
+      
+      // Get current user's username for notification
+      const { data: rejectingUser } = await supabase.from('users').select('username').eq('id', userId).single();
+      
+      // Notify the inviter that their request was rejected
+      await createNotification(supabase, {
+        userId: request.inviter_id,
+        type: 'sharing_rejected',
+        title: 'Sharing Request Declined',
+        message: `${rejectingUser?.username || 'User'} declined your sharing request.`,
+        actionUrl: '/sharing'
+      });
       
       await logActivity(userId, 'sharing', 'rejected_request', { inviter: inviter?.username });
       return json({ data: { success: true } });
@@ -3088,6 +3283,211 @@ serve(async (req) => {
 
       // Wrap in { data: ... } to match frontend expectation
       return json({ data: exportData });
+    }
+
+    // ============================================================================
+    // NOTIFICATION SYSTEM ENDPOINTS
+    // ============================================================================
+
+    // GET /notifications - List user's notifications
+    if (path === '/notifications' && method === 'GET') {
+      const notifUrl = new URL(req.url);
+      const unreadOnly = notifUrl.searchParams.get('unread') === 'true';
+      const limit = parseInt(notifUrl.searchParams.get('limit') || '50');
+      
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      
+      if (unreadOnly) {
+        query = query.eq('is_read', false);
+      }
+      
+      const { data: notifications, error: notifErr } = await query;
+      
+      if (notifErr) {
+        console.error('Error fetching notifications:', notifErr);
+        return error('Failed to fetch notifications', 500);
+      }
+      
+      // Get unread count
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      
+      return json({ 
+        data: {
+          notifications: (notifications || []).map((n: any) => ({
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            entityType: n.entity_type,
+            entityId: n.entity_id,
+            actionUrl: n.action_url,
+            isRead: n.is_read,
+            readAt: n.read_at,
+            createdAt: n.created_at
+          })),
+          unreadCount: count || 0
+        }
+      });
+    }
+
+    // PUT /notifications/read - Mark notifications as read
+    if (path === '/notifications/read' && method === 'PUT') {
+      const body = await req.json();
+      const { notificationIds } = body;
+      
+      if (!notificationIds || !Array.isArray(notificationIds)) {
+        return error('notificationIds array required', 400);
+      }
+      
+      const { error: updateErr } = await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .in('id', notificationIds);
+      
+      if (updateErr) {
+        return error('Failed to mark notifications as read', 500);
+      }
+      
+      return json({ data: { success: true, markedCount: notificationIds.length } });
+    }
+
+    // PUT /notifications/read-all - Mark all notifications as read
+    if (path === '/notifications/read-all' && method === 'PUT') {
+      const { error: updateErr } = await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      
+      if (updateErr) {
+        return error('Failed to mark all notifications as read', 500);
+      }
+      
+      return json({ data: { success: true } });
+    }
+
+    // GET /notifications/preferences - Get notification preferences
+    if (path === '/notifications/preferences' && method === 'GET') {
+      const { data: prefs, error: prefsErr } = await supabase
+        .from('notification_preferences')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      
+      if (prefsErr && prefsErr.code !== 'PGRST116') { // Not found is ok
+        return error('Failed to fetch preferences', 500);
+      }
+      
+      // Return default preferences if none exist
+      const preferences = prefs || {
+        in_app_sharing: true,
+        in_app_payments: true,
+        in_app_budget_alerts: true,
+        in_app_system: true,
+        email_sharing: true,
+        email_payments: false,
+        email_budget_alerts: false,
+        email_system: true,
+        email_digest_enabled: false,
+        email_digest_frequency: 'weekly',
+        email_digest_day: 0,
+        email_digest_time: '09:00:00'
+      };
+      
+      return json({ 
+        data: {
+          inApp: {
+            sharing: preferences.in_app_sharing,
+            payments: preferences.in_app_payments,
+            budgetAlerts: preferences.in_app_budget_alerts,
+            system: preferences.in_app_system
+          },
+          email: {
+            sharing: preferences.email_sharing,
+            payments: preferences.email_payments,
+            budgetAlerts: preferences.email_budget_alerts,
+            system: preferences.email_system
+          },
+          digest: {
+            enabled: preferences.email_digest_enabled,
+            frequency: preferences.email_digest_frequency,
+            day: preferences.email_digest_day,
+            time: preferences.email_digest_time
+          }
+        }
+      });
+    }
+
+    // PUT /notifications/preferences - Update notification preferences
+    if (path === '/notifications/preferences' && method === 'PUT') {
+      const body = await req.json();
+      
+      const updates: any = {};
+      
+      // In-app preferences
+      if (body.inApp) {
+        if (typeof body.inApp.sharing === 'boolean') updates.in_app_sharing = body.inApp.sharing;
+        if (typeof body.inApp.payments === 'boolean') updates.in_app_payments = body.inApp.payments;
+        if (typeof body.inApp.budgetAlerts === 'boolean') updates.in_app_budget_alerts = body.inApp.budgetAlerts;
+        if (typeof body.inApp.system === 'boolean') updates.in_app_system = body.inApp.system;
+      }
+      
+      // Email preferences
+      if (body.email) {
+        if (typeof body.email.sharing === 'boolean') updates.email_sharing = body.email.sharing;
+        if (typeof body.email.payments === 'boolean') updates.email_payments = body.email.payments;
+        if (typeof body.email.budgetAlerts === 'boolean') updates.email_budget_alerts = body.email.budgetAlerts;
+        if (typeof body.email.system === 'boolean') updates.email_system = body.email.system;
+      }
+      
+      // Digest preferences
+      if (body.digest) {
+        if (typeof body.digest.enabled === 'boolean') updates.email_digest_enabled = body.digest.enabled;
+        if (body.digest.frequency) updates.email_digest_frequency = body.digest.frequency;
+        if (typeof body.digest.day === 'number') updates.email_digest_day = body.digest.day;
+        if (body.digest.time) updates.email_digest_time = body.digest.time;
+      }
+      
+      updates.updated_at = new Date().toISOString();
+      
+      // Upsert preferences
+      const { error: upsertErr } = await supabase
+        .from('notification_preferences')
+        .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' });
+      
+      if (upsertErr) {
+        console.error('Error updating preferences:', upsertErr);
+        return error('Failed to update preferences', 500);
+      }
+      
+      return json({ data: { success: true } });
+    }
+
+    // DELETE /notifications/:id - Delete a notification
+    if (path.match(/^\/notifications\/[^/]+$/) && method === 'DELETE') {
+      const notificationId = path.split('/').pop();
+      
+      const { error: delErr } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+        .eq('user_id', userId);
+      
+      if (delErr) {
+        return error('Failed to delete notification', 500);
+      }
+      
+      return json({ data: { success: true } });
     }
 
     return error('Not found', 404);
