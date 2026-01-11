@@ -553,4 +553,3 @@ async function reEncryptWithRecoveryKey(
 4. **Client-Side**: All calculations happen after decryption
 5. **Password Change**: Requires re-encryption of all data
 6. **Recovery Key**: Backup method to decrypt if password forgotten
-

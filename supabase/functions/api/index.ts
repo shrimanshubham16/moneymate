@@ -190,10 +190,18 @@ function transformCreditCard(card: any) {
     id: card.id,
     userId: card.user_id,
     name: card.name,
+    // E2E: Include encrypted fields for frontend decryption
+    name_enc: card.name_enc,
+    name_iv: card.name_iv,
     statementDate: card.statement_date,
     dueDate: card.due_date,
     billAmount: card.bill_amount,
     paidAmount: card.paid_amount,
+    // E2E: Include encrypted bill/paid fields
+    bill_amount_enc: card.bill_amount_enc,
+    bill_amount_iv: card.bill_amount_iv,
+    paid_amount_enc: card.paid_amount_enc,
+    paid_amount_iv: card.paid_amount_iv,
     currentExpenses: card.current_expenses,
     billingDate: card.billing_date,
     needsBillUpdate: card.needs_bill_update,
@@ -789,11 +797,6 @@ serve(async (req) => {
       const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
       const { data: loans } = await supabase.from('loans').select('*').eq('user_id', userId);
       
-      // #region agent log - DEBUG: Log health details raw data
-      console.log('[DEBUG_HEALTH] variablePlans count:', variablePlans?.length || 0);
-      console.log('[DEBUG_HEALTH] variableActuals count:', variableActuals?.length || 0);
-      // #endregion
-      
       // Calculate totals
       const incomeItems = (incomes || []).map((i: any) => ({
         ...i,
@@ -812,16 +815,10 @@ serve(async (req) => {
       const variablePlanItems = (variablePlans || []).map((p: any) => {
         const actuals = (variableActuals || []).filter((a: any) => a.plan_id === p.id);
         const calcActualTotal = actuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
-        // #region agent log - DEBUG: Health variable plan actual
-        console.log(`[DEBUG_HEALTH_VAR] Plan ${p.id} (${p.name}): ${actuals.length} actuals, actualTotal=${calcActualTotal}`);
-        // #endregion
         return { ...p, actuals, actualTotal: calcActualTotal };
       });
       const totalVariablePlanned = variablePlanItems.reduce((sum: number, p: any) => sum + (p.planned || 0), 0);
       const totalVariableActual = variablePlanItems.reduce((sum: number, p: any) => sum + p.actualTotal, 0);
-      // #region agent log
-      console.log(`[DEBUG_HEALTH_VAR_TOTAL] totalVariablePlanned=${totalVariablePlanned}, totalVariableActual=${totalVariableActual}`);
-      // #endregion
       
       const activeInvestments = (investments || []).filter((i: any) => i.status === 'active');
       const totalInvestments = activeInvestments.reduce((sum: number, i: any) => sum + (i.monthly_amount || 0), 0);
@@ -920,33 +917,6 @@ serve(async (req) => {
         }
       };
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'diag2',
-          hypothesisId:'VAR-HEALTH',
-          location:'api/index.ts:/health/details',
-          message:'Health variable totals',
-          data:{
-            userId,
-            totalVariableActual,
-            totalVariablePlanned,
-            totalVariableProrated,
-            effectiveVariable,
-            totalFixedExpenses,
-            totalInvestments,
-            totalCreditCardDue,
-            totalIncome,
-            remaining
-          },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{});
-      // #endregion
-      
       return json({ data: healthData });
     }
     
@@ -1168,22 +1138,6 @@ serve(async (req) => {
           console.log('[DASHBOARD_VIEW] No access to user:', viewParam);
         }
       }
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'post-fix',
-          hypothesisId:'HCV',
-          location:'api/index.ts:/dashboard',
-          message:'Dashboard view target users',
-          data:{ userId, viewParam, targetUserIds },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{});
-      // #endregion
       
       const perfStart = Date.now();
       const cacheKey = `dashboard:${userId}:${viewParam}`;
@@ -1194,21 +1148,6 @@ serve(async (req) => {
       if (cached) {
         const cacheTime = Date.now() - perfStart;
         console.log('[EDGE_PERF_CACHE] Dashboard from cache', { cacheTime, userId, viewParam });
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({
-            sessionId:'debug-session',
-            runId:'diag3',
-            hypothesisId:'CACHE',
-            location:'api/index.ts:/dashboard',
-            message:'Cache hit',
-            data:{ userId, viewParam, cacheTime },
-            timestamp:Date.now()
-          })
-        }).catch(()=>{});
-        // #endregion
         return json({ data: cached });
       }
       
@@ -1219,9 +1158,10 @@ serve(async (req) => {
       const { data, error: rpcError } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
       
       // WORKAROUND: Direct queries to bypass broken RPC function
-      // For merged view: Fetch ALL users' items (own + shared) for widget display
+      // For merged/specific user view: Fetch target users' items for widget display
       // Shared users' encrypted items will show as [Private] on frontend
-      const queryUserIds = viewParam === 'merged' ? targetUserIds : [userId];
+      // FIX: Use targetUserIds for both merged AND specific user views (not just merged)
+      const queryUserIds = viewParam === 'me' ? [userId] : targetUserIds;
       
       const { data: directIncomes } = await supabase.from('incomes').select('*').in('user_id', queryUserIds);
       const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').in('user_id', queryUserIds);
@@ -1230,56 +1170,34 @@ serve(async (req) => {
       const { data: directInvestments } = await supabase.from('investments').select('*').in('user_id', queryUserIds);
       const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').in('user_id', queryUserIds);
       
-      // For merged view: Also fetch shared users' aggregates for accurate health calculation
+      // Fetch shared users' aggregates for accurate health calculation
       // (Individual encrypted items can't be summed, but aggregates are plaintext)
+      // - For merged view: fetch aggregates for OTHER users
+      // - For specific user view: fetch aggregate for THAT specific user (we can't decrypt their items)
       let sharedUserAggregates: any[] = [];
+      const isSpecificUserView = viewParam && viewParam !== 'merged' && viewParam !== userId;
+      
       if (viewParam === 'merged' && targetUserIds.length > 1) {
+        // Merged view: fetch aggregates for all shared users (not self)
         const sharedUserIds = targetUserIds.filter(id => id !== userId);
         const { data: aggregates } = await supabase.from('user_aggregates')
           .select('*')
           .in('user_id', sharedUserIds);
         sharedUserAggregates = aggregates || [];
-        console.log('[MERGED_AGGREGATES] Fetched aggregates for shared users:', JSON.stringify(sharedUserAggregates));
+      } else if (isSpecificUserView) {
+        // Specific user view: fetch aggregate for THAT specific user
+        const { data: aggregates } = await supabase.from('user_aggregates')
+          .select('*')
+          .eq('user_id', viewParam);
+        sharedUserAggregates = aggregates || [];
       }
       
-      // #region agent log - DEBUG: Log raw variable actuals for hypothesis B/C
-      console.log('[DEBUG_DASH] directVariablePlans count:', directVariablePlans?.length || 0);
-      console.log('[DEBUG_DASH] directVariableActuals count:', directVariableActuals?.length || 0);
-      if (directVariableActuals?.length) {
-        console.log('[DEBUG_DASH] Sample actual:', JSON.stringify(directVariableActuals[0]));
-      }
-      // #endregion
-      
-      // Normalize variable plans with actuals/actualTotal (REMOVED DUPLICATE)
+      // Normalize variable plans with actuals/actualTotal
       const variablePlans = (directVariablePlans || []).map((plan: any) => {
         const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === plan.id || a.planId === plan.id);
         const actualTotal = actuals.reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
-        // #region agent log - DEBUG: Log per-plan actuals
-        console.log(`[DEBUG_DASH] Plan ${plan.id} (${plan.name}): ${actuals.length} actuals, actualTotal=${actualTotal}`);
-        // #endregion
         return { ...plan, actuals, actualTotal };
       });
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'diag2',
-          hypothesisId:'VAR-DASH',
-          location:'api/index.ts:/dashboard',
-          message:'Variable plans normalized',
-          data:{
-            userId,
-            viewParam,
-            plansCount: variablePlans.length,
-            sample: variablePlans.slice(0,2)
-          },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{});
-      // #endregion
 
       timings.dashboardData = Date.now() - t0;
       
@@ -1442,9 +1360,6 @@ serve(async (req) => {
           creditCardId: a.credit_card_id
         }));
         const calcActualTotal = actuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
-        // #region agent log - DEBUG: Log finalVariablePlans actualTotal calculation
-        console.log(`[DEBUG_FINAL] Plan ${plan.id} finalActualTotal=${calcActualTotal}, actuals.length=${actuals.length}`);
-        // #endregion
         return {
           id: plan.id,
           userId: plan.user_id,
@@ -1728,21 +1643,6 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('variable_expense_actuals')
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
-      // Instrumentation
-      try {
-        await fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'api:addVariableActual',
-            message: 'Inserted variable actual',
-            data: { userId, planId, amount: body.amount, payment_mode: body.payment_mode, subcategory: body.subcategory },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            hypothesisId: 'P0-variable-actual'
-          })
-        });
-      } catch {}
       
       // If paid via credit card, update the card's current_expenses
       if (body.payment_mode === 'CreditCard' && body.credit_card_id) {
@@ -2232,22 +2132,16 @@ serve(async (req) => {
           .eq('id', data.id);
       }
       
-      await logActivity(userId, 'credit_card', 'created', { id: data.id, name: data.name });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'post-fix',
-          hypothesisId:'CC1',
-          location:'api/index.ts:credit_card_create',
-          message:'Credit card created (activity details)',
-          data:{ id:data.id, name:data.name },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{});
-      // #endregion
+      // E2E: Include encrypted fields in activity for frontend decryption
+      await logActivity(userId, 'credit_card', 'created', { 
+        id: data.id, 
+        name: data.name,
+        name_enc: data.name_enc,
+        name_iv: data.name_iv,
+        billAmount: data.bill_amount,
+        bill_amount_enc: data.bill_amount_enc,
+        bill_amount_iv: data.bill_amount_iv
+      });
       await invalidateUserCache(userId);
       return json({ data: transformCreditCard(data) }, 201);
     }
@@ -2434,10 +2328,6 @@ serve(async (req) => {
         }
       }
       
-      // #region agent log - DEBUG: Activity fetch
-      console.log(`[DEBUG_ACTIVITY] Fetching activities for users ${activityUserIds.join(', ')} (view: ${viewParam})`);
-      // #endregion
-      
       // activities table uses actor_id, not user_id
       let query = supabase
         .from('activities')
@@ -2492,13 +2382,6 @@ serve(async (req) => {
           username: usernameMap.get(act.actor_id) || 'Unknown User'
         };
       });
-      
-      // #region agent log - DEBUG: Sample activities being returned
-      console.log(`[DEBUG_ACTIVITY] Returning ${formatted.length} activities`);
-      if (formatted.length > 0) {
-        console.log(`[DEBUG_ACTIVITY_SAMPLE]`, JSON.stringify(formatted.slice(0, 3)));
-      }
-      // #endregion
       
       return json({ data: formatted });
     }
@@ -2585,55 +2468,12 @@ serve(async (req) => {
       
       const { data: accounts } = await supabase.from('shared_accounts').select('*').in('id', sharedAccountIds);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'diag2',
-          hypothesisId:'SHR-LIST',
-          location:'api/index.ts:/sharing/members',
-          message:'Sharing members fetched',
-          data:{
-            userId,
-            myMembershipsCount: myMemberships?.length || 0,
-            sharedAccountIds,
-            enrichedMembersCount: enrichedMembers?.length || 0,
-            enrichedSample: enrichedMembers?.slice(0,2) || [],
-            membersErr: membersErr?.message || null
-          },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{});
-      // #endregion
-
       return json({ data: { members: enrichedMembers, accounts: accounts || [] } });
     }
     if (path === '/sharing/requests' && method === 'GET') {
       // Only return PENDING requests - approved/rejected should not show
       const { data: incoming } = await supabase.from('sharing_requests').select('*').eq('invitee_id', userId).eq('status', 'pending');
       const { data: outgoing } = await supabase.from('sharing_requests').select('*').eq('inviter_id', userId).eq('status', 'pending');
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'post-fix',
-          hypothesisId:'SHR1',
-          location:'api/index.ts:/sharing/requests',
-          message:'Sharing requests counts',
-          data:{
-            incomingCount: incoming?.length || 0,
-            outgoingCount: outgoing?.length || 0,
-            userId
-          },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{});
-      // #endregion
       
       // Fetch usernames for all users involved
       const allUserIds = [...new Set([
@@ -2792,10 +2632,6 @@ serve(async (req) => {
       
       // Get inviter username for activity log
       const { data: inviter } = await supabase.from('users').select('username').eq('id', request.inviter_id).single();
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/sharing/approve',message:'Sharing approved - bidirectional entries created',data:{requestId,inviterId:request.inviter_id,inviteeId:userId,entry1:{user_id:request.inviter_id,member_id:userId},entry2:{user_id:userId,member_id:request.inviter_id}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-SHARING-APPROVE'})}).catch(()=>{});
-      // #endregion
       
       // Invalidate dashboard caches for both users (critical for merged view to work)
       await Promise.all([
@@ -3249,33 +3085,6 @@ serve(async (req) => {
         },
         healthDetails: {}
       };
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'diag3',
-          hypothesisId:'EXPORT',
-          location:'api/index.ts:/export',
-          message:'Export summary totals',
-          data:{
-            userId,
-            totalIncome,
-            totalFixedExpenses,
-            totalVariableActual,
-            totalVariablePlanned,
-            totalVariableProrated,
-            effectiveVariableExpense,
-            totalInvestments,
-            creditCardDues,
-            remainingBalance
-          },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{});
-      // #endregion
 
       // Wrap in { data: ... } to match frontend expectation
       return json({ data: exportData });

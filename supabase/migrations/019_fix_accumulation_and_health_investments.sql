@@ -237,4 +237,3 @@ UPDATE investments SET accumulated_funds = 0;
 UPDATE fixed_expenses SET accumulated_funds = 0 WHERE is_sip = TRUE;
 
 
-

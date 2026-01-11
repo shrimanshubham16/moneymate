@@ -66,4 +66,3 @@ $$ LANGUAGE plpgsql;
 GRANT EXECUTE ON FUNCTION auto_accumulate_funds(UUID, DATE) TO postgres, anon, authenticated;
 
 
-

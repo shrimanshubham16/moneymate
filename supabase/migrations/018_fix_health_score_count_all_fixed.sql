@@ -170,4 +170,3 @@ $$ LANGUAGE plpgsql STABLE;
 GRANT EXECUTE ON FUNCTION calculate_full_health(UUID, TIMESTAMP) TO postgres, anon, authenticated;
 
 
-

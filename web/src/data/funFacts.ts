@@ -104,4 +104,3 @@ export const funFacts: string[] = [
   "Water makes different pouring sounds based on temperature.",
   "NASA uses “augmented reality” to help astronauts fix things in space."
 ];
-

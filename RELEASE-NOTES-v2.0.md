@@ -97,4 +97,3 @@ A: Existing users keep their data. New users get automatic encryption.
 ---
 
 **Version 2.0** | January 2026
-

@@ -95,4 +95,3 @@ npm run test-supabase
    - Check if data loads from Supabase
 
 
-

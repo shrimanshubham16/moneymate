@@ -347,4 +347,3 @@ function getBaseUrl(): string {
   
   return "http://localhost:12022";
 }
-

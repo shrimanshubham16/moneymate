@@ -303,6 +303,20 @@
   font-weight: var(--font-bold);
 }
 
+/* Shared aggregate row - distinct styling for merged view */
+.shared-aggregate-row {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%) !important;
+  border: 1px dashed rgba(99, 102, 241, 0.4);
+  border-radius: 8px;
+  margin-top: var(--space-2);
+}
+
+.shared-aggregate-row span:first-child {
+  color: #8b5cf6 !important;
+  display: flex;
+  align-items: center;
+}
+
 .loading-orb {
   width: 72px;
   height: 72px;

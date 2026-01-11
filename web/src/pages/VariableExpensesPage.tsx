@@ -17,7 +17,8 @@ interface VariableExpensesPageProps {
 function getUserIdFromToken(token: string): string | null {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub || payload.user_id || null;
+    // Token may use 'userId' (camelCase), 'user_id' (snake_case), or 'sub'
+    return payload.userId || payload.user_id || payload.sub || null;
   } catch {
     return null;
   }
@@ -102,7 +103,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
 
   // Check if current user owns this item
   const isOwnItem = (itemUserId: string): boolean => {
-    return itemUserId === currentUserId;
+    const result = itemUserId === currentUserId;
+    return result;
   };
 
   // Format a field value - shows [Private] for encrypted/error fields from shared users

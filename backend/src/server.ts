@@ -208,6 +208,7 @@ app.get("/dashboard", requireAuth, async (req, res) => {
   const parsed = dateQuerySchema.safeParse(req.query);
   const today = parsed.data?.today ? new Date(parsed.data.today) : new Date();
   const userId = (req as any).user.userId;
+  const viewParam = (req.query.view as string) || 'me'; // 'me', 'merged', or specific userId
   
   // Calculate billing period ID for cache scoping
   // We need monthStartDay first - get it from a quick preferences fetch or default
@@ -288,6 +289,23 @@ app.get("/dashboard", requireAuth, async (req, res) => {
     return { ...plan, actuals, actualTotal };
   });
 
+  // Determine if this is a specific user view (not 'me' or 'merged')
+  const isSpecificUserView = viewParam !== 'me' && viewParam !== 'merged';
+  
+  // Fetch aggregates for shared users (for merged and specific user views)
+  let sharedUserAggregates: any[] = [];
+  if (viewParam !== 'me') {
+    // For merged view, get all shared user IDs except self
+    // For specific user view, get just that user's aggregate
+    const sharedUserIds = isSpecificUserView 
+      ? [viewParam] 
+      : dashboardData.groupUserIds.filter(id => id !== userId);
+    
+    if (sharedUserIds.length > 0) {
+      sharedUserAggregates = await db.getUserAggregates(sharedUserIds);
+    }
+  }
+
   const payload = {
     incomes: dashboardData.incomes,
     fixedExpenses: dashboardData.fixedExpenses.map((e) => ({
@@ -303,7 +321,8 @@ app.get("/dashboard", requireAuth, async (req, res) => {
     futureBombs: dashboardData.futureBombs,
     health,
     constraintScore: constraintDecayed,
-    alerts: listAlerts(userId)
+    alerts: listAlerts(userId),
+    sharedUserAggregates
   };
   
   res.json({ data: payload });
@@ -596,6 +615,27 @@ app.get("/sharing/members", requireAuth, async (req, res) => {
   const members = await store.listMembers(user.id);
   const accounts = await store.listSharedAccountsFor(user.id);
   res.json({ data: { members, accounts } });
+});
+
+// User aggregates endpoint for sharing feature
+app.post("/user-aggregates", requireAuth, async (req, res) => {
+  const userId = (req as any).user.userId;
+  const aggregateSchema = z.object({
+    total_income_monthly: z.number(),
+    total_fixed_monthly: z.number(),
+    total_investments_monthly: z.number(),
+    total_variable_planned: z.number(),
+    total_variable_actual: z.number(),
+    total_credit_card_dues: z.number()
+  });
+  const parsed = aggregateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  
+  await db.upsertUserAggregate({
+    user_id: userId,
+    ...parsed.data
+  });
+  res.json({ data: { success: true } });
 });
 
 app.delete("/sharing/members/:id", requireAuth, async (req, res) => {

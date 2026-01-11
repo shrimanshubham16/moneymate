@@ -14,4 +14,3 @@ CREATE TABLE IF NOT EXISTS health_cache (
 CREATE INDEX IF NOT EXISTS idx_health_cache_stale ON health_cache(user_id) WHERE is_stale = TRUE;
 
 
-

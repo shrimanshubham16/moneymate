@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircle, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircle, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import "./HealthIndicator.css";
 
-type HealthCategory = "good" | "ok" | "not well" | "worrisome";
+type HealthCategory = "good" | "ok" | "not well" | "worrisome" | "unavailable";
 
 interface HealthIndicatorProps {
   category: HealthCategory;
-  remaining: number;
+  remaining: number | null;
   onClick?: () => void;
 }
 
@@ -35,6 +35,12 @@ const healthConfig = {
     color: "#ef4444",
     bgGradient: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
     message: "You're short. Add notes on any extra spend."
+  },
+  unavailable: {
+    icon: FaLock,
+    color: "#6b7280",
+    bgGradient: "linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)",
+    message: "🔒 User hasn't synced their data yet. E2E encrypted."
   }
 };
 
@@ -61,15 +67,17 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
       case "good": return { glow: "#22d3ee", bg: "radial-gradient(circle at 30% 20%, #0ea5e9 0%, #0b1220 70%)", ring: "#22d3ee", text: "#e0faff" };
       case "ok": return { glow: "#f59e0b", bg: "radial-gradient(circle at 30% 20%, #f59e0b 0%, #1f1305 70%)", ring: "#fbbf24", text: "#fff3d4" };
       case "not well": return { glow: "#f97316", bg: "radial-gradient(circle at 30% 20%, #fb923c 0%, #2a1106 70%)", ring: "#fb923c", text: "#ffe4cc" };
+      case "unavailable": return { glow: "#6b7280", bg: "radial-gradient(circle at 30% 20%, #6b7280 0%, #1f2937 70%)", ring: "#9ca3af", text: "#e5e7eb" };
       default: return { glow: "#ef4444", bg: "radial-gradient(circle at 30% 20%, #ef4444 0%, #2b0c0c 70%)", ring: "#f87171", text: "#ffe0e0" };
     }
   }, [category]);
 
-  const config = healthConfig[category];
+  const config = healthConfig[category] || healthConfig.unavailable;
   const HealthIcon = config.icon;
-  const isPositive = remaining > 0;
+  const isUnavailable = category === "unavailable" || remaining === null;
+  const isPositive = !isUnavailable && (remaining || 0) > 0;
   // Ensure integer display (backend already returns integer, but round here for safety)
-  const displayAmount = Math.round(Math.abs(remaining));
+  const displayAmount = isUnavailable ? 0 : Math.round(Math.abs(remaining || 0));
 
   return (
     <motion.div
@@ -101,7 +109,11 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
             </button>
           </div>
           <div className="hud-score" style={{ color: theme.text }}>
-            {isHidden ? "••••••" : `${isPositive ? "₹" : "-₹"}${displayAmount.toLocaleString("en-IN")}`}
+            {isUnavailable 
+              ? "🔒 Private" 
+              : isHidden 
+                ? "••••••" 
+                : `${isPositive ? "₹" : "-₹"}${displayAmount.toLocaleString("en-IN")}`}
           </div>
         </div>
       </div>

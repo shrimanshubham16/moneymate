@@ -7,4 +7,3 @@ ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS last_reset_billing_period 
 COMMENT ON COLUMN user_preferences.last_reset_billing_period IS 'Stores the billing period (YYYY-MM) for which the last reset was performed';
 
 
-

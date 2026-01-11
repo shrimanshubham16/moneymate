@@ -121,4 +121,3 @@ export function RecoveryPage({ onBack }: RecoveryPageProps) {
     </div>
   );
 }
-

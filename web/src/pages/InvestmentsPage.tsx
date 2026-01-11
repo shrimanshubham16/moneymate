@@ -124,12 +124,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                       try {
                         await api.updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
                         // Clear client cache to ensure fresh data
-                        let userId = 'unknown';
-                        try {
-                          const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-                          userId = tokenPayload.userId;
-                        } catch (e) {}
-                        ClientCache.clear(userId);
+                        ClientCache.invalidateDashboard();
                         await loadInvestments();
                       } catch (e: any) {
                         alert("Failed to update: " + e.message);

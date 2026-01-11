@@ -39,4 +39,3 @@ export async function runRecoveryTests(runner: TestRunner): Promise<void> {
     assertExists(data, 'Response body missing');
   });
 }
-

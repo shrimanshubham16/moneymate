@@ -50,4 +50,3 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 **The easiest way is Method 3 - check Vercel environment variables!**
 
 
-

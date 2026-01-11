@@ -67,4 +67,3 @@ async function createSchema() {
 createSchema().catch(console.error);
 
 
-

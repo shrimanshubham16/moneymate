@@ -179,4 +179,3 @@ END $$;
 
 -- Add comment explaining the table's purpose
 COMMENT ON TABLE user_aggregates IS 'Pre-computed financial totals for privacy-preserving shared views. Individual items remain encrypted (E2E), only aggregates are visible to shared users.';
-

@@ -64,4 +64,3 @@ postgresql://postgres.lvwpurwrktdblctzwctr:my%20password%20with%20spaces@aws-0-a
 **Note:** The connection string in `.env` should use the **encoded** password, not the original password with spaces.
 
 
-

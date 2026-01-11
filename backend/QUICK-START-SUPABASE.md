@@ -60,4 +60,3 @@ Once you've run the schema SQL:
 **Let me know when the schema is created, and we'll proceed with the migration!**
 
 
-

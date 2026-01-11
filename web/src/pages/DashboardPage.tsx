@@ -54,11 +54,17 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const keepAliveIntervalRef = useRef<number | null>(null);
   const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
+  const lastViewRef = useRef<string>(""); // Track view changes to allow refetch
   const lastAggPushRef = useRef<number>(0); // Debounce aggregate pushes
 
-  // Persist selectedView when it changes
+  // Persist selectedView when it changes and reload data
   useEffect(() => {
     localStorage.setItem('finflow_selected_view', selectedView);
+    // Only reload data if we've already fetched once (view changed after initial load)
+    if (hasFetchedRef.current && lastViewRef.current !== selectedView) {
+      lastViewRef.current = selectedView;
+      loadData(false, selectedView);
+    }
   }, [selectedView]);
 
   // Calculate CORRECT health score on frontend (backend doesn't respect 'paid' status properly)
@@ -74,28 +80,53 @@ export function DashboardPage({ token }: DashboardPageProps) {
       currentUserId = payload.userId || payload.user_id || payload.sub;
     } catch (e) { /* ignore */ }
     
-    // Filter to only OWN items (not shared users' items)
-    // This prevents double-counting when aggregates are also used
-    const ownIncomes = (data.incomes || []).filter((i: any) => i.userId === currentUserId || i.user_id === currentUserId);
-    const ownFixedExpenses = (data.fixedExpenses || []).filter((e: any) => e.userId === currentUserId || e.user_id === currentUserId);
-    const ownInvestments = (data.investments || []).filter((i: any) => i.userId === currentUserId || i.user_id === currentUserId);
-    const ownVariablePlans = (data.variablePlans || []).filter((p: any) => p.userId === currentUserId || p.user_id === currentUserId);
+    // Determine if we need to filter by user
+    // - "me" or "merged" views: filter by currentUserId to prevent double-counting with aggregates
+    // - Specific user view: Use that user's aggregates (can't decrypt their individual items due to E2E)
+    const isSpecificUserView = selectedView !== 'me' && selectedView !== 'merged';
+    const filterByUser = (items: any[]) => {
+      if (isSpecificUserView) {
+        // For specific user view, we'll use aggregates instead (can't decrypt their items)
+        return [];
+      }
+      // Filter to current user's items only (for "me" or "merged" views)
+      return items.filter((item: any) => item.userId === currentUserId || item.user_id === currentUserId);
+    };
+    
+    // Filter items based on view type (prevents double-counting with aggregates in merged view)
+    const ownIncomes = filterByUser(data.incomes || []);
+    const ownFixedExpenses = filterByUser(data.fixedExpenses || []);
+    const ownInvestments = filterByUser(data.investments || []);
+    const ownVariablePlans = filterByUser(data.variablePlans || []);
     
     // Get shared users' aggregates (pre-computed totals from user_aggregates table)
     // This allows combined health calculation even with E2E encryption!
     const sharedAggregates = data.sharedUserAggregates || [];
-    const sharedIncomeTotal = sharedAggregates.reduce((sum: number, agg: any) => 
-      sum + (parseFloat(agg.total_income_monthly) || 0), 0);
-    const sharedFixedTotal = sharedAggregates.reduce((sum: number, agg: any) => 
-      sum + (parseFloat(agg.total_fixed_monthly) || 0), 0);
-    const sharedInvestmentsTotal = sharedAggregates.reduce((sum: number, agg: any) => 
-      sum + (parseFloat(agg.total_investments_monthly) || 0), 0);
-    const sharedVariablePlanned = sharedAggregates.reduce((sum: number, agg: any) => 
-      sum + (parseFloat(agg.total_variable_planned) || 0), 0);
-    const sharedVariableActual = sharedAggregates.reduce((sum: number, agg: any) => 
-      sum + (parseFloat(agg.total_variable_actual) || 0), 0);
-    const sharedCreditCardDues = sharedAggregates.reduce((sum: number, agg: any) => 
-      sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
+    
+    // For specific user view, find THAT user's aggregate from the list
+    const specificUserAggregate = isSpecificUserView 
+      ? sharedAggregates.find((agg: any) => agg.user_id === selectedView) 
+      : null;
+    
+    // Calculate shared totals - for specific user view, use only their aggregate
+    const sharedIncomeTotal = isSpecificUserView 
+      ? (parseFloat(specificUserAggregate?.total_income_monthly) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_income_monthly) || 0), 0);
+    const sharedFixedTotal = isSpecificUserView
+      ? (parseFloat(specificUserAggregate?.total_fixed_monthly) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_fixed_monthly) || 0), 0);
+    const sharedInvestmentsTotal = isSpecificUserView
+      ? (parseFloat(specificUserAggregate?.total_investments_monthly) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_investments_monthly) || 0), 0);
+    const sharedVariablePlanned = isSpecificUserView
+      ? (parseFloat(specificUserAggregate?.total_variable_planned) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_variable_planned) || 0), 0);
+    const sharedVariableActual = isSpecificUserView
+      ? (parseFloat(specificUserAggregate?.total_variable_actual) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_variable_actual) || 0), 0);
+    const sharedCreditCardDues = isSpecificUserView
+      ? (parseFloat(specificUserAggregate?.total_credit_card_dues) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
     
     
     // Calculate credit card dues first (needed for health calculation)
@@ -172,10 +203,15 @@ export function DashboardPage({ token }: DashboardPageProps) {
     else category = "worrisome";
     
     
+    // For specific user view without aggregates, show notice
+    const noAggregateData = isSpecificUserView && !specificUserAggregate;
+    
     // Return both combined values AND own values for aggregate push
     return { 
-      remaining, 
-      category,
+      remaining: noAggregateData ? null : remaining, // null indicates unavailable
+      category: noAggregateData ? 'unavailable' : category,
+      noAggregateData,
+      isSpecificUserView,
       // Own values for aggregate push (so shared users can see our totals)
       // Use filtered ownVariablePlans to avoid including shared users' data
       ownAggregates: {
@@ -187,7 +223,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         total_credit_card_dues: ownCcDues
       }
     };
-  }, [data, creditCards, token]);
+  }, [data, creditCards, token, selectedView]);
 
   // Push own aggregates to server (for shared users to see our totals)
   // This runs in background - debounced to prevent spam
@@ -252,6 +288,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     // Prevent double fetch in React Strict Mode
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
+    lastViewRef.current = selectedView;
     
     loadData();
     import("../data/funFacts").then((m) => {
@@ -361,6 +398,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       
       const viewParam = viewOverride ?? selectedView ?? "me";
 
+
       const [dashboardRes, cardsRes, loansRes, activityRes, membersRes] = await Promise.all([
         api.fetchDashboard(token, new Date().toISOString(), viewParam === "me" ? undefined : viewParam, forceRefresh),
         api.fetchCreditCards(token),
@@ -370,6 +408,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       ]);
       
       setLoadProgress(80); // Data received
+      
       
       // Set state
       setData(dashboardRes.data);
@@ -613,8 +652,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
           </div>
         </div>
         <HealthIndicator
-          category={correctHealth.category}
-          remaining={correctHealth.remaining}
+          category={correctHealth.category as any}
+          remaining={correctHealth.remaining ?? 0}
           onClick={() => navigate("/health")}
         />
       </motion.div>

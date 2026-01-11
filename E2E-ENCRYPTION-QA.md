@@ -387,4 +387,3 @@ The current password change (`AccountPage.tsx`) only updates the password hash b
 3. **Move Calculations to Client-Side**
 4. **Add Progress Indicators** for re-encryption
 5. **Test Edge Cases** (forgot password, partial failure, etc.)
-

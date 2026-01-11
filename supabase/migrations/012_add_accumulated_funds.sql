@@ -14,4 +14,3 @@ CREATE INDEX IF NOT EXISTS idx_fixed_expenses_accumulated ON fixed_expenses(accu
 CREATE INDEX IF NOT EXISTS idx_investments_accumulated ON investments(accumulated_funds) WHERE accumulated_funds > 0;
 
 
-

@@ -234,6 +234,11 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
                     const frequency = payload.frequency ? ` (${payload.frequency})` : '';
                     return `${username} added income source ${formatCurrency(payload.amount)}${frequency} for ${payload.name}`;
                   }
+                  // Credit card creation - show name and bill amount
+                  if (activity.entity === 'credit_card' && payload.name) {
+                    const billInfo = payload.billAmount ? ` with bill ₹${payload.billAmount}` : '';
+                    return `${username} added credit card "${payload.name}"${billInfo}`;
+                  }
                   return `${username} added ${entity}`;
                 case 'added actual expense':
                   // Variable expense actual - handle multiple payload formats

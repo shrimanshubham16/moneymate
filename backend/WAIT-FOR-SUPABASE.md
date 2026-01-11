@@ -88,4 +88,3 @@ If after 5 minutes you still see errors:
 **The migration code is complete!** We're just waiting for Supabase infrastructure to be ready.
 
 
-

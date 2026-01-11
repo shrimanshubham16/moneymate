@@ -124,4 +124,3 @@ Dashboard Load:
 **Phase 3 (Future):**
 - Web Workers for crypto (non-blocking)
 - IndexedDB cache (persistent decryption cache)
-

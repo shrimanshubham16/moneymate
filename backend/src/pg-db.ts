@@ -1959,6 +1959,70 @@ export async function testConnection(): Promise<boolean> {
 }
 
 // ============================================================================
+// USER AGGREGATES (for sharing feature)
+// ============================================================================
+
+export interface UserAggregate {
+  user_id: string;
+  total_income_monthly: number;
+  total_fixed_monthly: number;
+  total_investments_monthly: number;
+  total_variable_planned: number;
+  total_variable_actual: number;
+  total_credit_card_dues: number;
+  updated_at: string;
+}
+
+export async function getUserAggregates(userIds: string[]): Promise<UserAggregate[]> {
+  if (!userIds.length) return [];
+  
+  const placeholders = userIds.map((_, i) => `$${i + 1}`).join(', ');
+  const rows = await query<any>(
+    `SELECT user_id, total_income_monthly, total_fixed_monthly, total_investments_monthly,
+            total_variable_planned, total_variable_actual, total_credit_card_dues, updated_at
+     FROM user_aggregates 
+     WHERE user_id IN (${placeholders})`,
+    userIds
+  );
+  
+  return rows.map(r => ({
+    user_id: r.user_id,
+    total_income_monthly: parseFloat(r.total_income_monthly) || 0,
+    total_fixed_monthly: parseFloat(r.total_fixed_monthly) || 0,
+    total_investments_monthly: parseFloat(r.total_investments_monthly) || 0,
+    total_variable_planned: parseFloat(r.total_variable_planned) || 0,
+    total_variable_actual: parseFloat(r.total_variable_actual) || 0,
+    total_credit_card_dues: parseFloat(r.total_credit_card_dues) || 0,
+    updated_at: r.updated_at
+  }));
+}
+
+export async function upsertUserAggregate(aggregate: Omit<UserAggregate, 'updated_at'>): Promise<void> {
+  await query(
+    `INSERT INTO user_aggregates (user_id, total_income_monthly, total_fixed_monthly, total_investments_monthly,
+                                   total_variable_planned, total_variable_actual, total_credit_card_dues, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET
+       total_income_monthly = EXCLUDED.total_income_monthly,
+       total_fixed_monthly = EXCLUDED.total_fixed_monthly,
+       total_investments_monthly = EXCLUDED.total_investments_monthly,
+       total_variable_planned = EXCLUDED.total_variable_planned,
+       total_variable_actual = EXCLUDED.total_variable_actual,
+       total_credit_card_dues = EXCLUDED.total_credit_card_dues,
+       updated_at = NOW()`,
+    [
+      aggregate.user_id,
+      aggregate.total_income_monthly,
+      aggregate.total_fixed_monthly,
+      aggregate.total_investments_monthly,
+      aggregate.total_variable_planned,
+      aggregate.total_variable_actual,
+      aggregate.total_credit_card_dues
+    ]
+  );
+}
+
+// ============================================================================
 // CLEANUP
 // ============================================================================
 

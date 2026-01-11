@@ -15,7 +15,9 @@ import { useEncryptedApiCalls } from './useEncryptedApiCalls';
 function getUserIdFromToken(token: string): string | null {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub || payload.user_id || null;
+    // Token may use 'userId' (camelCase), 'user_id' (snake_case), or 'sub'
+    const userId = payload.userId || payload.user_id || payload.sub || null;
+    return userId;
   } catch {
     return null;
   }
@@ -78,7 +80,8 @@ export function useSharedView(token: string): UseSharedViewResult {
 
   // Check if current user owns this item
   const isOwnItem = (itemUserId: string): boolean => {
-    return itemUserId === currentUserId;
+    const result = itemUserId === currentUserId;
+    return result;
   };
 
   // Check if user can edit this item

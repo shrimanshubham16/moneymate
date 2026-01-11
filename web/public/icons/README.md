@@ -47,4 +47,3 @@ The icons will be generated properly before production deployment.
 
 
 
-

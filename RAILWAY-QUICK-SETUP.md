@@ -39,4 +39,3 @@ Should return: `{"status":"ok"}`
 **That's it!** Your backend should now connect to Supabase successfully.
 
 
-

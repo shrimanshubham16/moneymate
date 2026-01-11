@@ -73,26 +73,51 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         console.error('[HEALTH_TOKEN_DEBUG] Failed to parse token:', e);
       }
       
-      // Filter to only OWN items (not shared users' items)
-      const ownIncomes = (data.incomes || []).filter((i: any) => i.userId === currentUserId || i.user_id === currentUserId);
-      const ownFixedExpenses = (data.fixedExpenses || []).filter((e: any) => e.userId === currentUserId || e.user_id === currentUserId);
-      const ownInvestmentsData = (data.investments || []).filter((i: any) => i.userId === currentUserId || i.user_id === currentUserId);
-      const ownVariablePlansData = (data.variablePlans || []).filter((p: any) => p.userId === currentUserId || p.user_id === currentUserId);
+      // Determine if we need to filter by user
+      // - "me" or "merged" views: filter by currentUserId to prevent double-counting with aggregates
+      // - Specific user view: Use that user's aggregates (can't decrypt their individual items due to E2E)
+      const isSpecificUserView = selectedView !== 'me' && selectedView !== 'merged';
+      const filterByUser = (items: any[]) => {
+        if (isSpecificUserView) {
+          // For specific user view, we'll use aggregates instead (can't decrypt their items)
+          return [];
+        }
+        // Filter to current user's items only (for "me" or "merged" views)
+        return items.filter((item: any) => item.userId === currentUserId || item.user_id === currentUserId);
+      };
       
+      // Filter items based on view type
+      const ownIncomes = filterByUser(data.incomes || []);
+      const ownFixedExpenses = filterByUser(data.fixedExpenses || []);
+      const ownInvestmentsData = filterByUser(data.investments || []);
+      const ownVariablePlansData = filterByUser(data.variablePlans || []);
       // Get shared users' aggregates for combined health calculation
       const sharedAggregates = data.sharedUserAggregates || [];
-      const sharedIncomeTotal = sharedAggregates.reduce((sum: number, agg: any) => 
-        sum + (parseFloat(agg.total_income_monthly) || 0), 0);
-      const sharedFixedTotal = sharedAggregates.reduce((sum: number, agg: any) => 
-        sum + (parseFloat(agg.total_fixed_monthly) || 0), 0);
-      const sharedInvestmentsTotal = sharedAggregates.reduce((sum: number, agg: any) => 
-        sum + (parseFloat(agg.total_investments_monthly) || 0), 0);
-      const sharedVariablePlanned = sharedAggregates.reduce((sum: number, agg: any) => 
-        sum + (parseFloat(agg.total_variable_planned) || 0), 0);
-      const sharedVariableActual = sharedAggregates.reduce((sum: number, agg: any) => 
-        sum + (parseFloat(agg.total_variable_actual) || 0), 0);
-      const sharedCreditCardDues = sharedAggregates.reduce((sum: number, agg: any) => 
-        sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
+      
+      // For specific user view, find THAT user's aggregate from the list
+      const specificUserAggregate = isSpecificUserView 
+        ? sharedAggregates.find((agg: any) => agg.user_id === selectedView) 
+        : null;
+      
+      // Calculate shared totals - for specific user view, use only their aggregate
+      const sharedIncomeTotal = isSpecificUserView 
+        ? (parseFloat(specificUserAggregate?.total_income_monthly) || 0)
+        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_income_monthly) || 0), 0);
+      const sharedFixedTotal = isSpecificUserView
+        ? (parseFloat(specificUserAggregate?.total_fixed_monthly) || 0)
+        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_fixed_monthly) || 0), 0);
+      const sharedInvestmentsTotal = isSpecificUserView
+        ? (parseFloat(specificUserAggregate?.total_investments_monthly) || 0)
+        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_investments_monthly) || 0), 0);
+      const sharedVariablePlanned = isSpecificUserView
+        ? (parseFloat(specificUserAggregate?.total_variable_planned) || 0)
+        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_variable_planned) || 0), 0);
+      const sharedVariableActual = isSpecificUserView
+        ? (parseFloat(specificUserAggregate?.total_variable_actual) || 0)
+        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_variable_actual) || 0), 0);
+      const sharedCreditCardDues = isSpecificUserView
+        ? (parseFloat(specificUserAggregate?.total_credit_card_dues) || 0)
+        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
       
       // Calculate TOTAL INCOME from decrypted dashboard data (own only - use filtered ownIncomes)
       const ownIncomeTotal = ownIncomes.reduce((sum: number, inc: any) => {
@@ -163,6 +188,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       // Calculate correct remaining using frontend's decrypted totals
       const correctRemaining = totalIncomeForHealth - totalOutflowForHealth;
       
+      
       // Determine category based on correct remaining
       let correctCategory: string;
       if (correctRemaining > 10000) correctCategory = "good";
@@ -204,33 +230,41 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const unpaidFixedTotal = unpaidFixedTotalForHealth;
       const unpaidInvestmentsTotal = unpaidInvestmentsTotalForHealth;
       
+      // For merged view, add shared aggregate as a visible line item so totals match breakdown
+      const isShowingSharedData = selectedView === 'merged' && sharedAggregates.length > 0;
+      
       setBreakdown({
         income: {
           total: totalIncomeForHealth,  // Use frontend-calculated total from decrypted data
-          sources: data.incomes || []
+          sources: ownIncomes,  // Use filtered incomes (not ALL data which includes shared users in merged view)
+          sharedTotal: isShowingSharedData ? sharedIncomeTotal : 0  // Add shared aggregate total for merged view
         },
         expenses: {
           fixed: {
             total: unpaidFixedTotal,  // Use calculated unpaid total, not backend's total
-            items: unpaidFixedExpenses
+            items: unpaidFixedExpenses,
+            sharedTotal: isShowingSharedData ? sharedFixedTotal : 0
           },
           variable: {
             total: variableTotalForHealth,  // Use recalculated variable total from decrypted data
-            items: data.variablePlans || []
+            items: ownVariablePlansData,  // Use filtered variable plans (not ALL data)
+            sharedTotal: isShowingSharedData ? sharedVariableEffective : 0
           }
         },
         investments: {
           total: unpaidInvestmentsTotal,  // Use calculated unpaid total
-          items: unpaidInvestments
+          items: unpaidInvestments,  // This already uses filtered ownInvestmentsData
+          sharedTotal: isShowingSharedData ? sharedInvestmentsTotal : 0
         },
         debts: {
           creditCards: {
-            total: obligations.totalCreditCardDue || breakdown?.debts?.creditCards?.total || 0,
+            total: creditCardTotalForHealth,  // Use combined total including shared
             items: cardsRes.data.filter((card: any) => {
               const billAmount = card.billAmount || card.bill_amount || 0;
               const paidAmount = card.paidAmount || card.paid_amount || 0;
               return (billAmount - paidAmount) > 0;
-            })
+            }),
+            sharedTotal: isShowingSharedData ? sharedCreditCardDues : 0
           },
           loans: {
             total: breakdown?.debts?.loans?.total || loansRes.data.reduce((sum: number, loan: any) => sum + (loan.emi || 0), 0),
@@ -391,6 +425,12 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
                 </div>
               );
             })}
+            {breakdown.income?.sharedTotal > 0 && (
+              <div className="item-row shared-aggregate-row">
+                <span><FaUsers style={{ marginRight: 4, opacity: 0.7 }} />Shared Members (aggregate)</span>
+                <span>+₹{Math.round(breakdown.income.sharedTotal).toLocaleString("en-IN")}</span>
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -409,21 +449,29 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             <small>Only showing unpaid fixed expenses (paid items don't count)</small>
           </div>
           <div className="items-list">
-            {(!breakdown.expenses?.fixed?.items || breakdown.expenses.fixed.items.length === 0) ? (
+            {(!breakdown.expenses?.fixed?.items || breakdown.expenses.fixed.items.length === 0) && !breakdown.expenses?.fixed?.sharedTotal ? (
               <div className="item-row"><span>All fixed expenses are paid! </span></div>
             ) : (
-              breakdown.expenses.fixed.items.map((exp: any) => {
-                const amount = parseFloat(exp.amount || 0);
-                const monthly = exp.frequency === "monthly" ? amount :
-                  exp.frequency === "quarterly" ? amount / 3 :
-                    amount / 12;
-                return (
-                  <div key={exp.id} className="item-row">
-                    <span>{exp.name} {exp.is_sip_flag && <span className="sip-badge">SIP</span>}</span>
-                    <span>-₹{Math.round(monthly || 0).toLocaleString("en-IN")}</span>
+              <>
+                {breakdown.expenses.fixed.items.map((exp: any) => {
+                  const amount = parseFloat(exp.amount || 0);
+                  const monthly = exp.frequency === "monthly" ? amount :
+                    exp.frequency === "quarterly" ? amount / 3 :
+                      amount / 12;
+                  return (
+                    <div key={exp.id} className="item-row">
+                      <span>{exp.name} {exp.is_sip_flag && <span className="sip-badge">SIP</span>}</span>
+                      <span>-₹{Math.round(monthly || 0).toLocaleString("en-IN")}</span>
+                    </div>
+                  );
+                })}
+                {breakdown.expenses?.fixed?.sharedTotal > 0 && (
+                  <div className="item-row shared-aggregate-row">
+                    <span><FaUsers style={{ marginRight: 4, opacity: 0.7 }} />Shared Members (aggregate)</span>
+                    <span>-₹{Math.round(breakdown.expenses.fixed.sharedTotal).toLocaleString("en-IN")}</span>
                   </div>
-                );
-              })
+                )}
+              </>
             )}
           </div>
         </motion.div>
@@ -480,6 +528,12 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
                 </div>
               );
             })}
+            {breakdown.expenses?.variable?.sharedTotal > 0 && (
+              <div className="item-row shared-aggregate-row">
+                <span><FaUsers style={{ marginRight: 4, opacity: 0.7 }} />Shared Members (aggregate)</span>
+                <span>-₹{Math.round(breakdown.expenses.variable.sharedTotal).toLocaleString("en-IN")}</span>
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -499,15 +553,23 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
               <small>Only active, unpaid investments are counted in your health</small>
             </div>
             <div className="items-list">
-              {(!breakdown.investments?.items || breakdown.investments.items.length === 0) ? (
+              {(!breakdown.investments?.items || breakdown.investments.items.length === 0) && !breakdown.investments?.sharedTotal ? (
                 <div className="item-row"><span>All investments are paid or paused! </span></div>
               ) : (
-                breakdown.investments.items.map((inv: any) => (
-                  <div key={inv.id} className="item-row">
-                    <span>{inv.name} <span className="goal-badge">{inv.goal}</span></span>
-                    <span>-₹{(parseFloat(inv.monthlyAmount || inv.monthly_amount || 0)).toLocaleString("en-IN")}</span>
-                  </div>
-                ))
+                <>
+                  {breakdown.investments.items.map((inv: any) => (
+                    <div key={inv.id} className="item-row">
+                      <span>{inv.name} <span className="goal-badge">{inv.goal}</span></span>
+                      <span>-₹{(parseFloat(inv.monthlyAmount || inv.monthly_amount || 0)).toLocaleString("en-IN")}</span>
+                    </div>
+                  ))}
+                  {breakdown.investments?.sharedTotal > 0 && (
+                    <div className="item-row shared-aggregate-row">
+                      <span><FaUsers style={{ marginRight: 4, opacity: 0.7 }} />Shared Members (aggregate)</span>
+                      <span>-₹{Math.round(breakdown.investments.sharedTotal).toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </motion.div>
@@ -530,20 +592,28 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
               <small>Only unpaid credit card bills for current month are counted in your health</small>
             </div>
             <div className="items-list">
-              {(!breakdown.debts?.creditCards?.items || breakdown.debts.creditCards.items.length === 0) ? (
+              {(!breakdown.debts?.creditCards?.items || breakdown.debts.creditCards.items.length === 0) && !breakdown.debts?.creditCards?.sharedTotal ? (
                 <div className="item-row"><span>All credit card bills are paid! </span></div>
               ) : (
-                breakdown.debts.creditCards.items.map((card: any) => {
-                  const billAmount = parseFloat(card.billAmount || card.bill_amount || 0);
-                  const paidAmount = parseFloat(card.paidAmount || card.paid_amount || 0);
-                  const remaining = billAmount - paidAmount;
-                  return (
-                    <div key={card.id} className="item-row">
-                      <span>{card.name}</span>
-                      <span>-₹{Math.round(remaining || 0).toLocaleString("en-IN")}</span>
+                <>
+                  {breakdown.debts.creditCards.items.map((card: any) => {
+                    const billAmount = parseFloat(card.billAmount || card.bill_amount || 0);
+                    const paidAmount = parseFloat(card.paidAmount || card.paid_amount || 0);
+                    const remaining = billAmount - paidAmount;
+                    return (
+                      <div key={card.id} className="item-row">
+                        <span>{card.name}</span>
+                        <span>-₹{Math.round(remaining || 0).toLocaleString("en-IN")}</span>
+                      </div>
+                    );
+                  })}
+                  {breakdown.debts?.creditCards?.sharedTotal > 0 && (
+                    <div className="item-row shared-aggregate-row">
+                      <span><FaUsers style={{ marginRight: 4, opacity: 0.7 }} />Shared Members (aggregate)</span>
+                      <span>-₹{Math.round(breakdown.debts.creditCards.sharedTotal).toLocaleString("en-IN")}</span>
                     </div>
-                  );
-                })
+                  )}
+                </>
               )}
             </div>
           </motion.div>

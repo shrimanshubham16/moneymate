@@ -321,4 +321,3 @@ export function calculateSIPAccumulatedFunds(
   const current = sipExpense.accumulated_funds || 0;
   return Math.max(0, current - paymentMade);
 }
-

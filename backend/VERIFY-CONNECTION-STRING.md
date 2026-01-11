@@ -33,4 +33,3 @@ If connection strings don't work, we can:
 **The connection string format from Supabase dashboard should work - let's make sure we're using the exact format they provide!**
 
 
-

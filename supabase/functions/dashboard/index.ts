@@ -25,6 +25,10 @@ serve(async (req) => {
       );
     }
 
+    // Parse query parameters
+    const url = new URL(req.url);
+    const viewParam = url.searchParams.get('view') || 'me';
+
     // Create Supabase client with the user's JWT
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -57,6 +61,56 @@ serve(async (req) => {
         p_user_id: user.id,
         p_billing_period_id: null
       });
+
+    // Fetch shared user aggregates for merged and specific user views
+    let sharedUserAggregates: any[] = [];
+    
+    if (viewParam !== 'me') {
+      const isSpecificUserView = viewParam !== 'merged';
+      
+      if (isSpecificUserView) {
+        // For specific user view, directly query that user's aggregate
+        const { data: aggregates } = await supabaseAdmin
+          .from('user_aggregates')
+          .select('*')
+          .eq('user_id', viewParam);
+        
+        if (aggregates && aggregates.length > 0) {
+          sharedUserAggregates = aggregates;
+        }
+      } else {
+        // For merged view, get all shared users from shared_members
+        const { data: sharedMembers } = await supabaseAdmin
+          .from('shared_members')
+          .select('user_id, shared_accounts!inner(owner_id)')
+          .or(`user_id.eq.${user.id},shared_accounts.owner_id.eq.${user.id}`);
+
+        // Build list of all users in the sharing group
+        const groupUserIds = new Set<string>();
+        if (sharedMembers) {
+          for (const member of sharedMembers) {
+            groupUserIds.add(member.user_id);
+            if (member.shared_accounts?.owner_id) {
+              groupUserIds.add(member.shared_accounts.owner_id);
+            }
+          }
+        }
+        
+        // Get aggregates for all shared users except self
+        const sharedUserIds = Array.from(groupUserIds).filter(id => id !== user.id);
+        
+        if (sharedUserIds.length > 0) {
+          const { data: aggregates } = await supabaseAdmin
+            .from('user_aggregates')
+            .select('*')
+            .in('user_id', sharedUserIds);
+          
+          if (aggregates) {
+            sharedUserAggregates = aggregates;
+          }
+        }
+      }
+    }
 
     if (dbError) {
       console.error('Database error:', dbError);
@@ -101,7 +155,8 @@ serve(async (req) => {
         futureBombs: dashboardData?.futureBombs || [],
         health,
         constraintScore: dashboardData?.constraintScore || { score: 0, tier: 'green' },
-        alerts: []
+        alerts: [],
+        sharedUserAggregates
       }
     };
 
@@ -121,6 +176,5 @@ serve(async (req) => {
     );
   }
 });
-
 
 

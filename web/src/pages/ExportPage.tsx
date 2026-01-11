@@ -15,7 +15,8 @@ interface ExportPageProps {
 function getUserIdFromToken(token: string): string | null {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub || payload.user_id || null;
+    // Token may use 'userId' (camelCase), 'user_id' (snake_case), or 'sub'
+    return payload.userId || payload.user_id || payload.sub || null;
   } catch {
     return null;
   }
@@ -61,41 +62,49 @@ export function ExportPage({ token }: ExportPageProps) {
     setError(null);
     setStatus(isSharedView ? "Fetching combined finances..." : "Preparing your export (decrypting data)...");
     try {
-      // If in shared view, fetch dashboard data with view parameter instead of export
-      // Export endpoint doesn't support view parameter yet, so use dashboard
+      // ALWAYS use Dashboard data for health calculation (has `paid` field)
+      // Export endpoint doesn't include paid status, so dashboard is required for accurate health score
       let data: any;
-      if (isSharedView) {
-        const dashRes = await api.fetchDashboard(token, new Date().toISOString(), selectedView);
-        data = {
-          incomes: dashRes.data.incomes || [],
-          fixedExpenses: dashRes.data.fixedExpenses || [],
-          variableExpenses: dashRes.data.variablePlans || [],
-          investments: dashRes.data.investments || [],
-          creditCards: [],
-          loans: []
-        };
-        // Fetch credit cards and loans separately
-        try {
-          const cardsRes = await api.fetchCreditCards(token);
-          data.creditCards = cardsRes.data || [];
-        } catch {}
-        try {
-          const loansRes = await api.fetchLoans(token);
-          data.loans = loansRes.data || [];
-        } catch {}
-      } else {
-        const result = await api.exportFinances(token);
-        data = result.data;
-      }
+      const viewParam = isSharedView ? selectedView : undefined;
+      const dashRes = await api.fetchDashboard(token, new Date().toISOString(), viewParam);
+      data = {
+        incomes: dashRes.data.incomes || [],
+        fixedExpenses: dashRes.data.fixedExpenses || [],
+        variableExpenses: dashRes.data.variablePlans || [],
+        investments: dashRes.data.investments || [],
+        futureBombs: dashRes.data.futureBombs || [],
+        creditCards: [],
+        loans: [],
+        constraintScore: dashRes.data.constraintScore,
+        user: dashRes.data.user
+      };
+      // Fetch credit cards and loans separately
+      try {
+        const cardsRes = await api.fetchCreditCards(token);
+        data.creditCards = cardsRes.data || [];
+      } catch {}
+      try {
+        const loansRes = await api.fetchLoans(token);
+        data.loans = loansRes.data || [];
+      } catch {}
 
-      // Recalculate totals after decryption (backend calculates with encrypted placeholder values)
+      // Recalculate totals after decryption - MATCHING HEALTH PAGE LOGIC
       const recalcTotalIncome = (data.incomes || []).reduce((sum: number, i: any) => {
         const amount = parseFloat(i.amount) || 0;
         const monthly = i.frequency === 'monthly' ? amount : i.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
       }, 0);
       
+      // Only count UNPAID fixed expenses (matching health page)
       const recalcTotalFixed = (data.fixedExpenses || []).reduce((sum: number, e: any) => {
+        if (e.paid) return sum; // Skip paid expenses
+        const amount = parseFloat(e.amount) || 0;
+        const monthly = e.frequency === 'monthly' ? amount : e.frequency === 'quarterly' ? amount / 3 : amount / 12;
+        return sum + monthly;
+      }, 0);
+      
+      // All fixed for display (both paid and unpaid)
+      const totalFixedForDisplay = (data.fixedExpenses || []).reduce((sum: number, e: any) => {
         const amount = parseFloat(e.amount) || 0;
         const monthly = e.frequency === 'monthly' ? amount : e.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
@@ -107,22 +116,65 @@ export function ExportPage({ token }: ExportPageProps) {
         return { ...exp, actualTotal: recalcActualTotal };
       });
       
-      const recalcTotalVariableActual = variableExpensesWithActuals.reduce((sum: number, e: any) => sum + (e.actualTotal || 0), 0);
+      // Variable: use max of actual vs prorated planned (matching health page EXACTLY)
+      const today = new Date();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const daysPassed = today.getDate();
+      const monthProgress = daysPassed / daysInMonth;
+      const remainingDaysRatio = 1 - monthProgress; // FIXED: Use REMAINING ratio, not passed ratio
       
+      const recalcTotalVariableActual = variableExpensesWithActuals.reduce((sum: number, e: any) => {
+        const actual = e.actualTotal || 0;
+        const planned = parseFloat(e.planned) || 0;
+        const prorated = planned * remainingDaysRatio;
+        return sum + Math.max(actual, prorated);
+      }, 0);
+      
+      // Only count UNPAID active investments (matching health page)
       const recalcTotalInvestments = (data.investments || []).reduce((sum: number, inv: any) => {
+        if (inv.paid || inv.status === 'paused') return sum; // Skip paid or paused
         return sum + (parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0);
       }, 0);
       
-      const recalcRemaining = recalcTotalIncome - (recalcTotalFixed + recalcTotalVariableActual + recalcTotalInvestments);
+      // All investments for display
+      const totalInvestmentsForDisplay = (data.investments || []).reduce((sum: number, inv: any) => {
+        return sum + (parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0);
+      }, 0);
+      
+      // Credit card dues (matching health page)
+      const creditCardDues = (data.creditCards || []).reduce((sum: number, c: any) => {
+        const bill = parseFloat(c.billAmount || c.bill_amount) || 0;
+        const paid = parseFloat(c.paidAmount || c.paid_amount) || 0;
+        return sum + Math.max(0, bill - paid);
+      }, 0);
+      
+      // Health score calculation (matching health page exactly)
+      const healthRemaining = recalcTotalIncome - (recalcTotalFixed + recalcTotalVariableActual + recalcTotalInvestments + creditCardDues);
+      
+      // For backward compatibility - simple remaining without credit cards
+      const recalcRemaining = recalcTotalIncome - (totalFixedForDisplay + recalcTotalVariableActual + totalInvestmentsForDisplay);
+      
+      
+      // Determine health category (matching health page thresholds)
+      let healthCategory: string;
+      if (healthRemaining > 10000) healthCategory = "good";
+      else if (healthRemaining >= 0) healthCategory = "ok";
+      else if (healthRemaining >= -3000) healthCategory = "not_well";
+      else healthCategory = "worrisome";
       
       // Update summary with recalculated values
       data.summary = {
         ...data.summary,
         totalIncome: recalcTotalIncome,
-        totalFixedExpenses: recalcTotalFixed,
+        totalFixedExpenses: totalFixedForDisplay,
+        unpaidFixedExpenses: recalcTotalFixed,
         totalVariableActual: recalcTotalVariableActual,
-        totalInvestments: recalcTotalInvestments,
-        remainingBalance: recalcRemaining,
+        totalInvestments: totalInvestmentsForDisplay,
+        unpaidInvestments: recalcTotalInvestments,
+        creditCardDues: creditCardDues,
+        remainingBalance: Math.round(recalcRemaining),
+        healthScore: Math.round(healthRemaining), // Always integer
+        healthCategory: healthCategory,
       };
       
       // Use recalculated variable expenses
@@ -132,22 +184,31 @@ export function ExportPage({ token }: ExportPageProps) {
       // Create workbook
       const wb = XLSX.utils.book_new();
 
-      // Summary Sheet with calculations
+      // Summary Sheet with calculations matching health page
       const summaryData = [
         [isSharedView ? "FinFlow Combined Financial Report" : "FinFlow Financial Report"],
         ["Export Date", new Date().toLocaleDateString()],
         isSharedView ? ["View", "Combined (Shared Finances)"] : ["Username", data.user?.username || "User"],
         [],
         ["FINANCIAL SUMMARY"],
-        ["Total Monthly Income", data.summary?.totalIncome || recalcTotalIncome],
-        ["Total Fixed Expenses", data.summary?.totalFixedExpenses || recalcTotalFixed],
-        ["Total Variable Actual", data.summary?.totalVariableActual || recalcTotalVariableActual],
-        ["Total Investments", data.summary?.totalInvestments || recalcTotalInvestments],
-        ["Net Remaining", data.summary?.remainingBalance || recalcRemaining],
+        ["Total Monthly Income", data.summary?.totalIncome],
         [],
+        ["OUTFLOW BREAKDOWN"],
+        ["Fixed Expenses (Total)", data.summary?.totalFixedExpenses],
+        ["Fixed Expenses (Unpaid)", data.summary?.unpaidFixedExpenses],
+        ["Variable Expenses (Prorated)", data.summary?.totalVariableActual],
+        ["Investments (Total)", data.summary?.totalInvestments],
+        ["Investments (Unpaid)", data.summary?.unpaidInvestments],
+        ["Credit Card Dues", data.summary?.creditCardDues],
+        [],
+        ["HEALTH SCORE (Matching /health page)"],
+        ["Health Score", data.summary?.healthScore],
         ["Health Status", (data.summary?.healthCategory || "good").toUpperCase()],
-        ["Constraint Score", data.constraintScore?.score || 0],
-        ["Constraint Tier", (data.constraintScore?.tier || "green").toUpperCase()],
+        ["Note", "Health = Income - (Unpaid Fixed + Prorated Variable + Unpaid Investments + CC Dues)"],
+        [],
+        ["CONSTRAINT SCORE"],
+        ["Score", data.constraintScore?.score || 0],
+        ["Tier", (data.constraintScore?.tier || "green").toUpperCase()],
       ];
       if (isSharedView) {
         summaryData.push([], ["Note: This report includes combined finances from shared members."]);

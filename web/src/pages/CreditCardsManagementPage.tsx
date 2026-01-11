@@ -166,13 +166,14 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.createCreditCard(token, {
+      const cardData = {
         name: form.name,
         billAmount: Number(form.billAmount) || 0,  // v1.2: Default to 0
         paidAmount: Number(form.paidAmount) || 0,
         dueDate: form.dueDate,
         billingDate: Number(form.billingDate)  // v1.2: Billing date
-      });
+      };
+      await api.createCreditCard(token, cardData);
       setShowForm(false);
       setForm({ name: "", billAmount: "0", paidAmount: "0", dueDate: new Date().toISOString().split('T')[0], billingDate: "1" });
       await loadCards();
@@ -469,59 +470,134 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         </>
       )}
 
-      {/* v1.2: Usage Modal */}
+      {/* v1.2: Usage Modal - Improved UI */}
       {showUsageModal && selectedCardId && (
-        <motion.div className="modal-overlay" onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}>
-          <motion.div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'auto' }}>
-            <div className="modal-header">
-              <h2>Credit Card Usage</h2>
-              <button onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}>✕</button>
+        <motion.div 
+          className="modal-overlay" 
+          onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ maxWidth: '550px', maxHeight: '80vh', overflow: 'hidden', borderRadius: '16px', position: 'relative' }}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+          >
+            {/* Close button - top right corner */}
+            <button 
+              onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                border: 'none',
+                backgroundColor: '#f3f4f6',
+                color: '#6b7280',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                transition: 'all 0.2s',
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#ef4444'; e.currentTarget.style.color = 'white'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; e.currentTarget.style.color = '#6b7280'; }}
+              title="Close"
+            >
+              ✕
+            </button>
+            
+            {/* Header */}
+            <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #e5e7eb' }}>
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#111827', paddingRight: '40px' }}>
+                <FaCreditCard style={{ marginRight: '8px', verticalAlign: 'middle', color: '#10b981' }} />
+                Credit Card Usage
+              </h2>
+              <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#6b7280' }}>
+                {cards.find(c => c.id === selectedCardId)?.name || 'Card'} • Expenses this billing cycle
+              </p>
             </div>
+            
             {cardUsage.length === 0 ? (
-              <p style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>No expenses charged to this card yet.</p>
+              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}>💳</div>
+                <p style={{ color: '#6b7280', margin: 0 }}>No expenses charged to this card yet.</p>
+                <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '8px' }}>Expenses paid via this card will appear here.</p>
+              </div>
             ) : (
-              <div style={{ padding: '20px' }}>
-                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '8px' }}>
-                  <strong>Total: ₹{cardUsage.reduce((sum, u) => sum + u.amount, 0).toLocaleString("en-IN")}</strong>
+              <div style={{ padding: '16px 20px', overflowY: 'auto', maxHeight: 'calc(80vh - 120px)' }}>
+                {/* Total Summary */}
+                <div style={{ 
+                  marginBottom: '16px', 
+                  padding: '16px', 
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  borderRadius: '12px',
+                  color: 'white'
+                }}>
+                  <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>Total Unbilled Expenses</div>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
+                    ₹{cardUsage.reduce((sum, u) => sum + (parseFloat(u.amount) || 0), 0).toLocaleString("en-IN")}
+                  </div>
+                  <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px' }}>
+                    {cardUsage.length} transaction{cardUsage.length !== 1 ? 's' : ''}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {cardUsage.map((usage: any) => {
+                
+                {/* Usage List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {cardUsage.map((usage: any, index: number) => {
                     const plan = plans.find((p: any) => p.id === usage.planId);
                     return (
-                      <div key={usage.id} style={{ 
-                        padding: '12px', 
-                        border: '1px solid #e5e7eb', 
-                        borderRadius: '8px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}>
-                        <div style={{ width: '100%' }}>
-                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                            ₹{usage.amount.toLocaleString("en-IN")}
-                          </div>
-                          <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>
-                            {plan?.name || 'Unknown Plan'} {plan?.category ? `(${plan.category})` : ''}
-                          </div>
-                          {usage.subcategory && usage.subcategory !== 'Unspecified' && (
-                            <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>
-                              Subcategory: {usage.subcategory}
+                      <motion.div 
+                        key={usage.id} 
+                        style={{ 
+                          padding: '14px', 
+                          border: '1px solid #e5e7eb', 
+                          borderRadius: '10px',
+                          backgroundColor: '#fafafa',
+                          transition: 'all 0.2s'
+                        }}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ backgroundColor: '#f3f4f6', borderColor: '#d1d5db' }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, color: '#111827', marginBottom: '4px' }}>
+                              {plan?.name || 'Unknown Expense'}
                             </div>
-                          )}
-                          {usage.justification && (
-                            <div style={{ fontSize: '13px', color: '#6b7280', fontStyle: 'italic', marginBottom: '4px' }}>
-                              "{usage.justification}"
+                            <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                              {plan?.category || 'Uncategorized'}
+                              {usage.subcategory && usage.subcategory !== 'Unspecified' && ` • ${usage.subcategory}`}
                             </div>
-                          )}
-                          <div style={{ fontSize: '12px', color: '#9ca3af' }}>
-                            {usage.incurredAt ? new Date(usage.incurredAt).toLocaleDateString('en-IN', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric'
-                            }) : 'Date unavailable'}
+                            {usage.justification && (
+                              <div style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic', marginTop: '4px' }}>
+                                "{usage.justification}"
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#ef4444' }}>
+                              ₹{(parseFloat(usage.amount) || 0).toLocaleString("en-IN")}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
+                              {usage.incurredAt ? new Date(usage.incurredAt).toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: 'short'
+                              }) : ''}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>

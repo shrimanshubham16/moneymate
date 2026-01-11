@@ -224,4 +224,3 @@ $$;
 -- Grant execute permission
 GRANT EXECUTE ON FUNCTION get_dashboard_data(UUID, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_dashboard_data(UUID, TEXT) TO anon;
-

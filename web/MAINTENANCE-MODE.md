@@ -45,4 +45,3 @@ Once migration to Supabase is complete and verified:
 **Status**: 🟢 ACTIVE (Maintenance mode enabled)
 
 
-

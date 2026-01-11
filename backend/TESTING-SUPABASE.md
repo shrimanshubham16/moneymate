@@ -124,4 +124,3 @@ Once Supabase is ready, you should see:
 **The migration is complete!** Just need to wait for Supabase to finish initializing, then you can test everything.
 
 
-

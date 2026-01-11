@@ -216,4 +216,3 @@ npm run test:e2e      # Run Playwright E2E tests (headless)
 - Headless mode for CI
 - Screenshots on failure
 
-

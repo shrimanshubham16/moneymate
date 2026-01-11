@@ -118,4 +118,3 @@ test.describe('Login Flow', () => {
     await expect(page.locator('input[type="text"]')).toBeVisible();
   });
 });
-

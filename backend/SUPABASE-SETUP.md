@@ -108,4 +108,3 @@ After running the schema, verify tables were created:
 - Add `.env` to `.gitignore` if not already there
 
 
-

@@ -94,4 +94,3 @@ This will regenerate all icons with the current design.
 
 
 
-

@@ -51,4 +51,3 @@ SUPABASE_CONNECTION_STRING=postgresql://postgres.lvwpurwrktdblctzwctr:[ENCODED-P
 Replace `[ENCODED-PASSWORD]` with your URL-encoded password.
 
 
-
