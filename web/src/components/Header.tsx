@@ -1,8 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { MdAccountBalanceWallet, MdSettings } from "react-icons/md";
 import { FaFileExport } from "react-icons/fa";
-// NotificationCenter temporarily disabled until API endpoint is deployed
-// import { NotificationCenter } from "./NotificationCenter";
+import { NotificationCenter } from "./NotificationCenter";
 import "./Header.css";
 
 interface HeaderProps {
@@ -27,7 +26,7 @@ export function Header({ showLogo = true, token }: HeaderProps) {
             </Link>
 
             <div className="header-actions">
-                {/* NotificationCenter temporarily disabled - will re-enable after API deployment */}
+                {token && <NotificationCenter token={token} />}
                 <button className="header-button" onClick={() => navigate("/export")} title="Export Data">
                     <FaFileExport size={20} />
                     <span className="button-text">Export</span>

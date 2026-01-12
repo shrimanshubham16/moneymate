@@ -197,6 +197,7 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding, onRecovery }: { onA
               pattern="[a-zA-Z0-9_]+"
               placeholder="your_unique_username"
               title="Only letters, numbers, and underscores allowed"
+              autoComplete={mode === "login" ? "username" : "new-username"}
             />
             {mode === "signup" && (
               <small className="help-text">3-20 characters, letters, numbers, underscores only. Username is permanent.</small>
@@ -211,6 +212,7 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding, onRecovery }: { onA
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
+                autoComplete="email"
               />
               <small className="help-text">
                 Email helps recover your account if you forget your password. 
@@ -228,6 +230,7 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding, onRecovery }: { onA
               required
               minLength={mode === "signup" ? 8 : 1}
               placeholder="••••••••"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
             />
             {mode === "signup" && passwordStrength.length > 0 && (
               <div className="password-requirements">
@@ -250,6 +253,7 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding, onRecovery }: { onA
                 required
                 minLength={8}
                 placeholder="••••••••"
+              autoComplete="new-password"
               />
             </div>
           )}
