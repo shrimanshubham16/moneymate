@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { FaBell, FaCheck, FaCheckDouble, FaTrash, FaUsers, FaExclamationTriangle, FaInfo, FaCog, FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
 import "./NotificationsPage.css";
 
 interface Notification {
@@ -18,8 +17,11 @@ interface Notification {
   createdAt: string;
 }
 
-export function NotificationsPage() {
-  const { token } = useAuth();
+interface NotificationsPageProps {
+  token: string;
+}
+
+export function NotificationsPage({ token }: NotificationsPageProps) {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);

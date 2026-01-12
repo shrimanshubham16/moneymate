@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaBell, FaEnvelope, FaCalendarAlt, FaArrowLeft, FaCheck } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
 import "./NotificationSettingsPage.css";
 
 interface NotificationPreferences {
@@ -47,8 +46,11 @@ const defaultPreferences: NotificationPreferences = {
   }
 };
 
-export function NotificationSettingsPage() {
-  const { token } = useAuth();
+interface NotificationSettingsPageProps {
+  token: string;
+}
+
+export function NotificationSettingsPage({ token }: NotificationSettingsPageProps) {
   const navigate = useNavigate();
   const [preferences, setPreferences] = useState<NotificationPreferences>(defaultPreferences);
   const [loading, setLoading] = useState(true);

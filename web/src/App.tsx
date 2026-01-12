@@ -332,7 +332,7 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding, onRecovery }: { onA
 function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void }) {
   return (
     <>
-      <Header />
+      <Header token={token} />
       <div className="app-content">
         <Routes>
           <Route path="/dashboard" element={<DashboardPage token={token} />} />
@@ -349,8 +349,8 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/settings/sharing" element={<SharingPage token={token} />} />
           <Route path="/settings/support" element={<SupportPage />} />
           <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />
-          <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/settings/notifications" element={<NotificationSettingsPage token={token} />} />
+          <Route path="/notifications" element={<NotificationsPage token={token} />} />
           <Route path="/settings/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/settings/manage-debts/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/investments" element={<InvestmentsPage token={token} />} />
