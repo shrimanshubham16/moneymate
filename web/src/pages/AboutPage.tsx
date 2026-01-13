@@ -26,6 +26,15 @@ export function AboutPage() {
             Whether you're managing monthly expenses, planning investments, or preparing for future liabilities, 
             FinFlow provides intelligent insights and tools to keep your finances healthy.
           </p>
+          <div className="about-note">
+            <strong>Known OK caveats (free + privacy-first):</strong>
+            <ul>
+              <li>No server-side analytics; troubleshooting uses client logs only when you share them.</li>
+              <li>E2E encryption can mean occasional re-entering credentials on new devices.</li>
+              <li>Some heavy calculations happen client-side to keep data private; load times may vary.</li>
+              <li>Notifications are best-effort; ensure email and in-app preferences are enabled.</li>
+            </ul>
+          </div>
         </section>
 
         <section className="about-section">
