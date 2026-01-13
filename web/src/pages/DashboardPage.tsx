@@ -18,6 +18,8 @@ import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { ClientCache } from "../utils/cache";
+import { isFeatureEnabled } from "../features";
+import { OnboardingFlow } from "../components/OnboardingFlow";
 import "./DashboardPage.css";
 
 interface DashboardPageProps {
@@ -35,6 +37,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [loans, setLoans] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
+  const [showOnboarding, setShowOnboarding] = useState(false);
   // Persist selectedView in localStorage so it survives navigation
   const [selectedView, setSelectedView] = useState<string>(() => {
     const saved = localStorage.getItem('finflow_selected_view');
@@ -307,12 +310,13 @@ export function DashboardPage({ token }: DashboardPageProps) {
     // Only runs while dashboard is mounted (user is active)
     const keepAlive = async () => {
       try {
-        const baseUrl = import.meta.env.VITE_SUPABASE_URL?.replace('/rest/v1', '') || 'https://eklennfapovprkebdsml.supabase.co';
+        const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+        const baseUrl = envUrl?.replace('/rest/v1', '') || 'https://eklennfapovprkebdsml.supabase.co';
         await fetch(`${baseUrl}/functions/v1/api/health`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+            'apikey': (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || ''
           }
         });
         console.log('[KEEP_ALIVE] Edge Function pinged to prevent cold start');
@@ -512,15 +516,37 @@ export function DashboardPage({ token }: DashboardPageProps) {
   if (hasNoFinances) {
     return (
       <div className="dashboard-page">
-        <EmptyState
-          icon={<FaChartLine size={80} />}
-          title="No Financial Data Yet"
-          description="Add your income and expenses to see your financial health and insights"
-          actionLabel="Add Income"
-          onAction={() => navigate("/settings/plan-finances/income")}
-          secondaryActionLabel="Add Expenses"
-          onSecondaryAction={() => navigate("/settings/plan-finances/fixed")}
-        />
+        {isFeatureEnabled("onboarding_flow") ? (
+          <>
+            <EmptyState
+              icon={<FaChartLine size={80} />}
+              title="No Financial Data Yet"
+              description="Let's set things up together. A 2-minute guided flow to add the basics."
+              actionLabel="Get Started Now"
+              onAction={() => setShowOnboarding(true)}
+            />
+            {showOnboarding && (
+              <OnboardingFlow
+                token={token}
+                onClose={() => setShowOnboarding(false)}
+                onComplete={() => {
+                  setShowOnboarding(false);
+                  loadData();
+                }}
+              />
+            )}
+          </>
+        ) : (
+          <EmptyState
+            icon={<FaChartLine size={80} />}
+            title="No Financial Data Yet"
+            description="Add your income and expenses to see your financial health and insights"
+            actionLabel="Add Income"
+            onAction={() => navigate("/settings/plan-finances/income")}
+            secondaryActionLabel="Add Expenses"
+            onSecondaryAction={() => navigate("/settings/plan-finances/fixed")}
+          />
+        )}
       </div>
     );
   }

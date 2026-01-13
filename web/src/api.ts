@@ -7,6 +7,13 @@ export type LoginResponse = {
   _dev_verification_code?: string; // Dev mode only
 };
 
+export type HealthThresholds = {
+  good_min: number;
+  ok_min: number;
+  ok_max: number;
+  not_well_max: number;
+};
+
 // API URL - defaults to Supabase Edge Function, falls back to Railway/localhost
 const getBaseUrl = () => {
   // Check for explicit API URL first
@@ -272,6 +279,20 @@ export async function login(username: string, password: string): Promise<LoginRe
 
 export async function fetchSalt(username: string): Promise<{ encryption_salt: string }> {
   return request<{ encryption_salt: string }>(`/auth/salt/${encodeURIComponent(username)}`, { method: "GET" });
+}
+
+// Health thresholds
+export async function getHealthThresholds(token: string): Promise<HealthThresholds> {
+  const res = await request<{ data: HealthThresholds }>("/health-thresholds", { method: "GET" }, token);
+  return res.data;
+}
+
+export async function updateHealthThresholds(token: string, thresholds: Partial<HealthThresholds>): Promise<HealthThresholds> {
+  const res = await request<{ data: HealthThresholds }>("/health-thresholds", {
+    method: "PUT",
+    body: JSON.stringify(thresholds)
+  }, token);
+  return res.data;
 }
 
 // Email verification

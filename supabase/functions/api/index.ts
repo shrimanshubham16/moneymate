@@ -2120,6 +2120,48 @@ serve(async (req) => {
       return json({ status: 'ok' });
     }
 
+  // Health thresholds (per user)
+  if (path === '/health-thresholds' && method === 'GET') {
+    const { data } = await supabase
+      .from('health_thresholds')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    const thresholds = data || {
+      good_min: 20,
+      ok_min: 10,
+      ok_max: 19.99,
+      not_well_max: 9.99
+    };
+    return json({ data: thresholds });
+  }
+
+  if (path === '/health-thresholds' && (method === 'PUT' || method === 'PATCH')) {
+    const body = await req.json();
+    const updates: any = { user_id: userId };
+    if (body.good_min !== undefined) updates.good_min = Number(body.good_min);
+    if (body.ok_min !== undefined) updates.ok_min = Number(body.ok_min);
+    if (body.ok_max !== undefined) updates.ok_max = Number(body.ok_max);
+    if (body.not_well_max !== undefined) updates.not_well_max = Number(body.not_well_max);
+
+    // Basic validation
+    if (
+      updates.ok_min >= updates.ok_max ||
+      updates.good_min < updates.ok_max ||
+      updates.not_well_max < 0
+    ) {
+      return error('Invalid thresholds', 400);
+    }
+
+    const { data, error: e } = await supabase
+      .from('health_thresholds')
+      .upsert(updates, { onConflict: 'user_id' })
+      .select()
+      .single();
+    if (e) return error(e.message, 500);
+    return json({ data });
+  }
+
     // AUTH/ME - Get current user info
     if (path === '/auth/me' && method === 'GET') {
       const { data: userData } = await supabase.from('users').select('id, username, email, email_verified, encryption_salt, created_at').eq('id', userId).single();

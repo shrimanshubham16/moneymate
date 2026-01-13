@@ -7,6 +7,9 @@ import { useSharedView } from "../hooks/useSharedView";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { funFacts } from "../data/funFacts";
+import { isFeatureEnabled } from "../features";
+import { getHealthThresholds, updateHealthThresholds } from "../api";
+import { HealthThresholds } from "../services/clientCalculations";
 import "./HealthDetailsPage.css";
 
 interface HealthDetailsPageProps {
@@ -18,6 +21,14 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
   const [loading, setLoading] = useState(true);
   const [heroLoading, setHeroLoading] = useState(true);
   const [funFact, setFunFact] = useState<string>("");
+  const [thresholds, setThresholds] = useState<HealthThresholds>({
+    good_min: 20,
+    ok_min: 10,
+    ok_max: 19.99,
+    not_well_max: 9.99
+  });
+  const [savingThresholds, setSavingThresholds] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
   const { showIntro, closeIntro } = useIntroModal("health");
@@ -44,15 +55,27 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       setHeroLoading(true);
       // Use the api module's fetchHealthDetails - pass view param for combined data
       const viewParam = getViewParam();
-      const [healthRes, dashRes, cardsRes, loansRes] = await Promise.all([
+
+      const promises: any[] = [
         api.fetchHealthDetails(token),
         api.fetchDashboard(token, new Date().toISOString(), viewParam),
         api.fetchCreditCards(token),
         api.fetchLoans(token)
-      ]);
+      ];
+      const shouldLoadThresholds = isFeatureEnabled("health_thresholds_configurable");
+      if (shouldLoadThresholds) {
+        promises.push(api.getHealthThresholds(token));
+      }
+
+      const [healthRes, dashRes, cardsRes, loansRes, thresholdsRes] = await Promise.all(promises);
 
       const data = dashRes.data;
       const healthData = healthRes.data;
+
+      // Thresholds
+      if (thresholdsRes) {
+        setThresholds(thresholdsRes.data || thresholdsRes);
+      }
       
       // Get constraint score from dashboard data
       if (data.constraintScore) {
@@ -188,12 +211,15 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       // Calculate correct remaining using frontend's decrypted totals
       const correctRemaining = totalIncomeForHealth - totalOutflowForHealth;
       
-      
-      // Determine category based on correct remaining
+      // Determine category based on configurable thresholds (using health score)
+      const t = thresholds;
+      const healthScore = totalIncomeForHealth > 0
+        ? Math.max(0, Math.min(100, (correctRemaining / totalIncomeForHealth) * 100))
+        : 0;
       let correctCategory: string;
-      if (correctRemaining > 10000) correctCategory = "good";
-      else if (correctRemaining >= 0) correctCategory = "ok";
-      else if (correctRemaining >= -3000) correctCategory = "not_well";
+      if (healthScore >= t.good_min) correctCategory = "good";
+      else if (healthScore >= t.ok_min && healthScore <= t.ok_max) correctCategory = "ok";
+      else if (healthScore >= 0 && healthScore <= t.not_well_max) correctCategory = "not_well";
       else correctCategory = "worrisome";
 
       // Determine health description and advice based on CORRECT category
@@ -280,6 +306,29 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     } finally {
       setLoading(false);
       setHeroLoading(false);
+    }
+  };
+
+  const handleThresholdChange = (field: keyof HealthThresholds, value: string) => {
+    const num = parseFloat(value);
+    setThresholds((prev) => ({
+      ...prev,
+      [field]: isNaN(num) ? prev[field] : num
+    }));
+  };
+
+  const saveThresholds = async () => {
+    setSavingThresholds(true);
+    setSaveMessage(null);
+    try {
+      const updated = await api.updateHealthThresholds(token, thresholds);
+      setThresholds(updated);
+      setSaveMessage("Thresholds saved");
+    } catch (e: any) {
+      setSaveMessage(e?.message || "Failed to save");
+    } finally {
+      setSavingThresholds(false);
+      setTimeout(() => setSaveMessage(null), 2500);
     }
   };
 
@@ -370,6 +419,53 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           {isSharedView ? "Combined Financial Health" : "Financial Health Details"}
         </h1>
       </div>
+
+      {isFeatureEnabled("health_thresholds_configurable") && (
+        <div className="thresholds-card">
+          <div className="thresholds-header">
+            <h3>Customize Health Thresholds</h3>
+            {saveMessage && <span className="save-message">{saveMessage}</span>}
+          </div>
+          <div className="threshold-grid">
+            <label>
+              Good min (%)
+              <input
+                type="number"
+                value={thresholds.good_min}
+                onChange={(e) => handleThresholdChange("good_min", e.target.value)}
+              />
+            </label>
+            <label>
+              OK min (%)
+              <input
+                type="number"
+                value={thresholds.ok_min}
+                onChange={(e) => handleThresholdChange("ok_min", e.target.value)}
+              />
+            </label>
+            <label>
+              OK max (%)
+              <input
+                type="number"
+                value={thresholds.ok_max}
+                onChange={(e) => handleThresholdChange("ok_max", e.target.value)}
+              />
+            </label>
+            <label>
+              Not-well max (%)
+              <input
+                type="number"
+                value={thresholds.not_well_max}
+                onChange={(e) => handleThresholdChange("not_well_max", e.target.value)}
+              />
+            </label>
+          </div>
+          <button className="threshold-save" onClick={saveThresholds} disabled={savingThresholds}>
+            {savingThresholds ? "Saving..." : "Save Thresholds"}
+          </button>
+          <p className="threshold-hint">We use your health score % (remaining / income). Adjust ranges that feel right for you.</p>
+        </div>
+      )}
 
       {/* Health Summary Card */}
       <motion.div

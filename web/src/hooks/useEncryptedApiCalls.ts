@@ -160,6 +160,12 @@ export function useEncryptedApiCalls() {
       total_variable_actual: number;
       total_credit_card_dues: number;
     }) => baseApi.updateUserAggregates(token, aggregates),
+
+    // Health thresholds
+    getHealthThresholds: (token: string) =>
+      baseApi.getHealthThresholds(token),
+    updateHealthThresholds: (token: string, thresholds: any) =>
+      baseApi.updateHealthThresholds(token, thresholds),
     
     // Expose encryption key status
     isEncryptionEnabled: key !== null,

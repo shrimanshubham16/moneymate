@@ -59,12 +59,21 @@ export interface DashboardData {
   variablePlans: VariablePlan[];
 }
 
+export type HealthCategory = 'good' | 'ok' | 'not_well' | 'worrisome';
+
+export interface HealthThresholds {
+  good_min: number;
+  ok_min: number;
+  ok_max: number;
+  not_well_max: number;
+}
+
 export interface HealthBreakdown {
   totalIncome: number;
   totalObligations: number;
   availableFunds: number;
   healthScore: number;
-  healthCategory: 'good' | 'ok' | 'not_well' | 'worrisome';
+  healthCategory: HealthCategory;
   obligations: {
     totalFixed: number;
     totalInvestments: number;
@@ -173,7 +182,15 @@ export function calculateProratedVariable(
 /**
  * Calculate full health breakdown (client-side)
  */
-export function calculateHealthBreakdown(data: DashboardData): HealthBreakdown {
+export function calculateHealthBreakdown(
+  data: DashboardData,
+  thresholds: HealthThresholds = {
+    good_min: 20,
+    ok_min: 10,
+    ok_max: 19.99,
+    not_well_max: 9.99
+  }
+): HealthBreakdown {
   const totalIncome = calculateTotalIncome(data.incomes || []);
   const totalFixed = calculateTotalFixed(data.fixedExpenses || []);
   const totalInvestments = calculateTotalInvestments(data.investments || []);
@@ -188,11 +205,11 @@ export function calculateHealthBreakdown(data: DashboardData): HealthBreakdown {
     ? Math.max(0, Math.min(100, (availableFunds / totalIncome) * 100))
     : 0;
   
-  // Determine health category
+  // Determine health category using thresholds
   let healthCategory: HealthBreakdown['healthCategory'];
-  if (healthScore >= 20) healthCategory = 'good';
-  else if (healthScore >= 10) healthCategory = 'ok';
-  else if (healthScore >= 0) healthCategory = 'not_well';
+  if (healthScore >= thresholds.good_min) healthCategory = 'good';
+  else if (healthScore >= thresholds.ok_min && healthScore <= thresholds.ok_max) healthCategory = 'ok';
+  else if (healthScore >= 0 && healthScore <= thresholds.not_well_max) healthCategory = 'not_well';
   else healthCategory = 'worrisome';
   
   return {
