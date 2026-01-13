@@ -7,7 +7,6 @@ import { useSharedView } from "../hooks/useSharedView";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { funFacts } from "../data/funFacts";
-import { AppEmoji } from "../components/AppEmoji";
 import { isFeatureEnabled } from "../features";
 import { getHealthThresholds, updateHealthThresholds } from "../api";
 import { HealthThresholds } from "../services/clientCalculations";
@@ -18,16 +17,17 @@ interface HealthDetailsPageProps {
 }
 
 export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [heroLoading, setHeroLoading] = useState(true);
-  const [funFact, setFunFact] = useState<string>("");
-  const [thresholds, setThresholds] = useState<HealthThresholds>({
+  const DEFAULT_THRESHOLDS: HealthThresholds = {
     good_min: 20,
     ok_min: 10,
     ok_max: 19.99,
     not_well_max: 9.99
-  });
+  };
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [heroLoading, setHeroLoading] = useState(true);
+  const [funFact, setFunFact] = useState<string>("");
+  const [thresholds, setThresholds] = useState<HealthThresholds>(DEFAULT_THRESHOLDS);
   const [savingThresholds, setSavingThresholds] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -333,6 +333,11 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     }
   };
 
+  const resetThresholds = async () => {
+    setThresholds(DEFAULT_THRESHOLDS);
+    await saveThresholds();
+  };
+
   const getHealthColor = (category: string) => {
     switch (category) {
       case "good": return "#10b981";
@@ -461,9 +466,14 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
               />
             </label>
           </div>
-          <button className="threshold-save" onClick={saveThresholds} disabled={savingThresholds}>
-            {savingThresholds ? "Saving..." : "Save Thresholds"}
-          </button>
+          <div className="threshold-actions">
+            <button className="secondary-btn" onClick={resetThresholds} disabled={savingThresholds}>
+              Reset to default
+            </button>
+            <button className="threshold-save" onClick={saveThresholds} disabled={savingThresholds}>
+              {savingThresholds ? "Saving..." : "Save Thresholds"}
+            </button>
+          </div>
           <p className="threshold-hint">We use your health score % (remaining / income). Adjust ranges that feel right for you.</p>
         </div>
       )}

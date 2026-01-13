@@ -128,6 +128,21 @@
   transition: transform 0.15s ease, box-shadow 0.2s ease;
 }
 
+.threshold-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: var(--space-3);
+}
+
+.secondary-btn {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle, rgba(184,193,236,0.2));
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .threshold-save:disabled {
   opacity: 0.7;
   cursor: not-allowed;

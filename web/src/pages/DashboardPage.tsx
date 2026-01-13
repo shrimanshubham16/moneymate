@@ -43,6 +43,10 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const seen = localStorage.getItem("finflow_walkthrough_seen");
     return !seen;
   });
+  const restartWalkthrough = () => {
+    localStorage.removeItem("finflow_walkthrough_seen");
+    setShowWalkthrough(true);
+  };
   // Persist selectedView in localStorage so it survives navigation
   const [selectedView, setSelectedView] = useState<string>(() => {
     const saved = localStorage.getItem('finflow_selected_view');
@@ -552,13 +556,16 @@ export function DashboardPage({ token }: DashboardPageProps) {
             onSecondaryAction={() => navigate("/settings/plan-finances/fixed")}
           />
         )}
-        <WalkthroughModal
-          isOpen={showWalkthrough}
-          onClose={() => {
-            setShowWalkthrough(false);
-            localStorage.setItem("finflow_walkthrough_seen", "true");
-          }}
-        />
+      <WalkthroughModal
+        isOpen={showWalkthrough}
+        onClose={() => {
+          setShowWalkthrough(false);
+          localStorage.setItem("finflow_walkthrough_seen", "true");
+        }}
+      />
+      <div className="dashboard-footer-link">
+        <button className="ghost-btn" onClick={restartWalkthrough}>Restart walkthrough</button>
+      </div>
       </div>
     );
   }
