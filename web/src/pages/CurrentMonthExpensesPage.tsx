@@ -246,19 +246,14 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
         <>
           {/* v1.2: Charts Section */}
           {paymentModeChartData.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
+            <div className="chart-grid">
               {/* Payment Mode Distribution Pie Chart */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                style={{
-                  backgroundColor: 'white',
-                  padding: '24px',
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                }}
+                className="chart-card"
               >
-                <h3 style={{ marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>Payment Mode Distribution</h3>
+                <h3 className="chart-title">Payment Mode Distribution</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
@@ -285,29 +280,16 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.1 }}
-                style={{
-                  backgroundColor: 'white',
-                  padding: '24px',
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                }}
+                className="chart-card"
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>
+                <div className="chart-header">
+                  <h3 className="chart-title">
                     {selectedCategory ? `Subcategory Breakdown: ${selectedCategory}` : 'Category Breakdown'}
                   </h3>
                   {selectedCategory && (
                     <button
                       onClick={() => setSelectedCategory(null)}
-                      style={{
-                        padding: '6px 12px',
-                        background: '#f3f4f6',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500'
-                      }}
+                      className="chart-back-btn"
                     >
                       ← Back to Categories
                     </button>
@@ -326,11 +308,8 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                       fill={selectedCategory ? "#8b5cf6" : "#3b82f6"}
                       onClick={(data: any) => {
                         if (!selectedCategory) {
-                          console.log('Bar click data:', data);
-                          // Try different ways to access the category name
                           const categoryName = data?.payload?.name || data?.name || (data?.activePayload && data.activePayload[0]?.payload?.name);
                           if (categoryName) {
-                            console.log('Setting category to:', categoryName);
                             setSelectedCategory(categoryName);
                           }
                         }
@@ -343,7 +322,6 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                           style={{ cursor: selectedCategory ? 'default' : 'pointer' }}
                           onClick={() => {
                             if (!selectedCategory && entry.name) {
-                              console.log('Cell clicked:', entry.name);
                               setSelectedCategory(entry.name);
                             }
                           }}
@@ -353,7 +331,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                   </BarChart>
                 </ResponsiveContainer>
                 {!selectedCategory && (
-                  <p style={{ marginTop: '8px', fontSize: '12px', color: '#6b7280', textAlign: 'center' }}>
+                  <p className="chart-hint">
                     Click on a category bar to see subcategory breakdown
                   </p>
                 )}

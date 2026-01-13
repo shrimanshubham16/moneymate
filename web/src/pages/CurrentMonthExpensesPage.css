@@ -124,9 +124,75 @@
   font-size: var(--text-lg);
 }
 
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.chart-card {
+  background: var(--bg-elevated);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-md), var(--card-glow);
+  border: 1px solid rgba(184, 193, 236, 0.05);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chart-title {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.chart-back-btn {
+  padding: 6px 12px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.chart-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
   .current-month-expenses-page {
     padding: var(--space-8) var(--space-4);
+  }
+
+  .chart-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .chart-card {
+    padding: 16px;
+  }
+
+  .chart-back-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .chart-hint {
+    font-size: 11px;
   }
 
   .expense-item {

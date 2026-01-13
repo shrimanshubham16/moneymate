@@ -11,6 +11,7 @@ const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY');
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'noreply@finflow.app';
 const FROM_NAME = Deno.env.get('FROM_NAME') || 'FinFlow';
 const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'production';
+const WELCOME_EMAIL_ENABLED = Deno.env.get('WELCOME_EMAIL_ENABLED') !== 'false';
 
 const POSTMARK_TOKEN = Deno.env.get('POSTMARK_TOKEN');
 
@@ -66,6 +67,60 @@ async function sendVerificationEmail(to: string, code: string): Promise<{ succes
     return { success: true, devCode: code };
   }
   return { success: false, error: 'Email provider not configured' };
+}
+
+async function sendWelcomeEmail(to: string, username: string): Promise<{ success: boolean; error?: string }> {
+  const subject = 'Welcome to FinFlow!';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0f172a; padding: 28px; border-radius: 14px; color: #e5e7eb;">
+      <h1 style="color: #22d3ee; text-align: center; margin: 0 0 12px;">Welcome, ${username || 'there'}!</h1>
+      <p style="line-height: 1.6;">Thanks for verifying your email. You're all set to track your finances, stay on top of bills, and keep your data private with end-to-end encryption.</p>
+      <div style="margin: 18px 0; padding: 16px; border-radius: 10px; background: rgba(34, 211, 238, 0.08); border: 1px solid rgba(34, 211, 238, 0.3);">
+        <strong style="color:#22d3ee;">Quick tips:</strong>
+        <ul style="margin: 8px 0 0 18px; padding: 0; line-height: 1.6;">
+          <li>Add income and expenses to get your health score.</li>
+          <li>Use sharing to merge finances securely.</li>
+          <li>Everything is encrypted on your device first.</li>
+        </ul>
+      </div>
+      <p style="line-height: 1.6;">Need help? Just reply to this email.</p>
+      <p style="margin-top: 18px; font-size: 12px; color: #94a3b8;">FinFlow • Privacy-first finances</p>
+    </div>
+  `;
+
+  if (!WELCOME_EMAIL_ENABLED) {
+    console.log('[EMAIL_DEV] Welcome email suppressed by flag');
+    return { success: true };
+  }
+
+  if (IS_PRODUCTION && SENDGRID_API_KEY) {
+    await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: to }] }],
+        from: { email: FROM_EMAIL, name: FROM_NAME },
+        subject,
+        content: [{ type: 'text/html', value: html }]
+      })
+    });
+    return { success: true };
+  } else if (IS_PRODUCTION && POSTMARK_TOKEN) {
+    await fetch('https://api.postmarkapp.com/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
+      body: JSON.stringify({
+        From: FROM_EMAIL,
+        To: to,
+        Subject: subject,
+        HtmlBody: html,
+      })
+    });
+    return { success: true };
+  }
+
+  console.log(`[EMAIL_DEV] Welcome email to ${to}`);
+  return { success: true };
 }
 
 async function sendPasswordResetEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string; error?: string }> {
@@ -637,7 +692,7 @@ serve(async (req) => {
       
       const { data: user, error: userErr } = await supabase
         .from('users')
-        .select('id, email_verification_code, email_verification_expires, email_verified')
+        .select('id, username, email, email_verification_code, email_verification_expires, email_verified')
         .eq('email', email)
         .single();
       
@@ -660,6 +715,11 @@ serve(async (req) => {
         email_verification_code: null,
         email_verification_expires: null
       }).eq('id', user.id);
+      
+      // Send welcome email after verification
+      if (user.email) {
+        await sendWelcomeEmail(user.email, user.username);
+      }
       
       return json({ message: 'Email verified successfully', verified: true });
     }
