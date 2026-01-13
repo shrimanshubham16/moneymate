@@ -18,6 +18,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { ClientCache } from "../utils/cache";
+import { WalkthroughModal } from "../components/WalkthroughModal";
 import { isFeatureEnabled } from "../features";
 import { OnboardingFlow } from "../components/OnboardingFlow";
 import "./DashboardPage.css";
@@ -38,6 +39,10 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(() => {
+    const seen = localStorage.getItem("finflow_walkthrough_seen");
+    return !seen;
+  });
   // Persist selectedView in localStorage so it survives navigation
   const [selectedView, setSelectedView] = useState<string>(() => {
     const saved = localStorage.getItem('finflow_selected_view');
@@ -547,6 +552,13 @@ export function DashboardPage({ token }: DashboardPageProps) {
             onSecondaryAction={() => navigate("/settings/plan-finances/fixed")}
           />
         )}
+        <WalkthroughModal
+          isOpen={showWalkthrough}
+          onClose={() => {
+            setShowWalkthrough(false);
+            localStorage.setItem("finflow_walkthrough_seen", "true");
+          }}
+        />
       </div>
     );
   }
