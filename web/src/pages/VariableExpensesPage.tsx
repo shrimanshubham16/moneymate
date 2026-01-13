@@ -186,7 +186,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     setIsSubmitting(false);
     
     try {
-      let response;
+      let response: any;
       if (editingId) {
         response = await api.updateVariableExpensePlan(token, editingId, planData);
       } else {

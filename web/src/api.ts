@@ -17,7 +17,7 @@ export type HealthThresholds = {
 // API URL - defaults to Supabase Edge Function, falls back to Railway/localhost
 const getBaseUrl = () => {
   // Check for explicit API URL first
-  const envUrl = import.meta.env.VITE_API_URL;
+  const envUrl = (import.meta as any).env?.VITE_API_URL;
   if (envUrl) {
     if (!envUrl.startsWith("http://") && !envUrl.startsWith("https://")) {
       return `https://${envUrl}`;
@@ -26,7 +26,7 @@ const getBaseUrl = () => {
   }
   
   // Default to Supabase Edge Function in production
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
   if (supabaseUrl) {
     return `${supabaseUrl}/functions/v1/api`;
   }
@@ -38,7 +38,7 @@ const getBaseUrl = () => {
 const BASE_URL = getBaseUrl();
 
 // Supabase anon key for Edge Function authentication
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
 
 // Check if we're using Supabase Edge Functions
 const isSupabaseEdgeFunction = BASE_URL.includes('supabase.co/functions');

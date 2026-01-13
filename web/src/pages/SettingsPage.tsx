@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaUser, FaCreditCard, FaHandshake, FaPalette, FaInfoCircle, FaChartLine, FaCog, FaShieldAlt, FaBell } from "react-icons/fa";
+import { FaUser, FaCreditCard, FaHandshake, FaPalette, FaInfoCircle, FaChartLine, FaCog, FaShieldAlt, FaBell, FaQuestionCircle } from "react-icons/fa";
 import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
@@ -29,6 +29,7 @@ export function SettingsPage() {
     { id: "credit-cards", title: "Credit Cards", icon: <FaCreditCard size={32} />, description: "Manage credit card bills" },
     { id: "privacy", title: "Privacy & Security", icon: <FaShieldAlt size={32} />, description: "How we protect your financial data" },
     { id: "theme", title: "Themes", icon: <FaPalette size={32} />, description: "Switch between Dark and Light" },
+    { id: "walkthrough", title: "Walkthrough", icon: <FaQuestionCircle size={32} />, description: "Restart the guided tour" },
     { id: "support", title: "Support", icon: <FaPalette size={32} />, description: "Get help and contact support" },
     { id: "about", title: "About", icon: <FaInfoCircle size={32} />, description: "About FinFlow and usage guide" }
   ];
