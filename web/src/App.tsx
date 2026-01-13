@@ -30,6 +30,7 @@ import { HealthDetailsPage } from "./pages/HealthDetailsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { NotificationSettingsPage } from "./pages/NotificationSettingsPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
+import { ThemeSettingsPage } from "./pages/ThemeSettingsPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { LandingPage } from "./pages/LandingPage";
 import { RecoveryPage } from "./pages/RecoveryPage";
@@ -40,6 +41,7 @@ import { EmailVerificationModal } from "./components/EmailVerificationModal";
 import { useCrypto } from "./contexts/CryptoContext";
 import { deriveKey, generateRecoveryKey, generateSalt, hashRecoveryKey, saltFromBase64 } from "./lib/crypto";
 import "./App.css";
+import { applyTheme, getCurrentTheme } from "./theme";
 
 // Enable maintenance mode - set to false when migration is complete
 const MAINTENANCE_MODE = false;
@@ -334,6 +336,11 @@ function AuthForm({ onAuth, onForgotPassword, onShowLanding, onRecovery }: { onA
 }
 
 function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void }) {
+  // Apply persisted theme once on load
+  useEffect(() => {
+    applyTheme(getCurrentTheme());
+  }, []);
+
   return (
     <>
       <Header token={token} />
@@ -354,6 +361,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/settings/support" element={<SupportPage />} />
           <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />
           <Route path="/settings/notifications" element={<NotificationSettingsPage token={token} />} />
+          <Route path="/settings/theme" element={<ThemeSettingsPage />} />
           <Route path="/notifications" element={<NotificationsPage token={token} />} />
           <Route path="/settings/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/settings/manage-debts/credit-cards" element={<CreditCardsManagementPage token={token} />} />

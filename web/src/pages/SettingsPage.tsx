@@ -28,6 +28,7 @@ export function SettingsPage() {
     { id: "plan-finances", title: "Plan Finances", icon: <FaChartLine size={32} />, description: "Plan income, expenses, and investments" },
     { id: "credit-cards", title: "Credit Cards", icon: <FaCreditCard size={32} />, description: "Manage credit card bills" },
     { id: "privacy", title: "Privacy & Security", icon: <FaShieldAlt size={32} />, description: "How we protect your financial data" },
+    { id: "theme", title: "Themes", icon: <FaPalette size={32} />, description: "Switch between Dark and Light" },
     { id: "support", title: "Support", icon: <FaPalette size={32} />, description: "Get help and contact support" },
     { id: "about", title: "About", icon: <FaInfoCircle size={32} />, description: "About FinFlow and usage guide" }
   ];

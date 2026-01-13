@@ -228,3 +228,36 @@ textarea {
     color: var(--accent-pink);
     text-shadow: var(--glow-pink);
 }
+
+/* Light theme overrides */
+:root.theme-light {
+    --bg-primary: #f8fafc;
+    --bg-elevated: #ffffff;
+    --bg-hover: #f1f5f9;
+
+    --color-primary: #2563eb;
+    --color-primary-dark: #1d4ed8;
+    --color-secondary: #7c3aed;
+    --color-success: #16a34a;
+    --color-danger: #dc2626;
+    --color-warning: #f59e0b;
+    --color-info: #0284c7;
+
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-tertiary: #64748b;
+
+    --accent-cyan: #06b6d4;
+    --accent-green: #22c55e;
+    --accent-yellow: #fbbf24;
+    --accent-pink: #f43f5e;
+    --accent-purple: #8b5cf6;
+
+    --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.08);
+    --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.1);
+    --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.12);
+    --shadow-xl: 0 20px 60px rgba(15, 23, 42, 0.16);
+
+    --card-glow: 0 10px 30px rgba(37, 99, 235, 0.12);
+    --card-glow-hover: 0 14px 40px rgba(37, 99, 235, 0.16);
+}
