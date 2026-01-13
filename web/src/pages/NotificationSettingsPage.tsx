@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaBell, FaEnvelope, FaCalendarAlt, FaArrowLeft, FaCheck } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import "./NotificationSettingsPage.css";
 
 interface NotificationPreferences {
@@ -52,6 +53,7 @@ interface NotificationSettingsPageProps {
 
 export function NotificationSettingsPage({ token }: NotificationSettingsPageProps) {
   const navigate = useNavigate();
+  const api = useEncryptedApiCalls();
   const [preferences, setPreferences] = useState<NotificationPreferences>(defaultPreferences);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -70,14 +72,8 @@ export function NotificationSettingsPage({ token }: NotificationSettingsPageProp
     const fetchPreferences = async () => {
       if (!token) return;
       try {
-        const response = await fetch(`${getApiUrl()}/notifications/preferences`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-          const { data } = await response.json();
-          setPreferences(data);
-        }
+        const data = await api.getNotificationPreferences(token);
+        if (data) setPreferences(data);
       } catch (e) {
         console.error("Failed to fetch preferences:", e);
       } finally {
@@ -94,19 +90,9 @@ export function NotificationSettingsPage({ token }: NotificationSettingsPageProp
     
     setSaving(true);
     try {
-      const response = await fetch(`${getApiUrl()}/notifications/preferences`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(preferences)
-      });
-      
-      if (response.ok) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      }
+      await api.updateNotificationPreferences(token, preferences);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       console.error("Failed to save preferences:", e);
     } finally {

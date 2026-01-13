@@ -166,6 +166,12 @@ export function useEncryptedApiCalls() {
       baseApi.getHealthThresholds(token),
     updateHealthThresholds: (token: string, thresholds: any) =>
       baseApi.updateHealthThresholds(token, thresholds),
+
+    // Notification preferences
+    getNotificationPreferences: (token: string) =>
+      baseApi.getNotificationPreferences(token),
+    updateNotificationPreferences: (token: string, prefs: any) =>
+      baseApi.updateNotificationPreferences(token, prefs),
     
     // Expose encryption key status
     isEncryptionEnabled: key !== null,
