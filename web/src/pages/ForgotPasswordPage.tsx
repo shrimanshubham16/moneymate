@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { forgotPassword, resetPassword } from '../api';
 import './ForgotPasswordPage.css';
+import { AppEmoji } from '../components/AppEmoji';
 
 interface ForgotPasswordPageProps {
   onBack: () => void;
@@ -249,7 +250,7 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
         </AnimatePresence>
         
         <div className="forgot-password-info">
-          <h3>🔒 Security Note</h3>
+          <h3><AppEmoji name="info" /> Security Note</h3>
           <p>
             Password recovery requires both your email verification AND your 24-word recovery key. 
             This ensures that even if someone gains access to your email, they cannot access your 

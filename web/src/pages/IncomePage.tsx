@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaMoneyBillWave, FaPlus } from "react-icons/fa";
+import { FaMoneyBillWave, FaPlus, FaEdit } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { isFeatureEnabled } from "../features";
 import "./IncomePage.css";
 
 interface IncomePageProps {
@@ -16,6 +17,7 @@ export function IncomePage({ token }: IncomePageProps) {
   const [incomes, setIncomes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     source: "",
     amount: "",
@@ -45,8 +47,13 @@ export function IncomePage({ token }: IncomePageProps) {
         amount: Number(form.amount),
         frequency: form.frequency
       };
-      await api.createIncome(token, payload);
+      if (editingId && isFeatureEnabled("income_update_btn")) {
+        await api.updateIncome(token, editingId, payload);
+      } else {
+        await api.createIncome(token, payload);
+      }
       setShowForm(false);
+      setEditingId(null);
       setForm({ source: "", amount: "", frequency: "monthly" });
       await loadIncomes();
     } catch (e: any) {
@@ -95,7 +102,7 @@ export function IncomePage({ token }: IncomePageProps) {
               ]}
             />
           </div>
-          <button className="add-income-btn" onClick={() => setShowForm(true)}>
+          <button className="add-income-btn" onClick={() => { setShowForm(true); setEditingId(null); }}>
             <FaPlus style={{ marginRight: 6 }} />
             Add Income
           </button>
@@ -130,6 +137,19 @@ export function IncomePage({ token }: IncomePageProps) {
                 <div key={income.id} className="income-card">
                   <div className="income-header">
                     <h3>{income.source}</h3>
+                    {isFeatureEnabled("income_update_btn") && (
+                      <button
+                        className="edit-btn"
+                        onClick={() => {
+                          setEditingId(income.id);
+                          setForm({ source: income.source, amount: income.amount.toString(), frequency: income.frequency });
+                          setShowForm(true);
+                        }}
+                        title="Edit income source"
+                      >
+                        <FaEdit />
+                      </button>
+                    )}
                     <button
                       className="delete-btn"
                       onClick={() => handleDelete(income.id)}
@@ -192,7 +212,7 @@ export function IncomePage({ token }: IncomePageProps) {
                       Cancel
                     </button>
                     <button type="submit" className="primary">
-                      Add Income
+                      {editingId ? "Update Income" : "Add Income"}
                     </button>
                   </div>
                 </form>

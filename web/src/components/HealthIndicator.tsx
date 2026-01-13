@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircle, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
+import { AppEmoji } from "./AppEmoji";
 import "./HealthIndicator.css";
 
 type HealthCategory = "good" | "ok" | "not well" | "worrisome" | "unavailable";
@@ -110,7 +111,7 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
           </div>
           <div className="hud-score" style={{ color: theme.text }}>
             {isUnavailable 
-              ? "🔒 Private" 
+              ? <><AppEmoji name="lock" /> Private</>
               : isHidden 
                 ? "••••••" 
                 : `${isPositive ? "₹" : "-₹"}${displayAmount.toLocaleString("en-IN")}`}

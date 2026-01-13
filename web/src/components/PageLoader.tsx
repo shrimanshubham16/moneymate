@@ -4,6 +4,7 @@
  * Shows while pages load data, with optional privacy context messaging
  */
 import { motion } from "framer-motion";
+import { AppEmoji } from "./AppEmoji";
 import "./PageLoader.css";
 
 interface PageLoaderProps {
@@ -28,7 +29,7 @@ export function PageLoader({ message = "Loading...", showPrivacyNote = false }: 
         <p className="loader-message">{message}</p>
         {showPrivacyNote && (
           <p className="loader-privacy-note">
-            🔒 Your data is encrypted end-to-end
+            <AppEmoji name="lock" /> Your data is encrypted end-to-end
           </p>
         )}
       </div>
@@ -62,7 +63,7 @@ export function RefreshPrompt({ onRefresh, issue = "display issue" }: RefreshPro
         Refresh Now
       </button>
       <p className="privacy-note">
-        <span className="lock-icon">🔒</span>
+        <span className="lock-icon"><AppEmoji name="lock" /></span>
         This is a known trade-off for end-to-end encryption that keeps your financial data private.
       </p>
     </motion.div>

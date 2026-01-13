@@ -153,8 +153,8 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
   };
 
   const handleEdit = (expense: any) => {
-    console.log(" Editing expense:", expense);
-    console.log("🔧 is_sip_flag value:", expense.is_sip_flag);
+    console.log("Editing expense:", expense);
+    console.log("ℹ️ is_sip_flag value:", expense.is_sip_flag);
     setEditingId(expense.id);
     setFormData({
       name: expense.name,

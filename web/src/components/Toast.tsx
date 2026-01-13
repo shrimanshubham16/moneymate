@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
+import { AppEmoji } from "./AppEmoji";
 import "./Toast.css";
 
 interface ToastProps {
@@ -31,9 +32,9 @@ export function Toast({ message, show, onClose, type = "success", duration = 300
           transition={{ duration: 0.3 }}
         >
           <div className="toast-content">
-            {type === "success" && "🎉 "}
-            {type === "error" && "❌ "}
-            {type === "info" && "ℹ️ "}
+            {type === "success" && <AppEmoji name="success" />}
+            {type === "error" && <AppEmoji name="error" />}
+            {type === "info" && <AppEmoji name="info" />}
             {message}
           </div>
         </motion.div>

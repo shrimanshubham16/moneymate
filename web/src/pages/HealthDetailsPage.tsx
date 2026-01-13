@@ -7,6 +7,7 @@ import { useSharedView } from "../hooks/useSharedView";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { funFacts } from "../data/funFacts";
+import { AppEmoji } from "../components/AppEmoji";
 import { isFeatureEnabled } from "../features";
 import { getHealthThresholds, updateHealthThresholds } from "../api";
 import { HealthThresholds } from "../services/clientCalculations";

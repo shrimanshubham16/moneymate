@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { verifyEmail, resendVerificationCode } from '../api';
+import { AppEmoji } from './AppEmoji';
 import './EmailVerificationModal.css';
 
 interface EmailVerificationModalProps {
@@ -74,7 +75,7 @@ export function EmailVerificationModal({ email, devCode, onClose }: EmailVerific
         transition={{ duration: 0.3 }}
       >
         <div className="email-verification-header">
-          <div className="email-icon">📧</div>
+          <div className="email-icon"><AppEmoji name="info" /></div>
           <h2>Verify Your Email</h2>
           <p>We sent a 6-digit code to <strong>{email}</strong></p>
         </div>
@@ -82,7 +83,7 @@ export function EmailVerificationModal({ email, devCode, onClose }: EmailVerific
         {/* Dev mode only: show code (hidden in production) */}
         {devCode && import.meta.env.DEV && (
           <div className="dev-code-notice">
-            <small>🔧 Dev mode: Your code is <strong>{devCode}</strong></small>
+            <small><AppEmoji name="info" /> Dev mode: Your code is <strong>{devCode}</strong></small>
           </div>
         )}
 

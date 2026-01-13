@@ -1,11 +1,12 @@
 import React from 'react';
+import { AppEmoji } from './AppEmoji';
 import './MaintenanceNotice.css';
 
 export function MaintenanceNotice() {
   return (
     <div className="maintenance-overlay">
       <div className="maintenance-modal">
-        <div className="maintenance-icon">🔧</div>
+        <div className="maintenance-icon"><AppEmoji name="maintenance" /></div>
         <h1>Maintenance in Progress</h1>
         <p className="maintenance-message">
           We're upgrading FinFlow to provide you with better performance and reliability.
