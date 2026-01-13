@@ -5,6 +5,7 @@ import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { isFeatureEnabled } from "../features";
+import { Modal } from "../components/Modal";
 import "./IncomePage.css";
 
 interface IncomePageProps {
@@ -168,56 +169,54 @@ export function IncomePage({ token }: IncomePageProps) {
           )}
 
           {showForm && (
-            <div className="modal-overlay" onClick={() => setShowForm(false)}>
-              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>Add New Income Source</h2>
-                  <button onClick={() => setShowForm(false)}>✕</button>
+            <Modal
+              isOpen={showForm}
+              onClose={() => setShowForm(false)}
+              title={editingId ? "Edit Income" : "Add Income"}
+              footer={
+                <>
+                  <button onClick={() => setShowForm(false)}>Cancel</button>
+                  <button type="submit" form="income-form" className="primary">
+                    {editingId ? "Update Income" : "Add Income"}
+                  </button>
+                </>
+              }
+            >
+              <form id="income-form" onSubmit={handleSubmit}>
+                <div className="form-group">
+                  <label>Source (e.g., Salary, Freelance, Business)</label>
+                  <input
+                    type="text"
+                    value={form.source}
+                    onChange={(e) => setForm({ ...form, source: e.target.value })}
+                    required
+                    placeholder="Salary"
+                  />
                 </div>
-                <form onSubmit={handleSubmit}>
-                  <div className="form-group">
-                    <label>Source (e.g., Salary, Freelance, Business)</label>
-                    <input
-                      type="text"
-                      value={form.source}
-                      onChange={(e) => setForm({ ...form, source: e.target.value })}
-                      required
-                      placeholder="Salary"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Amount</label>
-                    <input
-                      type="number"
-                      value={form.amount}
-                      onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                      required
-                      min="0"
-                      placeholder="50000"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Frequency</label>
-                    <select
-                      value={form.frequency}
-                      onChange={(e) => setForm({ ...form, frequency: e.target.value })}
-                    >
-                      <option value="monthly">Monthly</option>
-                      <option value="quarterly">Quarterly</option>
-                      <option value="yearly">Yearly</option>
-                    </select>
-                  </div>
-                  <div className="form-actions">
-                    <button type="button" onClick={() => setShowForm(false)}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="primary">
-                      {editingId ? "Update Income" : "Add Income"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
+                <div className="form-group">
+                  <label>Amount</label>
+                  <input
+                    type="number"
+                    value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    required
+                    min="0"
+                    placeholder="50000"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Frequency</label>
+                  <select
+                    value={form.frequency}
+                    onChange={(e) => setForm({ ...form, frequency: e.target.value })}
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+              </form>
+            </Modal>
           )}
         </>
       )}
