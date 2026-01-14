@@ -152,9 +152,14 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
   
-  // Add Supabase apikey header for Edge Functions
-  if (isSupabaseEdgeFunction && SUPABASE_ANON_KEY) {
-    headers['apikey'] = SUPABASE_ANON_KEY;
+  // Add Supabase apikey header for Edge Functions (required even for public endpoints)
+  if (isSupabaseEdgeFunction) {
+    if (SUPABASE_ANON_KEY) {
+      headers['apikey'] = SUPABASE_ANON_KEY;
+    } else {
+      console.error('[API_ERROR] VITE_SUPABASE_ANON_KEY is not set. Supabase Edge Functions require the apikey header.');
+      // Still attempt the request - Supabase might reject it with 401, but at least we tried
+    }
   }
   
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -164,6 +169,12 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    // Provide more helpful error message for 401 on auth endpoints
+    if (res.status === 401 && (path.includes('/auth/') || path.includes('/signup'))) {
+      if (isSupabaseEdgeFunction && !SUPABASE_ANON_KEY) {
+        throw new Error('Authentication failed: VITE_SUPABASE_ANON_KEY environment variable is missing. Please configure it in your deployment settings.');
+      }
+    }
     throw new Error(body?.error?.message || `Request failed: ${res.status}`);
   }
   const data = await res.json() as any;
