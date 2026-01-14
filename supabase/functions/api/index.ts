@@ -8,12 +8,85 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // EMAIL SERVICE (Inlined to avoid import issues)
 // ============================================================================
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY');
+const POSTMARK_TOKEN = Deno.env.get('POSTMARK_TOKEN');
+const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY');
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'noreply@finflow.app';
 const FROM_NAME = Deno.env.get('FROM_NAME') || 'FinFlow';
 const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'production';
 const WELCOME_EMAIL_ENABLED = Deno.env.get('WELCOME_EMAIL_ENABLED') !== 'false';
 
-const POSTMARK_TOKEN = Deno.env.get('POSTMARK_TOKEN');
+async function sendEmail(to: string, subject: string, html: string): Promise<{ success: boolean; error?: string }> {
+  // Prefer Brevo HTTP API
+  if (IS_PRODUCTION && BREVO_API_KEY) {
+    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': BREVO_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { email: FROM_EMAIL, name: FROM_NAME },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html
+      })
+    });
+    if (resp.ok) return { success: true };
+    const errText = await resp.text();
+    console.error('[BREVO_EMAIL_FAILED]', errText);
+    return { success: false, error: 'Brevo send failed' };
+  }
+
+  // SendGrid fallback
+  if (IS_PRODUCTION && SENDGRID_API_KEY) {
+    try {
+      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: FROM_EMAIL, name: FROM_NAME },
+          subject,
+          content: [{ type: 'text/html', value: html }]
+        })
+      });
+      if (response.ok || response.status === 202) return { success: true };
+      const errText = await response.text();
+      console.error('[SENDGRID_EMAIL_FAILED]', errText);
+      return { success: false, error: 'SendGrid send failed' };
+    } catch (error) {
+      console.error('[SENDGRID_EMAIL_ERROR]', error);
+      return { success: false, error: 'SendGrid send error' };
+    }
+  }
+
+  // Postmark fallback
+  if (IS_PRODUCTION && POSTMARK_TOKEN) {
+    try {
+      const response = await fetch('https://api.postmarkapp.com/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
+        body: JSON.stringify({
+          From: FROM_EMAIL,
+          To: to,
+          Subject: subject,
+          HtmlBody: html,
+        })
+      });
+      if (response.ok) return { success: true };
+      const errText = await response.text();
+      console.error('[POSTMARK_EMAIL_FAILED]', errText);
+      return { success: false, error: 'Postmark send failed' };
+    } catch (error) {
+      console.error('[POSTMARK_EMAIL_ERROR]', error);
+      return { success: false, error: 'Postmark send error' };
+    }
+  }
+
+  // Dev fallback
+  console.log(`[EMAIL_DEV] To: ${to}, Subject: ${subject}`);
+  return { success: true };
+}
 
 async function sendVerificationEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string; error?: string }> {
   const subject = 'Verify your FinFlow email';
@@ -28,45 +101,14 @@ async function sendVerificationEmail(to: string, code: string): Promise<{ succes
     </div>
   `;
   
-  if (IS_PRODUCTION && SENDGRID_API_KEY) {
-    try {
-      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: to }] }],
-          from: { email: FROM_EMAIL, name: FROM_NAME },
-          subject,
-          content: [{ type: 'text/html', value: html }]
-        })
-      });
-      return { success: response.ok || response.status === 202 };
-    } catch (e) {
-      console.error('[EMAIL_ERROR]', e);
-      return { success: false, error: 'SendGrid send failed' };
-    }
-  } else if (IS_PRODUCTION && POSTMARK_TOKEN) {
-    try {
-      const response = await fetch('https://api.postmarkapp.com/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
-        body: JSON.stringify({
-          From: FROM_EMAIL,
-          To: to,
-          Subject: subject,
-          HtmlBody: html,
-        })
-      });
-      return { success: response.ok };
-    } catch (e) {
-      console.error('[EMAIL_ERROR_POSTMARK]', e);
-      return { success: false, error: 'Postmark send failed' };
-    }
-  } else if (!IS_PRODUCTION) {
+  if (IS_PRODUCTION) {
+    const res = await sendEmail(to, subject, html);
+    if (res.success) return { success: true };
+    return { success: false, error: res.error || 'Failed to send verification email' };
+  } else {
     console.log(`[EMAIL_DEV] Verification email to ${to}, code: ${code}`);
     return { success: true, devCode: code };
   }
-  return { success: false, error: 'Email provider not configured' };
 }
 
 async function sendWelcomeEmail(to: string, username: string): Promise<{ success: boolean; error?: string }> {
@@ -93,30 +135,10 @@ async function sendWelcomeEmail(to: string, username: string): Promise<{ success
     return { success: true };
   }
 
-  if (IS_PRODUCTION && SENDGRID_API_KEY) {
-    await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: to }] }],
-        from: { email: FROM_EMAIL, name: FROM_NAME },
-        subject,
-        content: [{ type: 'text/html', value: html }]
-      })
-    });
-    return { success: true };
-  } else if (IS_PRODUCTION && POSTMARK_TOKEN) {
-    await fetch('https://api.postmarkapp.com/email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
-      body: JSON.stringify({
-        From: FROM_EMAIL,
-        To: to,
-        Subject: subject,
-        HtmlBody: html,
-      })
-    });
-    return { success: true };
+  if (IS_PRODUCTION) {
+    const res = await sendEmail(to, subject, html);
+    if (res.success) return { success: true };
+    return { success: false, error: res.error || 'Failed to send welcome email' };
   }
 
   console.log(`[EMAIL_DEV] Welcome email to ${to}`);
