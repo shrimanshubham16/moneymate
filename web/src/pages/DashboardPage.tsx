@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -6,6 +6,7 @@ import {
   FaBomb, FaClipboardList, FaClock, FaCalendar, FaBell, FaMoneyBillWave,
   FaExchangeAlt, FaHandHoldingUsd, FaPlus
 } from "react-icons/fa";
+import { HiChatBubbleLeftRight } from "react-icons/hi2";
 import { MdAccountBalanceWallet, MdSavings, MdTrendingUp } from "react-icons/md";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { DashboardWidget } from "../components/DashboardWidget";
@@ -22,6 +23,7 @@ import { isFeatureEnabled } from "../features";
 import { OnboardingFlow } from "../components/OnboardingFlow";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
+import { subscribePresenceCount } from "../lib/chatClient";
 import "./DashboardPage.css";
 
 interface DashboardPageProps {
@@ -56,6 +58,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [userSubcategories, setUserSubcategories] = useState<string[]>([]);
   const [newQuickSub, setNewQuickSub] = useState<string>("");
   const [showQuickNewSub, setShowQuickNewSub] = useState(false);
+  const [loungeOnline, setLoungeOnline] = useState(0);
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const keepAliveIntervalRef = useRef<number | null>(null);
@@ -341,6 +344,12 @@ export function DashboardPage({ token }: DashboardPageProps) {
         clearInterval(keepAliveIntervalRef.current);
       }
     };
+  }, []);
+
+  // Community Lounge — subscribe to presence count (WebSocket, 0 Edge Function calls)
+  useEffect(() => {
+    const unsub = subscribePresenceCount((count) => setLoungeOnline(count));
+    return unsub;
   }, []);
 
   const loadData = async (forceRefresh = false, viewOverride?: string) => {
@@ -813,6 +822,27 @@ export function DashboardPage({ token }: DashboardPageProps) {
           icon={<FaCalendar />}
           onClick={() => navigate("/current-month-expenses")}
           color="#14b8a6"
+        />
+        <DashboardWidget
+          title="Community Lounge"
+          value={loungeOnline > 0 ? `${loungeOnline} online` : 'Join'}
+          subtitle={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              {loungeOnline > 0 && (
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: 'var(--accent-green)',
+                  boxShadow: '0 0 6px var(--accent-green)',
+                  display: 'inline-block',
+                  animation: 'pulse-dot 2s ease-in-out infinite'
+                }} />
+              )}
+              <span>Join the conversation</span>
+            </div>
+          }
+          icon={<HiChatBubbleLeftRight />}
+          onClick={() => navigate("/community")}
+          color="#00D9FF"
         />
         {alertsCount > 0 && (
           <DashboardWidget

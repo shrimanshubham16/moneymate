@@ -58,6 +58,7 @@ export function AboutPage() {
             <li><strong>Activity Log:</strong> Complete audit trail of all financial actions with full details</li>
             <li><strong>Smart Alerts:</strong> Get notified about overspends, missed investments, and upcoming dues</li>
             <li><strong>Overspend Risk Scoring:</strong> Intelligent tracking of spending patterns with monthly improvement decay</li>
+            <li><strong>Community Lounge:</strong> Real-time chatroom to share financial tips, guide others, and make friends — cleared daily</li>
           </ul>
         </section>
 

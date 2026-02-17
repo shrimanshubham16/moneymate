@@ -34,6 +34,7 @@ import { ThemeSettingsPage } from "./pages/ThemeSettingsPage";
 import { WalkthroughPage } from "./pages/WalkthroughPage";
 import { LandingPage } from "./pages/LandingPage";
 import { RecoveryPage } from "./pages/RecoveryPage";
+import { ChatroomPage } from "./pages/ChatroomPage";
 import { Header } from "./components/Header";
 import { MaintenanceNotice } from "./components/MaintenanceNotice";
 import { RecoveryKeyModal } from "./components/RecoveryKeyModal";
@@ -316,6 +317,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/export" element={<ExportPage token={token} />} />
           <Route path="/fixed-expenses" element={<FixedExpensesPage token={token} />} />
           <Route path="/variable-expenses" element={<VariableExpensesPage token={token} />} />
+          <Route path="/community" element={<ChatroomPage token={token} />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
 

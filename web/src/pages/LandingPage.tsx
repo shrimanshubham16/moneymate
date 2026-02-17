@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes } from "react-icons/fa";
+import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes, FaComments } from "react-icons/fa";
 import "./LandingPage.css";
 
 export function LandingPage() {
@@ -198,6 +198,20 @@ export function LandingPage() {
             </div>
             <h3>AES-256 Encryption</h3>
             <p>Military-grade encryption. Your data is encrypted before it leaves your device.</p>
+          </motion.div>
+
+          <motion.div
+            className="feature-card"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="feature-icon community">
+              <FaComments />
+            </div>
+            <h3>Community Lounge</h3>
+            <p>Real-time chatroom to share planning tips, guide others, and make new friends. Cleaned daily for a fresh start.</p>
           </motion.div>
         </div>
       </section>

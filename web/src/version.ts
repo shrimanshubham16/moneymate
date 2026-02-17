@@ -17,7 +17,7 @@ const commitId = typeof __COMMIT_ID__ !== 'undefined' ? __COMMIT_ID__ : 'dev';
 
 export const VERSION = {
   major: 2,
-  minor: 1,
+  minor: 2,
   patch: 0,
   build: commitId, // Git commit ID (short SHA)
   
@@ -32,7 +32,7 @@ export const VERSION = {
   },
   
   // Code name for this release
-  codeName: "Premium Polish",
+  codeName: "Community Lounge",
 
   // Release date
   releaseDate: "Feb 17, 2026",
@@ -50,7 +50,9 @@ export const VERSION = {
     "Multi-Step Onboarding — Guided setup for new users",
     "Unified App Modals — Consistent popups replacing browser dialogs",
     "Dashboard Cache Invalidation — Instant data refresh after changes",
-    "PWA Support — Install as a native app on your device"
+    "PWA Support — Install as a native app on your device",
+    "Community Lounge — Real-time chatroom to share tips & make friends",
+    "Zero Edge Function Calls — Chat uses direct PostgREST + Realtime WebSocket"
   ]
 };
 
