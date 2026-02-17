@@ -76,7 +76,12 @@ async function encryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
         encryptString(String(value), key).then(({ ciphertext, iv }) => {
           result[`${field}_enc`] = ciphertext;
           result[`${field}_iv`] = iv;
-          // PHASE 2: NO plaintext - server stores only encrypted data
+          // Keep plaintext for numeric fields — server needs them for financial
+          // calculations (health score, credit card tracking, overspend detection).
+          // Only text fields (names, descriptions, justifications) are encrypted-only.
+          if (typeof value === 'number') {
+            result[field] = value;
+          }
         })
       );
     } else if (typeof value === 'object') {

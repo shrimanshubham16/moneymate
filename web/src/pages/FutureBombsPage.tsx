@@ -292,15 +292,20 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
   };
 
   const handleFormSubmit = async () => {
-    if (!formData.name || !formData.totalAmount || !formData.dueDate) {
-      showAlert("Please fill in all required fields (Name, Total Amount, Due Date).");
-      return;
-    }
+    if (!formData.name.trim()) { showAlert("Name is required."); return; }
+    if (!formData.totalAmount || parseFloat(formData.totalAmount) <= 0) { showAlert("Total amount must be a positive number."); return; }
+    if (!formData.dueDate) { showAlert("Due date is required."); return; }
+    const today = new Date(); today.setHours(0,0,0,0);
+    const due = new Date(formData.dueDate);
+    if (due <= today) { showAlert("Due date must be in the future."); return; }
+    const saved = parseFloat(formData.savedAmount) || 0;
+    if (saved < 0) { showAlert("Saved amount cannot be negative."); return; }
+    if (saved > parseFloat(formData.totalAmount)) { showAlert("Saved amount cannot exceed total amount."); return; }
     try {
       const payload = {
-        name: formData.name,
+        name: formData.name.trim(),
         total_amount: parseFloat(formData.totalAmount),
-        saved_amount: parseFloat(formData.savedAmount) || 0,
+        saved_amount: saved,
         due_date: formData.dueDate
       };
       if (formModal.editId) {
@@ -852,6 +857,8 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
                 value={formData.totalAmount}
                 onChange={e => setFormData({ ...formData, totalAmount: e.target.value })}
                 placeholder="e.g. 500000"
+                min="1"
+                step="1"
               />
             </div>
             <div className="form-group">
@@ -861,6 +868,8 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
                 value={formData.savedAmount}
                 onChange={e => setFormData({ ...formData, savedAmount: e.target.value })}
                 placeholder="0"
+                min="0"
+                step="1"
               />
             </div>
             <div className="form-group">

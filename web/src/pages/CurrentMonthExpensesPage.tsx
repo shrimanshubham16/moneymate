@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaHistory } from "react-icons/fa";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaHistory, FaReceipt, FaChartPie } from "react-icons/fa";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -24,6 +24,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const hasFetchedRef = useRef(false);
   const lastViewRef = useRef<string>("");
+  const [currency, setCurrency] = useState("₹");
 
   // Shared view support
   const { selectedView, getViewParam } = useSharedView(token);
@@ -37,20 +38,26 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
 
   const loadExpenses = async () => {
     try {
-      // Pass view param for shared view support
       const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       const today = new Date();
       const expensesList: any[] = [];
 
-      // Fixed expenses - check payment status
+      // Currency
+      const pref = res.data?.preferences;
+      if (pref?.currency) {
+        const sym: Record<string, string> = { INR: "₹", USD: "$", EUR: "€", GBP: "£" };
+        setCurrency(sym[pref.currency] || pref.currency);
+      }
+
+      // Fixed expenses
       res.data.fixedExpenses?.forEach((exp: any) => {
-        const monthly = exp.frequency === "monthly" ? exp.amount : 
-                       exp.frequency === "quarterly" ? exp.amount / 3 : 
+        const monthly = exp.frequency === "monthly" ? exp.amount :
+                       exp.frequency === "quarterly" ? exp.amount / 3 :
                        exp.amount / 12;
         expensesList.push({
           id: exp.id,
           name: exp.name,
-          category: exp.category,
+          category: exp.category || "Uncategorized",
           type: "Fixed",
           amount: Math.round(monthly),
           status: exp.paid ? "completed" : "pending",
@@ -60,14 +67,14 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
         });
       });
 
-      // Variable expenses with actuals (grouped by subcategory and payment mode)
+      // Variable expenses with actuals
       res.data.variablePlans?.forEach((plan: any) => {
         const actualsBySubcategory: any = {};
-        
+
         (plan.actuals || []).forEach((actual: any) => {
           const subcategory = actual.subcategory || "Unspecified";
           const paymentMode = actual.paymentMode || "Cash";
-          
+
           if (!actualsBySubcategory[subcategory]) {
             actualsBySubcategory[subcategory] = {};
           }
@@ -83,7 +90,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
             expensesList.push({
               id: `${plan.id}-${subcategory}-${paymentMode}`,
               name: plan.name,
-              category: plan.category,
+              category: plan.category || "Uncategorized",
               subcategory,
               paymentMode,
               type: "Variable",
@@ -99,7 +106,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
           expensesList.push({
             id: plan.id,
             name: plan.name,
-            category: plan.category,
+            category: plan.category || "Uncategorized",
             subcategory: "Unspecified",
             paymentMode: "Cash",
             type: "Variable",
@@ -110,16 +117,14 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
         }
       });
 
-      // Group by category → subcategory → payment mode
+      // Build grouped structure
       const grouped = expensesList.reduce((acc: any, exp: any) => {
         if (!acc[exp.category]) acc[exp.category] = {};
-        if (!acc[exp.category][exp.subcategory || "Unspecified"]) {
-          acc[exp.category][exp.subcategory || "Unspecified"] = {};
-        }
-        if (!acc[exp.category][exp.subcategory || "Unspecified"][exp.paymentMode || "Cash"]) {
-          acc[exp.category][exp.subcategory || "Unspecified"][exp.paymentMode || "Cash"] = [];
-        }
-        acc[exp.category][exp.subcategory || "Unspecified"][exp.paymentMode || "Cash"].push(exp);
+        const sub = exp.subcategory || "Unspecified";
+        if (!acc[exp.category][sub]) acc[exp.category][sub] = {};
+        const mode = exp.paymentMode || "Cash";
+        if (!acc[exp.category][sub][mode]) acc[exp.category][sub][mode] = [];
+        acc[exp.category][sub][mode].push(exp);
         return acc;
       }, {});
 
@@ -144,34 +149,28 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     }
   };
 
-  const getStatusColor = (status: string) => {
-    if (status === "completed") return "#10b981";
-    if (status === "pending") return "#f59e0b";
-    return "#64748b";
-  };
-
   const getPaymentModeInfo = (mode: string) => {
     switch (mode) {
       case "UPI":
-        return { icon: <FaMobileAlt size={14} />, color: "#3b82f6", label: "UPI" };
+        return { icon: <FaMobileAlt size={12} />, color: "#60a5fa", label: "UPI", cls: "mode-upi" };
       case "Cash":
-        return { icon: <FaMoneyBillWave size={14} />, color: "#10b981", label: "Cash" };
+        return { icon: <FaMoneyBillWave size={12} />, color: "#34d399", label: "Cash", cls: "mode-cash" };
       case "ExtraCash":
-        return { icon: <FaWallet size={14} />, color: "#8b5cf6", label: "Extra Cash" };
+        return { icon: <FaWallet size={12} />, color: "#a78bfa", label: "Extra Cash", cls: "mode-extra" };
       case "CreditCard":
-        return { icon: <FaCreditCard size={14} />, color: "#f59e0b", label: "Credit Card" };
+        return { icon: <FaCreditCard size={12} />, color: "#f59e0b", label: "Credit Card", cls: "mode-cc" };
       default:
-        return { icon: <FaMoneyBillWave size={14} />, color: "#64748b", label: mode };
+        return { icon: <FaMoneyBillWave size={12} />, color: "#94a3b8", label: mode, cls: "mode-default" };
     }
   };
 
-  const prepareChartData = (selectedCat: string | null) => {
-    const paymentModeData: any = {};
-    expenses.forEach(categoryGroup => {
-      categoryGroup.subcategories.forEach((subcategoryGroup: any) => {
-        subcategoryGroup.modes.forEach((modeGroup: any) => {
-          const mode = modeGroup.paymentMode;
-          paymentModeData[mode] = (paymentModeData[mode] || 0) + modeGroup.total;
+  // Compute chart data
+  const prepareChartData = () => {
+    const paymentModeData: Record<string, number> = {};
+    expenses.forEach(cg => {
+      cg.subcategories.forEach((sg: any) => {
+        sg.modes.forEach((mg: any) => {
+          paymentModeData[mg.paymentMode] = (paymentModeData[mg.paymentMode] || 0) + mg.total;
         });
       });
     });
@@ -182,13 +181,13 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
       color: getPaymentModeInfo(name).color
     }));
 
-    const categoryChartData = expenses.map(categoryGroup => ({
-      name: categoryGroup.category,
-      amount: categoryGroup.total
+    const categoryChartData = expenses.map(cg => ({
+      name: cg.category,
+      amount: cg.total
     }));
 
-    const subcategoryChartData = selectedCat 
-      ? expenses.find(cg => cg.category === selectedCat)?.subcategories.map((sub: any) => ({
+    const subcategoryChartData = selectedCategory
+      ? expenses.find(cg => cg.category === selectedCategory)?.subcategories.map((sub: any) => ({
           name: sub.subcategory,
           amount: sub.total
         })) || []
@@ -197,46 +196,37 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     return { paymentModeChartData, categoryChartData, subcategoryChartData };
   };
 
-  const chartData = expenses.length > 0 ? prepareChartData(selectedCategory) : { paymentModeChartData: [], categoryChartData: [], subcategoryChartData: [] };
+  const chartData = expenses.length > 0 ? prepareChartData() : { paymentModeChartData: [], categoryChartData: [], subcategoryChartData: [] };
   const { paymentModeChartData, categoryChartData, subcategoryChartData } = chartData;
+
+  // Totals
+  const grandTotal = expenses.reduce((sum, cg) => sum + cg.total, 0);
+  const fixedTotal = expenses.reduce((sum, cg) => sum + cg.subcategories.reduce((s2: number, sg: any) =>
+    s2 + sg.modes.reduce((s3: number, mg: any) =>
+      s3 + mg.items.filter((i: any) => i.type === "Fixed").reduce((s4: number, i: any) => s4 + i.amount, 0), 0), 0), 0);
+  const variableTotal = grandTotal - fixedTotal;
 
   return (
     <div className="current-month-expenses-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <h1>Current Month Expenses</h1>
-          <PageInfoButton
-            title="Current Month Expenses"
-            description="A single, beautiful breakdown of every rupee you've spent this month — organised by category, subcategory, and payment mode. Charts make patterns obvious. Use the History button to compare with previous months."
-            impact="Understanding where your money goes is the first step to controlling it. This view combines fixed and variable expenses into one unified picture, so you can spot the categories that eat the most and adjust next month's plan."
-            howItWorks={[
-              "Expenses are grouped by Category → Subcategory → Payment Mode for easy drill-down",
-              "UPI/Cash reduces available funds, Extra Cash doesn't, Credit Card defers to your card bill",
-              "Interactive pie chart shows payment mode split; bar chart shows category-wise totals",
-              "Click History to compare spending across previous months and spot trends",
-              "Both fixed expense payments and variable expense actuals are included automatically"
-            ]}
-          />
-        </div>
-        <button 
-          className="icon-btn" 
+        <h1><FaReceipt style={{ marginRight: 10, verticalAlign: 'middle' }} />Expenses</h1>
+        <PageInfoButton
+          title="Current Month Expenses"
+          description="A single, beautiful breakdown of every rupee you've spent this month — organised by category, subcategory, and payment mode. Charts make patterns obvious. Use the History button to compare with previous months."
+          impact="Understanding where your money goes is the first step to controlling it. This view combines fixed and variable expenses into one unified picture, so you can spot the categories that eat the most and adjust next month's plan."
+          howItWorks={[
+            "Expenses are grouped by Category → Subcategory → Payment Mode for easy drill-down",
+            "UPI/Cash reduces available funds, Extra Cash doesn't, Credit Card defers to your card bill",
+            "Interactive pie chart shows payment mode split; bar chart shows category-wise totals",
+            "Click History to compare spending across previous months and spot trends",
+            "Both fixed expense payments and variable expense actuals are included automatically"
+          ]}
+        />
+        <button
+          className="cme-history-btn"
           onClick={() => setShowHistoryModal(true)}
           title="View History"
-          style={{ 
-            background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', 
-            color: 'white', 
-            width: '40px', 
-            height: '40px', 
-            borderRadius: '50%', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            fontSize: '16px',
-            border: 'none',
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)'
-          }}
         >
           <FaHistory />
         </button>
@@ -244,20 +234,48 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
 
       <SharedViewBanner />
 
-      {loading ? <SkeletonLoader type="card" count={5} /> : expenses.length === 0 ? (
-        <div className="empty-state">No expenses for the current month.</div>
+      {loading ? <SkeletonLoader type="card" count={4} /> : expenses.length === 0 ? (
+        <div className="cme-empty-state">
+          <FaChartPie size={56} color="#60a5fa" />
+          <h3>No Expenses Yet</h3>
+          <p>Nothing spent this month so far. When you log payments — fixed or variable — they&apos;ll appear here beautifully categorised.</p>
+        </div>
       ) : (
         <>
-          {/* Charts Section */}
+          {/* Summary Hero */}
+          <div className="cme-summary-hero">
+            <div className="cme-hero-main">
+              <div className="cme-hero-label">Total Spent</div>
+              <div className="cme-hero-amount">{currency}{grandTotal.toLocaleString("en-IN")}</div>
+            </div>
+            <div className="cme-hero-stats">
+              <div className="cme-hero-stat">
+                <span className="cme-stat-label">Fixed</span>
+                <span className="cme-stat-value stat-fixed">{currency}{fixedTotal.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="cme-hero-stat">
+                <span className="cme-stat-label">Variable</span>
+                <span className="cme-stat-value stat-variable">{currency}{variableTotal.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="cme-hero-stat">
+                <span className="cme-stat-label">Categories</span>
+                <span className="cme-stat-value stat-categories">{expenses.length}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts */}
           {paymentModeChartData.length > 0 && (
-            <div className="chart-grid">
+            <div className="cme-chart-grid">
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="chart-card"
+                className="cme-chart-card"
               >
-                <h3 className="chart-title">Payment Mode Distribution</h3>
-                <ResponsiveContainer width="100%" height={300}>
+                <div className="cme-chart-header">
+                  <h3 className="cme-chart-title">Payment Mode Split</h3>
+                </div>
+                <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
                     <Pie
                       data={paymentModeChartData}
@@ -265,62 +283,72 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                       cy="50%"
                       labelLine={false}
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
+                      outerRadius={95}
+                      innerRadius={45}
                       fill="#8884d8"
                       dataKey="value"
+                      strokeWidth={2}
+                      stroke="rgba(0,0,0,0.3)"
                     >
                       {paymentModeChartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => `₹${value.toLocaleString("en-IN")}`} />
+                    <Tooltip
+                      formatter={(value: number) => `${currency}${value.toLocaleString("en-IN")}`}
+                      contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid rgba(184,193,236,0.12)', borderRadius: 8 }}
+                      labelStyle={{ color: 'var(--text-primary)' }}
+                      itemStyle={{ color: 'var(--text-secondary)' }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.1 }}
-                className="chart-card"
+                className="cme-chart-card"
               >
-                <div className="chart-header">
-                  <h3 className="chart-title">
-                    {selectedCategory ? `Subcategory Breakdown: ${selectedCategory}` : 'Category Breakdown'}
+                <div className="cme-chart-header">
+                  <h3 className="cme-chart-title">
+                    {selectedCategory ? `${selectedCategory} — Subcategories` : 'By Category'}
                   </h3>
                   {selectedCategory && (
                     <button
                       onClick={() => setSelectedCategory(null)}
-                      className="chart-back-btn"
+                      className="cme-chart-back-btn"
                     >
-                      ← Back to Categories
+                      ← All Categories
                     </button>
                   )}
                 </div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart 
-                    data={selectedCategory ? subcategoryChartData : categoryChartData}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                    <YAxis />
-                    <Tooltip formatter={(value: number) => `₹${value.toLocaleString("en-IN")}`} />
-                    <Bar 
-                      dataKey="amount" 
-                      fill={selectedCategory ? "#8b5cf6" : "#3b82f6"}
-                      onClick={(data: any) => {
-                        if (!selectedCategory) {
-                          const categoryName = data?.payload?.name || data?.name || (data?.activePayload && data.activePayload[0]?.payload?.name);
-                          if (categoryName) {
-                            setSelectedCategory(categoryName);
-                          }
-                        }
-                      }}
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={selectedCategory ? subcategoryChartData : categoryChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(184,193,236,0.08)" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-35}
+                      textAnchor="end"
+                      height={70}
+                      tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }}
+                    />
+                    <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
+                    <Tooltip
+                      formatter={(value: number) => `${currency}${value.toLocaleString("en-IN")}`}
+                      contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid rgba(184,193,236,0.12)', borderRadius: 8 }}
+                      labelStyle={{ color: 'var(--text-primary)' }}
+                      itemStyle={{ color: 'var(--text-secondary)' }}
+                    />
+                    <Bar
+                      dataKey="amount"
+                      fill={selectedCategory ? "#a78bfa" : "#3b82f6"}
+                      radius={[6, 6, 0, 0]}
                     >
                       {(selectedCategory ? subcategoryChartData : categoryChartData).map((entry: any, index: number) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={selectedCategory ? "#8b5cf6" : "#3b82f6"}
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={selectedCategory ? "#a78bfa" : "#3b82f6"}
                           style={{ cursor: selectedCategory ? 'default' : 'pointer' }}
                           onClick={() => {
                             if (!selectedCategory && entry.name) {
@@ -333,89 +361,110 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                   </BarChart>
                 </ResponsiveContainer>
                 {!selectedCategory && (
-                  <p className="chart-hint">
-                    Click on a category bar to see subcategory breakdown
+                  <p className="cme-chart-hint">
+                    Tap a bar to drill into subcategories
                   </p>
                 )}
               </motion.div>
             </div>
           )}
 
-          <div className="expenses-by-category">
-          {expenses.map((categoryGroup, categoryIndex) => (
-            <motion.div
-              key={categoryGroup.category}
-              className="category-group"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: categoryIndex * 0.1 }}
-            >
-              <div className="category-header">
-                <h2>{categoryGroup.category}</h2>
-                <div className="category-total">₹{categoryGroup.total.toLocaleString("en-IN")}</div>
-              </div>
-              
-              {categoryGroup.subcategories.map((subcategoryGroup: any, subcategoryIndex: number) => (
-                <div key={`${categoryGroup.category}-${subcategoryGroup.subcategory}`} style={{ marginTop: subcategoryIndex > 0 ? '20px' : '0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', paddingLeft: '12px' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#4b5563' }}>
-                      {subcategoryGroup.subcategory}
-                    </h3>
-                    <span style={{ fontSize: '14px', color: '#6b7280' }}>
-                      (₹{subcategoryGroup.total.toLocaleString("en-IN")})
-                    </span>
-                  </div>
-                  
-                  {subcategoryGroup.modes.map((modeGroup: any, modeIndex: number) => {
-                    const paymentInfo = getPaymentModeInfo(modeGroup.paymentMode);
-                    return (
-                      <div key={`${categoryGroup.category}-${subcategoryGroup.subcategory}-${modeGroup.paymentMode}`} 
-                           style={{ marginBottom: '12px', paddingLeft: '24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <span style={{ color: paymentInfo.color }}>{paymentInfo.icon}</span>
-                          <span style={{ fontSize: '14px', fontWeight: '500', color: paymentInfo.color }}>
-                            {paymentInfo.label}
-                          </span>
-                          <span style={{ fontSize: '14px', color: '#6b7280' }}>
-                            ₹{modeGroup.total.toLocaleString("en-IN")}
-                          </span>
-                        </div>
-                        
-                        {modeGroup.items.map((item: any) => (
-                          <div key={item.id} className="expense-item" style={{ marginLeft: '8px', marginBottom: '8px' }}>
-                            <div className="expense-info">
-                              <h3 style={{ fontSize: '14px' }}>{item.name}</h3>
-                              <div className="expense-meta">
-                                <span className="expense-type">{item.type}</span>
-                                {item.planned && (
-                                  <span className="expense-planned">
-                                    Planned: ₹{item.planned.toLocaleString("en-IN")}
+          {/* Category Sections */}
+          <div className="cme-categories">
+            {expenses.map((categoryGroup, catIdx) => (
+              <motion.div
+                key={categoryGroup.category}
+                className="cme-category-section"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: catIdx * 0.06 }}
+              >
+                <div className="cme-category-header">
+                  <h2>{categoryGroup.category}</h2>
+                  <span className="cme-category-total">{currency}{categoryGroup.total.toLocaleString("en-IN")}</span>
+                </div>
+
+                {categoryGroup.subcategories.map((subcategoryGroup: any) => (
+                  <div key={`${categoryGroup.category}-${subcategoryGroup.subcategory}`} className="cme-subcategory">
+                    {/* Show subcategory header only if more than 1 or if not "Unspecified" */}
+                    {(categoryGroup.subcategories.length > 1 || subcategoryGroup.subcategory !== "Unspecified") && (
+                      <div className="cme-subcategory-header">
+                        <span className="cme-subcategory-name">{subcategoryGroup.subcategory}</span>
+                        <span className="cme-subcategory-total">
+                          ({currency}{subcategoryGroup.total.toLocaleString("en-IN")})
+                        </span>
+                      </div>
+                    )}
+
+                    {subcategoryGroup.modes.map((modeGroup: any) => {
+                      const paymentInfo = getPaymentModeInfo(modeGroup.paymentMode);
+                      return (
+                        <div key={`${categoryGroup.category}-${subcategoryGroup.subcategory}-${modeGroup.paymentMode}`} className="cme-mode-group">
+                          {/* Show payment mode header if multiple modes */}
+                          {subcategoryGroup.modes.length > 1 && (
+                            <div className="cme-mode-header">
+                              <div className={`cme-mode-icon ${paymentInfo.cls}`}>{paymentInfo.icon}</div>
+                              <span className="cme-mode-label" style={{ color: paymentInfo.color }}>{paymentInfo.label}</span>
+                              <span className="cme-mode-total">{currency}{modeGroup.total.toLocaleString("en-IN")}</span>
+                            </div>
+                          )}
+
+                          {modeGroup.items.map((item: any) => (
+                            <div key={item.id} className="cme-expense-item">
+                              <div className="cme-expense-info">
+                                <h4 className="cme-expense-name">{item.name}</h4>
+                                <div className="cme-expense-meta">
+                                  <span className={`cme-expense-type-badge ${item.type === "Fixed" ? "type-fixed" : "type-variable"}`}>
+                                    {item.type}
                                   </span>
+                                  {/* Show payment icon if only 1 mode (header not shown) */}
+                                  {subcategoryGroup.modes.length === 1 && (
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: paymentInfo.color, fontSize: '0.72rem', fontWeight: 600 }}>
+                                      {paymentInfo.icon} {paymentInfo.label}
+                                    </span>
+                                  )}
+                                  {item.planned > 0 && (
+                                    <span className="cme-expense-planned">
+                                      Plan: {currency}{item.planned.toLocaleString("en-IN")}
+                                    </span>
+                                  )}
+                                </div>
+                                {/* Overspend indicator for variable expenses */}
+                                {item.type === "Variable" && item.planned > 0 && (
+                                  <div className="cme-overspend-bar">
+                                    <div
+                                      className="cme-overspend-fill"
+                                      style={{
+                                        width: `${Math.min((item.amount / item.planned) * 100, 100)}%`,
+                                        background: item.amount > item.planned
+                                          ? '#ef4444'
+                                          : item.amount > item.planned * 0.8
+                                            ? '#f59e0b'
+                                            : '#10b981'
+                                      }}
+                                    />
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                            <div className="expense-amount-status">
-                              <div className="expense-amount">₹{item.amount.toLocaleString("en-IN")}</div>
-                              <div
-                                className="expense-status"
-                                style={{ color: getStatusColor(item.status) }}
-                              >
-                                {item.status.toUpperCase()}
+                              <div className="cme-expense-right">
+                                <span className="cme-expense-amount">{currency}{item.amount.toLocaleString("en-IN")}</span>
+                                <span className={`cme-expense-status status-${item.status}`}>
+                                  {item.status === "completed" ? "Paid" : "Pending"}
+                                </span>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </motion.div>
-          ))}
-        </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </motion.div>
+            ))}
+          </div>
         </>
       )}
-      
+
       {/* History Modal */}
       <ActivityHistoryModal
         token={token}

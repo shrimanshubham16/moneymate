@@ -232,15 +232,15 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         </div>
       </div>
 
-      {/* v1.2: Billing Alerts */}
+      {/* Billing Alerts */}
       {billingAlerts.length > 0 && (
-        <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <div style={{ marginBottom: 20, padding: '12px 16px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontWeight: 700, color: '#f59e0b', fontSize: '0.9rem' }}>
             <FaBell color="#f59e0b" />
-            <strong>Billing Alerts</strong>
+            Billing Alerts
           </div>
           {billingAlerts.map((alert, idx) => (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               <FaExclamationTriangle size={14} color="#f59e0b" />
               <span>{alert.message}</span>
             </div>
@@ -249,7 +249,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       )}
 
       {isSharedView && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', backgroundColor: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#a78bfa' }}>
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', color: '#a78bfa' }}>
           <FaInfoCircle size={14} />
           <span>Credit card management shows only your own cards. Shared members&apos; cards are private.</span>
         </div>
@@ -274,46 +274,18 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                   <div key={card.id} className="card-item">
                     <div className="card-header">
                       <h3>{card.name}</h3>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        {/* v1.2: Update Bill Button */}
-                        <button
-                          onClick={() => {
-                            setSelectedCardId(card.id);
-                            setUpdateBillForm({ billAmount: (card.billAmount || 0).toString() });
-                            setShowUpdateBillModal(true);
-                          }}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="ccm-action-btn edit"
+                          onClick={() => { setSelectedCardId(card.id); setUpdateBillForm({ billAmount: (card.billAmount || 0).toString() }); setShowUpdateBillModal(true); }}
                           title="Update bill amount"
-                          style={{
-                            padding: '6px 12px',
-                            backgroundColor: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
                         >
-                          <FaEdit size={14} />
+                          <FaEdit size={14} /> Bill
                         </button>
-                        {/* v1.2: View Usage Button */}
-                        <button
+                        <button className="ccm-action-btn usage"
                           onClick={() => loadCardUsage(card.id)}
                           title="View credit card usage"
-                          style={{
-                            padding: '6px 12px',
-                            backgroundColor: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
                         >
-                          <FaHistory size={14} />
+                          <FaHistory size={14} /> Usage
                         </button>
                         <button
                           className="delete-btn"
@@ -325,66 +297,64 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       </div>
                     </div>
                     <div className="card-details">
-                      {/* v1.2: Current Expenses */}
+                      {/* Current Expenses */}
                       {(card.currentExpenses || 0) > 0 && (
-                        <div className="detail-row" style={{ backgroundColor: '#fef3c7', padding: '8px', borderRadius: '4px', marginBottom: '8px' }}>
-                          <span><strong>Current Expenses:</strong></span>
-                          <span className="amount" style={{ color: '#f59e0b', fontWeight: 'bold' }}>
+                        <div className="detail-row" style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.15)', padding: '8px 12px', borderRadius: 8 }}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Current Expenses</span>
+                          <span className="amount" style={{ color: '#f59e0b' }}>
                             ₹{(card.currentExpenses || 0).toLocaleString("en-IN")}
                           </span>
                         </div>
                       )}
                       <div className="detail-row">
-                        <span>Bill Amount:</span>
+                        <span>Bill Amount</span>
                         <span className="amount">₹{(card.billAmount || 0).toLocaleString("en-IN")}</span>
                       </div>
                       <div className="detail-row">
-                        <span>Paid Amount:</span>
-                        <span className="amount">₹{(parseFloat(card.paidAmount || 0)).toLocaleString("en-IN")}</span>
+                        <span>Paid Amount</span>
+                        <span className="amount" style={{ color: '#10b981' }}>₹{(parseFloat(card.paidAmount || 0)).toLocaleString("en-IN")}</span>
                       </div>
                       <div className="detail-row">
-                        <span>Remaining:</span>
+                        <span>Remaining</span>
                         <span className={`amount ${remaining > 0 ? 'negative' : 'positive'}`}>
                           ₹{remaining.toLocaleString("en-IN")}
                         </span>
                       </div>
                       <div className="detail-row">
-                        <span>Due Date:</span>
-                        <span>{new Date(card.dueDate).toLocaleDateString()}</span>
+                        <span>Due Date</span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{new Date(card.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
-                      {/* v1.2: Billing Date */}
                       <div className="detail-row">
-                        <span>Billing Date:</span>
-                        <span>Day {card.billingDate || 1} of each month</span>
+                        <span>Billing Date</span>
+                        <span style={{ color: 'var(--text-primary)' }}>Day {card.billingDate || 1} of each month</span>
                       </div>
-                      {/* v1.2: Needs Bill Update Alert */}
                       {card.needsBillUpdate && (
-                        <div className="detail-row" style={{ backgroundColor: '#fee2e2', padding: '8px', borderRadius: '4px', marginTop: '8px' }}>
-                          <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
-                            Bill needs to be updated with actual amount
-                          </span>
+                        <div style={{ padding: '8px 12px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: 8, color: '#f87171', fontWeight: 700, fontSize: '0.85rem' }}>
+                          ⚠ Bill needs to be updated with actual amount
                         </div>
                       )}
                     </div>
-                    {/* v1.2: Reset Billing Button */}
+                    {/* Reset Billing */}
                     {(card.currentExpenses || 0) > 0 && (
-                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
+                      <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(184, 193, 236, 0.08)' }}>
                         <button
                           onClick={() => handleResetBilling(card.id, card.name)}
                           style={{
                             width: '100%',
-                            padding: '8px',
-                            backgroundColor: '#f59e0b',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
+                            padding: '10px',
+                            background: 'rgba(245, 158, 11, 0.12)',
+                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                            borderRadius: 10,
                             cursor: 'pointer',
-                            fontWeight: 'bold'
+                            fontWeight: 700,
+                            color: '#f59e0b',
+                            fontSize: '0.9rem',
+                            transition: 'all 0.2s'
                           }}
                         >
                           Reset for Billing (₹{(card.currentExpenses || 0).toLocaleString("en-IN")})
                         </button>
-                        <small style={{ display: 'block', marginTop: '4px', color: '#6b7280' }}>
+                        <small style={{ display: 'block', marginTop: 4, color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
                           This will reset current expenses to 0. You'll need to manually update the bill amount.
                         </small>
                       </div>
@@ -396,12 +366,15 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
           )}
 
           {showForm && (
-            <motion.div className="modal-overlay" onClick={() => setShowForm(false)}>
-              <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <motion.div className="modal-overlay" onClick={() => setShowForm(false)}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div className="modal-shell modal-md" onClick={(e) => e.stopPropagation()}
+                initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
                 <div className="modal-header">
-                  <h2>Add New Credit Card</h2>
-                  <button onClick={() => setShowForm(false)}>✕</button>
+                  <h3>Add New Credit Card</h3>
+                  <button className="modal-close" onClick={() => setShowForm(false)}>✕</button>
                 </div>
+                <div className="modal-body">
                 <form onSubmit={handleSubmit}>
                   <div className="form-group">
                     <label>Card Name *</label>
@@ -422,7 +395,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       min="0"
                       placeholder="0 (can be set later)"
                     />
-                    <small style={{ color: '#6b7280', display: 'block', marginTop: '4px' }}>
+                    <small style={{ color: 'var(--text-tertiary)', display: 'block', marginTop: 4, fontSize: '0.8rem' }}>
                       Leave as 0 if no current bill. You can update it later when bill is generated.
                     </small>
                   </div>
@@ -464,12 +437,12 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                         required
                         placeholder="1"
                       />
-                      <small style={{ color: '#6b7280', display: 'block', marginTop: '4px' }}>
+                      <small style={{ color: 'var(--text-tertiary)', display: 'block', marginTop: 4, fontSize: '0.8rem' }}>
                         Day of month when bill is generated (1-31)
                       </small>
                     </div>
                   </div>
-                  <div className="form-actions">
+                  <div className="form-actions" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
                     <button type="button" onClick={() => setShowForm(false)}>
                       Cancel
                     </button>
@@ -478,13 +451,14 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                     </button>
                   </div>
                 </form>
+                </div>
               </motion.div>
             </motion.div>
           )}
         </>
       )}
 
-      {/* v1.2: Usage Modal - Improved UI */}
+      {/* Usage Modal – Dark Theme */}
       {showUsageModal && selectedCardId && (
         <motion.div 
           className="modal-overlay" 
@@ -494,161 +468,116 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
           exit={{ opacity: 0 }}
         >
           <motion.div 
-            className="modal-content" 
+            className="modal-shell modal-md"
             onClick={(e) => e.stopPropagation()} 
-            style={{ maxWidth: '550px', maxHeight: '80vh', overflow: 'hidden', borderRadius: '16px', position: 'relative' }}
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            initial={{ scale: 0.95, opacity: 0, y: 24 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
           >
-            {/* Close button - top right corner */}
-            <button 
-              onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                border: 'none',
-                backgroundColor: '#f3f4f6',
-                color: '#6b7280',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                transition: 'all 0.2s',
-                zIndex: 10
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#ef4444'; e.currentTarget.style.color = 'white'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; e.currentTarget.style.color = '#6b7280'; }}
-              title="Close"
-            >
-              ✕
-            </button>
-            
-            {/* Header */}
-            <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #e5e7eb' }}>
-              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#111827', paddingRight: '40px' }}>
-                <FaCreditCard style={{ marginRight: '8px', verticalAlign: 'middle', color: '#10b981' }} />
-                Credit Card Usage
-              </h2>
-              <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#6b7280' }}>
-                {cards.find(c => c.id === selectedCardId)?.name || 'Card'} • Expenses this billing cycle
-              </p>
+            <div className="modal-header">
+              <h3><FaCreditCard style={{ marginRight: 8, opacity: 0.7 }} />
+                {cards.find(c => c.id === selectedCardId)?.name || 'Card'} — Usage
+              </h3>
+              <button className="modal-close" onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}>✕</button>
             </div>
-            
-            {cardUsage.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <div style={{ fontSize: '48px', marginBottom: '12px' }}><FaCreditCard style={{ color: '#6b7280' }} /></div>
-                <p style={{ color: '#6b7280', margin: 0 }}>No expenses charged to this card yet.</p>
-                <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '8px' }}>Expenses paid via this card will appear here.</p>
-              </div>
-            ) : (
-              <div style={{ padding: '16px 20px', overflowY: 'auto', maxHeight: 'calc(80vh - 120px)' }}>
-                {/* Total Summary */}
-                <div style={{ 
-                  marginBottom: '16px', 
-                  padding: '16px', 
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  borderRadius: '12px',
-                  color: 'white'
-                }}>
-                  <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>Total Unbilled Expenses</div>
-                  <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
-                    ₹{cardUsage.reduce((sum, u) => sum + (parseFloat(u.amount) || 0), 0).toLocaleString("en-IN")}
-                  </div>
-                  <div style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px' }}>
-                    {cardUsage.length} transaction{cardUsage.length !== 1 ? 's' : ''}
-                  </div>
+            <div className="modal-body">
+              {cardUsage.length === 0 ? (
+                <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                  <FaCreditCard size={48} style={{ color: 'var(--text-tertiary)', marginBottom: 12 }} />
+                  <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No expenses charged to this card yet.</p>
+                  <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', marginTop: 8 }}>Expenses paid via this card will appear here.</p>
                 </div>
-                
-                {/* Usage List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {cardUsage.map((usage: any, index: number) => {
-                    const plan = plans.find((p: any) => p.id === usage.planId);
-                    return (
-                      <motion.div 
-                        key={usage.id} 
-                        style={{ 
-                          padding: '14px', 
-                          border: '1px solid #e5e7eb', 
-                          borderRadius: '10px',
-                          backgroundColor: '#fafafa',
-                          transition: 'all 0.2s'
-                        }}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        whileHover={{ backgroundColor: '#f3f4f6', borderColor: '#d1d5db' }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, color: '#111827', marginBottom: '4px' }}>
-                              {plan?.name || 'Unknown Expense'}
-                            </div>
-                            <div style={{ fontSize: '13px', color: '#6b7280' }}>
-                              {plan?.category || 'Uncategorized'}
-                              {usage.subcategory && usage.subcategory !== 'Unspecified' && ` • ${usage.subcategory}`}
-                            </div>
-                            {usage.justification && (
-                              <div style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic', marginTop: '4px' }}>
-                                "{usage.justification}"
+              ) : (
+                <>
+                  {/* Total Summary */}
+                  <div style={{ marginBottom: 16, padding: 16, background: 'linear-gradient(135deg, rgba(0, 217, 255, 0.12), rgba(167, 139, 250, 0.12))', border: '1px solid rgba(0, 217, 255, 0.15)', borderRadius: 12 }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Total Unbilled Expenses</div>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-cyan, #22d3ee)' }}>
+                      ₹{cardUsage.reduce((sum, u) => sum + (parseFloat(u.amount) || 0), 0).toLocaleString("en-IN")}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: 4 }}>
+                      {cardUsage.length} transaction{cardUsage.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  
+                  {/* Usage List */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {cardUsage.map((usage: any, index: number) => {
+                      const plan = plans.find((p: any) => p.id === usage.planId);
+                      return (
+                        <motion.div 
+                          key={usage.id} 
+                          style={{ padding: 14, background: 'var(--bg-base)', border: '1px solid var(--border-subtle, rgba(184, 193, 236, 0.08))', borderRadius: 10, transition: 'all 0.2s' }}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                                {plan?.name || 'Unknown Expense'}
                               </div>
-                            )}
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#ef4444' }}>
-                              ₹{(parseFloat(usage.amount) || 0).toLocaleString("en-IN")}
+                              <div style={{ fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>
+                                {plan?.category || 'Uncategorized'}
+                                {usage.subcategory && usage.subcategory !== 'Unspecified' && ` · ${usage.subcategory}`}
+                              </div>
+                              {usage.justification && (
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', fontStyle: 'italic', marginTop: 4 }}>
+                                  &ldquo;{usage.justification}&rdquo;
+                                </div>
+                              )}
                             </div>
-                            <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
-                              {usage.incurredAt ? new Date(usage.incurredAt).toLocaleDateString('en-IN', {
-                                day: '2-digit',
-                                month: 'short'
-                              }) : ''}
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontWeight: 700, fontSize: '1rem', color: '#f87171' }}>
+                                ₹{(parseFloat(usage.amount) || 0).toLocaleString("en-IN")}
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                                {usage.incurredAt ? new Date(usage.incurredAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </motion.div>
         </motion.div>
       )}
 
-      {/* v1.2: Update Bill Modal */}
+      {/* Update Bill Modal */}
       {showUpdateBillModal && selectedCardId && (
-        <motion.div className="modal-overlay" onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}>
-          <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <motion.div className="modal-overlay" onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div className="modal-shell modal-sm" onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
             <div className="modal-header">
-              <h2>Update Bill Amount</h2>
-              <button onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}>✕</button>
+              <h3>Update Bill Amount</h3>
+              <button className="modal-close" onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}>✕</button>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); handleUpdateBill(selectedCardId); }}>
-              <div className="form-group">
-                <label>Bill Amount *</label>
-                <input
-                  type="number"
-                  value={updateBillForm.billAmount}
-                  onChange={(e) => setUpdateBillForm({ billAmount: e.target.value })}
-                  required
-                  min="0"
-                  step="0.01"
-                />
-                <small style={{ color: '#6b7280', display: 'block', marginTop: '4px' }}>
-                  Update the bill amount with actual charges (including fees, friend's usage, etc.)
-                </small>
-              </div>
-              <div className="form-actions">
-                <button type="button" onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}>Cancel</button>
-                <button type="submit" className="primary">Update Bill</button>
-              </div>
-            </form>
+            <div className="modal-body">
+              <form onSubmit={(e) => { e.preventDefault(); handleUpdateBill(selectedCardId); }}>
+                <div className="form-group">
+                  <label>Bill Amount *</label>
+                  <input
+                    type="number"
+                    value={updateBillForm.billAmount}
+                    onChange={(e) => setUpdateBillForm({ billAmount: e.target.value })}
+                    required
+                    min="0"
+                    step="0.01"
+                  />
+                  <small style={{ color: 'var(--text-tertiary)', display: 'block', marginTop: 4, fontSize: '0.8rem' }}>
+                    Update the bill amount with actual charges (including fees, etc.)
+                  </small>
+                </div>
+                <div className="form-actions" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+                  <button type="button" onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}>Cancel</button>
+                  <button type="submit" className="primary">Update Bill</button>
+                </div>
+              </form>
+            </div>
           </motion.div>
         </motion.div>
       )}

@@ -1,4 +1,4 @@
-/* Current Month Expenses Page - CRED/Blissy Style */
+/* Current Month Expenses – Premium Dark Theme */
 
 .current-month-expenses-page {
   max-width: 1400px;
@@ -7,208 +7,505 @@
   min-height: calc(100vh - 72px);
 }
 
-.page-subtitle {
-  font-size: var(--text-base);
-  color: var(--text-secondary);
-  margin-top: var(--space-2);
-}
-
-.expenses-by-category {
+.current-month-expenses-page .page-header {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  margin-top: var(--space-8);
-}
-
-.category-group {
-  background: var(--bg-elevated);
-  border-radius: var(--radius-xl);
-  padding: var(--space-8);
-  box-shadow: var(--shadow-md), var(--card-glow);
-  border: 1px solid rgba(184, 193, 236, 0.05);
-}
-
-.category-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid rgba(184, 193, 236, 0.1);
-}
-
-.category-header h2 {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-extrabold);
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.category-total {
-  font-size: var(--text-3xl);
-  font-weight: var(--font-extrabold);
-  color: var(--accent-cyan);
-  text-shadow: var(--glow-cyan);
-}
-
-.category-items {
-  display: flex;
-  flex-direction: column;
   gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
-.expense-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-5);
-  background: rgba(184, 193, 236, 0.03);
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(184, 193, 236, 0.05);
-  transition: all var(--transition-base);
-}
-
-.expense-item:hover {
-  background: rgba(184, 193, 236, 0.05);
-  border-color: rgba(0, 217, 255, 0.2);
-  transform: translateX(4px);
-}
-
-.expense-info h3 {
-  font-size: var(--text-lg);
+.current-month-expenses-page .page-header h1 {
+  font-size: var(--text-2xl);
   font-weight: var(--font-bold);
   color: var(--text-primary);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.expense-meta {
   display: flex;
-  gap: var(--space-4);
-  font-size: var(--text-small);
-  color: var(--text-secondary);
+  align-items: center;
 }
 
-.expense-type {
-  padding: var(--space-1) var(--space-3);
-  background: rgba(0, 217, 255, 0.1);
-  border-radius: var(--radius-full);
-  font-weight: var(--font-semibold);
-  color: var(--accent-cyan);
+.cme-history-btn {
+  margin-left: auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+  transition: all 0.2s;
 }
 
-.expense-amount-status {
+.cme-history-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.45);
+}
+
+/* ── Summary Hero ── */
+.cme-summary-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-bottom: var(--space-8);
+  padding: var(--space-6) var(--space-7);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184,193,236,0.08));
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.cme-summary-hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #22d3ee);
+}
+
+.cme-hero-main {
+  flex: 1;
+  min-width: 200px;
+}
+
+.cme-hero-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-1);
+}
+
+.cme-hero-amount {
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #3b82f6, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+}
+
+.cme-hero-stats {
+  display: flex;
+  gap: var(--space-5);
+  align-items: center;
+}
+
+.cme-hero-stat {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-2);
+  gap: 2px;
+  padding-left: var(--space-5);
+  border-left: 1px solid rgba(184,193,236,0.12);
 }
 
-.expense-amount {
+.cme-hero-stat:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.cme-stat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cme-stat-value {
   font-size: var(--text-xl);
   font-weight: var(--font-extrabold);
   color: var(--text-primary);
 }
 
-.expense-status {
-  font-size: var(--text-tiny);
-  font-weight: var(--font-bold);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  background: rgba(255, 184, 0, 0.1);
-}
+.cme-stat-value.stat-fixed { color: #60a5fa; }
+.cme-stat-value.stat-variable { color: #a78bfa; }
+.cme-stat-value.stat-categories { color: var(--accent-cyan, #22d3ee); }
 
-.empty-state {
-  text-align: center;
-  padding: var(--space-16);
-  color: var(--text-secondary);
-  font-size: var(--text-lg);
-}
-
-.chart-grid {
+/* ── Charts Section ── */
+.cme-chart-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-8);
 }
 
-.chart-card {
+.cme-chart-card {
   background: var(--bg-elevated);
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: var(--shadow-md), var(--card-glow);
-  border: 1px solid rgba(184, 193, 236, 0.05);
+  border: 1px solid var(--border-subtle, rgba(184,193,236,0.08));
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-md);
   min-width: 0;
   overflow: hidden;
 }
 
-.chart-title {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.chart-header {
+.cme-chart-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
-.chart-back-btn {
-  padding: 6px 12px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+.cme-chart-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.cme-chart-back-btn {
+  padding: 4px 10px;
+  background: var(--bg-base);
+  border: 1px solid rgba(184,193,236,0.12);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.2s;
 }
 
-.chart-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #6b7280;
+.cme-chart-back-btn:hover {
+  background: rgba(0,217,255,0.06);
+  color: var(--accent-cyan, #22d3ee);
+  border-color: rgba(0,217,255,0.15);
+}
+
+.cme-chart-hint {
+  margin: var(--space-2) 0 0;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
   text-align: center;
 }
 
+/* ── Category Sections ── */
+.cme-categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.cme-category-section {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184,193,236,0.08));
+  border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6);
+  box-shadow: var(--shadow-md);
+}
+
+.cme-category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid rgba(184,193,236,0.08);
+  margin-bottom: var(--space-4);
+}
+
+.cme-category-header h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.cme-category-total {
+  font-size: var(--text-xl);
+  font-weight: var(--font-extrabold);
+  background: linear-gradient(135deg, var(--accent-cyan, #22d3ee), #60a5fa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Subcategory Group */
+.cme-subcategory {
+  margin-top: var(--space-4);
+}
+
+.cme-subcategory:first-child {
+  margin-top: 0;
+}
+
+.cme-subcategory-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-left: var(--space-2);
+}
+
+.cme-subcategory-name {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+}
+
+.cme-subcategory-total {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+/* Payment Mode Group */
+.cme-mode-group {
+  margin-bottom: var(--space-3);
+  padding-left: var(--space-3);
+}
+
+.cme-mode-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.cme-mode-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.cme-mode-icon.mode-upi { background: rgba(59,130,246,0.12); color: #60a5fa; }
+.cme-mode-icon.mode-cash { background: rgba(16,185,129,0.12); color: #34d399; }
+.cme-mode-icon.mode-extra { background: rgba(139,92,246,0.12); color: #a78bfa; }
+.cme-mode-icon.mode-cc { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.cme-mode-icon.mode-default { background: rgba(100,116,139,0.12); color: #94a3b8; }
+
+.cme-mode-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.cme-mode-total {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+/* Expense Item */
+.cme-expense-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(184,193,236,0.05);
+  margin-bottom: var(--space-2);
+  transition: all 0.2s;
+}
+
+.cme-expense-item:hover {
+  border-color: rgba(0,217,255,0.12);
+  transform: translateX(3px);
+}
+
+.cme-expense-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cme-expense-name {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cme-expense-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cme-expense-type-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.03em;
+}
+
+.cme-expense-type-badge.type-fixed {
+  background: rgba(59,130,246,0.12);
+  color: #60a5fa;
+}
+
+.cme-expense-type-badge.type-variable {
+  background: rgba(139,92,246,0.12);
+  color: #a78bfa;
+}
+
+.cme-expense-planned {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.cme-expense-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.cme-expense-amount {
+  font-size: var(--text-base);
+  font-weight: var(--font-extrabold);
+  color: var(--text-primary);
+}
+
+.cme-expense-status {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cme-expense-status.status-completed {
+  background: rgba(16,185,129,0.12);
+  color: #34d399;
+}
+
+.cme-expense-status.status-pending {
+  background: rgba(245,158,11,0.12);
+  color: #f59e0b;
+}
+
+/* ── Overspend Bar ── */
+.cme-overspend-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-base);
+  margin-top: var(--space-2);
+  overflow: hidden;
+}
+
+.cme-overspend-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* ── Empty State ── */
+.cme-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-16) var(--space-6);
+  gap: var(--space-4);
+}
+
+.cme-empty-state h3 {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.cme-empty-state p {
+  color: var(--text-secondary);
+  max-width: 360px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Recharts Dark Override ── */
+.cme-chart-card .recharts-text,
+.cme-chart-card .recharts-cartesian-axis-tick-value {
+  fill: var(--text-tertiary) !important;
+  font-size: 0.72rem;
+}
+
+.cme-chart-card .recharts-cartesian-grid line {
+  stroke: rgba(184,193,236,0.08) !important;
+}
+
+.cme-chart-card .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--bg-elevated) !important;
+  border: 1px solid rgba(184,193,236,0.12) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.cme-chart-card .recharts-tooltip-item {
+  color: var(--text-primary) !important;
+}
+
+.cme-chart-card .recharts-legend-item-text {
+  color: var(--text-secondary) !important;
+}
+
+/* ── Responsive ── */
 @media (max-width: 768px) {
   .current-month-expenses-page {
     padding: var(--space-8) var(--space-4);
   }
 
-  .chart-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .chart-card {
-    padding: 16px;
-  }
-
-  .chart-back-btn {
-    font-size: 12px;
-    padding: 6px 10px;
-  }
-
-  .chart-hint {
-    font-size: 11px;
-  }
-
-  .expense-item {
+  .cme-summary-hero {
     flex-direction: column;
-    align-items: flex-start;
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+
+  .cme-hero-amount {
+    font-size: 2rem;
+  }
+
+  .cme-hero-stats {
+    flex-wrap: wrap;
     gap: var(--space-4);
   }
 
-  .expense-amount-status {
+  .cme-hero-stat {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .cme-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cme-chart-card {
+    padding: var(--space-4);
+  }
+
+  .cme-expense-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .cme-expense-right {
     width: 100%;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
   }
 
-  .category-total {
-    font-size: var(--text-2xl);
+  .cme-category-total {
+    font-size: var(--text-lg);
   }
 }

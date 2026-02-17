@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaLock, FaUserCircle } from "react-icons/fa";
+import { FaLock, FaUserCircle, FaCheckCircle, FaFileInvoiceDollar, FaCreditCard, FaChartLine, FaCalendarCheck, FaCheck } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -250,25 +250,123 @@ export function DuesPage({ token }: DuesPageProps) {
     }
   };
 
+  // Group dues by type for sectioned display
+  const grouped = {
+    fixed: dues.filter(d => d.type === "Fixed Expense"),
+    sip: dues.filter(d => d.type === "SIP Expense"),
+    investment: dues.filter(d => d.type === "Investment"),
+    creditCard: dues.filter(d => d.type === "Credit Card"),
+  };
+
+  const pendingCount = dues.filter(d => !d.paid).length;
+
+  const getBadgeClass = (type: string) => {
+    if (type === "Credit Card") return "badge-credit";
+    if (type === "Investment") return "badge-investment";
+    if (type === "SIP Expense") return "badge-sip";
+    return "badge-fixed";
+  };
+
+  const renderDueCard = (due: any, index: number) => {
+    const dueUserId = due.userId || due.user_id;
+    const isOwn = !dueUserId || isOwnItem(dueUserId);
+    return (
+      <motion.div
+        key={due.id}
+        className={`due-card ${!isOwn ? "shared-item" : ""} ${due.paid ? "due-paid" : ""}`}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.04 }}
+      >
+        <div className="due-header">
+          <div className="due-header-left">
+            {due.itemType !== "credit_card" && isOwn && (
+              <button
+                className={`due-toggle ${due.paid ? "checked" : ""}`}
+                onClick={() => handleTogglePaid(due)}
+                title={due.paid ? "Mark as unpaid" : "Mark as paid"}
+              >
+                {due.paid && <FaCheck size={11} />}
+              </button>
+            )}
+            <h3>{due.name}</h3>
+          </div>
+          <div className="due-header-right">
+            {isSharedView && (
+              <span className="due-owner-badge">
+                {isOwn ? <FaUserCircle size={10} /> : <FaLock size={10} />}
+                {getOwnerName(dueUserId)}
+              </span>
+            )}
+            <span className={`due-type-badge ${getBadgeClass(due.type)}`}>{due.type}</span>
+            {!isOwn && (
+              <span className="due-view-only">
+                <FaLock size={9} /> View Only
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="due-details">
+          <div className="due-detail-item">
+            <span className="due-detail-label">Amount</span>
+            <span className="due-detail-value val-amount">₹{due.amount.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="due-detail-item">
+            <span className="due-detail-label">Due Date</span>
+            <span className="due-detail-value">{new Date(due.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+          </div>
+          {(due.accumulatedFunds || 0) > 0 && (
+            <div className="due-detail-item">
+              <span className="due-detail-label">{due.isSip ? "Accumulated" : "Saved"}</span>
+              <span className="due-detail-value val-saved">₹{Math.round(due.accumulatedFunds).toLocaleString("en-IN")}</span>
+            </div>
+          )}
+          {due.partialPaid > 0 && (
+            <div className="due-detail-item">
+              <span className="due-detail-label">Paid</span>
+              <span className="due-detail-value val-paid">₹{due.partialPaid.toLocaleString("en-IN")}</span>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderSection = (title: string, icon: React.ReactNode, iconClass: string, items: any[]) => {
+    if (items.length === 0) return null;
+    const sectionTotal = items.reduce((sum, d) => sum + d.amount, 0);
+    return (
+      <div className="dues-section">
+        <div className="dues-section-header">
+          <div className={`dues-section-icon ${iconClass}`}>{icon}</div>
+          <span className="dues-section-title">{title}</span>
+          <span className="dues-section-count">{items.length}</span>
+          <span className="dues-section-total">₹{sectionTotal.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="dues-grid">
+          {items.map((due, i) => renderDueCard(due, i))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="dues-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <h1>Current Month Dues</h1>
-          <PageInfoButton
-            title="Current Month Dues"
-            description="Your monthly checklist — everything you owe this month in one place. Fixed expenses, investment contributions, and loans all show up here. Tick them off as you pay and watch your health score improve in real time."
-            impact="Every unpaid item here drags your health score down. As you mark dues paid, your available funds adjust instantly. It's the fastest way to see your real financial standing for the month."
-            howItWorks={[
-              "Fixed expenses, active investments, and loan EMIs automatically appear here each month",
-              "Tap the toggle to mark an item as paid — your health score updates immediately",
-              "Unpaid items reduce your available funds; paid items free them up",
-              "Halfway through the month with unpaid dues? You'll get a smart notification reminder",
-              "Credit card payments are managed separately on the Credit Cards page"
-            ]}
-          />
-        </div>
+        <h1><FaFileInvoiceDollar style={{ marginRight: 10, verticalAlign: 'middle' }} />Current Month Dues</h1>
+        <PageInfoButton
+          title="Current Month Dues"
+          description="Your monthly checklist — everything you owe this month in one place. Fixed expenses, investment contributions, and credit card bills all show up here. Tick them off as you pay and watch your health score improve in real time."
+          impact="Every unpaid item here drags your health score down. As you mark dues paid, your available funds adjust instantly. It's the fastest way to see your real financial standing for the month."
+          howItWorks={[
+            "Fixed expenses, active investments, and credit card bills automatically appear here each month",
+            "Tap the checkbox to mark an item as paid — your health score updates immediately",
+            "Unpaid items reduce your available funds; paid items free them up",
+            "Halfway through the month with unpaid dues? You'll get a smart notification reminder",
+            "Credit card payments are managed separately on the Credit Cards page"
+          ]}
+        />
       </div>
 
       <SharedViewBanner />
@@ -280,80 +378,41 @@ export function DuesPage({ token }: DuesPageProps) {
         type="success"
       />
       
-      {loading ? <SkeletonLoader type="list" count={5} /> : (
+      {loading ? <SkeletonLoader type="card" count={4} /> : (
         <>
-          <div className="dues-summary">
-            <h2>Total Dues</h2>
-            <div className="total-amount">₹{totalDues.toLocaleString("en-IN")}</div>
-          </div>
+          {/* Summary Hero */}
+          {dues.length > 0 && (
+            <div className="dues-summary-hero">
+              <div className="dues-hero-main">
+                <div className="dues-hero-label">Total Outstanding</div>
+                <div className="dues-hero-amount">₹{totalDues.toLocaleString("en-IN")}</div>
+              </div>
+              <div className="dues-hero-stats">
+                <div className="dues-hero-stat">
+                  <span className="dues-stat-label">Items</span>
+                  <span className="dues-stat-value stat-items">{dues.length}</span>
+                </div>
+                <div className="dues-hero-stat">
+                  <span className="dues-stat-label">Pending</span>
+                  <span className="dues-stat-value stat-pending">{pendingCount}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {dues.length === 0 ? (
-            <div className="empty-state">No dues for the current month. Great job!</div>
-          ) : (
-            <div className="dues-list">
-              {dues.map((due, index) => {
-                const dueUserId = due.userId || due.user_id;
-                const isOwn = !dueUserId || isOwnItem(dueUserId);
-                return (
-                  <motion.div
-                    key={due.id}
-                    className={`due-card ${!isOwn ? "shared-item" : ""}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <div className="due-header">
-                      {due.itemType !== "credit_card" && isOwn && (
-                        <input
-                          type="checkbox"
-                          checked={due.paid}
-                          onChange={() => handleTogglePaid(due)}
-                          className="paid-checkbox"
-                          title="Mark as paid"
-                        />
-                      )}
-                      <h3>{due.name}</h3>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {isSharedView && (
-                          <span className="owner-badge" style={{ fontSize: 11, color: isOwn ? '#10b981' : '#8b5cf6', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            {isOwn ? <FaUserCircle size={12} /> : <FaLock size={12} />}
-                            {getOwnerName(dueUserId)}
-                          </span>
-                        )}
-                        <span className="due-type">{due.type}</span>
-                        {!isOwn && (
-                          <span style={{ fontSize: 10, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <FaLock size={9} /> View Only
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="due-details">
-                      <div className="detail-item">
-                        <span className="label">Amount Due</span>
-                        <span className="value">₹{due.amount.toLocaleString("en-IN")}</span>
-                      </div>
-                      <div className="detail-item">
-                        <span className="label">Due Date</span>
-                        <span className="value">{new Date(due.dueDate).toLocaleDateString()}</span>
-                      </div>
-                      {(due.accumulatedFunds || 0) > 0 && (
-                        <div className="detail-item">
-                          <span className="label">{due.isSip ? "Accumulated Funds" : "Saved Amount"}</span>
-                          <span className="value" style={{ color: '#10b981' }}>₹{Math.round(due.accumulatedFunds).toLocaleString("en-IN")}</span>
-                        </div>
-                      )}
-                      {due.partialPaid > 0 && (
-                        <div className="detail-item">
-                          <span className="label">Paid</span>
-                          <span className="value paid">₹{due.partialPaid.toLocaleString("en-IN")}</span>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
+            <div className="dues-empty-state">
+              <FaCheckCircle size={56} color="#10b981" />
+              <h3>All Clear!</h3>
+              <p>No dues for the current month. You&apos;re on top of your finances — keep it up!</p>
             </div>
+          ) : (
+            <>
+              {renderSection("Fixed Expenses", <FaCalendarCheck size={16} />, "fixed", grouped.fixed)}
+              {renderSection("SIP Expenses", <FaChartLine size={16} />, "sip", grouped.sip)}
+              {renderSection("Investments", <FaChartLine size={16} />, "investment", grouped.investment)}
+              {renderSection("Credit Cards", <FaCreditCard size={16} />, "credit", grouped.creditCard)}
+            </>
           )}
         </>
       )}

@@ -1211,12 +1211,59 @@ serve(async (req) => {
         };
       });
       
+      // Map credit cards for frontend (camelCase)
+      const finalCreditCards = (directCreditCards || []).map((c: any) => ({
+        id: c.id,
+        userId: c.user_id,
+        name: c.name,
+        name_enc: c.name_enc,
+        name_iv: c.name_iv,
+        statementDate: c.statement_date,
+        dueDate: c.due_date,
+        billAmount: c.bill_amount || 0,
+        bill_amount_enc: c.bill_amount_enc,
+        bill_amount_iv: c.bill_amount_iv,
+        paidAmount: c.paid_amount || 0,
+        paid_amount_enc: c.paid_amount_enc,
+        paid_amount_iv: c.paid_amount_iv,
+        currentExpenses: c.current_expenses || 0,
+        billingDate: c.billing_date,
+        needsBillUpdate: c.needs_bill_update,
+        createdAt: c.created_at
+      }));
+
+      // Fetch loans for this user set
+      const { data: directLoans } = await supabase.from('loans').select('*').in('user_id', targetUserIds);
+
+      // Fetch activities
+      const { data: directActivities } = await supabase.from('activities')
+        .select('*').in('actor_id', targetUserIds)
+        .order('created_at', { ascending: false }).limit(100);
+
+      // Fetch preferences
+      const { data: userPrefs } = await supabase.from('user_preferences')
+        .select('*').eq('user_id', userId).single();
+
       const responseData = {
         incomes: finalIncomes,
         fixedExpenses: finalFixedExpenses,
         variablePlans: finalVariablePlans,
         investments: finalInvestments,
         futureBombs: finalFutureBombs,
+        creditCards: finalCreditCards,
+        loans: directLoans || [],
+        activities: (directActivities || []).map((a: any) => ({
+          id: a.id,
+          actorId: a.actor_id,
+          entity: a.entity,
+          action: a.action,
+          payload: a.payload,
+          createdAt: a.created_at
+        })),
+        preferences: userPrefs ? {
+          monthStartDay: userPrefs.month_start_day || 1,
+          currency: userPrefs.currency || 'INR'
+        } : { monthStartDay: 1, currency: 'INR' },
         health: healthData?.health || { remaining: 0, category: 'ok' },
         constraintScore: constraint ? {
           score: constraint.score,
@@ -1227,19 +1274,7 @@ serve(async (req) => {
         } : { score: 0, tier: 'green', recentOverspends: 0 },
         alerts: [],
         // Include shared users' aggregates for combined health calculation
-        sharedUserAggregates: sharedUserAggregates.length > 0 ? sharedUserAggregates : undefined,
-        // DEBUG: Include targetUserIds to diagnose merged view issue
-        _debug: { 
-          userId, 
-          viewParam, 
-          targetUserIds, 
-          targetUserCount: targetUserIds.length,
-          incomeCount: finalIncomes.length,
-          fixedCount: finalFixedExpenses.length,
-          variableCount: finalVariablePlans.length,
-          investmentCount: finalInvestments.length,
-          sharedAggregatesCount: sharedUserAggregates.length
-        }
+        sharedUserAggregates: sharedUserAggregates.length > 0 ? sharedUserAggregates : undefined
       };
 
       // ================================================================
@@ -1820,6 +1855,13 @@ serve(async (req) => {
     // FUTURE BOMBS
     if (path === '/future-bombs' && method === 'POST') {
       const body = await req.json();
+      // Validate due_date is in the future
+      if (body.due_date) {
+        const todayCheck = new Date(); todayCheck.setHours(0,0,0,0);
+        const dueDateCheck = new Date(body.due_date);
+        if (dueDateCheck <= todayCheck) return error('Due date must be in the future', 400);
+      }
+      if (body.total_amount !== undefined && body.total_amount <= 0) return error('Total amount must be positive', 400);
       // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
       const hasEncryption = body.name_enc && body.name_iv;
       const insertData: any = { 
@@ -1844,7 +1886,8 @@ serve(async (req) => {
       await logActivity(userId, 'future_bomb', 'added future bomb', { 
         name: logName, 
         totalAmount: logTotal,
-        targetDate: body.target_date,
+        dueDate: body.due_date || body.target_date,
+        savedAmount: body.saved_amount || 0,
         encrypted: hasEncryption 
       });
       return json({ data }, 201);
@@ -1853,6 +1896,13 @@ serve(async (req) => {
       const id = path.split('/').pop();
       if (!id) return error('Future bomb ID required', 400);
       const body = await req.json();
+      // Validate due_date if provided
+      if (body.due_date) {
+        const todayCheck = new Date(); todayCheck.setHours(0,0,0,0);
+        const dueDateCheck = new Date(body.due_date);
+        if (dueDateCheck <= todayCheck) return error('Due date must be in the future', 400);
+      }
+      if (body.total_amount !== undefined && body.total_amount <= 0) return error('Total amount must be positive', 400);
       const updateData: any = {};
       if (body.name !== undefined) updateData.name = body.name;
       if (body.due_date !== undefined) updateData.due_date = body.due_date;
@@ -1870,15 +1920,26 @@ serve(async (req) => {
         .update(updateData).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
       if (!data) return error('Future bomb not found', 404);
-      await logActivity(userId, 'future_bomb', 'updated future bomb', { id, name: data.name });
+      await logActivity(userId, 'future_bomb', 'updated future bomb', { 
+        id, 
+        name: data.name, 
+        totalAmount: data.total_amount,
+        savedAmount: data.saved_amount,
+        dueDate: data.due_date
+      });
       await invalidateUserCache(userId);
       return json({ data });
     }
     if (path.startsWith('/future-bombs/') && method === 'DELETE') {
       const id = path.split('/').pop();
-      const { data: deleted } = await supabase.from('future_bombs').select('name').eq('id', id).single();
+      const { data: deleted } = await supabase.from('future_bombs').select('name, total_amount, saved_amount, due_date').eq('id', id).single();
       await supabase.from('future_bombs').delete().eq('id', id);
-      if (deleted) await logActivity(userId, 'future_bomb', 'deleted future bomb', { id, name: deleted.name });
+      if (deleted) await logActivity(userId, 'future_bomb', 'deleted future bomb', { 
+        id, 
+        name: deleted.name,
+        totalAmount: deleted.total_amount,
+        dueDate: deleted.due_date
+      });
       await invalidateUserCache(userId);
       return json({ data: { deleted: true } });
     }
