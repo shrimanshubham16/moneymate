@@ -10,11 +10,11 @@ interface PageInfoButtonProps {
   howItWorks?: string[];
 }
 
-export function PageInfoButton({ 
-  title, 
-  description, 
-  impact, 
-  howItWorks 
+export function PageInfoButton({
+  title,
+  description,
+  impact,
+  howItWorks
 }: PageInfoButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -22,11 +22,13 @@ export function PageInfoButton({
     <>
       <button
         className="page-info-button"
-        onClick={() => setIsOpen(true)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(true);
+        }}
         aria-label="Page information"
-        title="Learn more about this page"
       >
-        <FaInfoCircle size={18} />
+        <FaInfoCircle size={15} />
       </button>
       <PageInfoModal
         isOpen={isOpen}
@@ -39,6 +41,3 @@ export function PageInfoButton({
     </>
   );
 }
-
-
-
