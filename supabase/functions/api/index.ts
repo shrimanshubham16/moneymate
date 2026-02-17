@@ -323,20 +323,27 @@ serve(async (req) => {
         console.error(`[MONTHLY_RESET_ERROR] Failed to delete variable actuals:`, deleteActualsErr);
       }
       
-      // Monthly decay of constraint (overspend risk) score: -5 each month if no overspends
+      // Gradual cooldown of constraint (overspend risk) score
+      // - If recent_overspends > 0: slow decay (-3/month), reduce recent_overspends by 1
+      // - If recent_overspends == 0 (clean streak): faster decay (-7/month)
+      // This ensures bad habits take several months to cool down, not just one
       let constraintDecayed = false;
       try {
         const { data: constraint } = await supabase.from('constraint_scores')
           .select('*').eq('user_id', userId).single();
         if (constraint && constraint.score > 0) {
-          const decayAmount = 5;
+          const currentOverspends = constraint.recent_overspends || 0;
+          // Adaptive decay: slow if recent overspends exist, fast if clean streak
+          const decayAmount = currentOverspends > 0 ? 3 : 7;
           const newScore = Math.max(0, constraint.score - decayAmount);
+          // Decay recent_overspends by 1 per clean month (NOT reset to 0)
+          const newOverspends = Math.max(0, currentOverspends - 1);
           const newTier = newScore >= 70 ? 'red' : newScore >= 40 ? 'amber' : 'green';
           await supabase.from('constraint_scores')
-            .update({ score: newScore, tier: newTier, recent_overspends: 0, updated_at: new Date().toISOString() })
+            .update({ score: newScore, tier: newTier, recent_overspends: newOverspends, updated_at: new Date().toISOString() })
             .eq('user_id', userId);
           constraintDecayed = true;
-          console.log(`[CONSTRAINT_DECAY] Score: ${constraint.score} → ${newScore}, Overspends reset to 0`);
+          console.log(`[CONSTRAINT_DECAY] Score: ${constraint.score} → ${newScore} (decay: ${decayAmount}), Overspends: ${currentOverspends} → ${newOverspends}`);
         }
       } catch (e) {
         console.error('[CONSTRAINT_DECAY_ERROR]', e);
@@ -582,8 +589,9 @@ serve(async (req) => {
       const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
       const { data: loans } = await supabase.from('loans').select('*').eq('user_id', userId);
       
-      // Calculate totals
-      const incomeItems = (incomes || []).map((i: any) => ({
+      // Calculate totals — filter out incomes excluded from health
+      const healthIncomeItems = (incomes || []).filter((i: any) => i.include_in_health !== false);
+      const incomeItems = healthIncomeItems.map((i: any) => ({
         ...i,
         monthlyEquivalent: i.frequency === 'monthly' ? i.amount : 
           i.frequency === 'quarterly' ? i.amount / 3 : i.amount / 12
@@ -968,7 +976,9 @@ serve(async (req) => {
       const today = new Date();
       
       // Calculate health using same logic as /health/details endpoint
-      const incomeItems = (directIncomes || []).map((i: any) => ({
+      // Filter out incomes where include_in_health is explicitly false
+      const healthIncomes = (directIncomes || []).filter((i: any) => i.include_in_health !== false);
+      const incomeItems = healthIncomes.map((i: any) => ({
         monthlyEquivalent: i.frequency === 'monthly' ? i.amount : 
           i.frequency === 'quarterly' ? i.amount / 3 : i.amount / 12
       }));
@@ -1071,7 +1081,15 @@ serve(async (req) => {
         frequency: i.frequency,
         category: i.category,
         startDate: i.start_date,
-        endDate: i.end_date
+        endDate: i.end_date,
+        includeInHealth: i.include_in_health !== false, // default true
+        incomeType: i.income_type || 'regular',
+        rsuTicker: i.rsu_ticker,
+        rsuGrantCount: i.rsu_grant_count,
+        rsuVestingSchedule: i.rsu_vesting_schedule,
+        rsuCurrency: i.rsu_currency,
+        rsuStockPrice: i.rsu_stock_price ? parseFloat(i.rsu_stock_price) : null,
+        rsuPriceUpdatedAt: i.rsu_price_updated_at
       }));
       
       // Map fixed expenses
@@ -1145,6 +1163,7 @@ serve(async (req) => {
         monthly_amount_enc: i.monthly_amount_enc,
         monthly_amount_iv: i.monthly_amount_iv,
         status: i.status,
+        isPriority: i.is_priority || false,
         accumulated_funds: i.accumulated_funds || 0,
         accumulated_funds_enc: i.accumulated_funds_enc,
         accumulated_funds_iv: i.accumulated_funds_iv,
@@ -1152,22 +1171,42 @@ serve(async (req) => {
         paid: paymentStatus[`investment:${i.id}`] || false
       }));
       
-      // Map future bombs
-      const finalFutureBombs = (directFutureBombs || []).map((fb: any) => ({
-        id: fb.id,
-        userId: fb.user_id,
-        name: fb.name,
-        name_enc: fb.name_enc,
-        name_iv: fb.name_iv,
-        totalAmount: fb.total_amount,
-        total_amount_enc: fb.total_amount_enc,
-        total_amount_iv: fb.total_amount_iv,
-        savedAmount: fb.saved_amount,
-        saved_amount_enc: fb.saved_amount_enc,
-        saved_amount_iv: fb.saved_amount_iv,
-        targetDate: fb.target_date,
-        status: fb.status
-      }));
+      // Map future bombs with dynamic computed fields
+      const now = new Date();
+      const finalFutureBombs = (directFutureBombs || []).map((fb: any) => {
+        const totalAmount = parseFloat(fb.total_amount) || 0;
+        const savedAmount = parseFloat(fb.saved_amount) || 0;
+        const remaining = Math.max(0, totalAmount - savedAmount);
+        const dueDate = fb.due_date ? new Date(fb.due_date) : new Date();
+        const monthsUntilDue = Math.max(0, (dueDate.getFullYear() - now.getFullYear()) * 12 + (dueDate.getMonth() - now.getMonth()));
+        // Defuse 1 month early: target completion 1 month before due date
+        const defusalMonths = Math.max(1, monthsUntilDue - 1);
+        const monthlyEquivalent = remaining > 0 ? Math.ceil(remaining / defusalMonths) : 0;
+        const preparednessRatio = totalAmount > 0 ? Math.min(1, savedAmount / totalAmount) : 0;
+        
+        return {
+          id: fb.id,
+          userId: fb.user_id,
+          name: fb.name,
+          name_enc: fb.name_enc,
+          name_iv: fb.name_iv,
+          totalAmount,
+          total_amount_enc: fb.total_amount_enc,
+          total_amount_iv: fb.total_amount_iv,
+          savedAmount,
+          saved_amount_enc: fb.saved_amount_enc,
+          saved_amount_iv: fb.saved_amount_iv,
+          dueDate: fb.due_date,
+          targetDate: fb.target_date,
+          status: fb.status,
+          // Computed fields
+          monthlyEquivalent,
+          preparednessRatio,
+          monthsUntilDue,
+          defusalMonths,
+          remaining
+        };
+      });
       
       const responseData = {
         incomes: finalIncomes,
@@ -1311,8 +1350,17 @@ serve(async (req) => {
         name: body.source || (hasEncryption ? '[encrypted]' : null), 
         amount: body.amount ?? (body.amount_enc ? 0 : null), 
         frequency: body.frequency, 
-        category: 'employment' 
+        category: 'employment',
+        include_in_health: body.include_in_health !== undefined ? body.include_in_health : true,
+        income_type: body.income_type || 'regular'
       };
+      // RSU fields
+      if (body.rsu_ticker) insertData.rsu_ticker = body.rsu_ticker;
+      if (body.rsu_grant_count) insertData.rsu_grant_count = body.rsu_grant_count;
+      if (body.rsu_vesting_schedule) insertData.rsu_vesting_schedule = body.rsu_vesting_schedule;
+      if (body.rsu_currency) insertData.rsu_currency = body.rsu_currency;
+      if (body.rsu_stock_price !== undefined) insertData.rsu_stock_price = body.rsu_stock_price;
+      if (body.rsu_stock_price !== undefined) insertData.rsu_price_updated_at = new Date().toISOString();
       // Store encrypted versions if provided
       if (body.source_enc) insertData.source_enc = body.source_enc;
       if (body.source_iv) insertData.source_iv = body.source_iv;
@@ -1342,8 +1390,19 @@ serve(async (req) => {
       const body = await req.json();
       const updates: any = {};
       if (body.source) updates.name = body.source;
-      if (body.amount) updates.amount = body.amount;
+      if (body.amount !== undefined) updates.amount = body.amount;
       if (body.frequency) updates.frequency = body.frequency;
+      if (body.include_in_health !== undefined) updates.include_in_health = body.include_in_health;
+      if (body.income_type !== undefined) updates.income_type = body.income_type;
+      // RSU fields
+      if (body.rsu_ticker !== undefined) updates.rsu_ticker = body.rsu_ticker;
+      if (body.rsu_grant_count !== undefined) updates.rsu_grant_count = body.rsu_grant_count;
+      if (body.rsu_vesting_schedule !== undefined) updates.rsu_vesting_schedule = body.rsu_vesting_schedule;
+      if (body.rsu_currency !== undefined) updates.rsu_currency = body.rsu_currency;
+      if (body.rsu_stock_price !== undefined) {
+        updates.rsu_stock_price = body.rsu_stock_price;
+        updates.rsu_price_updated_at = new Date().toISOString();
+      }
       // E2E: Include encrypted fields if provided
       if (body.source_enc) updates.source_enc = body.source_enc;
       if (body.source_iv) updates.source_iv = body.source_iv;
@@ -1652,7 +1711,8 @@ serve(async (req) => {
         name: body.name || (hasEncryption ? '[encrypted]' : null), 
         goal: body.goal || (body.goal_enc ? '[encrypted]' : null), 
         monthly_amount: body.monthly_amount ?? (body.monthly_amount_enc ? 0 : null), 
-        status: body.status || 'active' 
+        status: body.status || 'active',
+        is_priority: body.is_priority || false
       };
       if (body.name_enc) insertData.name_enc = body.name_enc;
       if (body.name_iv) insertData.name_iv = body.name_iv;
@@ -1700,6 +1760,7 @@ serve(async (req) => {
       if (body.monthly_amount !== undefined) updateData.monthly_amount = body.monthly_amount;
       if (body.status !== undefined) updateData.status = body.status;
       if (body.accumulated_funds !== undefined) updateData.accumulated_funds = body.accumulated_funds;
+      if (body.is_priority !== undefined) updateData.is_priority = body.is_priority;
       // E2E: Include encrypted fields if provided
       if (body.name_enc) updateData.name_enc = body.name_enc;
       if (body.name_iv) updateData.name_iv = body.name_iv;
@@ -1733,7 +1794,8 @@ serve(async (req) => {
       const responseData = {
         ...data,
         monthlyAmount: data.monthly_amount,
-        accumulatedFunds: data.accumulated_funds
+        accumulatedFunds: data.accumulated_funds,
+        isPriority: data.is_priority || false
       };
       return json({ data: responseData });
     }
@@ -1778,11 +1840,37 @@ serve(async (req) => {
       });
       return json({ data }, 201);
     }
+    if (path.startsWith('/future-bombs/') && method === 'PUT') {
+      const id = path.split('/').pop();
+      if (!id) return error('Future bomb ID required', 400);
+      const body = await req.json();
+      const updateData: any = {};
+      if (body.name !== undefined) updateData.name = body.name;
+      if (body.due_date !== undefined) updateData.due_date = body.due_date;
+      if (body.total_amount !== undefined) updateData.total_amount = body.total_amount;
+      if (body.saved_amount !== undefined) updateData.saved_amount = body.saved_amount;
+      // E2E encrypted fields
+      if (body.name_enc) updateData.name_enc = body.name_enc;
+      if (body.name_iv) updateData.name_iv = body.name_iv;
+      if (body.total_amount_enc) updateData.total_amount_enc = body.total_amount_enc;
+      if (body.total_amount_iv) updateData.total_amount_iv = body.total_amount_iv;
+      if (body.saved_amount_enc) updateData.saved_amount_enc = body.saved_amount_enc;
+      if (body.saved_amount_iv) updateData.saved_amount_iv = body.saved_amount_iv;
+      
+      const { data, error: e } = await supabase.from('future_bombs')
+        .update(updateData).eq('id', id).eq('user_id', userId).select().single();
+      if (e) return error(e.message, 500);
+      if (!data) return error('Future bomb not found', 404);
+      await logActivity(userId, 'future_bomb', 'updated future bomb', { id, name: data.name });
+      await invalidateUserCache(userId);
+      return json({ data });
+    }
     if (path.startsWith('/future-bombs/') && method === 'DELETE') {
       const id = path.split('/').pop();
       const { data: deleted } = await supabase.from('future_bombs').select('name').eq('id', id).single();
       await supabase.from('future_bombs').delete().eq('id', id);
       if (deleted) await logActivity(userId, 'future_bomb', 'deleted future bomb', { id, name: deleted.name });
+      await invalidateUserCache(userId);
       return json({ data: { deleted: true } });
     }
 
@@ -1799,14 +1887,26 @@ serve(async (req) => {
     if (path === '/preferences' && (method === 'PUT' || method === 'PATCH')) {
       const body = await req.json();
       const updates: any = { user_id: userId };
-      if (body.monthStartDay !== undefined) updates.month_start_day = body.monthStartDay;
-      if (body.month_start_day !== undefined) updates.month_start_day = body.month_start_day;
+      const newMonthStartDay = body.monthStartDay ?? body.month_start_day;
+      if (newMonthStartDay !== undefined) updates.month_start_day = newMonthStartDay;
       if (body.currency !== undefined) updates.currency = body.currency;
       if (body.timezone !== undefined) updates.timezone = body.timezone;
+      
+      // If month_start_day changed, clear last_reset_billing_period so the new cycle triggers a fresh reset
+      if (newMonthStartDay !== undefined) {
+        const { data: currentPrefs } = await supabase.from('user_preferences')
+          .select('month_start_day').eq('user_id', userId).single();
+        if (currentPrefs && currentPrefs.month_start_day !== newMonthStartDay) {
+          updates.last_reset_billing_period = null;
+          console.log(`[PREFS_UPDATE] month_start_day changed from ${currentPrefs.month_start_day} to ${newMonthStartDay}, clearing last_reset_billing_period`);
+        }
+      }
+      
       const { data, error: e } = await supabase.from('user_preferences')
         .upsert(updates, { onConflict: 'user_id' }).select().single();
       if (e) return error(e.message, 500);
       const prefs = data || updates;
+      await invalidateUserCache(userId);
       return json({ data: {
         monthStartDay: prefs.month_start_day ?? 1,
         currency: prefs.currency ?? 'INR',

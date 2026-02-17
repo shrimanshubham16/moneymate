@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes, FaComments } from "react-icons/fa";
+import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes, FaComments, FaBomb, FaStar } from "react-icons/fa";
 import "./LandingPage.css";
 
 export function LandingPage() {
@@ -154,8 +154,8 @@ export function LandingPage() {
             <div className="feature-icon investment">
               <FaChartLine />
             </div>
-            <h3>Investment Tracking</h3>
-            <p>Track SIPs, mutual funds, and other investments. Monitor accumulated wealth.</p>
+            <h3>Investment & RSU Tracking</h3>
+            <p>Track SIPs, mutual funds, RSU grants with vesting schedules. Mark priority investments to protect them.</p>
           </motion.div>
 
           <motion.div
@@ -166,10 +166,10 @@ export function LandingPage() {
             transition={{ delay: 0.3 }}
           >
             <div className="feature-icon alerts">
-              <FaBell />
+              <FaBomb />
             </div>
-            <h3>Smart Alerts</h3>
-            <p>Get notified about overspends, missed investments, and upcoming dues.</p>
+            <h3>Smart Future Bomb Defusal</h3>
+            <p>Large upcoming expense? We calculate the exact monthly SIP to defuse it — and suggest pausing non-priority investments if needed.</p>
           </motion.div>
 
           <motion.div
@@ -212,6 +212,34 @@ export function LandingPage() {
             </div>
             <h3>Community Lounge</h3>
             <p>Real-time chatroom to share planning tips, guide others, and make new friends. Cleaned daily for a fresh start.</p>
+          </motion.div>
+
+          <motion.div
+            className="feature-card"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.7 }}
+          >
+            <div className="feature-icon alerts">
+              <FaBell />
+            </div>
+            <h3>Smart Notifications</h3>
+            <p>Auto-alerts for unpaid dues, overspends, health drops, and CC billing days. Never miss a beat.</p>
+          </motion.div>
+
+          <motion.div
+            className="feature-card"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.8 }}
+          >
+            <div className="feature-icon">
+              <FaStar />
+            </div>
+            <h3>Overspend Risk Intelligence</h3>
+            <p>Tracks your spending habits with adaptive cooldown. Build a clean streak to earn faster score recovery.</p>
           </motion.div>
         </div>
       </section>
@@ -335,7 +363,7 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="landing-footer">
-        <p>Built with privacy in mind • v2.1 • © 2026 FinFlow</p>
+        <p>Built with privacy in mind • v2.5 • © 2026 FinFlow</p>
       </footer>
     </div>
   );

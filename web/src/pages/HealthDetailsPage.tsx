@@ -144,12 +144,15 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
       
       // Calculate TOTAL INCOME from decrypted dashboard data (own only - use filtered ownIncomes)
-      const ownIncomeTotal = ownIncomes.reduce((sum: number, inc: any) => {
-        const amount = parseFloat(inc.amount) || 0;
-        const monthly = inc.frequency === 'monthly' ? amount :
-          inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
-        return sum + monthly;
-      }, 0);
+      // Respect include_in_health flag: exclude incomes where includeInHealth === false
+      const ownIncomeTotal = ownIncomes
+        .filter((inc: any) => inc.includeInHealth !== false)
+        .reduce((sum: number, inc: any) => {
+          const amount = parseFloat(inc.amount) || 0;
+          const monthly = inc.frequency === 'monthly' ? amount :
+            inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
+          return sum + monthly;
+        }, 0);
       const totalIncomeForHealth = ownIncomeTotal + sharedIncomeTotal;
       
       // Use filtered own items (not all items which includes shared users')
@@ -860,18 +863,24 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
                 </div>
                 <div className="constraint-stat">
                   <span className="stat-label">Next Decay</span>
-                  <span className="stat-value">-5 pts/mo</span>
+                  <span className="stat-value">{(constraintScore.recentOverspends || 0) > 0 ? '-3' : '-7'} pts/mo</span>
                 </div>
               </div>
               <div className="constraint-explanation">
                 <p><strong>How Overspend Risk Works</strong></p>
-                <p>Each time you exceed a planned variable expense budget, your risk score increases by +5. At the start of each billing cycle, the score automatically decays by 5 points and overspend count resets — rewarding consistent budget discipline.</p>
+                <p>Each time you exceed a planned variable expense budget, your risk score increases by +5. The score uses <strong>gradual cooldown</strong> — it takes multiple clean months to recover from a bad streak, reflecting your true planning habits.</p>
                 <ul>
                   <li><strong style={{ color: '#10b981' }}>Low Risk (0–39):</strong> You're staying within budget — great job!</li>
                   <li><strong style={{ color: '#f59e0b' }}>Medium Risk (40–69):</strong> Some overspending detected, stay cautious</li>
                   <li><strong style={{ color: '#ef4444' }}>High Risk (70–100):</strong> Frequent overspending, review your budget</li>
                 </ul>
-                <p className="constraint-note"><FaLightbulb style={{ marginRight: 6, color: '#3b82f6' }} /> Stay on budget this month to earn a 5-point reduction at the next cycle reset.</p>
+                <p><strong>Cooldown Mechanics:</strong></p>
+                <ul>
+                  <li>If you still have recent overspends on record: <strong>slow decay (−3/month)</strong></li>
+                  <li>Once overspend history clears: <strong>faster recovery (−7/month)</strong></li>
+                  <li>Overspend count reduces by 1 per clean month (not instant reset)</li>
+                </ul>
+                <p className="constraint-note"><FaLightbulb style={{ marginRight: 6, color: '#3b82f6' }} /> {(constraintScore.recentOverspends || 0) > 0 ? `You have ${constraintScore.recentOverspends} recent overspend(s) on record. Stay clean to accelerate recovery.` : `Clean streak! Your score will decay by 7 points at the next cycle reset.`}</p>
               </div>
             </div>
           </div>

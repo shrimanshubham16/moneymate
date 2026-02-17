@@ -52,12 +52,15 @@ export function AboutPage() {
             <li><strong>Health-Based Insights:</strong> Visual indicators showing your financial health (Good, OK, Not Well, Worrisome)</li>
             <li><strong>Smart Planning:</strong> Plan fixed expenses, variable expenses, and investments with ease</li>
             <li><strong>SIP for Periodic Expenses:</strong> Accumulate funds with potential growth for non-monthly expenses</li>
-            <li><strong>Future Bombs:</strong> Track and prepare for upcoming large liabilities</li>
+            <li><strong>Smart Future Bomb Defusal:</strong> Calculate required monthly SIPs to defuse upcoming liabilities with intelligent investment pause suggestions</li>
+            <li><strong>Investment Priority:</strong> Mark key investments as priority so they're never suggested for pausing</li>
+            <li><strong>RSU Income Tracking:</strong> Track vesting RSU grants with live stock price lookup and currency conversion</li>
+            <li><strong>Income Health Toggle:</strong> Choose which income sources count toward your financial health score</li>
             <li><strong>Credit Card & Loan Management:</strong> Keep track of bills, EMIs, and payment deadlines</li>
             <li><strong>Sharing & Collaboration:</strong> Share finances with partners (owner, editor, viewer roles)</li>
-            <li><strong>Activity Log:</strong> Complete audit trail of all financial actions with full details</li>
-            <li><strong>Smart Alerts:</strong> Get notified about overspends, missed investments, and upcoming dues</li>
-            <li><strong>Overspend Risk Scoring:</strong> Intelligent tracking of spending patterns with monthly improvement decay</li>
+            <li><strong>Activity Log:</strong> Pin important activities, comment in real-time — great for shared accounts</li>
+            <li><strong>Smart Notifications:</strong> Auto-alerts for unpaid dues, overspends, health drops, and CC billing days</li>
+            <li><strong>Overspend Risk Scoring:</strong> Gradual cooldown with adaptive decay — reflects your true planning habit</li>
             <li><strong>Community Lounge:</strong> Real-time chatroom to share financial tips, guide others, and make friends — cleared daily</li>
           </ul>
         </section>
@@ -67,12 +70,12 @@ export function AboutPage() {
           <h2><FaPalette style={{ marginRight: 8, color: '#8b5cf6' }} /> Usage Guide</h2>
           <div className="usage-steps-grid">
             {[
-              { title: "Set Up Your Income", desc: "Navigate to Settings → Plan Finances → Income to add all your income sources (salary, freelance, etc.)", tip: "Set frequency accurately for prorated calculations" },
+              { title: "Set Up Your Income", desc: "Add all income sources — salary, freelance, and even RSU grants with vesting schedules. Toggle which incomes count toward your health score.", tip: "Use the health toggle to exclude volatile income like RSUs" },
               { title: "Plan Your Expenses", desc: "Add fixed expenses (rent, EMIs) and variable expense budgets (groceries, entertainment). Enable SIP for periodic expenses.", tip: "Use SIP for yearly/quarterly bills to accumulate funds" },
-              { title: "Track Investments", desc: "Create investment goals with monthly contribution targets. FinFlow tracks your progress and accumulated funds.", tip: "Pause investments when finances are tight" },
+              { title: "Track Investments", desc: "Create investment goals with monthly contribution targets. Mark key ones as 'Priority' to protect them from pause suggestions.", tip: "Priority investments stay running even during tight months" },
+              { title: "Defuse Future Bombs", desc: "Add large upcoming liabilities. FinFlow calculates the exact monthly SIP needed to defuse each one month before it's due.", tip: "It'll suggest pausing non-priority investments if you're short" },
               { title: "Monitor Dashboard", desc: "Your dashboard shows real-time financial health, pending dues, and a summary of all obligations for the month.", tip: "Health score updates as you mark payments" },
-              { title: "Clear Your Dues", desc: "Visit the Dues page to see everything due this month. Mark items as paid to update your financial health instantly.", tip: "Dues auto-reset at the start of each billing period" },
-              { title: "Stay Alert", desc: "Check alerts for overspends, missed investment payments, and upcoming credit card due dates.", tip: "Activity log shows complete financial history" },
+              { title: "Stay on Track", desc: "Smart notifications alert you about unpaid dues, overspends, health drops, and upcoming CC billing days. Pin activities for quick access.", tip: "Comment on shared activities to collaborate with partners" },
             ].map((step, i) => (
               <div className="usage-step-card" key={i}>
                 <div className="usage-step-header">

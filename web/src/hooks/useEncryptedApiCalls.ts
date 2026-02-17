@@ -67,6 +67,14 @@ export function useEncryptedApiCalls() {
     resumeInvestment: (token: string, id: string) => 
       baseApi.resumeInvestment(token, id),
     
+    // Future Bombs
+    createFutureBomb: (token: string, data: any) =>
+      baseApi.createFutureBomb(token, data),
+    updateFutureBomb: (token: string, id: string, data: any) =>
+      baseApi.updateFutureBomb(token, id, data),
+    deleteFutureBomb: (token: string, id: string) =>
+      baseApi.deleteFutureBomb(token, id),
+    
     // Credit Cards
     fetchCreditCards: (token: string) => 
       baseApi.fetchCreditCards(token, key || undefined),

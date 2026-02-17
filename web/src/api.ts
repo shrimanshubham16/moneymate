@@ -325,7 +325,12 @@ export async function fetchDashboard(token: string, asOf?: string, view?: string
   return request<{ data: any }>(`/dashboard${query}`, { method: "GET" }, token, cryptoKey);
 }
 
-export async function createIncome(token: string, payload: { source: string; amount: number; frequency: string }, cryptoKey?: CryptoKey) {
+export async function createIncome(token: string, payload: { 
+  source: string; amount: number; frequency: string; 
+  include_in_health?: boolean; income_type?: string;
+  rsu_ticker?: string; rsu_grant_count?: number; rsu_vesting_schedule?: string;
+  rsu_currency?: string; rsu_stock_price?: number;
+}, cryptoKey?: CryptoKey) {
   const body = await buildBody(payload, cryptoKey);
   return request<{ data: any }>("/planning/income", { method: "POST", body }, token);
 }
@@ -520,7 +525,12 @@ export async function deleteVariableExpensePlan(token: string, id: string) {
   return request<{ data: any }>(`/planning/variable-expenses/${id}`, { method: "DELETE" }, token);
 }
 
-export async function updateIncome(token: string, id: string, payload: { source?: string; amount?: number; frequency?: string }, cryptoKey?: CryptoKey) {
+export async function updateIncome(token: string, id: string, payload: { 
+  source?: string; amount?: number; frequency?: string;
+  include_in_health?: boolean; income_type?: string;
+  rsu_ticker?: string; rsu_grant_count?: number; rsu_vesting_schedule?: string;
+  rsu_currency?: string; rsu_stock_price?: number;
+}, cryptoKey?: CryptoKey) {
   const body = await buildBody(payload, cryptoKey);
   return request<{ data: any }>(`/planning/income/${id}`, { method: "PUT", body }, token);
 }
@@ -530,24 +540,26 @@ export async function deleteIncome(token: string, id: string) {
 }
 
 // Investments
-export async function createInvestment(token: string, payload: { name: string; goal: string; monthlyAmount: number; status: string }, cryptoKey?: CryptoKey) {
+export async function createInvestment(token: string, payload: { name: string; goal: string; monthlyAmount: number; status: string; isPriority?: boolean }, cryptoKey?: CryptoKey) {
   const backendPayload: any = {
     name: payload.name,
     goal: payload.goal,
     monthly_amount: payload.monthlyAmount,
-    status: payload.status
+    status: payload.status,
+    is_priority: payload.isPriority || false
   };
   const body = await buildBody(backendPayload, cryptoKey);
   return request<{ data: any }>("/planning/investments", { method: "POST", body }, token);
 }
 
-export async function updateInvestment(token: string, id: string, payload: { name?: string; goal?: string; monthlyAmount?: number; status?: string; accumulatedFunds?: number }, cryptoKey?: CryptoKey) {
+export async function updateInvestment(token: string, id: string, payload: { name?: string; goal?: string; monthlyAmount?: number; status?: string; accumulatedFunds?: number; isPriority?: boolean }, cryptoKey?: CryptoKey) {
   const backendPayload: any = {};
   if (payload.name !== undefined) backendPayload.name = payload.name;
   if (payload.goal !== undefined) backendPayload.goal = payload.goal;
   if (payload.monthlyAmount !== undefined) backendPayload.monthly_amount = payload.monthlyAmount;
   if (payload.status !== undefined) backendPayload.status = payload.status;
   if (payload.accumulatedFunds !== undefined) backendPayload.accumulated_funds = payload.accumulatedFunds;
+  if (payload.isPriority !== undefined) backendPayload.is_priority = payload.isPriority;
   
   const body = await buildBody(backendPayload, cryptoKey);
   return request<{ data: any }>(`/planning/investments/${id}`, { method: "PUT", body }, token);
@@ -563,6 +575,19 @@ export async function pauseInvestment(token: string, id: string) {
 
 export async function resumeInvestment(token: string, id: string) {
   return updateInvestment(token, id, { status: "active" });
+}
+
+// Future Bombs
+export async function createFutureBomb(token: string, payload: { name: string; due_date: string; total_amount: number; saved_amount: number }) {
+  return request<{ data: any }>("/future-bombs", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export async function updateFutureBomb(token: string, id: string, payload: { name?: string; due_date?: string; total_amount?: number; saved_amount?: number }) {
+  return request<{ data: any }>(`/future-bombs/${id}`, { method: "PUT", body: JSON.stringify(payload) }, token);
+}
+
+export async function deleteFutureBomb(token: string, id: string) {
+  return request<{ data: { deleted: boolean } }>(`/future-bombs/${id}`, { method: "DELETE" }, token);
 }
 
 // Payment tracking

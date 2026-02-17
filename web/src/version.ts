@@ -17,7 +17,7 @@ const commitId = typeof __COMMIT_ID__ !== 'undefined' ? __COMMIT_ID__ : 'dev';
 
 export const VERSION = {
   major: 2,
-  minor: 4,
+  minor: 5,
   patch: 0,
   build: commitId, // Git commit ID (short SHA)
   
@@ -32,10 +32,10 @@ export const VERSION = {
   },
   
   // Code name for this release
-  codeName: "Smart Notifications",
+  codeName: "Smart Features Upgrade",
 
   // Release date
-  releaseDate: "Feb 17, 2026",
+  releaseDate: "Feb 18, 2026",
   
   // Release notes
   releaseNotes: [
@@ -44,7 +44,7 @@ export const VERSION = {
     "24-Word Recovery Key — Secure account backup & password reset",
     "Premium Dark Theme — Ultra-polished UI across all pages",
     "Simplified Health Thresholds — Intuitive 2-slider configuration",
-    "Overspend Risk Tracking — Smart constraint scoring with monthly decay",
+    "Overspend Risk Tracking — Gradual cooldown with adaptive decay",
     "Premium Credit Cards Page — Usage bars, billing cycle details",
     "Enhanced Activities Log — Expandable details & entity filters",
     "Multi-Step Onboarding — Guided setup for new users",
@@ -52,12 +52,13 @@ export const VERSION = {
     "Dashboard Cache Invalidation — Instant data refresh after changes",
     "PWA Support — Install as a native app on your device",
     "Community Lounge — Real-time chatroom to share tips & make friends",
-    "Zero Edge Function Calls — Chat uses direct PostgREST + Realtime WebSocket",
-    "Activity Pins — Pin important activities to the top for quick access",
-    "Activity Comments — Inline real-time comments on any activity, great for shared accounts",
+    "Activity Pins & Comments — Pin activities, inline real-time comments for shared accounts",
     "Smart Notifications — Auto-alerts for unpaid dues, overspends, health drops, CC billing",
-    "Merged Alerts into Notifications — Single unified notification system",
-    "Enhanced Page Intros — Compelling, user-focused popups on every page"
+    "Investment Priority — Mark investments as priority to protect from pause suggestions",
+    "Smart Future Bomb Defusal — Monthly SIP calculation with investment pause suggestions",
+    "RSU Income Support — Track vesting RSUs with live stock price lookup",
+    "Income Health Toggle — Choose which income sources count toward health score",
+    "Bill Start Date Reset — Properly resets billing cycle when start day changes"
   ]
 };
 

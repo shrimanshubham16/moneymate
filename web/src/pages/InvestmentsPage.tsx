@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MdTrendingUp } from "react-icons/md";
-import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock } from "react-icons/fa";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaShieldAlt, FaStar } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -88,6 +88,18 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
     }
   };
 
+  const handleTogglePriority = async (inv: any) => {
+    try {
+      const newPriority = !inv.isPriority;
+      await api.updateInvestment(token, inv.id, { isPriority: newPriority });
+      // Optimistic update
+      setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, isPriority: newPriority } : i));
+      invalidateDashboardCache();
+    } catch (e: any) {
+      showAlert("Failed to update priority: " + e.message);
+    }
+  };
+
   const handleDelete = async (inv: any) => {
     showConfirm(`Delete investment "${inv.name}"? This action cannot be undone.`, async () => {
       try {
@@ -113,9 +125,10 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
             howItWorks={[
               "Add investments with a monthly amount, goal description, and status",
               "Active investments appear in your Dues each month — mark them paid after contributing",
+              "Mark an investment as Priority (star icon) to protect it from pause suggestions",
+              "Non-priority investments may be suggested for pausing on the Future Bombs page to free up funds",
               "Pause an investment to temporarily exclude it from health calculations",
-              "Track accumulated funds to see how much you've built up over time",
-              "Investment amounts are factored into your health score alongside expenses"
+              "Track accumulated funds to see how much you've built up over time"
             ]}
           />
         </div>
@@ -154,6 +167,16 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                 <div className="investment-info">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <h3>{formatSharedField(inv.name, isOwn)}</h3>
+                    {inv.isPriority && (
+                      <span style={{ 
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 10, fontWeight: 700, color: '#f59e0b',
+                        background: 'rgba(245, 158, 11, 0.12)', padding: '2px 8px', borderRadius: 12,
+                        border: '1px solid rgba(245, 158, 11, 0.25)', letterSpacing: '0.5px', textTransform: 'uppercase'
+                      }}>
+                        <FaShieldAlt size={10} /> Priority
+                      </span>
+                    )}
                     {isSharedView && (
                       <span style={{ fontSize: 11, color: isOwn ? '#10b981' : '#8b5cf6', display: 'flex', alignItems: 'center', gap: 4 }}>
                         {isOwn ? <FaUserCircle size={12} /> : <FaLock size={12} />}
@@ -177,6 +200,14 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                 </div>
                 {isOwn ? (
                   <div className="investment-actions">
+                    <button 
+                      className={`icon-btn priority-btn ${inv.isPriority ? 'active' : ''}`}
+                      onClick={() => handleTogglePriority(inv)}
+                      title={inv.isPriority ? "Remove Priority (can be paused for Future Bombs)" : "Mark as Priority (never suggested for pausing)"}
+                      style={{ color: inv.isPriority ? '#f59e0b' : 'rgba(255,255,255,0.3)' }}
+                    >
+                      <FaStar />
+                    </button>
                     <button 
                       className="icon-btn wallet-btn" 
                       onClick={() => {

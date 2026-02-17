@@ -2,102 +2,344 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+  color: var(--text-primary, #f1f5f9);
 }
 
+/* Bombs Grid */
 .bombs-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: 20px;
 }
 
+/* Bomb Card */
 .bomb-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #e2e8f0;
+  background: var(--card-bg, rgba(255,255,255,0.04));
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 16px;
   padding: 24px;
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.bomb-card.critical {
-  border-color: #ef4444;
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+.bomb-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 16px 16px 0 0;
 }
 
-.bomb-card.warn {
-  border-color: #f59e0b;
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+.bomb-card.critical::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+.bomb-card.warn::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.bomb-card.ok::before { background: linear-gradient(90deg, #10b981, #34d399); }
+
+.bomb-card:hover {
+  border-color: rgba(255,255,255,0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
 
+/* Bomb Header */
 .bomb-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 16px;
+  gap: 12px;
 }
 
 .bomb-header h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.bomb-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .severity-badge {
-  padding: 6px 12px;
+  padding: 4px 10px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .severity-badge.critical {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .severity-badge.warn {
-  background: #fef3c7;
-  color: #92400e;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .severity-badge.ok {
-  background: #d1fae5;
-  color: #065f46;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+/* Bomb Details */
 .bomb-details {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-bottom: 20px;
 }
 
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-item .label {
+  font-size: 11px;
+  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-item .value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #f1f5f9);
+}
+
+/* Preparedness Meter */
 .preparedness-meter {
   margin-top: 16px;
 }
 
 .meter-label {
-  font-size: 12px;
-  color: #64748b;
+  font-size: 11px;
+  color: var(--text-tertiary, rgba(255,255,255,0.4));
   font-weight: 600;
   margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .meter-bar {
-  height: 12px;
-  background: #e2e8f0;
-  border-radius: 6px;
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .meter-fill {
   height: 100%;
-  border-radius: 6px;
+  border-radius: 4px;
   transition: width 0.3s ease;
 }
 
 .meter-value {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  text-align: center;
+  text-align: right;
 }
 
+/* Smart Defusal Panel */
+.defusal-panel {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.defusal-panel h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary, rgba(255,255,255,0.7));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.defusal-sip-amount {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.defusal-sip-amount.affordable { color: #10b981; }
+.defusal-sip-amount.needs-pause { color: #f59e0b; }
+.defusal-sip-amount.unaffordable { color: #ef4444; }
+
+.defusal-status {
+  font-size: 13px;
+  color: var(--text-secondary, rgba(255,255,255,0.7));
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.defusal-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.defusal-suggestion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.defusal-suggestion-item .inv-name {
+  font-weight: 600;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.defusal-suggestion-item .inv-amount {
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.defusal-pause-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #000;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.defusal-pause-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.defusal-pause-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Bomb Actions */
+.bomb-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.bomb-actions button {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary, rgba(255,255,255,0.7));
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.bomb-actions button:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-primary, #f1f5f9);
+}
+
+.bomb-actions button.delete-action {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.bomb-actions button.delete-action:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary, rgba(255,255,255,0.6));
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* Form styling in Modal */
+.bomb-form .form-group {
+  margin-bottom: 16px;
+}
+
+.bomb-form .form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, rgba(255,255,255,0.7));
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bomb-form .form-group input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary, #f1f5f9);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.bomb-form .form-group input:focus {
+  border-color: var(--accent-cyan, #22d3ee);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bombs-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .bomb-details {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .future-bombs-page {
+    padding: 16px;
+  }
+}
