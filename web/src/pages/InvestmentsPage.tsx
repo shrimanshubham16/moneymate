@@ -9,6 +9,9 @@ import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { ClientCache } from "../utils/cache";
+import { invalidateDashboardCache } from "../utils/cacheInvalidation";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./InvestmentsPage.css";
 
 interface InvestmentsPageProps {
@@ -18,6 +21,7 @@ interface InvestmentsPageProps {
 export function InvestmentsPage({ token }: InvestmentsPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { modal, showAlert, closeModal, confirmAndClose } = useAppModal();
   const [investments, setInvestments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -124,10 +128,10 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                       try {
                         await api.updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
                         // Clear client cache to ensure fresh data
-                        ClientCache.invalidateDashboard();
+                        invalidateDashboardCache();
                         await loadInvestments();
                       } catch (e: any) {
-                        alert("Failed to update: " + e.message);
+                        showAlert("Failed to update: " + e.message);
                       }
                     }
                   }}
@@ -162,7 +166,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
           ))}
         </div>
       )}
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

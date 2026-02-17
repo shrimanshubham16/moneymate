@@ -26,7 +26,6 @@ function getUserIdFromToken(token: string): string | null {
 interface SharedMember {
   userId: string;
   username: string;
-  email?: string;
   role?: string;
 }
 

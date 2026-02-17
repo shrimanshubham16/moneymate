@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./SharingPage.css";
 
 interface SharingPageProps {
@@ -11,6 +13,7 @@ interface SharingPageProps {
 export function SharingPage({ token }: SharingPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const [requests, setRequests] = useState<{ incoming: any[]; outgoing: any[] }>({ incoming: [], outgoing: [] });
   const [members, setMembers] = useState<{ members: any[]; accounts: any[] }>({ members: [], accounts: [] });
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -37,36 +40,40 @@ export function SharingPage({ token }: SharingPageProps) {
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      // Always merge finances when sharing (simplified model)
-      const proceed = window.confirm(`You're about to request ${inviteForm.username} to share finances. If they accept, they will see your finances. Continue?`);
-      if (!proceed) return;
-      await api.sendInvite(token, {
-        username: inviteForm.username,
-        role: "viewer", // Role not used anymore, but backend still expects it
-        merge_finances: true
-      });
-      setShowInviteForm(false);
-      setInviteForm({ username: "" });
-      await loadData();
-    } catch (e: any) {
-      alert(e.message);
-    }
+    showConfirm(
+      `You're about to request ${inviteForm.username} to share finances. If they accept, they will see your finances. Continue?`,
+      async () => {
+        try {
+          await api.sendInvite(token, {
+            username: inviteForm.username,
+            role: "viewer",
+            merge_finances: true
+          });
+          setShowInviteForm(false);
+          setInviteForm({ username: "" });
+          await loadData();
+        } catch (err: any) {
+          showAlert(err.message);
+        }
+      },
+      "Send Invite?"
+    );
   };
 
   const handleApprove = async (id: string, inviterUsername: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to approve this sharing request from "${inviterUsername}"?\n\nThis will allow both of you to see each other's financial data in the Combined view.`
+    showConfirm(
+      `Are you sure you want to approve this sharing request from "${inviterUsername}"? This will allow both of you to see each other's financial data in the Combined view.`,
+      async () => {
+        try {
+          await api.approveRequest(token, id);
+          showAlert("Request approved! You can now see each other's finances in the Combined (Shared) view on your Dashboard.", "Success");
+          await loadData();
+        } catch (err: any) {
+          showAlert(err.message);
+        }
+      },
+      "Approve Request?"
     );
-    if (!confirmed) return;
-    
-    try {
-      await api.approveRequest(token, id);
-      alert('Request approved! You can now see each other\'s finances in the Combined (Shared) view on your Dashboard.');
-      await loadData();
-    } catch (e: any) {
-      alert(e.message);
-    }
   };
 
   const handleReject = async (id: string) => {
@@ -74,36 +81,37 @@ export function SharingPage({ token }: SharingPageProps) {
       await api.rejectRequest(token, id);
       await loadData();
     } catch (e: any) {
-      alert(e.message);
+      showAlert(e.message);
     }
   };
 
   const handleRevoke = async (memberId: string, sharedAccountId: string, username: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to revoke sharing with "${username}"?\n\nThis will remove the shared access for both of you.`
+    showConfirm(
+      `Are you sure you want to revoke sharing with "${username}"? This will remove the shared access for both of you.`,
+      async () => {
+        try {
+          const result = await fetch(`${api.getBaseUrl()}/sharing/revoke`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ sharedAccountId })
+          });
+          
+          if (!result.ok) {
+            const errData = await result.json();
+            throw new Error(errData.message || 'Failed to revoke');
+          }
+          
+          showAlert('Sharing revoked successfully', 'Success');
+          await loadData();
+        } catch (err: any) {
+          showAlert(err.message);
+        }
+      },
+      "Revoke Sharing?"
     );
-    if (!confirmed) return;
-    
-    try {
-      const result = await fetch(`${api.getBaseUrl()}/sharing/revoke`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ sharedAccountId })
-      });
-      
-      if (!result.ok) {
-        const errData = await result.json();
-        throw new Error(errData.message || 'Failed to revoke');
-      }
-      
-      alert('Sharing revoked successfully');
-      await loadData();
-    } catch (e: any) {
-      alert(e.message);
-    }
   };
 
   return (
@@ -154,7 +162,7 @@ export function SharingPage({ token }: SharingPageProps) {
               {requests.incoming.map((req) => (
                 <div key={req.id} className="request-card">
                   <div className="request-info">
-                    <h3>From: {req.inviterUsername || req.ownerEmail || req.ownerId || 'Unknown'}</h3>
+                    <h3>From: {req.inviterUsername || req.ownerId || 'Unknown'}</h3>
                     <div className="request-meta">
                       <span className={`role-badge ${req.role}`}>{req.role}</span>
                       {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}
@@ -162,7 +170,7 @@ export function SharingPage({ token }: SharingPageProps) {
                     </div>
                   </div>
                   <div className="request-actions">
-                    <button onClick={() => handleApprove(req.id, req.inviterUsername || req.ownerEmail || 'Unknown')} className="approve-btn">Approve</button>
+                    <button onClick={() => handleApprove(req.id, req.inviterUsername || 'Unknown')} className="approve-btn">Approve</button>
                     <button onClick={() => handleReject(req.id)} className="reject-btn">Reject</button>
                   </div>
                 </div>
@@ -183,7 +191,7 @@ export function SharingPage({ token }: SharingPageProps) {
               {requests.outgoing.map((req) => (
                 <div key={req.id} className="request-card outgoing">
                   <div className="request-info">
-                    <h3>To: {req.inviteeUsername || req.inviteeEmail || req.inviteeId || 'Unknown'}</h3>
+                    <h3>To: {req.inviteeUsername || req.inviteeId || 'Unknown'}</h3>
                     <div className="request-meta">
                       <span className={`role-badge ${req.role}`}>{req.role}</span>
                       {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}
@@ -212,7 +220,7 @@ export function SharingPage({ token }: SharingPageProps) {
                   </div>
                   <div className="member-info">
                     <h3>{member.username || "User"}</h3>
-                    <p>{member.email || "No email"}</p>
+                    <p className="member-role-text">{member.role || "member"}</p>
                     <div className="member-meta">
                       <span className={`role-badge ${member.role}`}>{member.role}</span>
                       {member.merge_finances && <span className="merge-badge">Merged</span>}
@@ -237,7 +245,7 @@ export function SharingPage({ token }: SharingPageProps) {
           </div>
         )}
       </div>
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

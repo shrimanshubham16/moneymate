@@ -5,6 +5,8 @@ import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { Toast } from "../components/Toast";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./DuesPage.css";
 
 interface DuesPageProps {
@@ -13,6 +15,7 @@ interface DuesPageProps {
 
 export function DuesPage({ token }: DuesPageProps) {
   const navigate = useNavigate();
+  const { modal, showAlert, closeModal, confirmAndClose } = useAppModal();
   const api = useEncryptedApiCalls();
   const [dues, setDues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +29,7 @@ export function DuesPage({ token }: DuesPageProps) {
   const handleTogglePaid = async (due: any) => {
     try {
       if (due.itemType === "credit_card") {
-        alert("Credit cards must be paid through the Credit Cards page");
+        showAlert("Credit cards must be paid through the Credit Cards page");
         return;
       }
 
@@ -51,7 +54,7 @@ export function DuesPage({ token }: DuesPageProps) {
     } catch (e: any) {
       // Revert optimistic update on error
       await loadDues();
-      alert("Failed to update payment status: " + e.message);
+      showAlert("Failed to update payment status: " + e.message);
     }
   };
 
@@ -367,7 +370,7 @@ export function DuesPage({ token }: DuesPageProps) {
           )}
         </>
       )}
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

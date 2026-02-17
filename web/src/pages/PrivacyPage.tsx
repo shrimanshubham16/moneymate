@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { FaShieldAlt, FaLock, FaUserShield, FaCheckCircle, FaTimesCircle, FaInfoCircle, FaKey, FaArrowLeft } from "react-icons/fa";
+import { FaShieldAlt, FaLock, FaUserShield, FaCheckCircle, FaTimesCircle, FaInfoCircle, FaKey, FaArrowLeft, FaMobileAlt, FaCloud } from "react-icons/fa";
 import "./PrivacyPage.css";
 
 export function PrivacyPage() {
@@ -33,7 +33,7 @@ export function PrivacyPage() {
                         <div className="e2e-visual">
                             <div className="encryption-flow">
                                 <div className="flow-step">
-                                    <div className="flow-icon">📱</div>
+                                    <div className="flow-icon"><FaMobileAlt /></div>
                                     <span>Your Device</span>
                                 </div>
                                 <div className="flow-arrow">
@@ -41,7 +41,7 @@ export function PrivacyPage() {
                                     <span>Encrypted</span>
                                 </div>
                                 <div className="flow-step">
-                                    <div className="flow-icon">☁️</div>
+                                    <div className="flow-icon"><FaCloud /></div>
                                     <span>Our Server</span>
                                 </div>
                             </div>
@@ -102,7 +102,7 @@ export function PrivacyPage() {
                                 <h3>What We CAN See</h3>
                                 <ul>
                                     <li><FaCheckCircle /> Your username (for login)</li>
-                                    <li><FaCheckCircle /> Your email (for recovery)</li>
+                                    <li><FaCheckCircle /> Your recovery key (for password reset)</li>
                                     <li><FaCheckCircle /> Encrypted blobs (meaningless data)</li>
                                     <li><FaCheckCircle /> Timestamps (when data was modified)</li>
                                 </ul>
@@ -151,31 +151,31 @@ export function PrivacyPage() {
                                 <tbody>
                                     <tr>
                                         <td>End-to-End Encrypted</td>
-                                        <td className="yes">✅ Yes</td>
-                                        <td className="no">❌ No</td>
-                                        <td className="no">❌ No</td>
+                                        <td className="yes"><FaCheckCircle style={{ marginRight: 4, color: '#10b981' }} /> Yes</td>
+                                        <td className="no"><FaTimesCircle style={{ marginRight: 4, color: '#ef4444' }} /> No</td>
+                                        <td className="no"><FaTimesCircle style={{ marginRight: 4, color: '#ef4444' }} /> No</td>
                                     </tr>
                                     <tr>
                                         <td>Server Can Read Data</td>
-                                        <td className="yes">❌ No</td>
-                                        <td className="no">✅ Yes</td>
-                                        <td className="no">✅ Yes</td>
+                                        <td className="yes"><FaTimesCircle style={{ marginRight: 4, color: '#10b981' }} /> No</td>
+                                        <td className="no"><FaCheckCircle style={{ marginRight: 4, color: '#ef4444' }} /> Yes</td>
+                                        <td className="no"><FaCheckCircle style={{ marginRight: 4, color: '#ef4444' }} /> Yes</td>
                                     </tr>
                                     <tr>
                                         <td>Zero-Knowledge</td>
-                                        <td className="yes">✅ Yes</td>
-                                        <td className="no">❌ No</td>
-                                        <td className="no">❌ No</td>
+                                        <td className="yes"><FaCheckCircle style={{ marginRight: 4, color: '#10b981' }} /> Yes</td>
+                                        <td className="no"><FaTimesCircle style={{ marginRight: 4, color: '#ef4444' }} /> No</td>
+                                        <td className="no"><FaTimesCircle style={{ marginRight: 4, color: '#ef4444' }} /> No</td>
                                     </tr>
                                     <tr>
                                         <td>Recovery Key Backup</td>
-                                        <td className="yes">✅ 24-word phrase</td>
-                                        <td className="no">❌ No</td>
-                                        <td className="no">❌ No</td>
+                                        <td className="yes"><FaCheckCircle style={{ marginRight: 4, color: '#10b981' }} /> 24-word phrase</td>
+                                        <td className="no"><FaTimesCircle style={{ marginRight: 4, color: '#ef4444' }} /> No</td>
+                                        <td className="no"><FaTimesCircle style={{ marginRight: 4, color: '#ef4444' }} /> No</td>
                                     </tr>
                                     <tr>
                                         <td>Open Infrastructure</td>
-                                        <td className="yes">✅ Supabase</td>
+                                        <td className="yes"><FaCheckCircle style={{ marginRight: 4, color: '#10b981' }} /> Supabase</td>
                                         <td className="no">Proprietary</td>
                                         <td className="no">Proprietary</td>
                                     </tr>

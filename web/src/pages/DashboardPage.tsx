@@ -18,9 +18,10 @@ import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { ClientCache } from "../utils/cache";
-import { WalkthroughModal } from "../components/WalkthroughModal";
 import { isFeatureEnabled } from "../features";
 import { OnboardingFlow } from "../components/OnboardingFlow";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./DashboardPage.css";
 
 interface DashboardPageProps {
@@ -39,14 +40,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showWalkthrough, setShowWalkthrough] = useState(() => {
-    const seen = localStorage.getItem("finflow_walkthrough_seen");
-    return !seen;
-  });
-  const restartWalkthrough = () => {
-    localStorage.removeItem("finflow_walkthrough_seen");
-    setShowWalkthrough(true);
-  };
   // Persist selectedView in localStorage so it survives navigation
   const [selectedView, setSelectedView] = useState<string>(() => {
     const saved = localStorage.getItem('finflow_selected_view');
@@ -64,6 +57,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [newQuickSub, setNewQuickSub] = useState<string>("");
   const [showQuickNewSub, setShowQuickNewSub] = useState(false);
   const { showIntro, closeIntro } = useIntroModal("dashboard");
+  const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const keepAliveIntervalRef = useRef<number | null>(null);
   const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
   const lastViewRef = useRef<string>(""); // Track view changes to allow refetch
@@ -253,7 +247,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    window.location.href = "/";
+    navigate("/");
   };
 
   // Background revalidation function
@@ -458,12 +452,12 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const handleQuickAddSubmit = async () => {
     try {
       if (!quickAddPlanId) {
-        alert("Select a variable plan");
+        showAlert("Select a variable plan");
         return;
       }
       const amountNum = parseFloat(quickAddAmount);
       if (!amountNum || amountNum <= 0) {
-        alert("Enter a valid amount");
+        showAlert("Enter a valid amount");
         return;
       }
       await api.addVariableActual(token, quickAddPlanId, {
@@ -481,7 +475,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setQuickAddCardId("");
       await loadData(true);
     } catch (e: any) {
-      alert(e.message || "Failed to add expense");
+      showAlert(e.message || "Failed to add expense");
     }
   };
 
@@ -540,7 +534,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
                 onClose={() => setShowOnboarding(false)}
                 onComplete={() => {
                   setShowOnboarding(false);
-                  loadData();
+                  loadData(true); // Force-refresh to bypass stale cache
                 }}
               />
             )}
@@ -556,16 +550,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
             onSecondaryAction={() => navigate("/settings/plan-finances/fixed")}
           />
         )}
-      <WalkthroughModal
-        isOpen={showWalkthrough}
-        onClose={() => {
-          setShowWalkthrough(false);
-          localStorage.setItem("finflow_walkthrough_seen", "true");
-        }}
-      />
-      <div className="dashboard-footer-link">
-        <button className="ghost-btn" onClick={restartWalkthrough}>Restart walkthrough</button>
-      </div>
       </div>
     );
   }
@@ -623,7 +607,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     { value: "merged", label: "Combined (Shared)" },
     ...(sharingMembers?.members || []).map((m: any) => {
       const id = m.shared_user_id || m.user_id || m.userId || m.id;
-      const label = m.username || m.email || id || "Shared Member";
+      const label = m.username || id || "Shared Member";
       return { value: id, label };
     })
   ];
@@ -924,7 +908,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
                           setNewQuickSub("");
                           setShowQuickNewSub(false);
                         } catch (err: any) {
-                          alert(err.message);
+                          showAlert(err.message);
                         }
                       }}
                     >
@@ -945,6 +929,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }

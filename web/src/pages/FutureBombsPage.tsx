@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./FutureBombsPage.css";
 
 interface FutureBombsPageProps {
@@ -12,6 +14,7 @@ interface FutureBombsPageProps {
 export function FutureBombsPage({ token }: FutureBombsPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { modal, showAlert, closeModal, confirmAndClose } = useAppModal();
   const [bombs, setBombs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +44,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
         <h1>Future Bombs</h1>
-        <button className="add-button" onClick={() => alert("Future Bomb creation coming soon! For now, they are automatically tracked from your planned expenses.")}>
+        <button className="add-button" onClick={() => showAlert("Future Bomb creation coming soon! For now, they are automatically tracked from your planned expenses.")}>
           + Add Future Bomb
         </button>
       </div>
@@ -103,7 +106,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
           })}
         </div>
       )}
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

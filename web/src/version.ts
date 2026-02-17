@@ -31,21 +31,27 @@ export const VERSION = {
     return `${this.major}.${this.minor}.${this.patch} (Build ${this.build})`;
   },
   
+  // Code name for this release
+  codeName: "Premium Polish",
+
   // Release date
-  releaseDate: "Jan 6, 2026",
+  releaseDate: "Feb 17, 2026",
   
   // Release notes
   releaseNotes: [
-    "End-to-End Encryption — Your data encrypted on YOUR device",
-    "Zero-Knowledge Privacy — We can't see your financial data",
-    "24-Word Recovery Key — Backup your encryption key",
-    "Email Verification — Secure account recovery",
-    "Password Reset with Recovery Key",
-    "AES-256 Military-grade encryption",
-    "Privacy-first architecture",
-    "PWA support — install as app on your phone"
+    "End-to-End Encryption — AES-256 military-grade encryption on device",
+    "Zero-Knowledge Privacy — We can't read your financial data",
+    "24-Word Recovery Key — Secure account backup & password reset",
+    "Premium Dark Theme — Ultra-polished UI across all pages",
+    "Simplified Health Thresholds — Intuitive 2-slider configuration",
+    "Overspend Risk Tracking — Smart constraint scoring with monthly decay",
+    "Premium Credit Cards Page — Usage bars, billing cycle details",
+    "Enhanced Activities Log — Expandable details & entity filters",
+    "Multi-Step Onboarding — Guided setup for new users",
+    "Unified App Modals — Consistent popups replacing browser dialogs",
+    "Dashboard Cache Invalidation — Instant data refresh after changes",
+    "PWA Support — Install as a native app on your device"
   ]
 };
 
 export default VERSION;
-

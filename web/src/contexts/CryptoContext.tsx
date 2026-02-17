@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 
-// Session key storage - stores exported key material in sessionStorage
-// This survives page refresh but clears when browser closes
-const SESSION_KEY_STORAGE = 'finflow_session_key';
-const SESSION_SALT_STORAGE = 'finflow_session_salt';
+// Persistent key storage - stores exported key material in localStorage
+// This survives page refresh AND browser close (cleared on explicit logout)
+const STORAGE_KEY = 'finflow_session_key';
+const STORAGE_SALT = 'finflow_session_salt';
 
 type CryptoContextValue = {
   key: CryptoKey | null;
@@ -44,12 +44,12 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [encryptionSalt, setSalt] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
 
-  // On mount, try to restore key from sessionStorage
+  // On mount, try to restore key from localStorage
   useEffect(() => {
     const restoreKey = async () => {
       try {
-        const storedKey = sessionStorage.getItem(SESSION_KEY_STORAGE);
-        const storedSalt = sessionStorage.getItem(SESSION_SALT_STORAGE);
+        const storedKey = localStorage.getItem(STORAGE_KEY);
+        const storedSalt = localStorage.getItem(STORAGE_SALT);
         
         if (storedKey && storedSalt) {
           const restored = await importKey(storedKey);
@@ -58,8 +58,8 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       } catch (e) {
         console.error('[CRYPTO] Failed to restore key:', e);
-        sessionStorage.removeItem(SESSION_KEY_STORAGE);
-        sessionStorage.removeItem(SESSION_SALT_STORAGE);
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_SALT);
       } finally {
         setIsRestoring(false);
       }
@@ -72,11 +72,11 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setKeyState(next);
     setSalt(salt);
     
-    // Store in sessionStorage for page refresh survival
+    // Store in localStorage for persistence across browser restarts
     try {
       const exported = await exportKey(next);
-      sessionStorage.setItem(SESSION_KEY_STORAGE, exported);
-      sessionStorage.setItem(SESSION_SALT_STORAGE, salt);
+      localStorage.setItem(STORAGE_KEY, exported);
+      localStorage.setItem(STORAGE_SALT, salt);
     } catch (e) {
       console.error('[CRYPTO] Failed to store key:', e);
     }
@@ -85,8 +85,8 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const clearKey = useCallback(() => {
     setKeyState(null);
     setSalt(null);
-    sessionStorage.removeItem(SESSION_KEY_STORAGE);
-    sessionStorage.removeItem(SESSION_SALT_STORAGE);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_SALT);
     console.log('[CRYPTO] Key cleared');
   }, []);
 
@@ -100,6 +100,3 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 export function useCrypto() {
   return useContext(CryptoContext);
 }
-
-
-

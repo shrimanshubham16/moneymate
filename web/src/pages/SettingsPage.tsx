@@ -22,7 +22,7 @@ export function SettingsPage() {
       title: "Preferences",
       items: [
         { id: "preferences", title: "Billing Preferences", icon: <FaCog size={32} />, description: "Set month start day & currency" },
-        { id: "notifications", title: "Notifications", icon: <FaBell size={32} />, description: "Manage alerts and email digests" },
+        { id: "notifications", title: "Notifications", icon: <FaBell size={32} />, description: "Manage alerts and notifications" },
         { id: "theme", title: "Themes", icon: <FaPalette size={32} />, description: "Switch between Dark and Light" },
       ]
     },

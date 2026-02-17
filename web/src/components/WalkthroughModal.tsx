@@ -21,7 +21,7 @@ const STEPS = [
     id: "notifications",
     title: "Notifications",
     icon: <FaBell />,
-    body: "Bell shows in-app alerts; Preferences live under Settings → Notifications. Email digests respect your toggles."
+    body: "Bell shows in-app alerts; Preferences live under Settings → Notifications. Toggle categories on or off to suit your workflow."
   },
   {
     id: "settings",

@@ -7,6 +7,9 @@ import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ProgressBar } from "../components/ProgressBar";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
+import { invalidateDashboardCache } from "../utils/cacheInvalidation";
 import "./VariableExpensesPage.css";
 
 interface VariableExpensesPageProps {
@@ -27,6 +30,7 @@ function getUserIdFromToken(token: string): string | null {
 export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPlanForm, setShowPlanForm] = useState(false);
@@ -197,9 +201,10 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         }
       }
       // Background refresh with cache bypass
+      invalidateDashboardCache();
       loadPlans(true);
     } catch (e: any) {
-      alert(e.message);
+      showAlert(e.message);
       // Rollback on error
       if (editingId) {
         loadPlans(true);
@@ -222,7 +227,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           newSubcategory: "" 
         });
       } catch (e: any) {
-        alert(e.message);
+        showAlert(e.message);
       }
     }
   };
@@ -235,7 +240,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     // Validate plan still exists
     const planStillExists = plans.find(p => p.id === selectedPlanId);
     if (!planStillExists) {
-      alert("This plan no longer exists. Refreshing plans...");
+      showAlert("This plan no longer exists. Refreshing plans...");
       await loadPlans(true);
       setShowActualForm(false);
       setSelectedPlanId(null);
@@ -244,7 +249,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     
     // v1.2: Validate credit card selection
     if (actualForm.paymentMode === "CreditCard" && !actualForm.creditCardId) {
-      alert("Please select a credit card");
+      showAlert("Please select a credit card");
       return;
     }
     
@@ -305,10 +310,11 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       });
       
       // Refresh data in PARALLEL after successful save (bypass cache)
+      invalidateDashboardCache();
       await Promise.all([loadPlans(true), loadCreditCards()]);
 
     } catch (e: any) {
-      alert(e.message);
+      showAlert(e.message);
       // Revert optimistic update on error
       await loadPlans(true);
       await loadCreditCards();
@@ -627,7 +633,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                       {isOwn ? (
                         <>
                           <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
-                          <button className="delete-btn" onClick={() => { if (confirm("Delete?")) api.deleteVariableExpensePlan(token, plan.id).then(() => loadPlans(true)); }} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
+                          <button className="delete-btn" onClick={() => showConfirm("Delete this variable plan?", () => { api.deleteVariableExpensePlan(token, plan.id).then(() => loadPlans(true)); })} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
                         </>
                       ) : (
                         <span className="read-only-badge" title="View only - belongs to shared member">
@@ -711,7 +717,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           })}
         </div>
       )}
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

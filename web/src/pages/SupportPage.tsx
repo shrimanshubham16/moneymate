@@ -60,7 +60,7 @@ export function SupportPage() {
             <details className="faq-item">
               <summary>How does sharing work?</summary>
               <p>
-                You can share your account with a partner via email or username. Choose their role (editor/viewer)
+                You can share your account with a partner via username. Choose their role (editor/viewer)
                 and optionally merge finances to combine income and expenses for a unified view.
               </p>
             </details>

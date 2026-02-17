@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaBell, FaEnvelope, FaCalendarAlt, FaArrowLeft, FaCheck } from "react-icons/fa";
+import { FaBell, FaArrowLeft, FaCheck } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import "./NotificationSettingsPage.css";
@@ -12,18 +12,6 @@ interface NotificationPreferences {
     budgetAlerts: boolean;
     system: boolean;
   };
-  email: {
-    sharing: boolean;
-    payments: boolean;
-    budgetAlerts: boolean;
-    system: boolean;
-  };
-  digest: {
-    enabled: boolean;
-    frequency: "daily" | "weekly" | "monthly";
-    day: number;
-    time: string;
-  };
 }
 
 const defaultPreferences: NotificationPreferences = {
@@ -32,18 +20,6 @@ const defaultPreferences: NotificationPreferences = {
     payments: true,
     budgetAlerts: true,
     system: true
-  },
-  email: {
-    sharing: true,
-    payments: false,
-    budgetAlerts: false,
-    system: true
-  },
-  digest: {
-    enabled: false,
-    frequency: "weekly",
-    day: 0,
-    time: "09:00"
   }
 };
 
@@ -59,21 +35,13 @@ export function NotificationSettingsPage({ token }: NotificationSettingsPageProp
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const getApiUrl = () => {
-    const envUrl = (import.meta as any).env?.VITE_API_URL;
-    if (envUrl) return envUrl;
-    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
-    if (supabaseUrl) return `${supabaseUrl}/functions/v1/api`;
-    return "http://localhost:12022";
-  };
-
   // Fetch preferences on mount
   useEffect(() => {
     const fetchPreferences = async () => {
       if (!token) return;
       try {
         const data = await api.getNotificationPreferences(token);
-        if (data) setPreferences(data);
+        if (data?.inApp) setPreferences({ inApp: data.inApp });
       } catch (e) {
         console.error("Failed to fetch preferences:", e);
       } finally {
@@ -105,20 +73,6 @@ export function NotificationSettingsPage({ token }: NotificationSettingsPageProp
     setPreferences(prev => ({
       ...prev,
       inApp: { ...prev.inApp, [key]: !prev.inApp[key] }
-    }));
-  };
-
-  const toggleEmail = (key: keyof typeof preferences.email) => {
-    setPreferences(prev => ({
-      ...prev,
-      email: { ...prev.email, [key]: !prev.email[key] }
-    }));
-  };
-
-  const updateDigest = (updates: Partial<typeof preferences.digest>) => {
-    setPreferences(prev => ({
-      ...prev,
-      digest: { ...prev.digest, ...updates }
     }));
   };
 
@@ -223,191 +177,6 @@ export function NotificationSettingsPage({ token }: NotificationSettingsPageProp
             </div>
           </div>
         </section>
-
-        {/* Email Notifications */}
-        <section className="settings-section">
-          <div className="section-header">
-            <FaEnvelope className="section-icon" />
-            <div>
-              <h2>Email Notifications</h2>
-              <p>Notifications sent to your email</p>
-            </div>
-          </div>
-
-          <div className="settings-list">
-            <div className="setting-item">
-              <div className="setting-info">
-                <span className="setting-label">Sharing Requests</span>
-                <span className="setting-description">Get emailed when someone sends a sharing request</span>
-              </div>
-              <label className="toggle">
-                <input 
-                  type="checkbox" 
-                  checked={preferences.email.sharing}
-                  onChange={() => toggleEmail("sharing")}
-                />
-                <span className="toggle-slider" />
-              </label>
-            </div>
-
-            <div className="setting-item">
-              <div className="setting-info">
-                <span className="setting-label">Payment Reminders</span>
-                <span className="setting-description">Email reminders for upcoming payments</span>
-              </div>
-              <label className="toggle">
-                <input 
-                  type="checkbox" 
-                  checked={preferences.email.payments}
-                  onChange={() => toggleEmail("payments")}
-                />
-                <span className="toggle-slider" />
-              </label>
-            </div>
-
-            <div className="setting-item">
-              <div className="setting-info">
-                <span className="setting-label">Budget Alerts</span>
-                <span className="setting-description">Email alerts when you're overspending</span>
-              </div>
-              <label className="toggle">
-                <input 
-                  type="checkbox" 
-                  checked={preferences.email.budgetAlerts}
-                  onChange={() => toggleEmail("budgetAlerts")}
-                />
-                <span className="toggle-slider" />
-              </label>
-            </div>
-
-            <div className="setting-item">
-              <div className="setting-info">
-                <span className="setting-label">System Emails</span>
-                <span className="setting-description">Important account updates and security alerts</span>
-              </div>
-              <label className="toggle">
-                <input 
-                  type="checkbox" 
-                  checked={preferences.email.system}
-                  onChange={() => toggleEmail("system")}
-                />
-                <span className="toggle-slider" />
-              </label>
-            </div>
-          </div>
-        </section>
-
-        {/* Email Digest */}
-        <section className="settings-section">
-          <div className="section-header">
-            <FaCalendarAlt className="section-icon" />
-            <div>
-              <h2>Email Digest</h2>
-              <p>Scheduled summary of your finances</p>
-            </div>
-          </div>
-
-          <div className="settings-list">
-            <div className="setting-item">
-              <div className="setting-info">
-                <span className="setting-label">Enable Digest</span>
-                <span className="setting-description">Receive periodic summaries of your financial health</span>
-              </div>
-              <label className="toggle">
-                <input 
-                  type="checkbox" 
-                  checked={preferences.digest.enabled}
-                  onChange={() => updateDigest({ enabled: !preferences.digest.enabled })}
-                />
-                <span className="toggle-slider" />
-              </label>
-            </div>
-
-            {preferences.digest.enabled && (
-              <>
-                <div className="setting-item">
-                  <div className="setting-info">
-                    <span className="setting-label">Frequency</span>
-                    <span className="setting-description">How often to receive digest emails</span>
-                  </div>
-                  <select 
-                    className="setting-select"
-                    value={preferences.digest.frequency}
-                    onChange={(e) => updateDigest({ frequency: e.target.value as any })}
-                  >
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                </div>
-
-                {preferences.digest.frequency === "weekly" && (
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <span className="setting-label">Day of Week</span>
-                      <span className="setting-description">Which day to receive weekly digest</span>
-                    </div>
-                    <select 
-                      className="setting-select"
-                      value={preferences.digest.day}
-                      onChange={(e) => updateDigest({ day: parseInt(e.target.value) })}
-                    >
-                      <option value={0}>Sunday</option>
-                      <option value={1}>Monday</option>
-                      <option value={2}>Tuesday</option>
-                      <option value={3}>Wednesday</option>
-                      <option value={4}>Thursday</option>
-                      <option value={5}>Friday</option>
-                      <option value={6}>Saturday</option>
-                    </select>
-                  </div>
-                )}
-
-                {preferences.digest.frequency === "monthly" && (
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <span className="setting-label">Day of Month</span>
-                      <span className="setting-description">Which day to receive monthly digest</span>
-                    </div>
-                    <select 
-                      className="setting-select"
-                      value={preferences.digest.day}
-                      onChange={(e) => updateDigest({ day: parseInt(e.target.value) })}
-                    >
-                      {[...Array(28)].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>{i + 1}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="setting-item">
-                  <div className="setting-info">
-                    <span className="setting-label">Preferred Time</span>
-                    <span className="setting-description">What time to receive the digest</span>
-                  </div>
-                  <input 
-                    type="time"
-                    className="setting-time"
-                    value={preferences.digest.time}
-                    onChange={(e) => updateDigest({ time: e.target.value })}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </section>
-
-        <div className="digest-preview">
-          <h3>📊 What's in Your Digest?</h3>
-          <ul>
-            <li>✅ Health score summary and trends</li>
-            <li>✅ Income vs. expenses overview</li>
-            <li>✅ Upcoming bills and payments</li>
-            <li>✅ Savings progress</li>
-            <li>✅ Budget category breakdown</li>
-          </ul>
-        </div>
       </div>
     </motion.div>
   );

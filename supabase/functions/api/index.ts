@@ -5,200 +5,10 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // ============================================================================
-// EMAIL SERVICE (Inlined to avoid import issues)
+// (Email service removed - recovery is via recovery key only)
 // ============================================================================
-const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY');
-const POSTMARK_TOKEN = Deno.env.get('POSTMARK_TOKEN');
-const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY');
-const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'noreply@finflow.app';
-const FROM_NAME = Deno.env.get('FROM_NAME') || 'FinFlow';
-const IS_PRODUCTION = Deno.env.get('ENVIRONMENT') === 'production';
-const WELCOME_EMAIL_ENABLED = Deno.env.get('WELCOME_EMAIL_ENABLED') !== 'false';
 
-async function sendEmail(to: string, subject: string, html: string): Promise<{ success: boolean; error?: string }> {
-  // Prefer Brevo HTTP API
-  if (IS_PRODUCTION && BREVO_API_KEY) {
-    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': BREVO_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        sender: { email: FROM_EMAIL, name: FROM_NAME },
-        to: [{ email: to }],
-        subject,
-        htmlContent: html
-      })
-    });
-    if (resp.ok) return { success: true };
-    const errText = await resp.text();
-    console.error('[BREVO_EMAIL_FAILED]', errText);
-    return { success: false, error: 'Brevo send failed' };
-  }
 
-  // SendGrid fallback
-  if (IS_PRODUCTION && SENDGRID_API_KEY) {
-    try {
-      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: to }] }],
-          from: { email: FROM_EMAIL, name: FROM_NAME },
-          subject,
-          content: [{ type: 'text/html', value: html }]
-        })
-      });
-      if (response.ok || response.status === 202) return { success: true };
-      const errText = await response.text();
-      console.error('[SENDGRID_EMAIL_FAILED]', errText);
-      return { success: false, error: 'SendGrid send failed' };
-    } catch (error) {
-      console.error('[SENDGRID_EMAIL_ERROR]', error);
-      return { success: false, error: 'SendGrid send error' };
-    }
-  }
-
-  // Postmark fallback
-  if (IS_PRODUCTION && POSTMARK_TOKEN) {
-    try {
-      const response = await fetch('https://api.postmarkapp.com/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
-        body: JSON.stringify({
-          From: FROM_EMAIL,
-          To: to,
-          Subject: subject,
-          HtmlBody: html,
-        })
-      });
-      if (response.ok) return { success: true };
-      const errText = await response.text();
-      console.error('[POSTMARK_EMAIL_FAILED]', errText);
-      return { success: false, error: 'Postmark send failed' };
-    } catch (error) {
-      console.error('[POSTMARK_EMAIL_ERROR]', error);
-      return { success: false, error: 'Postmark send error' };
-    }
-  }
-
-  // Dev fallback
-  console.log(`[EMAIL_DEV] To: ${to}, Subject: ${subject}`);
-  return { success: true };
-}
-
-async function sendVerificationEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string; error?: string }> {
-  const subject = 'Verify your FinFlow email';
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 32px; border-radius: 12px;">
-      <h1 style="color: #00e676; text-align: center;">🌿 FinFlow</h1>
-      <p style="color: #ccc;">Please verify your email with this code:</p>
-      <div style="background: #2d2d2d; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00e676;">${code}</span>
-      </div>
-      <p style="color: #888; font-size: 12px;">This code expires in 15 minutes.</p>
-    </div>
-  `;
-  
-  if (IS_PRODUCTION) {
-    const res = await sendEmail(to, subject, html);
-    if (res.success) return { success: true };
-    return { success: false, error: res.error || 'Failed to send verification email' };
-  } else {
-    console.log(`[EMAIL_DEV] Verification email to ${to}, code: ${code}`);
-    return { success: true, devCode: code };
-  }
-}
-
-async function sendWelcomeEmail(to: string, username: string): Promise<{ success: boolean; error?: string }> {
-  const subject = 'Welcome to FinFlow!';
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0f172a; padding: 28px; border-radius: 14px; color: #e5e7eb;">
-      <h1 style="color: #22d3ee; text-align: center; margin: 0 0 12px;">Welcome, ${username || 'there'}!</h1>
-      <p style="line-height: 1.6;">Thanks for verifying your email. You're all set to track your finances, stay on top of bills, and keep your data private with end-to-end encryption.</p>
-      <div style="margin: 18px 0; padding: 16px; border-radius: 10px; background: rgba(34, 211, 238, 0.08); border: 1px solid rgba(34, 211, 238, 0.3);">
-        <strong style="color:#22d3ee;">Quick tips:</strong>
-        <ul style="margin: 8px 0 0 18px; padding: 0; line-height: 1.6;">
-          <li>Add income and expenses to get your health score.</li>
-          <li>Use sharing to merge finances securely.</li>
-          <li>Everything is encrypted on your device first.</li>
-        </ul>
-      </div>
-      <p style="line-height: 1.6;">Need help? Just reply to this email.</p>
-      <p style="margin-top: 18px; font-size: 12px; color: #94a3b8;">FinFlow • Privacy-first finances</p>
-    </div>
-  `;
-
-  if (!WELCOME_EMAIL_ENABLED) {
-    console.log('[EMAIL_DEV] Welcome email suppressed by flag');
-    return { success: true };
-  }
-
-  if (IS_PRODUCTION) {
-    const res = await sendEmail(to, subject, html);
-    if (res.success) return { success: true };
-    return { success: false, error: res.error || 'Failed to send welcome email' };
-  }
-
-  console.log(`[EMAIL_DEV] Welcome email to ${to}`);
-  return { success: true };
-}
-
-async function sendPasswordResetEmail(to: string, code: string): Promise<{ success: boolean; devCode?: string; error?: string }> {
-  const subject = 'Reset your FinFlow password';
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 32px; border-radius: 12px;">
-      <h1 style="color: #00e676; text-align: center;">🌿 FinFlow</h1>
-      <p style="color: #ccc;">Use this code to reset your password:</p>
-      <div style="background: #2d2d2d; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #ff9800;">${code}</span>
-      </div>
-      <p style="color: #ff9800; background: rgba(255,152,0,0.1); padding: 12px; border-radius: 8px;">⚠️ You'll also need your 24-word recovery key.</p>
-      <p style="color: #888; font-size: 12px;">This code expires in 15 minutes.</p>
-    </div>
-  `;
-  
-  if (IS_PRODUCTION && SENDGRID_API_KEY) {
-    try {
-      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: to }] }],
-          from: { email: FROM_EMAIL, name: FROM_NAME },
-          subject,
-          content: [{ type: 'text/html', value: html }]
-        })
-      });
-      return { success: response.ok || response.status === 202 };
-    } catch (e) {
-      console.error('[EMAIL_ERROR]', e);
-      return { success: false, error: 'SendGrid send failed' };
-    }
-  } else if (IS_PRODUCTION && POSTMARK_TOKEN) {
-    try {
-      const response = await fetch('https://api.postmarkapp.com/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
-        body: JSON.stringify({
-          From: FROM_EMAIL,
-          To: to,
-          Subject: subject,
-          HtmlBody: html,
-        })
-      });
-      return { success: response.ok };
-    } catch (e) {
-      console.error('[EMAIL_ERROR_POSTMARK]', e);
-      return { success: false, error: 'Postmark send failed' };
-    }
-  } else if (!IS_PRODUCTION) {
-    console.log(`[EMAIL_DEV] Password reset email to ${to}, code: ${code}`);
-    return { success: true, devCode: code };
-  }
-  return { success: false, error: 'Email provider not configured' };
-}
 
 // ============================================================================
 // NOTIFICATION HELPERS
@@ -268,83 +78,6 @@ async function createNotification(supabase: any, params: CreateNotificationParam
   }
 }
 
-async function sendNotificationEmail(supabase: any, userId: string, type: NotificationType, title: string, message: string): Promise<void> {
-  try {
-    // Check email preferences
-    const { data: prefs } = await supabase
-      .from('notification_preferences')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    
-    const shouldEmail = {
-      sharing_request: prefs?.email_sharing ?? true,
-      sharing_accepted: prefs?.email_sharing ?? true,
-      sharing_rejected: prefs?.email_sharing ?? true,
-      payment_reminder: prefs?.email_payments ?? false,
-      budget_alert: prefs?.email_budget_alerts ?? false,
-      health_update: prefs?.email_system ?? true,
-      system: prefs?.email_system ?? true,
-    };
-    
-    if (!shouldEmail[type]) {
-      return;
-    }
-    
-    // Get user email
-    const { data: user } = await supabase
-      .from('users')
-      .select('email, email_verified')
-      .eq('id', userId)
-      .single();
-    
-    if (!user?.email || !user?.email_verified) {
-      return;
-    }
-    
-    // Send email
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 32px; border-radius: 12px;">
-        <h1 style="color: #00e676; text-align: center;">🌿 FinFlow</h1>
-        <h2 style="color: #fff;">${title}</h2>
-        <p style="color: #ccc;">${message}</p>
-        <div style="text-align: center; margin-top: 24px;">
-          <a href="https://finflow.app" style="background: #00e676; color: #000; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Open FinFlow</a>
-        </div>
-        <p style="color: #666; font-size: 12px; margin-top: 24px; text-align: center;">
-          You received this because you have email notifications enabled.<br/>
-          <a href="https://finflow.app/settings" style="color: #888;">Manage preferences</a>
-        </p>
-      </div>
-    `;
-    
-    if (IS_PRODUCTION && SENDGRID_API_KEY) {
-      await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: user.email }] }],
-          from: { email: FROM_EMAIL, name: FROM_NAME },
-          subject: `FinFlow: ${title}`,
-          content: [{ type: 'text/html', value: html }]
-        })
-      });
-    } else if (IS_PRODUCTION && POSTMARK_TOKEN) {
-      await fetch('https://api.postmarkapp.com/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Postmark-Server-Token': POSTMARK_TOKEN },
-        body: JSON.stringify({
-          From: FROM_EMAIL,
-          To: user.email,
-          Subject: `FinFlow: ${title}`,
-          HtmlBody: html,
-        })
-      });
-    }
-  } catch (e) {
-    console.error('[NOTIFICATION_EMAIL_ERROR]', e);
-  }
-}
 
 // SHA256 hashing (matches Railway backend)
 async function hashPassword(password: string): Promise<string> {
@@ -451,6 +184,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
+
 
   // Create admin client (bypasses RLS)
   const supabase = createClient(
@@ -576,6 +310,25 @@ serve(async (req) => {
         console.error(`[MONTHLY_RESET_ERROR] Failed to delete variable actuals:`, deleteActualsErr);
       }
       
+      // Monthly decay of constraint (overspend risk) score: -5 each month if no overspends
+      let constraintDecayed = false;
+      try {
+        const { data: constraint } = await supabase.from('constraint_scores')
+          .select('*').eq('user_id', userId).single();
+        if (constraint && constraint.score > 0) {
+          const decayAmount = 5;
+          const newScore = Math.max(0, constraint.score - decayAmount);
+          const newTier = newScore >= 70 ? 'red' : newScore >= 40 ? 'amber' : 'green';
+          await supabase.from('constraint_scores')
+            .update({ score: newScore, tier: newTier, recent_overspends: 0, updated_at: new Date().toISOString() })
+            .eq('user_id', userId);
+          constraintDecayed = true;
+          console.log(`[CONSTRAINT_DECAY] Score: ${constraint.score} → ${newScore}, Overspends reset to 0`);
+        }
+      } catch (e) {
+        console.error('[CONSTRAINT_DECAY_ERROR]', e);
+      }
+      
       // P0 FIX: Update last_reset_billing_period BEFORE logging activity
       // This prevents duplicate resets even if activity logging fails
       const { error: updateErr } = await supabase.from('user_preferences')
@@ -594,6 +347,7 @@ serve(async (req) => {
         previousMonth: previousMonthStr,
         paymentsDeleted: !deleteErr,
         variableActualsDeleted: !deleteActualsErr,
+        constraintDecayed,
         resetAt: new Date().toISOString()
       });
       
@@ -633,32 +387,16 @@ serve(async (req) => {
     // ========================================================================
     
     if (path === '/auth/signup' && method === 'POST') {
-      const { username, password, email, encryptionSalt, recoveryKeyHash } = await req.json();
+      const { username, password, encryptionSalt, recoveryKeyHash } = await req.json();
       
       if (!username || !password) return error('Username and password required');
       if (username.length < 3 || username.length > 20) return error('Username must be 3-20 characters');
       if (password.length < 8) return error('Password must be at least 8 characters');
-      
-      // Email validation (optional but recommended)
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return error('Invalid email format');
-      }
 
       // Check existing username
       const { data: existingUser } = await supabase
         .from('users').select('id').eq('username', username).single();
       if (existingUser) return error('Username already taken', 409);
-      
-      // Check existing email if provided
-      if (email) {
-        const { data: existingEmail } = await supabase
-          .from('users').select('id').eq('email', email).single();
-        if (existingEmail) return error('Email already registered', 409);
-      }
-
-      // Generate email verification code (6-digit)
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
 
       // Create user
       const passwordHash = await hashPassword(password);
@@ -667,14 +405,10 @@ serve(async (req) => {
         .insert({ 
           username, 
           password_hash: passwordHash, 
-          email: email || null,
-          email_verified: false,
-          email_verification_code: email ? verificationCode : null,
-          email_verification_expires: email ? verificationExpires : null,
           encryption_salt: encryptionSalt, 
           recovery_key_hash: recoveryKeyHash 
         })
-        .select('id, username, email').single();
+        .select('id, username').single();
       
       if (insertErr) {
         console.error('Signup error:', insertErr);
@@ -685,204 +419,16 @@ serve(async (req) => {
       await supabase.from('user_preferences').insert({ user_id: user.id, month_start_day: 1, currency: 'INR' });
       await supabase.from('constraint_scores').insert({ user_id: user.id, score: 0, tier: 'green' });
 
-      // TODO: Send verification email (integrate with email service)
-      // Send verification email if email provided
-      let devCode: string | undefined;
-      if (email) {
-        const emailResult = await sendVerificationEmail(email, verificationCode);
-        if (!emailResult.success) {
-          console.error('[EMAIL_SEND_FAILED]', emailResult.error || 'unknown');
-          return error('Failed to send verification email. Please try again later.', 502);
-        }
-        devCode = emailResult.devCode;
-      }
-
       const token = await createToken(user.id, user.username);
       return json({ 
         access_token: token, 
-        user: { id: user.id, username: user.username, email: user.email, email_verified: false }, 
-        encryption_salt: encryptionSalt,
-        ...(devCode ? { _dev_verification_code: devCode } : {})
+        user: { id: user.id, username: user.username }, 
+        encryption_salt: encryptionSalt
       }, 201);
     }
     
-    // EMAIL VERIFICATION - Verify email with code
-    if (path === '/auth/verify-email' && method === 'POST') {
-      const { email, code } = await req.json();
-      
-      if (!email || !code) return error('Email and verification code required');
-      
-      const { data: user, error: userErr } = await supabase
-        .from('users')
-        .select('id, username, email, email_verification_code, email_verification_expires, email_verified')
-        .eq('email', email)
-        .single();
-      
-      if (userErr || !user) return error('User not found', 404);
-      if (user.email_verified) return error('Email already verified');
-      
-      // Check expiry
-      if (new Date(user.email_verification_expires) < new Date()) {
-        return error('Verification code expired. Please request a new one.');
-      }
-      
-      // Check code
-      if (user.email_verification_code !== code) {
-        return error('Invalid verification code');
-      }
-      
-      // Mark verified
-      await supabase.from('users').update({
-        email_verified: true,
-        email_verification_code: null,
-        email_verification_expires: null
-      }).eq('id', user.id);
-      
-      // Send welcome email after verification
-      if (user.email) {
-        await sendWelcomeEmail(user.email, user.username);
-      }
-      
-      return json({ message: 'Email verified successfully', verified: true });
-    }
-    
-    // RESEND VERIFICATION CODE
-    if (path === '/auth/resend-verification' && method === 'POST') {
-      const { email } = await req.json();
-      
-      if (!email) return error('Email required');
-      
-      const { data: user, error: userErr } = await supabase
-        .from('users')
-        .select('id, email_verified')
-        .eq('email', email)
-        .single();
-      
-      if (userErr || !user) return error('User not found', 404);
-      if (user.email_verified) return error('Email already verified');
-      
-      // Generate new code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      
-      await supabase.from('users').update({
-        email_verification_code: verificationCode,
-        email_verification_expires: verificationExpires
-      }).eq('id', user.id);
-      
-      // Send verification email
-      const emailResult = await sendVerificationEmail(email, verificationCode);
-      if (!emailResult.success) {
-        console.error('[EMAIL_SEND_FAILED]', emailResult.error || 'unknown');
-        return error('Failed to send verification email. Please try again later.', 502);
-      }
-      
-      return json({ 
-        message: 'Verification code sent', 
-        ...(emailResult.devCode ? { _dev_code: emailResult.devCode } : {})
-      });
-    }
-    
-    // FORGOT PASSWORD - Step 1: Request reset (email + sends code)
-    if (path === '/auth/forgot-password' && method === 'POST') {
-      const { email } = await req.json();
-      
-      if (!email) return error('Email required');
-      
-      const { data: user, error: userErr } = await supabase
-        .from('users')
-        .select('id, email, email_verified')
-        .eq('email', email)
-        .single();
-      
-      // Don't reveal if user exists
-      if (userErr || !user) {
-        return json({ message: 'If email exists, a reset code will be sent' });
-      }
-      
-      // Require verified email
-      if (!user.email_verified) {
-        return error('Email not verified. Please verify your email first.');
-      }
-      
-      // Generate reset code
-      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const resetExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
-      
-      await supabase.from('users').update({
-        password_reset_code: resetCode,
-        password_reset_expires: resetExpires
-      }).eq('id', user.id);
-      
-      // Send reset email
-      const emailResult = await sendPasswordResetEmail(email, resetCode);
-      if (!emailResult.success) {
-        console.error('[EMAIL_SEND_FAILED]', emailResult.error || 'unknown');
-        return error('Failed to send reset email. Please try again later.', 502);
-      }
-      
-      return json({ 
-        message: 'If email exists, a reset code will be sent', 
-        ...(emailResult.devCode ? { _dev_code: emailResult.devCode } : {})
-      });
-    }
-    
-    // FORGOT PASSWORD - Step 2: Verify code + recovery key + set new password
-    if (path === '/auth/reset-password' && method === 'POST') {
-      const { email, resetCode, recoveryKey, newPassword } = await req.json();
-      
-      if (!email || !resetCode || !recoveryKey || !newPassword) {
-        return error('Email, reset code, recovery key, and new password required');
-      }
-      
-      if (newPassword.length < 8) return error('Password must be at least 8 characters');
-      
-      const { data: user, error: userErr } = await supabase
-        .from('users')
-        .select('id, password_reset_code, password_reset_expires, recovery_key_hash, encryption_salt')
-        .eq('email', email)
-        .single();
-      
-      if (userErr || !user) return error('User not found', 404);
-      
-      // Check reset code
-      if (user.password_reset_code !== resetCode) {
-        return error('Invalid reset code');
-      }
-      
-      // Check expiry
-      if (new Date(user.password_reset_expires) < new Date()) {
-        return error('Reset code expired. Please request a new one.');
-      }
-      
-      // Verify recovery key (hash and compare)
-      const encoder = new TextEncoder();
-      const recoveryData = encoder.encode(recoveryKey.trim().toLowerCase());
-      const recoveryHashBuffer = await crypto.subtle.digest('SHA-256', recoveryData);
-      const recoveryHashArray = Array.from(new Uint8Array(recoveryHashBuffer));
-      const recoveryHashB64 = btoa(String.fromCharCode(...recoveryHashArray));
-      
-      if (recoveryHashB64 !== user.recovery_key_hash) {
-        return error('Invalid recovery key. Please check your 24-word recovery phrase.');
-      }
-      
-      // Update password
-      const newPasswordHash = await hashPassword(newPassword);
-      await supabase.from('users').update({
-        password_hash: newPasswordHash,
-        password_reset_code: null,
-        password_reset_expires: null,
-        failed_login_attempts: 0,
-        account_locked_until: null
-      }).eq('id', user.id);
-      
-      return json({ 
-        message: 'Password reset successfully. Please log in with your new password.',
-        encryption_salt: user.encryption_salt 
-      });
-    }
 
-    // RECOVER WITH RECOVERY KEY (no email, no code)
+    // RECOVER WITH RECOVERY KEY
     if (path === '/auth/recover-with-key' && method === 'POST') {
       const { username, recoveryKey, newPassword } = await req.json();
       if (!username || !recoveryKey || !newPassword) return error('Username, recovery key, and new password required');
@@ -927,7 +473,7 @@ serve(async (req) => {
 
         const { data: user, error: userErr } = await supabase
           .from('users')
-          .select('id, username, email, email_verified, password_hash, encryption_salt, failed_login_attempts, account_locked_until')
+          .select('id, username, password_hash, encryption_salt, failed_login_attempts, account_locked_until')
           .eq('username', username).single();
         
         if (userErr) {
@@ -972,9 +518,7 @@ serve(async (req) => {
           access_token: token, 
           user: { 
             id: user.id, 
-            username: user.username,
-            email: user.email,
-            email_verified: user.email_verified 
+            username: user.username
           }, 
           encryption_salt: encryptionSalt 
         });
@@ -1156,50 +700,12 @@ serve(async (req) => {
     if (path === '/user/profile' && method === 'GET') {
       const { data: profile, error: profileErr } = await supabase
         .from('users')
-        .select('id, username, email, email_verified, encryption_salt, created_at')
+        .select('id, username, encryption_salt, created_at')
         .eq('id', userId)
         .single();
       
       if (profileErr || !profile) return error('User not found', 404);
       return json({ data: profile });
-    }
-    
-    // UPDATE user email (for users who didn't provide at signup)
-    if (path === '/user/email' && method === 'PUT') {
-      const { email } = await req.json();
-      
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return error('Valid email required');
-      }
-      
-      // Check if email already used by another user
-      const { data: existingEmail } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .neq('id', userId)
-        .single();
-      
-      if (existingEmail) return error('Email already registered', 409);
-      
-      // Generate verification code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      
-      await supabase.from('users').update({
-        email,
-        email_verified: false,
-        email_verification_code: verificationCode,
-        email_verification_expires: verificationExpires
-      }).eq('id', userId);
-      
-      // Send verification email
-      const emailResult = await sendVerificationEmail(email, verificationCode);
-      
-      return json({ 
-        message: 'Email updated. Please verify your email.',
-        ...(emailResult.devCode ? { _dev_code: emailResult.devCode } : {})
-      });
     }
     
     // UPDATE user password (authenticated - requires old password)
@@ -2246,7 +1752,7 @@ serve(async (req) => {
 
     // AUTH/ME - Get current user info
     if (path === '/auth/me' && method === 'GET') {
-      const { data: userData } = await supabase.from('users').select('id, username, email, email_verified, encryption_salt, created_at').eq('id', userId).single();
+      const { data: userData } = await supabase.from('users').select('id, username, encryption_salt, created_at').eq('id', userId).single();
       return json({ data: userData });
     }
 
@@ -2718,7 +2224,7 @@ serve(async (req) => {
         if (otherUserIds.length > 0) {
           const { data: users } = await supabase
             .from('users')
-            .select('id, username, email')
+            .select('id, username')
             .in('id', otherUserIds);
           
           const userMap = new Map((users || []).map((u: any) => [u.id, u]));
@@ -2729,7 +2235,6 @@ serve(async (req) => {
               ...m,
               userId: m.user_id,
               username: user.username || 'Unknown',
-              email: user.email || '',
               role: m.role
             };
           });
@@ -2752,7 +2257,7 @@ serve(async (req) => {
       ])];
       
       const { data: users } = await supabase.from('users')
-        .select('id, username, email')
+        .select('id, username')
         .in('id', allUserIds);
       
       const userMap = new Map((users || []).map((u: any) => [u.id, u]));
@@ -2762,7 +2267,6 @@ serve(async (req) => {
         const inviter = userMap.get(req.inviter_id) || {};
         return {
           ...req,
-          ownerEmail: inviter.email,
           ownerId: req.inviter_id,
           inviterUsername: inviter.username,
           mergeFinances: req.merge_finances
@@ -2774,7 +2278,6 @@ serve(async (req) => {
         const invitee = userMap.get(req.invitee_id) || {};
         return {
           ...req,
-          inviteeEmail: invitee.email,
           inviteeId: req.invitee_id,
           inviteeUsername: invitee.username,
           mergeFinances: req.merge_finances
@@ -2787,16 +2290,17 @@ serve(async (req) => {
     // Send sharing invite
     if (path === '/sharing/invite' && method === 'POST') {
       const body = await req.json();
-      const { email_or_username, role, merge_finances } = body;
+      const { username: inviteUsername, role, merge_finances } = body;
+      const lookupName = inviteUsername;
       
-      if (!email_or_username || !role) {
-        return error('email_or_username and role required', 400);
+      if (!lookupName || !role) {
+        return error('username and role required', 400);
       }
       
-      // Find invitee by username or email
+      // Find invitee by username
       const { data: invitee } = await supabase.from('users')
-        .select('id, username, email')
-        .or(`username.eq.${email_or_username},email.eq.${email_or_username}`)
+        .select('id, username')
+        .eq('username', lookupName)
         .single();
       
       if (!invitee) {
@@ -2849,12 +2353,6 @@ serve(async (req) => {
         entityId: request.id,
         actionUrl: '/sharing'
       });
-      
-      // Send email notification
-      await sendNotificationEmail(supabase, invitee.id, 'sharing_request', 
-        'New Sharing Request', 
-        `${inviter?.username || 'Someone'} has invited you to share finances. Log in to accept or decline.`
-      );
       
       await logActivity(userId, 'sharing', 'sent_invite', { invitee: invitee.username, role });
       return json({ data: request }, 201);
@@ -2942,11 +2440,6 @@ serve(async (req) => {
         message: `${currentUser?.username || 'User'} accepted your sharing request. You can now view combined finances.`,
         actionUrl: '/dashboard?view=merged'
       });
-      
-      await sendNotificationEmail(supabase, request.inviter_id, 'sharing_accepted',
-        'Sharing Request Accepted!',
-        `${currentUser?.username || 'User'} has accepted your sharing request. You can now view combined finances in FinFlow.`
-      );
       
       await logActivity(userId, 'sharing', 'approved_request', { inviter: inviter?.username, role: request.role });
       return json({ data: { success: true } });
@@ -3517,15 +3010,7 @@ serve(async (req) => {
         in_app_sharing: true,
         in_app_payments: true,
         in_app_budget_alerts: true,
-        in_app_system: true,
-        email_sharing: true,
-        email_payments: false,
-        email_budget_alerts: false,
-        email_system: true,
-        email_digest_enabled: false,
-        email_digest_frequency: 'weekly',
-        email_digest_day: 0,
-        email_digest_time: '09:00:00'
+        in_app_system: true
       };
       
       return json({ 
@@ -3535,18 +3020,6 @@ serve(async (req) => {
             payments: preferences.in_app_payments,
             budgetAlerts: preferences.in_app_budget_alerts,
             system: preferences.in_app_system
-          },
-          email: {
-            sharing: preferences.email_sharing,
-            payments: preferences.email_payments,
-            budgetAlerts: preferences.email_budget_alerts,
-            system: preferences.email_system
-          },
-          digest: {
-            enabled: preferences.email_digest_enabled,
-            frequency: preferences.email_digest_frequency,
-            day: preferences.email_digest_day,
-            time: preferences.email_digest_time
           }
         }
       });
@@ -3564,22 +3037,6 @@ serve(async (req) => {
         if (typeof body.inApp.payments === 'boolean') updates.in_app_payments = body.inApp.payments;
         if (typeof body.inApp.budgetAlerts === 'boolean') updates.in_app_budget_alerts = body.inApp.budgetAlerts;
         if (typeof body.inApp.system === 'boolean') updates.in_app_system = body.inApp.system;
-      }
-      
-      // Email preferences
-      if (body.email) {
-        if (typeof body.email.sharing === 'boolean') updates.email_sharing = body.email.sharing;
-        if (typeof body.email.payments === 'boolean') updates.email_payments = body.email.payments;
-        if (typeof body.email.budgetAlerts === 'boolean') updates.email_budget_alerts = body.email.budgetAlerts;
-        if (typeof body.email.system === 'boolean') updates.email_system = body.email.system;
-      }
-      
-      // Digest preferences
-      if (body.digest) {
-        if (typeof body.digest.enabled === 'boolean') updates.email_digest_enabled = body.digest.enabled;
-        if (body.digest.frequency) updates.email_digest_frequency = body.digest.frequency;
-        if (typeof body.digest.day === 'number') updates.email_digest_day = body.digest.day;
-        if (body.digest.time) updates.email_digest_time = body.digest.time;
       }
       
       updates.updated_at = new Date().toISOString();

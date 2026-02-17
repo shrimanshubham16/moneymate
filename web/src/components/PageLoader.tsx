@@ -4,6 +4,7 @@
  * Shows while pages load data, with optional privacy context messaging
  */
 import { motion } from "framer-motion";
+import { FaSyncAlt } from "react-icons/fa";
 import { AppEmoji } from "./AppEmoji";
 import "./PageLoader.css";
 
@@ -53,7 +54,7 @@ export function RefreshPrompt({ onRefresh, issue = "display issue" }: RefreshPro
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <div className="refresh-icon">🔄</div>
+      <div className="refresh-icon"><FaSyncAlt style={{ color: '#3b82f6', fontSize: 32 }} /></div>
       <h3>Quick Refresh Needed</h3>
       <p>
         We noticed a {issue}. This can happen occasionally with encrypted data.

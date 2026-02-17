@@ -146,8 +146,6 @@ export function useEncryptedApiCalls() {
     // User Profile (new)
     getUserProfile: (token: string) => 
       baseApi.getUserProfile(token),
-    updateUserEmail: (token: string, email: string) => 
-      baseApi.updateUserEmail(token, email),
     updateUserPassword: (token: string, oldPassword: string, newPassword: string) => 
       baseApi.updateUserPassword(token, oldPassword, newPassword),
     
@@ -175,6 +173,9 @@ export function useEncryptedApiCalls() {
     
     // Expose encryption key status
     isEncryptionEnabled: key !== null,
+
+    // Utility
+    getBaseUrl: () => baseApi.getBaseUrl(),
   };
 }
 

@@ -298,7 +298,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             items: loansRes.data
           }
         },
-        totalOutflow: unpaidFixedTotal + variableTotalForHealth + unpaidInvestmentsTotal + (obligations.totalCreditCardDue || 0),
+        totalOutflow: unpaidFixedTotal + variableTotalForHealth + unpaidInvestmentsTotal + creditCardTotalForHealth,
         monthProgress: healthData.monthProgress || 0
       });
 
@@ -310,11 +310,25 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     }
   };
 
-  const handleThresholdChange = (field: keyof HealthThresholds, value: string) => {
-    const num = parseFloat(value);
+  // Simplified: user sets 2 boundaries, the rest is derived
+  const handleSunnyChange = (val: number) => {
+    const clamped = Math.max(1, Math.min(100, val));
     setThresholds((prev) => ({
       ...prev,
-      [field]: isNaN(num) ? prev[field] : num
+      good_min: clamped,
+      ok_max: Math.round((clamped - 0.01) * 100) / 100,
+      // Ensure cloudy boundary stays below sunny
+      ok_min: Math.min(prev.ok_min, clamped - 1),
+      not_well_max: Math.round((Math.min(prev.ok_min, clamped - 1) - 0.01) * 100) / 100,
+    }));
+  };
+
+  const handleCloudyChange = (val: number) => {
+    const clamped = Math.max(0, Math.min(thresholds.good_min - 1, val));
+    setThresholds((prev) => ({
+      ...prev,
+      ok_min: clamped,
+      not_well_max: Math.round((clamped - 0.01) * 100) / 100,
     }));
   };
 
@@ -324,7 +338,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     try {
       const updated = await api.updateHealthThresholds(token, thresholds);
       setThresholds(updated);
-      setSaveMessage("Thresholds saved");
+      setSaveMessage("Saved ✓");
     } catch (e: any) {
       setSaveMessage(e?.message || "Failed to save");
     } finally {
@@ -333,9 +347,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     }
   };
 
-  const resetThresholds = async () => {
+  const resetThresholds = () => {
     setThresholds(DEFAULT_THRESHOLDS);
-    await saveThresholds();
   };
 
   const getHealthColor = (category: string) => {
@@ -429,52 +442,87 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       {isFeatureEnabled("health_thresholds_configurable") && (
         <div className="thresholds-card">
           <div className="thresholds-header">
-            <h3>Customize Health Thresholds</h3>
+            <h3><FaQuestionCircle style={{ marginRight: 6, verticalAlign: 'middle', opacity: 0.6, fontSize: '0.85em' }} />When should I feel good about my finances?</h3>
             {saveMessage && <span className="save-message">{saveMessage}</span>}
           </div>
-          <div className="threshold-grid">
-            <label>
-              Good min (%)
-              <input
-                type="number"
-                value={thresholds.good_min}
-                onChange={(e) => handleThresholdChange("good_min", e.target.value)}
-              />
-            </label>
-            <label>
-              OK min (%)
-              <input
-                type="number"
-                value={thresholds.ok_min}
-                onChange={(e) => handleThresholdChange("ok_min", e.target.value)}
-              />
-            </label>
-            <label>
-              OK max (%)
-              <input
-                type="number"
-                value={thresholds.ok_max}
-                onChange={(e) => handleThresholdChange("ok_max", e.target.value)}
-              />
-            </label>
-            <label>
-              Not-well max (%)
-              <input
-                type="number"
-                value={thresholds.not_well_max}
-                onChange={(e) => handleThresholdChange("not_well_max", e.target.value)}
-              />
-            </label>
+          <p className="threshold-explainer">
+            Your health score = what % of income is left after all obligations. Set the boundaries that feel right for you:
+          </p>
+
+          {/* Visual bar */}
+          <div className="threshold-visual-bar">
+            <div className="tv-zone tv-storm" style={{ flex: Math.max(thresholds.ok_min, 2) }}>
+              <FaBolt size={14} />
+              <span>Storm</span>
+              <small>0 – {thresholds.ok_min}%</small>
+            </div>
+            <div className="tv-zone tv-rain" style={{ flex: Math.max(thresholds.good_min - thresholds.ok_min, 2) }}>
+              <FaCloudRain size={14} />
+              <span>Rainy</span>
+              <small>{thresholds.ok_min} – {thresholds.good_min}%</small>
+            </div>
+            <div className="tv-zone tv-cloud" style={{ flex: 0 /* placeholder — cloudy lives between ok_min and good_min */ }}>
+            </div>
+            <div className="tv-zone tv-sun" style={{ flex: Math.max(100 - thresholds.good_min, 5) }}>
+              <FaSun size={14} />
+              <span>Sunny</span>
+              <small>{thresholds.good_min}%+</small>
+            </div>
           </div>
+
+          {/* Two simple sliders */}
+          <div className="threshold-sliders">
+            <div className="threshold-slider-row">
+              <div className="slider-label">
+                <FaSun color="#10b981" size={18} />
+                <div>
+                  <strong>Sunny above</strong>
+                  <small>I'm comfortable when this much income is left</small>
+                </div>
+              </div>
+              <div className="slider-control">
+                <input
+                  type="range"
+                  min={2}
+                  max={60}
+                  value={thresholds.good_min}
+                  onChange={(e) => handleSunnyChange(parseInt(e.target.value))}
+                  className="range-sunny"
+                />
+                <span className="slider-value">{thresholds.good_min}%</span>
+              </div>
+            </div>
+
+            <div className="threshold-slider-row">
+              <div className="slider-label">
+                <FaCloudRain color="#f59e0b" size={18} />
+                <div>
+                  <strong>Caution below</strong>
+                  <small>Below this, I should watch my spending</small>
+                </div>
+              </div>
+              <div className="slider-control">
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(thresholds.good_min - 1, 1)}
+                  value={thresholds.ok_min}
+                  onChange={(e) => handleCloudyChange(parseInt(e.target.value))}
+                  className="range-caution"
+                />
+                <span className="slider-value">{thresholds.ok_min}%</span>
+              </div>
+            </div>
+          </div>
+
           <div className="threshold-actions">
             <button className="secondary-btn" onClick={resetThresholds} disabled={savingThresholds}>
               Reset to default
             </button>
             <button className="threshold-save" onClick={saveThresholds} disabled={savingThresholds}>
-              {savingThresholds ? "Saving..." : "Save Thresholds"}
+              {savingThresholds ? "Saving..." : "Save"}
             </button>
           </div>
-          <p className="threshold-hint">We use your health score % (remaining / income). Adjust ranges that feel right for you.</p>
         </div>
       )}
 
@@ -746,13 +794,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           <div className="summary-row final">
             <span className="label">Remaining:</span>
             <span className={`value ${(health?.remaining || 0) >= 0 ? 'positive' : 'negative'}`}>
-              {(() => {
-                const remaining = health?.remaining || 0;
-                console.log('[HealthDetailsPage] Raw health.remaining:', remaining);
-                const rounded = Math.round(remaining);
-                console.log('[HealthDetailsPage] Rounded:', rounded);
-                return `${remaining >= 0 ? "+" : ""}₹${rounded.toLocaleString("en-IN")}`;
-              })()}
+              {`${(health?.remaining || 0) >= 0 ? "+" : ""}₹${Math.round(health?.remaining || 0).toLocaleString("en-IN")}`}
             </span>
           </div>
         </motion.div>
@@ -790,20 +832,45 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
                 </div>
               </div>
             </div>
+            {/* Visual progress bar */}
+            <div className="constraint-progress-bar">
+              <div className="constraint-progress-track">
+                <div
+                  className={`constraint-progress-fill constraint-fill-${constraintScore.tier}`}
+                  style={{ width: `${constraintScore.score}%` }}
+                />
+              </div>
+              <div className="constraint-progress-labels">
+                <span>0 - Safe</span>
+                <span>40 - Caution</span>
+                <span>70 - Danger</span>
+                <span>100</span>
+              </div>
+            </div>
             <div className="constraint-details">
-              <div className="constraint-stat">
-                <span className="stat-label">Recent Overspends:</span>
-                <span className="stat-value">{constraintScore.recentOverspends || 0}</span>
+              <div className="constraint-stats-grid">
+                <div className="constraint-stat">
+                  <span className="stat-label">This Month's Overspends</span>
+                  <span className="stat-value">{constraintScore.recentOverspends || 0}</span>
+                </div>
+                <div className="constraint-stat">
+                  <span className="stat-label">Risk Score</span>
+                  <span className="stat-value">{constraintScore.score}/100</span>
+                </div>
+                <div className="constraint-stat">
+                  <span className="stat-label">Next Decay</span>
+                  <span className="stat-value">-5 pts/mo</span>
+                </div>
               </div>
               <div className="constraint-explanation">
-                <p><strong>What is this?</strong></p>
-                <p>Your Overspend Risk tracks how often you exceed your planned expenses. It starts at 0 (safest) and increases by +5 for each overspend on variable expenses.</p>
+                <p><strong>How Overspend Risk Works</strong></p>
+                <p>Each time you exceed a planned variable expense budget, your risk score increases by +5. At the start of each billing cycle, the score automatically decays by 5 points and overspend count resets — rewarding consistent budget discipline.</p>
                 <ul>
-                  <li><strong style={{ color: '#10b981' }}>Low Risk (0-39):</strong> You're staying within budget - great job!</li>
-                  <li><strong style={{ color: '#f59e0b' }}>Medium Risk (40-69):</strong> Some overspending detected, stay cautious</li>
-                  <li><strong style={{ color: '#ef4444' }}>High Risk (70-100):</strong> Frequent overspending, review your budget</li>
+                  <li><strong style={{ color: '#10b981' }}>Low Risk (0–39):</strong> You're staying within budget — great job!</li>
+                  <li><strong style={{ color: '#f59e0b' }}>Medium Risk (40–69):</strong> Some overspending detected, stay cautious</li>
+                  <li><strong style={{ color: '#ef4444' }}>High Risk (70–100):</strong> Frequent overspending, review your budget</li>
                 </ul>
-                <p className="constraint-note">💡 Risk level decreases by 5% each month automatically when you stay on budget.</p>
+                <p className="constraint-note"><FaLightbulb style={{ marginRight: 6, color: '#3b82f6' }} /> Stay on budget this month to earn a 5-point reduction at the next cycle reset.</p>
               </div>
             </div>
           </div>
@@ -817,25 +884,25 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           <div className="category-card good">
             <div className="category-icon"><FaSun size={48} color="#10b981" /></div>
             <h3>Good</h3>
-            <p>Remaining &gt; ₹10,000</p>
+            <p>{thresholds.good_min}%+ of income remaining</p>
             <p className="desc">Excellent financial health with healthy savings</p>
           </div>
           <div className="category-card ok">
             <div className="category-icon"><FaCloud size={48} color="#f59e0b" /></div>
             <h3>OK</h3>
-            <p>Remaining: ₹1,000 - ₹9,999</p>
+            <p>{thresholds.ok_min}% – {thresholds.good_min}% remaining</p>
             <p className="desc">Decent position but room for improvement</p>
           </div>
           <div className="category-card not-well">
             <div className="category-icon"><FaCloudRain size={48} color="#f97316" /></div>
             <h3>Not Well</h3>
-            <p>Short by: ₹1 - ₹3,000</p>
+            <p>0% – {thresholds.ok_min}% remaining</p>
             <p className="desc">Running tight, need to optimize expenses</p>
           </div>
           <div className="category-card worrisome">
             <div className="category-icon"><FaBolt size={48} color="#ef4444" /></div>
             <h3>Worrisome</h3>
-            <p>Short by: &gt; ₹3,000</p>
+            <p>Spending exceeds income</p>
             <p className="desc">Critical situation, immediate action needed</p>
           </div>
         </div>

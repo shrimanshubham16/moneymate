@@ -41,7 +41,7 @@ const healthConfig = {
     icon: FaLock,
     color: "#6b7280",
     bgGradient: "linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)",
-    message: "🔒 User hasn't synced their data yet. E2E encrypted."
+    message: "User hasn't synced their data yet. E2E encrypted."
   }
 };
 

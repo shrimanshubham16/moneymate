@@ -5,6 +5,8 @@ import { FaFileExcel, FaCheckCircle, FaLightbulb, FaTable } from "react-icons/fa
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./ExportPage.css";
 
 interface ExportPageProps {
@@ -25,6 +27,7 @@ function getUserIdFromToken(token: string): string | null {
 export function ExportPage({ token }: ExportPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { modal, showAlert, closeModal, confirmAndClose } = useAppModal();
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -404,7 +407,7 @@ export function ExportPage({ token }: ExportPageProps) {
       const blob = new Blob([wbout], { type: "application/octet-stream" });
       saveAs(blob, `finflow-export-${new Date().toISOString().split('T')[0]}.xlsx`);
 
-      alert("Excel export successful! Check your downloads folder.");
+      showAlert("Excel export successful! Check your downloads folder.", "Success");
     } catch (e: any) {
       setError(e.message || "Export failed");
     } finally {
@@ -481,7 +484,7 @@ export function ExportPage({ token }: ExportPageProps) {
           </div>
         </div>
       </motion.div>
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

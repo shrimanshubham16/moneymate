@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaUsers } from "react-icons/fa";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaUsers, FaExclamationTriangle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
+import { invalidateDashboardCache } from "../utils/cacheInvalidation";
 import "./InvestmentsManagementPage.css";
 
 interface InvestmentsManagementPageProps {
@@ -13,6 +16,7 @@ interface InvestmentsManagementPageProps {
 
 export function InvestmentsManagementPage({ token }: InvestmentsManagementPageProps) {
   const navigate = useNavigate();
+  const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const api = useEncryptedApiCalls();
   const [investments, setInvestments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,9 +96,10 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
         }
       }
       // Background refresh
+      invalidateDashboardCache();
       loadInvestments();
     } catch (e: any) {
-      alert(e.message);
+      showAlert(e.message);
       // Rollback on error
       if (editingId) {
         loadInvestments();
@@ -116,16 +121,16 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this investment?")) return;
-    try {
-      await api.deleteInvestment(token, id);
-      // Optimistic UI: Remove from state immediately
-      setInvestments(prev => prev.filter(inv => inv.id !== id));
-      await loadInvestments();
-    } catch (e: any) {
-      alert(e.message);
-      await loadInvestments();
-    }
+    showConfirm("Delete this investment?", async () => {
+      try {
+        await api.deleteInvestment(token, id);
+        setInvestments(prev => prev.filter(inv => inv.id !== id));
+        await loadInvestments();
+      } catch (e: any) {
+        showAlert(e.message);
+        await loadInvestments();
+      }
+    });
   };
 
   const handleTogglePause = async (inv: any) => {
@@ -137,7 +142,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
       }
       await loadInvestments();
     } catch (e: any) {
-      alert(e.message);
+      showAlert(e.message);
     }
   };
 
@@ -275,7 +280,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                         {inv.status === "active" ? "● Active" : "⏸ Paused"}
                       </span>
                       {inv.paid && <span className="paid-badge">✓ Paid This Month</span>}
-                      {!inv.paid && <span className="unpaid-badge">⚠ Not Paid</span>}
+                      {!inv.paid && <span className="unpaid-badge"><FaExclamationTriangle style={{ marginRight: 4, fontSize: 12 }} /> Not Paid</span>}
                     </div>
                   </div>
                   <div className="investment-actions">
@@ -291,7 +296,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                                 await api.updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
                                 await loadInvestments();
                               } catch (e: any) {
-                                alert("Failed to update: " + e.message);
+                                showAlert("Failed to update: " + e.message);
                               }
                             }
                           }}
@@ -333,7 +338,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
           )}
         </div>
       )}
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

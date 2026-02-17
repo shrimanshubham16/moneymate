@@ -10,6 +10,9 @@ import { StatusBadge } from "../components/StatusBadge";
 import { ProgressBar } from "../components/ProgressBar";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { ClientCache } from "../utils/cache";
+import { invalidateDashboardCache } from "../utils/cacheInvalidation";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./FixedExpensesPage.css";
 
 interface FixedExpensesPageProps {
@@ -19,6 +22,7 @@ interface FixedExpensesPageProps {
 export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -139,10 +143,11 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
           setExpenses(prev => prev.map(exp => exp.id === tempId ? { ...response.data, startDate: response.data.start_date, endDate: response.data.end_date } : exp));
         }
       }
-      // Background refresh to sync state
+      // Invalidate dashboard cache and background refresh
+      invalidateDashboardCache();
       loadExpenses();
     } catch (e: any) {
-      alert(e.message);
+      showAlert(e.message);
       // Rollback on error
       if (editingId) {
         loadExpenses(); // Reload original data
@@ -169,19 +174,17 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this expense?")) return;
-    try {
-      await api.deleteFixedExpense(token, id);
-      // Optimistic UI: Remove from state immediately
-      setExpenses(prev => prev.filter(e => e.id !== id));
-      // Clear cache and refresh in background
-      ClientCache.invalidateDashboard();
-      await loadExpenses();
-    } catch (e: any) {
-      alert(e.message);
-      // Revert on error
-      await loadExpenses();
-    }
+    showConfirm("Delete this expense?", async () => {
+      try {
+        await api.deleteFixedExpense(token, id);
+        setExpenses(prev => prev.filter(e => e.id !== id));
+        invalidateDashboardCache();
+        await loadExpenses();
+      } catch (e: any) {
+        showAlert(e.message);
+        await loadExpenses();
+      }
+    });
   };
 
   const categories = [
@@ -424,7 +427,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
           })}
         </div>
       )}
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

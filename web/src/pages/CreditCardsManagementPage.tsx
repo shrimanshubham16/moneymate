@@ -6,6 +6,9 @@ import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { ClientCache } from "../utils/cache";
+import { invalidateDashboardCache } from "../utils/cacheInvalidation";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./CreditCardsManagementPage.css";
 
 interface CreditCardsManagementPageProps {
@@ -15,6 +18,7 @@ interface CreditCardsManagementPageProps {
 export function CreditCardsManagementPage({ token }: CreditCardsManagementPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -105,15 +109,16 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
 
   // v1.2: Handle reset billing
   const handleResetBilling = async (cardId: string, cardName: string) => {
-    if (!confirm(`Reset current expenses for ${cardName}? You'll need to manually update the bill amount.`)) return;
-    try {
-      await api.resetCreditCardBilling(token, cardId);
-      await loadCards();
-      await loadBillingAlerts();
-      alert("Current expenses reset. Please update the bill amount manually.");
-    } catch (e: any) {
-      alert(e.message);
-    }
+    showConfirm(`Reset current expenses for ${cardName}? You'll need to manually update the bill amount.`, async () => {
+      try {
+        await api.resetCreditCardBilling(token, cardId);
+        await loadCards();
+        await loadBillingAlerts();
+        showAlert("Current expenses reset. Please update the bill amount manually.", "Success");
+      } catch (e: any) {
+        showAlert(e.message);
+      }
+    });
   };
 
   // v1.2: Load credit card usage
@@ -138,7 +143,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       setShowUsageModal(true);
     } catch (e: any) {
       console.error("Failed to load credit card usage:", e);
-      alert(e.message || "Failed to load credit card usage");
+      showAlert(e.message || "Failed to load credit card usage");
     }
   };
 
@@ -147,7 +152,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
     try {
       const amount = Number(updateBillForm.billAmount);
       if (isNaN(amount) || amount < 0) {
-        alert("Please enter a valid bill amount");
+        showAlert("Please enter a valid bill amount");
         return;
       }
       // Update bill amount via API helper
@@ -157,9 +162,9 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       setShowUpdateBillModal(false);
       setUpdateBillForm({ billAmount: "" });
       setSelectedCardId(null);
-      alert("Bill amount updated successfully");
+      showAlert("Bill amount updated successfully", "Success");
     } catch (e: any) {
-      alert(e.message || "Failed to update bill");
+      showAlert(e.message || "Failed to update bill");
     }
   };
 
@@ -176,23 +181,24 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       await api.createCreditCard(token, cardData);
       setShowForm(false);
       setForm({ name: "", billAmount: "0", paidAmount: "0", dueDate: new Date().toISOString().split('T')[0], billingDate: "1" });
+      invalidateDashboardCache();
       await loadCards();
     } catch (e: any) {
-      alert(e.message);
+      showAlert(e.message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this credit card?")) return;
-    try {
-      await api.deleteCreditCard(token, id);
-      // Optimistic UI: Remove from state immediately
-      setCards(prev => prev.filter(c => c.id !== id));
-      await loadCards();
-    } catch (e: any) {
-      alert(e.message);
-      await loadCards();
-    }
+    showConfirm("Are you sure you want to delete this credit card?", async () => {
+      try {
+        await api.deleteCreditCard(token, id);
+        setCards(prev => prev.filter(c => c.id !== id));
+        await loadCards();
+      } catch (e: any) {
+        showAlert(e.message);
+        await loadCards();
+      }
+    });
   };
 
   return (
@@ -528,7 +534,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
             
             {cardUsage.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <div style={{ fontSize: '48px', marginBottom: '12px' }}>💳</div>
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}><FaCreditCard style={{ color: '#6b7280' }} /></div>
                 <p style={{ color: '#6b7280', margin: 0 }}>No expenses charged to this card yet.</p>
                 <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '8px' }}>Expenses paid via this card will appear here.</p>
               </div>
@@ -638,7 +644,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
           </motion.div>
         </motion.div>
       )}
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

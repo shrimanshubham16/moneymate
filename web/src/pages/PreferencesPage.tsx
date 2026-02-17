@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { FaCog, FaCalendar, FaMoneyBillWave, FaClock, FaSave, FaExclamationTriangle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./PreferencesPage.css";
 
 interface PreferencesPageProps {
@@ -12,6 +14,7 @@ interface PreferencesPageProps {
 export function PreferencesPage({ token }: PreferencesPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { modal, showAlert, closeModal, confirmAndClose } = useAppModal();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preferences, setPreferences] = useState({
@@ -39,10 +42,10 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
     setSaving(true);
     try {
       await api.updateUserPreferences(token, preferences);
-      alert("Preferences saved successfully! Your billing cycle will be updated.");
+      showAlert("Preferences saved successfully! Your billing cycle will be updated.", "Success");
       navigate("/settings");
     } catch (e: any) {
-      alert("Failed to save preferences: " + e.message);
+      showAlert("Failed to save preferences: " + e.message);
     } finally {
       setSaving(false);
     }
@@ -158,7 +161,7 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
           </div>
         </div>
       )}
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }
-

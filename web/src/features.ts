@@ -5,7 +5,6 @@ export type FeatureFlag =
   | "emoji_standardization"
   | "expense_chart_adaptive"
   | "notif_prefs_verified"
-  | "welcome_email"
   | "about_known_ok"
   | "theme_switcher"
   | "modal_unification"
@@ -20,7 +19,6 @@ const defaultFlags: FlagConfig = {
   emoji_standardization: true,
   expense_chart_adaptive: true,
   notif_prefs_verified: true,
-  welcome_email: true,
   about_known_ok: true,
   theme_switcher: true,
   modal_unification: true,
@@ -40,7 +38,6 @@ const envOverrides: Partial<FlagConfig> = {
   emoji_standardization: parseEnvFlag("VITE_FLAG_EMOJI_STANDARD"),
   expense_chart_adaptive: parseEnvFlag("VITE_FLAG_EXPENSE_CHART"),
   notif_prefs_verified: parseEnvFlag("VITE_FLAG_NOTIF_PREFS"),
-  welcome_email: parseEnvFlag("VITE_FLAG_WELCOME_EMAIL"),
   about_known_ok: parseEnvFlag("VITE_FLAG_ABOUT_KNOWN_OK"),
   theme_switcher: parseEnvFlag("VITE_FLAG_THEME_SWITCHER"),
   modal_unification: parseEnvFlag("VITE_FLAG_MODAL_UNIFICATION"),

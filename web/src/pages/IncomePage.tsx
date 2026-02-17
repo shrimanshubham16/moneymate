@@ -6,6 +6,7 @@ import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { isFeatureEnabled } from "../features";
 import { Modal } from "../components/Modal";
+import { invalidateDashboardCache } from "../utils/cacheInvalidation";
 import "./IncomePage.css";
 
 interface IncomePageProps {
@@ -24,6 +25,8 @@ export function IncomePage({ token }: IncomePageProps) {
     amount: "",
     frequency: "monthly"
   });
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     loadIncomes();
@@ -56,21 +59,23 @@ export function IncomePage({ token }: IncomePageProps) {
       setShowForm(false);
       setEditingId(null);
       setForm({ source: "", amount: "", frequency: "monthly" });
+      invalidateDashboardCache();
       await loadIncomes();
     } catch (e: any) {
-      alert(e.message);
+      setErrorMsg(e.message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this income source?")) return;
+    setConfirmDeleteId(null);
     try {
       await api.deleteIncome(token, id);
       // Optimistic UI: Remove from state immediately
       setIncomes(prev => prev.filter(inc => inc.id !== id));
+      invalidateDashboardCache();
       await loadIncomes();
     } catch (e: any) {
-      alert(e.message);
+      setErrorMsg(e.message);
       await loadIncomes();
     }
   };
@@ -153,7 +158,7 @@ export function IncomePage({ token }: IncomePageProps) {
                     )}
                     <button
                       className="delete-btn"
-                      onClick={() => handleDelete(income.id)}
+                      onClick={() => setConfirmDeleteId(income.id)}
                       title="Delete income source"
                     >
                       ✕
@@ -218,9 +223,39 @@ export function IncomePage({ token }: IncomePageProps) {
               </form>
             </Modal>
           )}
+
+          {/* Confirm Delete Modal */}
+          {confirmDeleteId && (
+            <Modal
+              isOpen={!!confirmDeleteId}
+              onClose={() => setConfirmDeleteId(null)}
+              title="Delete Income Source"
+              footer={
+                <>
+                  <button onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                  <button className="primary" style={{ background: '#ef4444' }} onClick={() => handleDelete(confirmDeleteId)}>Delete</button>
+                </>
+              }
+            >
+              <p>Are you sure you want to delete this income source? This action cannot be undone.</p>
+            </Modal>
+          )}
+
+          {/* Error Modal */}
+          {errorMsg && (
+            <Modal
+              isOpen={!!errorMsg}
+              onClose={() => setErrorMsg(null)}
+              title="Error"
+              footer={
+                <button className="primary" onClick={() => setErrorMsg(null)}>OK</button>
+              }
+            >
+              <p>{errorMsg}</p>
+            </Modal>
+          )}
         </>
       )}
     </div>
   );
 }
-

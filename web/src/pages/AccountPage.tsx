@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaLock, FaShieldAlt, FaKey, FaCheckCircle, FaExclamationTriangle } from "react-icons/fa";
+import { FaLock, FaShieldAlt, FaKey, FaCheckCircle, FaExclamationTriangle, FaDownload, FaLockOpen, FaUpload } from "react-icons/fa";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { useCrypto } from "../contexts/CryptoContext";
 import { deriveKey, saltFromBase64, generateSalt } from "../lib/crypto";
@@ -572,11 +572,11 @@ function PasswordResetCard({ token }: { token: string }) {
           {reEncryptProgress && reEncryptProgress.phase !== 'complete' && reEncryptProgress.phase !== 'error' && (
             <div className="reencrypt-progress">
               <div className="progress-label">
-                {reEncryptProgress.phase === 'deriving_keys' && '🔑 Deriving encryption keys...'}
-                {reEncryptProgress.phase === 'fetching_data' && '📥 Fetching your data...'}
-                {reEncryptProgress.phase === 'decrypting' && `🔓 Decrypting ${reEncryptProgress.entityType || 'data'}...`}
-                {reEncryptProgress.phase === 're_encrypting' && `🔐 Re-encrypting ${reEncryptProgress.entityType || 'data'}...`}
-                {reEncryptProgress.phase === 'uploading' && `📤 Uploading ${reEncryptProgress.entityType || 'data'}...`}
+                {reEncryptProgress.phase === 'deriving_keys' && <><FaKey style={{ marginRight: 6 }} /> Deriving encryption keys...</>}
+                {reEncryptProgress.phase === 'fetching_data' && <><FaDownload style={{ marginRight: 6 }} /> Fetching your data...</>}
+                {reEncryptProgress.phase === 'decrypting' && <><FaLockOpen style={{ marginRight: 6 }} /> Decrypting {reEncryptProgress.entityType || 'data'}...</>}
+                {reEncryptProgress.phase === 're_encrypting' && <><FaLock style={{ marginRight: 6 }} /> Re-encrypting {reEncryptProgress.entityType || 'data'}...</>}
+                {reEncryptProgress.phase === 'uploading' && <><FaUpload style={{ marginRight: 6 }} /> Uploading {reEncryptProgress.entityType || 'data'}...</>}
               </div>
               {reEncryptProgress.total > 0 && (
                 <div className="progress-bar">

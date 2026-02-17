@@ -2,9 +2,8 @@ import { encryptString, decryptString } from "./lib/crypto";
 
 export type LoginResponse = { 
   access_token: string; 
-  user: { id: string; username: string; email?: string; email_verified?: boolean }; 
+  user: { id: string; username: string }; 
   encryption_salt?: string;
-  _dev_verification_code?: string; // Dev mode only
 };
 
 export type HealthThresholds = {
@@ -15,7 +14,7 @@ export type HealthThresholds = {
 };
 
 // API URL - defaults to Supabase Edge Function, falls back to Railway/localhost
-const getBaseUrl = () => {
+export const getBaseUrl = () => {
   // Check for explicit API URL first
   const envUrl = (import.meta as any).env?.VITE_API_URL;
   if (envUrl) {
@@ -78,7 +77,6 @@ async function encryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
           result[`${field}_enc`] = ciphertext;
           result[`${field}_iv`] = iv;
           // PHASE 2: NO plaintext - server stores only encrypted data
-          // result[field] = value; // REMOVED - true zero-knowledge
         })
       );
     } else if (typeof value === 'object') {
@@ -133,7 +131,6 @@ async function decryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
         tasks.push(decryptObjectFields(value, key).then(dec => { result[field] = dec; }));
       } else {
         // PHASE 2: Don't copy '[encrypted]' placeholder values from server
-        // Only copy if value is NOT a placeholder
         if (value !== '[encrypted]') {
           result[field] = value;
         }
@@ -158,7 +155,6 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
       headers['apikey'] = SUPABASE_ANON_KEY;
     } else {
       console.error('[API_ERROR] VITE_SUPABASE_ANON_KEY is not set. Supabase Edge Functions require the apikey header.');
-      // Still attempt the request - Supabase might reject it with 401, but at least we tried
     }
   }
   
@@ -184,11 +180,6 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     data.data = await decryptObjectFields(data.data, cryptoKey);
     
     // Post-decryption: Normalize field names and recalculate aggregates
-    // This is necessary because:
-    // 1. Backend stores snake_case but frontend expects camelCase for some fields
-    // 2. Backend calculates totals using placeholder values (0)
-    
-    // Normalize investments: monthly_amount -> monthlyAmount
     if (data.data.investments && Array.isArray(data.data.investments)) {
       data.data.investments = data.data.investments.map((inv: any) => ({
         ...inv,
@@ -196,7 +187,6 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
       }));
     }
     
-    // Normalize fixed expenses: ensure amount is numeric
     if (data.data.fixedExpenses && Array.isArray(data.data.fixedExpenses)) {
       data.data.fixedExpenses = data.data.fixedExpenses.map((exp: any) => ({
         ...exp,
@@ -204,7 +194,6 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
       }));
     }
     
-    // Normalize incomes: ensure amount is numeric
     if (data.data.incomes && Array.isArray(data.data.incomes)) {
       data.data.incomes = data.data.incomes.map((inc: any) => ({
         ...inc,
@@ -212,7 +201,6 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
       }));
     }
     
-    // Recalculate variable plan totals
     if (data.data.variablePlans && Array.isArray(data.data.variablePlans)) {
       data.data.variablePlans = data.data.variablePlans.map((plan: any) => {
         const planned = parseFloat(plan.planned) || 0;
@@ -227,15 +215,12 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
       });
     }
     
-    // Recalculate loan EMI after decryption (loans have amount_enc that was decrypted to amount)
-    // This handles both direct loan array and nested data structure
     const loansArray = Array.isArray(data.data) ? data.data : data.data.loans;
     if (loansArray && Array.isArray(loansArray)) {
       const processedLoans = loansArray.map((loan: any) => {
         const amount = parseFloat(loan.amount) || 0;
         const frequency = loan.frequency || 'monthly';
         
-        // Recalculate EMI from decrypted amount
         const emi = frequency === 'monthly' ? amount :
           frequency === 'quarterly' ? amount / 3 :
           frequency === 'yearly' ? amount / 12 : amount;
@@ -250,7 +235,6 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
         };
       });
       
-      // Update the correct location
       if (Array.isArray(data.data)) {
         data.data = processedLoans;
       } else if (data.data.loans) {
@@ -266,7 +250,6 @@ async function buildBody(data: any, cryptoKey?: CryptoKey): Promise<string> {
   if (!cryptoKey) {
     return JSON.stringify(data);
   }
-  // E2E: Encrypt sensitive fields
   const encrypted = await encryptObjectFields(data, cryptoKey);
   return JSON.stringify(encrypted);
 }
@@ -275,12 +258,11 @@ export async function signup(
   username: string, 
   password: string, 
   encryptionSalt: string, 
-  recoveryKeyHash: string,
-  email?: string
+  recoveryKeyHash: string
 ): Promise<LoginResponse> {
   return request<LoginResponse>("/auth/signup", { 
     method: "POST", 
-    body: JSON.stringify({ username, password, encryptionSalt, recoveryKeyHash, email }) 
+    body: JSON.stringify({ username, password, encryptionSalt, recoveryKeyHash }) 
   });
 }
 
@@ -306,41 +288,7 @@ export async function updateHealthThresholds(token: string, thresholds: Partial<
   return res.data;
 }
 
-// Email verification
-export async function verifyEmail(email: string, code: string): Promise<{ message: string; verified: boolean }> {
-  return request<{ message: string; verified: boolean }>("/auth/verify-email", {
-    method: "POST",
-    body: JSON.stringify({ email, code })
-  });
-}
-
-export async function resendVerificationCode(email: string): Promise<{ message: string; _dev_code?: string }> {
-  return request<{ message: string; _dev_code?: string }>("/auth/resend-verification", {
-    method: "POST",
-    body: JSON.stringify({ email })
-  });
-}
-
-// Password recovery
-export async function forgotPassword(email: string): Promise<{ message: string; _dev_code?: string }> {
-  return request<{ message: string; _dev_code?: string }>("/auth/forgot-password", {
-    method: "POST",
-    body: JSON.stringify({ email })
-  });
-}
-
-export async function resetPassword(
-  email: string, 
-  resetCode: string, 
-  recoveryKey: string, 
-  newPassword: string
-): Promise<{ message: string; encryption_salt: string }> {
-  return request<{ message: string; encryption_salt: string }>("/auth/reset-password", {
-    method: "POST",
-    body: JSON.stringify({ email, resetCode, recoveryKey, newPassword })
-  });
-}
-
+// Recovery with recovery key
 export async function recoverWithKey(
   username: string,
   recoveryKey: string,
@@ -355,13 +303,6 @@ export async function recoverWithKey(
 // User profile
 export async function getUserProfile(token: string): Promise<{ data: any }> {
   return request<{ data: any }>("/user/profile", { method: "GET" }, token);
-}
-
-export async function updateUserEmail(token: string, email: string): Promise<{ message: string; _dev_code?: string }> {
-  return request<{ message: string; _dev_code?: string }>("/user/email", {
-    method: "PUT",
-    body: JSON.stringify({ email })
-  }, token);
 }
 
 export async function updateUserPassword(
@@ -446,7 +387,6 @@ export async function updateUserAggregates(
     total_credit_card_dues: number;
   }
 ) {
-  // No encryption needed - aggregates are plaintext totals (no cryptoKey passed)
   return request<{ data: { success: boolean } }>("/user/aggregates", {
     method: "PUT",
     body: JSON.stringify(aggregates)
@@ -454,9 +394,8 @@ export async function updateUserAggregates(
 }
 
 export async function sendInvite(token: string, payload: { username: string; role: "editor" | "viewer"; merge_finances?: boolean }) {
-  // Map frontend 'username' field to backend 'email_or_username' field
   const requestData = {
-    email_or_username: payload.username,
+    username: payload.username,
     role: payload.role,
     merge_finances: payload.merge_finances || false
   };
@@ -587,7 +526,6 @@ export async function deleteIncome(token: string, id: string) {
 
 // Investments
 export async function createInvestment(token: string, payload: { name: string; goal: string; monthlyAmount: number; status: string }, cryptoKey?: CryptoKey) {
-  // Convert camelCase to snake_case for backend
   const backendPayload: any = {
     name: payload.name,
     goal: payload.goal,
@@ -599,7 +537,6 @@ export async function createInvestment(token: string, payload: { name: string; g
 }
 
 export async function updateInvestment(token: string, id: string, payload: { name?: string; goal?: string; monthlyAmount?: number; status?: string; accumulatedFunds?: number }, cryptoKey?: CryptoKey) {
-  // Convert camelCase to snake_case for backend
   const backendPayload: any = {};
   if (payload.name !== undefined) backendPayload.name = payload.name;
   if (payload.goal !== undefined) backendPayload.goal = payload.goal;
@@ -649,6 +586,15 @@ export async function getUserPreferences(token: string) {
 
 export async function updateUserPreferences(token: string, preferences: { monthStartDay?: number; currency?: string; timezone?: string }) {
   return request<{ data: any }>("/preferences", { method: "PATCH", body: JSON.stringify(preferences) }, token);
+}
+
+// Notification preferences
+export async function getNotificationPreferences(token: string) {
+  return request<{ data: any }>("/notifications/preferences", {}, token);
+}
+
+export async function updateNotificationPreferences(token: string, prefs: any) {
+  return request<{ data: any }>("/notifications/preferences", { method: "PUT", body: JSON.stringify(prefs) }, token);
 }
 
 // Health details

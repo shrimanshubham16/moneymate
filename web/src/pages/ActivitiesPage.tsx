@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
-import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt, FaHistory, FaCalendarAlt, FaUsers, FaUserCircle } from "react-icons/fa";
+import { FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine, FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt, FaHistory, FaCalendarAlt, FaUsers, FaUserCircle, FaFilter, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { MdAccountBalanceWallet } from "react-icons/md";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
@@ -16,6 +16,22 @@ interface ActivitiesPageProps {
   token: string;
 }
 
+const ENTITY_LABELS: Record<string, string> = {
+  income: "Income",
+  fixed: "Fixed Expense",
+  fixed_expense: "Fixed Expense",
+  variable: "Variable Expense",
+  variable_expense: "Variable Expense",
+  variable_expense_plan: "Variable Plan",
+  investment: "Investment",
+  credit_card: "Credit Card",
+  loan: "Loan",
+  future_bomb: "Future Bomb",
+  sharing: "Sharing",
+  alert: "Alert",
+  system: "System",
+};
+
 export function ActivitiesPage({ token }: ActivitiesPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
@@ -26,8 +42,9 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [usePeriodFilter, setUsePeriodFilter] = useState(false);
+  const [entityFilter, setEntityFilter] = useState<string>("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   
-  // Shared view support - activities are always user-specific but we show attribution
   const { selectedView, isSharedView, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
 
   useEffect(() => {
@@ -36,46 +53,32 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
 
   const loadActivities = async () => {
     try {
-      // Pass view parameter for combined activities
       const res = await api.fetchActivity(token, undefined, undefined, selectedView);
 
-      // Ensure each activity has the required fields and sanitize payload
       const sanitizedActivities = (res.data || []).map((activity: any) => {
-        // Parse string payload to object if needed
         let parsedPayload = activity.payload;
         if (typeof parsedPayload === 'string') {
-          try {
-            parsedPayload = JSON.parse(parsedPayload);
-          } catch (e) {
-            parsedPayload = {};
-          }
+          try { parsedPayload = JSON.parse(parsedPayload); } catch (e) { parsedPayload = {}; }
         }
-        
         return {
           ...activity,
           id: activity.id || activity._id || Math.random().toString(),
           entity: String(activity.entity || 'unknown'),
           action: String(activity.action || 'action'),
           createdAt: activity.createdAt || activity.created_at || new Date().toISOString(),
-          payload: parsedPayload // Now guaranteed to be object
+          payload: parsedPayload
         };
       });
 
-      // Sort by most recent first (newest at top)
       sanitizedActivities.sort((a: any, b: any) => {
-        const dateA = new Date(a.createdAt).getTime();
-        const dateB = new Date(b.createdAt).getTime();
-        return dateB - dateA; // Descending order (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
 
-      // P0 FIX: Filter out duplicate monthly_reset activities (keep only the most recent one per month)
       const seenMonths = new Set<string>();
       const filteredActivities = sanitizedActivities.filter((a: any) => {
         if (a.entity === 'system' && a.action === 'monthly_reset') {
           const month = a.payload?.month || 'unknown';
-          if (seenMonths.has(month)) {
-            return false; // Skip duplicate
-          }
+          if (seenMonths.has(month)) return false;
           seenMonths.add(month);
         }
         return true;
@@ -109,22 +112,158 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
     return iconMap[entity] || <FaFileAlt />;
   };
 
+  const getEntityColor = (entity: string) => {
+    const colorMap: Record<string, string> = {
+      income: '#10b981',
+      fixed: '#f59e0b',
+      fixed_expense: '#f59e0b',
+      variable: '#8b5cf6',
+      variable_expense: '#8b5cf6',
+      variable_expense_plan: '#8b5cf6',
+      investment: '#3b82f6',
+      credit_card: '#ec4899',
+      loan: '#6366f1',
+      future_bomb: '#ef4444',
+      sharing: '#14b8a6',
+      alert: '#f97316',
+      system: '#64748b',
+    };
+    return colorMap[entity] || '#64748b';
+  };
+
+  // Format currency
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+
+  // Get action message for activity
+  const getActionMessage = (activity: any) => {
+    const username = activity.username || 'Someone';
+    const entity = activity.entity.replace(/_/g, ' ');
+    const payload = activity.payload || {};
+
+    switch (activity.action) {
+      case 'created':
+      case 'added':
+      case 'added income source':
+        if (activity.entity === 'income' && payload.name && payload.amount) {
+          const frequency = payload.frequency ? ` (${payload.frequency})` : '';
+          return `${username} added income source ${formatCurrency(payload.amount)}${frequency} for ${payload.name}`;
+        }
+        if (activity.entity === 'credit_card' && payload.name) {
+          const billInfo = payload.billAmount ? ` with bill ₹${payload.billAmount}` : '';
+          return `${username} added credit card "${payload.name}"${billInfo}`;
+        }
+        return `${username} added ${entity}`;
+      case 'added actual expense': {
+        const planName = payload.planName || payload.plan || payload.name || 'expense';
+        const amount = payload.amount || 0;
+        const paymentMode = payload.paymentMode ? ` via ${payload.paymentMode}` : '';
+        if (amount > 0) return `${username} spent ${formatCurrency(amount)} on ${planName}${paymentMode}`;
+        return `${username} added actual expense`;
+      }
+      case 'added fixed expense':
+        if (payload.name && payload.amount) {
+          return `${username} added fixed expense ${formatCurrency(payload.amount)} for ${payload.name}`;
+        }
+        return `${username} added fixed expense`;
+      case 'added variable expense plan':
+        if (payload.name && payload.planned) {
+          return `${username} planned ${formatCurrency(payload.planned)} for ${payload.name}`;
+        }
+        return `${username} added variable expense plan`;
+      case 'added investment': {
+        const invAmount = payload.monthlyAmount || payload.monthly_amount || 0;
+        const invName = payload.name || '';
+        if (invAmount > 0 || invName) return `${username} added investment "${invName}" ${invAmount > 0 ? formatCurrency(invAmount) + '/month' : ''}`.trim();
+        return `${username} added investment`;
+      }
+      case 'payment':
+        if (activity.entity === 'credit_card' && payload.amount) {
+          const cardName = payload.cardName || 'credit card';
+          return `${username} paid ${formatCurrency(payload.amount)} on ${cardName}`;
+        }
+        return `${username} made payment ${payload.amount ? formatCurrency(payload.amount) : ''}`.trim();
+      case 'updated_bill':
+        if (activity.entity === 'credit_card' && payload.billAmount) {
+          return `${username} updated bill to ${formatCurrency(payload.billAmount)} for ${payload.cardName || 'credit card'}`;
+        }
+        return `${username} updated ${entity} bill`;
+      case 'updated':
+        return `${username} updated ${entity}${payload.name ? ` "${payload.name}"` : ''}`;
+      case 'deleted':
+        return `${username} deleted ${entity}${payload.name ? ` "${payload.name}"` : ''}`;
+      case 'paid': {
+        const name = payload.name || '';
+        if (payload.amount && name) return `${username} marked "${name}" as paid (${formatCurrency(payload.amount)})`;
+        if (name) return `${username} marked "${name}" as paid`;
+        return `${username} marked ${entity} as paid`;
+      }
+      case 'unpaid':
+        return `${username} unmarked "${payload.name || entity}" payment`;
+      case 'overspend_detected':
+        return `Overspend detected on "${payload.planName || 'plan'}" — spent ${formatCurrency(payload.actual || 0)} vs planned ${formatCurrency(payload.planned || 0)}`;
+      case 'monthly_reset':
+        return `Monthly billing cycle reset for ${payload.month || 'new period'}`;
+      default: {
+        let details = '';
+        if (payload.name) details += ` ${payload.name}`;
+        if (payload.amount) details += ` (${formatCurrency(payload.amount)})`;
+        return `${username} ${activity.action} ${entity}${details}`.trim();
+      }
+    }
+  };
+
+  // Get payload detail items for expanded view
+  const getPayloadDetails = (activity: any) => {
+    const payload = activity.payload || {};
+    const details: { label: string; value: string }[] = [];
+
+    if (payload.name) details.push({ label: "Name", value: payload.name });
+    if (payload.amount) details.push({ label: "Amount", value: formatCurrency(payload.amount) });
+    if (payload.planned) details.push({ label: "Planned", value: formatCurrency(payload.planned) });
+    if (payload.actual) details.push({ label: "Actual", value: formatCurrency(payload.actual) });
+    if (payload.monthlyAmount || payload.monthly_amount) details.push({ label: "Monthly", value: formatCurrency(payload.monthlyAmount || payload.monthly_amount) });
+    if (payload.billAmount) details.push({ label: "Bill", value: formatCurrency(payload.billAmount) });
+    if (payload.frequency) details.push({ label: "Frequency", value: payload.frequency });
+    if (payload.category) details.push({ label: "Category", value: payload.category });
+    if (payload.subcategory && payload.subcategory !== 'Unspecified') details.push({ label: "Subcategory", value: payload.subcategory });
+    if (payload.paymentMode) details.push({ label: "Payment Mode", value: payload.paymentMode });
+    if (payload.creditCard) details.push({ label: "Credit Card", value: payload.creditCard });
+    if (payload.justification) details.push({ label: "Note", value: payload.justification });
+    if (payload.goal) details.push({ label: "Goal", value: payload.goal });
+    if (payload.status) details.push({ label: "Status", value: payload.status });
+    if (payload.planName) details.push({ label: "Plan", value: payload.planName });
+    if (payload.cardName) details.push({ label: "Card", value: payload.cardName });
+    if (payload.overspend) details.push({ label: "Overspend", value: formatCurrency(payload.overspend) });
+    if (payload.billingPeriod) details.push({ label: "Billing Period", value: payload.billingPeriod });
+    if (payload.month) details.push({ label: "Month", value: payload.month });
+    if (payload.previousMonth) details.push({ label: "Previous Month", value: payload.previousMonth });
+
+    return details;
+  };
+
+  // Get unique entity types for filter
+  const entityTypes = Array.from(new Set(activities.map(a => a.entity))).sort();
+
+  // Filtered activities
+  const filteredActivities = entityFilter === 'all'
+    ? activities
+    : activities.filter(a => a.entity === entityFilter);
+
   return (
     <div className="activities-page">
-      {/* Page Header */}
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           <h1><FaClipboardList style={{ marginRight: 12, verticalAlign: "middle" }} />Activity Log</h1>
           <PageInfoButton
             title="Activity Log"
             description="View a complete history of all your financial activities including income additions, expense tracking, investments, credit card transactions, and more."
-            impact="The activity log helps you track all changes to your financial data. Every action you take is recorded with details like amounts, categories, and timestamps for full transparency."
+            impact="The activity log helps you track all changes to your financial data."
             howItWorks={[
               "All financial actions are automatically logged with timestamps",
               "View detailed information including amounts, categories, and payment modes",
-              "Filter activities by type (income, expenses, investments, credit cards, etc.)",
-              "See who performed each action (useful for shared accounts)",
-              "Activity log helps you audit and understand your financial history"
+              "Filter activities by type and date range",
+              "Expand any activity to see full details"
             ]}
           />
         </div>
@@ -140,59 +279,55 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         </div>
       </div>
 
-      {/* Period Selector */}
-      <div className="period-selector-container">
-        <div className="period-selector">
-          <label>
-            <FaCalendarAlt style={{ marginRight: 6 }} />
-            Period Filter:
+      {/* Filters Row */}
+      <div className="activities-filters">
+        {/* Entity Filter */}
+        <div className="filter-group">
+          <FaFilter style={{ marginRight: 6, opacity: 0.5 }} />
+          <select
+            value={entityFilter}
+            onChange={(e) => setEntityFilter(e.target.value)}
+            className="entity-filter-select"
+          >
+            <option value="all">All Types ({activities.length})</option>
+            {entityTypes.map(type => {
+              const count = activities.filter(a => a.entity === type).length;
+              return (
+                <option key={type} value={type}>
+                  {ENTITY_LABELS[type] || type} ({count})
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* Period Filter */}
+        <div className="filter-group">
+          <label className="period-toggle">
+            <input
+              type="checkbox"
+              checked={usePeriodFilter}
+              onChange={(e) => {
+                setUsePeriodFilter(e.target.checked);
+                if (!e.target.checked) { setStartDate(""); setEndDate(""); }
+              }}
+            />
+            <FaCalendarAlt style={{ marginRight: 4, opacity: 0.5 }} />
+            <span>Date Range</span>
           </label>
-          <input
-            type="checkbox"
-            checked={usePeriodFilter}
-            onChange={(e) => {
-              setUsePeriodFilter(e.target.checked);
-              if (!e.target.checked) {
-                setStartDate("");
-                setEndDate("");
-              }
-            }}
-          />
-          <span>Enable</span>
           {usePeriodFilter && (
-            <>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                placeholder="Start Date"
-                className="date-input"
-              />
-              <span>to</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                placeholder="End Date"
-                className="date-input"
-              />
+            <div className="date-range-inputs">
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="date-input" />
+              <span className="date-separator">→</span>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="date-input" />
               {(startDate || endDate) && (
-                <button
-                  className="clear-filter-button"
-                  onClick={() => {
-                    setStartDate("");
-                    setEndDate("");
-                  }}
-                >
-                  Clear
-                </button>
+                <button className="clear-filter-button" onClick={() => { setStartDate(""); setEndDate(""); }}>Clear</button>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      {/* History Modal */}
       <ActivityHistoryModal
         token={token}
         isOpen={showHistoryModal}
@@ -203,153 +338,80 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       {/* Content */}
       {loading ? (
         <SkeletonLoader type="list" count={5} />
-      ) : activities.length === 0 ? (
+      ) : filteredActivities.length === 0 ? (
         <div className="empty-state">
-          <FaClipboardList size={64} color="#cbd5e1" />
-          <p>No activities yet. Start using the app to see your activity log!</p>
+          <FaClipboardList size={56} color="var(--text-tertiary)" />
+          <h3>No Activities Found</h3>
+          <p>{entityFilter !== 'all' ? `No ${ENTITY_LABELS[entityFilter] || entityFilter} activities yet.` : 'Start using the app to see your activity log!'}</p>
         </div>
       ) : (
         <div className="activities-timeline">
-          {activities.map((activity, index) => {
-            // Format the action message
-            const getActionMessage = () => {
-              const username = activity.username || 'Someone';
-              const entity = activity.entity.replace(/_/g, ' ');
-              const payload = activity.payload || {};
-
-              // Helper to format currency
-              const formatCurrency = (amount: number) => {
-                return new Intl.NumberFormat('en-IN', {
-                  style: 'currency',
-                  currency: 'INR',
-                  maximumFractionDigits: 0
-                }).format(amount);
-              };
-              
-              switch (activity.action) {
-                case 'created':
-                case 'added':
-                case 'added income source':
-                  if (activity.entity === 'income' && payload.name && payload.amount) {
-                    const frequency = payload.frequency ? ` (${payload.frequency})` : '';
-                    return `${username} added income source ${formatCurrency(payload.amount)}${frequency} for ${payload.name}`;
-                  }
-                  // Credit card creation - show name and bill amount
-                  if (activity.entity === 'credit_card' && payload.name) {
-                    const billInfo = payload.billAmount ? ` with bill ₹${payload.billAmount}` : '';
-                    return `${username} added credit card "${payload.name}"${billInfo}`;
-                  }
-                  return `${username} added ${entity}`;
-                case 'added actual expense':
-                  // Variable expense actual - handle multiple payload formats
-                  const expPlanName = payload.planName || payload.plan || payload.name || 'expense';
-                  const expAmount = payload.amount || 0;
-                  const expCategory = payload.category ? ` in ${payload.category}` : '';
-                  const expSubcategory = payload.subcategory && payload.subcategory !== 'Unspecified' ? ` (${payload.subcategory})` : '';
-                  const expPaymentMode = payload.paymentMode ? ` via ${payload.paymentMode}` : '';
-                  const expCreditCard = payload.creditCard ? ` using ${payload.creditCard}` : '';
-                  const expJustification = payload.justification ? ` - "${payload.justification}"` : '';
-                  if (expAmount > 0) {
-                    return `${username} spent ${formatCurrency(expAmount)} on ${expPlanName}${expCategory}${expSubcategory}${expPaymentMode}${expCreditCard}${expJustification}`;
-                  }
-                  return `${username} added actual expense`;
-                case 'added fixed expense':
-                  if (payload.name && payload.amount) {
-                    const frequency = payload.frequency ? ` (${payload.frequency})` : '';
-                    const category = payload.category ? ` in ${payload.category}` : '';
-                    return `${username} added fixed expense ${formatCurrency(payload.amount)}${frequency} for ${payload.name}${category}`;
-                  }
-                  return `${username} added fixed expense`;
-                case 'added variable expense plan':
-                  if (payload.name && payload.planned) {
-                    const category = payload.category ? ` in ${payload.category}` : '';
-                    return `${username} added variable expense plan ${formatCurrency(payload.planned)} for ${payload.name}${category}`;
-                  }
-                  return `${username} added variable expense plan`;
-                case 'added investment':
-                  // Handle both camelCase and snake_case field names
-                  const invAmount = payload.monthlyAmount || payload.monthly_amount || 0;
-                  const invName = payload.name || '';
-                  const invGoal = payload.goal ? ` (Goal: ${payload.goal})` : '';
-                  const invStatus = payload.status ? ` [${payload.status}]` : '';
-                  if (invAmount > 0 || invName) {
-                    return `${username} added investment${invName ? ` "${invName}"` : ''} ${invAmount > 0 ? formatCurrency(invAmount) + '/month' : ''}${invGoal}${invStatus}`.trim();
-                  }
-                  return `${username} added investment`;
-                case 'payment':
-                  if (activity.entity === 'credit_card' && payload.id && payload.amount) {
-                    const cardName = payload.cardName || 'credit card';
-                    return `${username} paid ${formatCurrency(payload.amount)} on ${cardName}`;
-                  }
-                  return `${username} made payment ${payload.amount ? formatCurrency(payload.amount) : ''}`.trim();
-                case 'updated_bill':
-                  if (activity.entity === 'credit_card' && payload.id && payload.billAmount) {
-                    const cardName = payload.cardName || 'credit card';
-                    return `${username} updated bill amount to ${formatCurrency(payload.billAmount)} for ${cardName}`;
-                  }
-                  return `${username} updated ${entity} bill`;
-                case 'updated':
-                  if (payload.name) {
-                    return `${username} updated ${entity} ${payload.name}`;
-                  }
-                  return `${username} updated ${entity}`;
-                case 'deleted':
-                  if (payload.name) {
-                    return `${username} deleted ${entity} ${payload.name}`;
-                  }
-                  return `${username} deleted ${entity}`;
-                case 'paid':
-                  const paidName = payload.name || '';
-                  if (payload.amount && paidName) {
-                    return `${username} marked ${entity} "${paidName}" as paid (${formatCurrency(payload.amount)})`;
-                  } else if (payload.amount) {
-                    return `${username} marked ${entity} as paid (${formatCurrency(payload.amount)})`;
-                  } else if (paidName) {
-                    return `${username} marked ${entity} "${paidName}" as paid`;
-                  }
-                  return `${username} marked ${entity} as paid`;
-                case 'unpaid':
-                  const unpaidName = payload.name || '';
-                  if (unpaidName) {
-                    return `${username} unmarked ${entity} "${unpaidName}" payment`;
-                  }
-                  return `${username} unmarked ${entity} payment`;
-                default:
-                  // Enhanced default message with available payload data
-                  let defaultDetails = '';
-                  if (payload.name) defaultDetails += ` ${payload.name}`;
-                  if (payload.amount) defaultDetails += ` (${formatCurrency(payload.amount)})`;
-                  if (payload.planned) defaultDetails += ` (Planned: ${formatCurrency(payload.planned)})`;
-                  return `${username} ${activity.action} ${entity}${defaultDetails}`.trim();
-              }
-            };
+          {filteredActivities.map((activity, index) => {
+            const isExpanded = expandedId === activity.id;
+            const details = getPayloadDetails(activity);
+            const entityColor = getEntityColor(activity.entity);
 
             return (
               <motion.div
                 key={activity.id}
-                className="activity-item"
+                className={`activity-item ${isExpanded ? 'activity-expanded' : ''}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.03 }}
+                transition={{ delay: Math.min(index * 0.02, 0.5) }}
               >
-                <div className="activity-icon">{getEntityIcon(activity.entity)}</div>
-                <div className="activity-content">
-                  <div className="activity-action">{getActionMessage()}</div>
-                  <div className="activity-time">
-                    {(() => {
-                      // Handle timestamps - ensure proper timezone conversion
-                      const timestamp = activity.createdAt;
-                      // If timestamp doesn't have timezone indicator, assume UTC
-                      const utcDate = timestamp.endsWith('Z') || timestamp.includes('+') 
-                        ? new Date(timestamp)
-                        : new Date(timestamp + 'Z');
-                      return utcDate.toLocaleString('en-IN', {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone // Use browser's timezone
-                      });
-                    })()}
+                <div className="activity-icon" style={{ borderColor: entityColor, color: entityColor }}>
+                  {getEntityIcon(activity.entity)}
+                </div>
+                <div
+                  className="activity-content"
+                  onClick={() => details.length > 0 ? setExpandedId(isExpanded ? null : activity.id) : null}
+                  style={{ cursor: details.length > 0 ? 'pointer' : 'default' }}
+                >
+                  <div className="activity-top-row">
+                    <div className="activity-action">{getActionMessage(activity)}</div>
+                    {details.length > 0 && (
+                      <span className="activity-expand-icon">
+                        {isExpanded ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
+                      </span>
+                    )}
                   </div>
+                  <div className="activity-meta">
+                    <span className="activity-time">
+                      {(() => {
+                        const ts = activity.createdAt;
+                        const utcDate = ts.endsWith('Z') || ts.includes('+') ? new Date(ts) : new Date(ts + 'Z');
+                        return utcDate.toLocaleString('en-IN', {
+                          dateStyle: 'medium', timeStyle: 'short',
+                          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                        });
+                      })()}
+                    </span>
+                    <span className="activity-entity-badge" style={{ color: entityColor, borderColor: entityColor }}>
+                      {ENTITY_LABELS[activity.entity] || activity.entity}
+                    </span>
+                  </div>
+
+                  {/* Expandable Details */}
+                  <AnimatePresence>
+                    {isExpanded && details.length > 0 && (
+                      <motion.div
+                        className="activity-details"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <div className="activity-details-grid">
+                          {details.map((d, i) => (
+                            <div key={i} className="activity-detail-item">
+                              <span className="detail-label">{d.label}</span>
+                              <span className="detail-value">{d.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             );
@@ -359,4 +421,3 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
     </div>
   );
 }
-
