@@ -214,15 +214,14 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
             <h1><FaCreditCard style={{ marginRight: 8, verticalAlign: 'middle' }} />Manage Credit Cards</h1>
             <PageInfoButton
               title="Credit Card Management"
-              description="Manage your credit cards, track bills, payments, and usage. Monitor your credit card expenses and stay on top of due dates."
-              impact="Credit card bills use the FULL bill amount in health score calculations (not unpaid amount). Paying bills doesn't improve health score until you pay MORE than the bill amount. Only overpayments reduce available funds."
+              description="Your credit card command center — add your cards, update bill amounts when statements arrive, and track what's being charged in real time via variable expense logs."
+              impact="Credit card dues are factored into your health score using the unpaid balance (bill − paid). Keeping bills up to date here ensures your financial picture is always accurate. You'll also receive a notification when a card's billing cycle resets."
               howItWorks={[
-                "Add credit cards with bill amount, due date, and billing date",
-                "Track current expenses from variable expenses paid via credit card",
-                "Update bill amounts manually when statements arrive",
-                "Reset billing cycle to zero out current expenses",
-                "View usage to see all expenses charged to each card",
-                "Get alerts when bills need updating"
+                "Add each credit card with its name, bill amount, paid amount, and billing date",
+                "When you log a variable expense with payment mode 'Credit Card', it appears under the relevant card's usage",
+                "Update bill amounts after each statement to keep your health score accurate",
+                "Paid amount tracks how much you've cleared — the remainder shows as outstanding",
+                "Billing date resets are flagged so you remember to update the new statement amount"
               ]}
             />
           </div>

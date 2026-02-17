@@ -505,8 +505,8 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
           </h1>
           <PageInfoButton
             title="Activity Log"
-            description="View a complete history of all your financial activities. Pin important ones and leave comments for your shared members."
-            impact="The activity log helps you track all changes and collaborate with shared account members."
+            description="Your financial timeline — every income added, expense logged, payment marked, or setting changed is recorded here. Pin what matters, comment on shared entries, and never lose track of what happened and when."
+            impact="Transparency is power. The activity log gives you a complete audit trail of your financial decisions. In shared accounts, it's also a collaboration hub — comment on each other's entries to discuss spending."
             howItWorks={[
               "All financial actions are automatically logged with timestamps",
               "Pin important activities to keep them at the top for quick access",

@@ -570,7 +570,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   }, 0) || 0;
   const investmentsTotal = data.investments?.reduce((sum: number, i: any) => sum + i.monthlyAmount, 0) || 0;
   const futureBombsCount = data.futureBombs?.length || 0;
-  const alertsCount = data.alerts?.length || 0;
+  const notifCount = data._notificationCount || 0;
 
   // Calculate unpaid dues only
   // P0 FIX: For periodic expenses, only include if actually due this billing period
@@ -657,12 +657,13 @@ export function DashboardPage({ token }: DashboardPageProps) {
         isOpen={showIntro}
         onClose={closeIntro}
         title="Welcome to Your Dashboard!"
-        description="Your financial command center. Track your health score, monitor income vs expenses, and get a quick overview of everything that matters."
+        description="This is your financial command center — a single screen showing your health score, income, expenses, investments, dues, and more. Every widget is tappable for a detailed deep-dive."
         tips={[
-          "Health score shows how much money you have left after all obligations",
-          "Green means you're doing great, yellow means be careful, red means urgent action needed",
-          "Click any widget to see detailed breakdowns",
-          "Your data updates in real-time as you add transactions"
+          "The Health Score at the top is your most important number — it shows real available funds after all obligations",
+          "Green = Healthy, Yellow = Tight, Red = Needs Attention — customise thresholds in Health Details",
+          "Tap any widget (Expenses, Investments, Dues, etc.) to see the full page",
+          "Use the Quick Add button to log a variable expense without leaving the dashboard",
+          "Smart notifications (🔔) alert you about unpaid dues, overspends, and health drops"
         ]}
       />
 
@@ -844,13 +845,13 @@ export function DashboardPage({ token }: DashboardPageProps) {
           onClick={() => navigate("/community")}
           color="#00D9FF"
         />
-        {alertsCount > 0 && (
+        {notifCount > 0 && (
           <DashboardWidget
-            title="Alerts"
-            value={alertsCount}
-            subtitle="Action required"
+            title="Notifications"
+            value={notifCount}
+            subtitle="Unread"
             icon={<FaBell />}
-            onClick={() => navigate("/alerts")}
+            onClick={() => navigate("/notifications")}
             color="#ef4444"
             trend="down"
           />

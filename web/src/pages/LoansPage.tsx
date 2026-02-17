@@ -5,6 +5,7 @@ import { FaUserCircle, FaLock, FaInfoCircle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./LoansPage.css";
 
 interface LoansPageProps {
@@ -44,8 +45,20 @@ export function LoansPage({ token }: LoansPageProps) {
     <div className="loans-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <h1>Loans</h1>
-        <p className="page-subtitle">Auto-fetched from fixed expenses with category=Loan</p>
+        <h1>
+          Loans
+          <PageInfoButton
+            title="Loans Overview"
+            description="See all your active loans in one place — home loans, car loans, personal loans, education loans. This page auto-pulls any fixed expense categorised as a Loan so you don't have to enter them twice."
+            impact="Every loan EMI is already counted in your fixed expenses and directly reduces your available funds and health score. Keeping this view helps you track your total debt commitment at a glance."
+            howItWorks={[
+              "Loans are automatically derived from fixed expenses with category = Loan",
+              "EMI, principal, and remaining tenure are displayed per loan",
+              "Loan amounts are already factored into your health score via fixed expenses",
+              "To add a new loan, create a fixed expense with the Loan category"
+            ]}
+          />
+        </h1>
       </div>
       {isSharedView && (
         <div style={{ marginBottom: 16, padding: '10px 14px', backgroundColor: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#a78bfa' }}>

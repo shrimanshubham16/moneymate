@@ -108,14 +108,14 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
           <h1>Investments</h1>
           <PageInfoButton
             title="Investments"
-            description="Track your investments like SIPs, mutual funds, stocks, fixed deposits, and other savings plans. Monitor your wealth-building journey."
-            impact="Active investments are considered as monthly obligations and reduce your available funds. Unpaid investments negatively impact your health score, so it's important to mark them as paid when you invest."
+            description="Your wealth-building tracker — SIPs, mutual funds, stocks, FDs, PPF, NPS, or any savings vehicle. See all your investment commitments in one place and never miss a monthly contribution."
+            impact="Investments are treated as monthly obligations. Active ones reduce your available funds (just like expenses) because that money is committed. Marking them as paid keeps your health score honest and shows you've followed through."
             howItWorks={[
-              "Add investments with monthly amount, goal, and status (active/paused/completed)",
-              "Mark investments as paid when you make monthly contributions",
-              "Active investments are automatically included in health score calculations",
-              "Track your investment goals and progress over time",
-              "Paused or completed investments don't affect your health score"
+              "Add investments with a monthly amount, goal description, and status",
+              "Active investments appear in your Dues each month — mark them paid after contributing",
+              "Pause an investment to temporarily exclude it from health calculations",
+              "Track accumulated funds to see how much you've built up over time",
+              "Investment amounts are factored into your health score alongside expenses"
             ]}
           />
         </div>

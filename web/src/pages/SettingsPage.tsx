@@ -60,12 +60,13 @@ export function SettingsPage() {
         isOpen={showIntro}
         onClose={closeIntro}
         title="Settings & Configuration"
-        description="Customize your FinFlow experience. Manage your account, set financial preferences, share with family, and configure everything to match your needs."
+        description="Make FinFlow work the way you want. Manage your account security, set billing preferences, share finances with family, customise themes, and configure every aspect of your experience."
         tips={[
-          "Account settings let you update your profile and password",
-          "Billing Preferences sets your month start day for calculations",
-          "Sharing allows you to merge finances with family members",
-          "Plan Finances is where you set up recurring income and expenses"
+          "Account — update your username, password, and download your recovery key",
+          "Billing Preferences — set the day your billing cycle starts (e.g., salary day)",
+          "Sharing — invite family members to see a combined financial view",
+          "Plan Finances — manage income, fixed expenses, variable plans, and investments",
+          "Notifications — control which smart alerts you receive and how"
         ]}
       />
       <div className="settings-header">

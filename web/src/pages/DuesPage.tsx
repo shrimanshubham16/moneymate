@@ -258,14 +258,14 @@ export function DuesPage({ token }: DuesPageProps) {
           <h1>Current Month Dues</h1>
           <PageInfoButton
             title="Current Month Dues"
-            description="View all your financial obligations due this month including fixed expenses, investments, and loans. Mark them as paid to update your available funds and health score."
-            impact="Unpaid dues reduce your available funds and negatively impact your health score. Marking dues as paid updates your financial status in real-time and improves your health score."
+            description="Your monthly checklist — everything you owe this month in one place. Fixed expenses, investment contributions, and loans all show up here. Tick them off as you pay and watch your health score improve in real time."
+            impact="Every unpaid item here drags your health score down. As you mark dues paid, your available funds adjust instantly. It's the fastest way to see your real financial standing for the month."
             howItWorks={[
-              "All fixed expenses, investments, and loans due this month are listed here",
-              "Toggle payment status to mark items as paid or unpaid",
-              "Paid items don't reduce your available funds",
-              "Unpaid items are automatically included in health score calculations",
-              "Credit card payments must be made through the Credit Cards page"
+              "Fixed expenses, active investments, and loan EMIs automatically appear here each month",
+              "Tap the toggle to mark an item as paid — your health score updates immediately",
+              "Unpaid items reduce your available funds; paid items free them up",
+              "Halfway through the month with unpaid dues? You'll get a smart notification reminder",
+              "Credit card payments are managed separately on the Credit Cards page"
             ]}
           />
         </div>

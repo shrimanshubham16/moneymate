@@ -107,13 +107,14 @@ export function IncomePage({ token }: IncomePageProps) {
             <h1><FaMoneyBillWave style={{ marginRight: 8, verticalAlign: 'middle' }} />Income Sources</h1>
             <PageInfoButton
               title="Income Sources"
-              description="Track all your income sources including salary, freelance work, investments, and other earnings. This is the foundation of your financial planning."
-              impact="Your total monthly income directly affects your available funds and health score. Higher income means more money available for expenses, investments, and savings."
+              description="Everything starts here — your salary, freelance gigs, rental income, dividends, or any money coming in. FinFlow uses your total monthly income as the starting point to calculate everything: health score, available funds, and spending headroom."
+              impact="Income is the foundation of your entire financial plan. Every rupee you add here increases your available funds and pushes your health score up. If something changes — a raise, a side gig, or a lost contract — update it here first."
               howItWorks={[
-                "Add income sources with their amounts and frequency (monthly, quarterly, yearly)",
-                "The app automatically converts all incomes to monthly equivalents for calculations",
-                "Your total monthly income is used to calculate available funds and health score",
-                "You can edit or delete income sources anytime as your situation changes"
+                "Add income sources with amount and frequency (monthly, quarterly, yearly)",
+                "All incomes are auto-converted to monthly equivalents for health calculations",
+                "Total monthly income minus all obligations = your available funds",
+                "In shared view, you can see combined household income from all members",
+                "Edit or remove sources anytime as your financial situation evolves"
               ]}
             />
           </div>

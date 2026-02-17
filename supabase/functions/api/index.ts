@@ -53,6 +53,19 @@ async function createNotification(supabase: any, params: CreateNotificationParam
       return true;
     }
     
+    // Deduplication: if groupKey is provided, skip if one already exists for this user
+    if (params.groupKey) {
+      const { data: existing } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', params.userId)
+        .eq('group_key', params.groupKey)
+        .limit(1);
+      if (existing && existing.length > 0) {
+        return true; // Already notified for this group
+      }
+    }
+    
     const { error } = await supabase
       .from('notifications')
       .insert({
@@ -880,6 +893,13 @@ serve(async (req) => {
       // Try Redis cache first (skip if nocache=true)
       const cached = nocache ? null : await redisGet(cacheKey);
       if (cached) {
+        // Always fetch fresh notification count even on cache hit
+        const { count: cachedNotifCount } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('is_read', false);
+        cached._notificationCount = cachedNotifCount || 0;
         const cacheTime = Date.now() - perfStart;
         console.log('[EDGE_PERF_CACHE] Dashboard from cache', { cacheTime, userId, viewParam });
         return json({ data: cached });
@@ -1179,6 +1199,97 @@ serve(async (req) => {
           sharedAggregatesCount: sharedUserAggregates.length
         }
       };
+
+      // ================================================================
+      // SMART NOTIFICATION GENERATION (fire-and-forget, non-blocking)
+      // ================================================================
+      const monthKey = `${today.getFullYear()}_${String(today.getMonth() + 1).padStart(2, '0')}`;
+      const dayOfMonth = today.getDate();
+      const daysInCurrMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const monthPctPassed = dayOfMonth / daysInCurrMonth;
+
+      // Only generate smart notifications for the user's own view (not shared)
+      if (!viewParam || viewParam === 'me') {
+        // 1. Unpaid dues reminder — after 50% of month has passed
+        if (monthPctPassed > 0.5) {
+          const unpaidFixedNames = finalFixedExpenses
+            .filter((f: any) => !paymentStatus[`fixed:${f.id}`] && f.frequency === 'monthly')
+            .map((f: any) => f.name || 'Expense').slice(0, 5);
+          const unpaidInvNames = finalInvestments
+            .filter((i: any) => !paymentStatus[`investment:${i.id}`] && (i.status === 'active'))
+            .map((i: any) => i.name || 'Investment').slice(0, 5);
+          const allUnpaid = [...unpaidFixedNames, ...unpaidInvNames];
+          if (allUnpaid.length > 0) {
+            createNotification(supabase, {
+              userId,
+              type: 'payment_reminder',
+              title: `${allUnpaid.length} unpaid due${allUnpaid.length > 1 ? 's' : ''} this month`,
+              message: `You still haven't paid: ${allUnpaid.join(', ')}${allUnpaid.length >= 5 ? '…' : ''}. Mark them as paid to improve your health score.`,
+              actionUrl: '/dues',
+              groupKey: `unpaid_dues_${monthKey}`
+            }).catch(() => {});
+          }
+        }
+
+        // 2. Overspend warning — variable expense actual > planned
+        for (const plan of finalVariablePlans) {
+          const planned = plan.planned || 0;
+          const actual = plan.actualTotal || 0;
+          if (planned > 0 && actual > planned) {
+            const pct = Math.round((actual / planned) * 100);
+            createNotification(supabase, {
+              userId,
+              type: 'budget_alert',
+              title: `Overspent on ${plan.name || 'a category'}`,
+              message: `You've spent ₹${actual.toLocaleString('en-IN')} of your ₹${planned.toLocaleString('en-IN')} budget (${pct}%). Consider adjusting your spending.`,
+              entityType: 'variable_plan',
+              entityId: plan.id,
+              actionUrl: '/variable-expenses',
+              groupKey: `overspend_${plan.id}_${monthKey}`
+            }).catch(() => {});
+          }
+        }
+
+        // 3. Health score drop — notify when category is not_well or worrisome
+        if (calcCategory === 'not_well' || calcCategory === 'worrisome') {
+          const label = calcCategory === 'worrisome' ? 'Worrisome' : 'Needs Attention';
+          createNotification(supabase, {
+            userId,
+            type: 'health_update',
+            title: `Health score: ${label}`,
+            message: `Your financial health is ${label.toLowerCase()}. You're spending more than you earn. Review your expenses and dues.`,
+            actionUrl: '/health',
+            groupKey: `health_drop_${calcCategory}_${monthKey}`
+          }).catch(() => {});
+        }
+
+        // 4. Credit card billing day — today matches a card's billing_date
+        for (const card of (directCreditCards || [])) {
+          const billingDay = card.billing_date || 0;
+          if (billingDay === dayOfMonth) {
+            const cardName = card.name || 'Credit Card';
+            createNotification(supabase, {
+              userId,
+              type: 'payment_reminder',
+              title: `${cardName} billing cycle resets today`,
+              message: `Your ${cardName} billing cycle resets on day ${billingDay}. Make sure your bill is updated and payments are recorded.`,
+              entityType: 'credit_card',
+              entityId: card.id,
+              actionUrl: '/credit-cards',
+              groupKey: `cc_billing_${card.id}_${monthKey}_${dayOfMonth}`
+            }).catch(() => {});
+          }
+        }
+      }
+
+      // Also fetch unread notification count to include in dashboard response
+      const { count: unreadNotifCount } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+      
+      responseData._notificationCount = unreadNotifCount || 0;
 
       // Cache the result (60s TTL)
       await redisSet(cacheKey, responseData, 60);

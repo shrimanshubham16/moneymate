@@ -412,13 +412,14 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       <IntroModal
         isOpen={showIntro}
         onClose={closeIntro}
-        title=" Financial Health Score"
-        description="Deep dive into your financial health. See exactly how much money you'll have left after paying all bills, investments, and expenses. Understand every rupee that goes in and out."
+        title="Financial Health Score"
+        description="This is the page that tells you the truth — how much money you really have left after every bill, investment, and variable expense. A single number that captures your entire financial standing this month."
         tips={[
-          "Your health score = Available Funds − All Unpaid Obligations",
-          "Green (≥20% left) = Safe, Yellow (10–20%) = Caution, Red (<10%) = Urgent — thresholds are customisable",
-          "This page shows the complete calculation breakdown",
-          "Fixed expenses are monthly bills, Variable are categories like food/transport"
+          "Health Score = Income − (Unpaid Fixed Expenses + Prorated Variable + Unpaid Investments + Credit Card Dues)",
+          "Green (≥20% of income left) = Healthy, Yellow (10–20%) = Tight, Red (<10%) = Danger — you can customise these thresholds",
+          "Overspend Risk tracks how often you exceed variable expense budgets and decays monthly",
+          "The full breakdown shows exactly where every rupee is going so you can optimise",
+          "If your health drops to 'Needs Attention' or 'Worrisome', you'll get a smart notification"
         ]}
       />
       

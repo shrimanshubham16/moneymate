@@ -274,14 +274,14 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           <h1><FaChartBar style={{ marginRight: 10, verticalAlign: 'middle' }} />Variable Expenses</h1>
           <PageInfoButton
             title="Variable Expenses"
-            description="Plan and track your variable expenses like groceries, dining, entertainment, and shopping. These expenses can vary each month based on your spending habits."
-            impact="Variable expenses are prorated based on remaining days in your billing cycle and directly affect your health score. Tracking actual expenses helps you stay within your planned budget and maintain financial health."
+            description="The money you spend differently every month — groceries, dining out, entertainment, shopping, transport. Create a plan for each category, then log actual spends as they happen to see exactly where your money goes."
+            impact="Overspending on variable expenses is the #1 reason health scores drop. This page prorates your planned budgets across remaining days, so you always know if you're on track or heading towards an overspend."
             howItWorks={[
-              "Create expense plans with a planned amount and category",
-              "Add actual expenses as you spend, with subcategory and payment mode",
-              "Payment modes: UPI/Cash (reduces available funds), Extra Cash (doesn't reduce funds), Credit Card (billed later)",
-              "The app calculates prorated amounts for remaining days in your billing cycle",
-              "Track your spending against plans to stay within budget"
+              "Create plans (e.g., Groceries ₹8,000/month) to set your budget ceiling",
+              "Log actual expenses under each plan with amount, subcategory, and payment mode",
+              "UPI/Cash reduces available funds instantly; Extra Cash doesn't; Credit Card defers to your card bill",
+              "Spending over your plan triggers an overspend warning and bumps your constraint score",
+              "Use the summary strip at the top to see total planned vs actual at a glance"
             ]}
           />
         </div>

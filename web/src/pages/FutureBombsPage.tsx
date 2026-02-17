@@ -6,6 +6,7 @@ import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { PageInfoButton } from "../components/PageInfoButton";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./FutureBombsPage.css";
@@ -55,7 +56,20 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     <div className="future-bombs-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <h1>Future Bombs</h1>
+        <h1>
+          Future Bombs
+          <PageInfoButton
+            title="Future Bombs"
+            description="Future Bombs are big-ticket expenses heading your way — think vacations, home renovations, weddings, or large purchases. This page helps you prepare for them before they hit."
+            impact="Each bomb has a monthly savings target calculated automatically. The preparedness meter shows how ready you are. Being unprepared can blow a hole in your finances when the due date arrives."
+            howItWorks={[
+              "Each bomb tracks total amount, saved amount, and target date",
+              "The preparedness ratio (saved ÷ total) is shown as a progress bar",
+              "Critical (<40%), Warning (<70%), and OK zones help you prioritise",
+              "Monthly equivalent tells you how much to save each month to be ready"
+            ]}
+          />
+        </h1>
         {!isSharedView && (
           <button className="add-button" onClick={() => showAlert("Future Bomb creation coming soon! For now, they are automatically tracked from your planned expenses.")}>
             + Add Future Bomb

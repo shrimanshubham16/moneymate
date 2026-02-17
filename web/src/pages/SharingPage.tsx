@@ -5,6 +5,7 @@ import { FaUsers, FaPaperPlane, FaInbox, FaHandshake, FaTimesCircle, FaUserPlus 
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./SharingPage.css";
 
 interface SharingPageProps {
@@ -134,7 +135,21 @@ export function SharingPage({ token }: SharingPageProps) {
     <div className="sharing-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/settings")}>← Back</button>
-        <h1><FaUsers style={{ marginRight: 8, color: 'var(--accent-cyan, #22d3ee)' }} />Sharing</h1>
+        <h1>
+          <FaUsers style={{ marginRight: 8, color: 'var(--accent-cyan, #22d3ee)' }} />Sharing
+          <PageInfoButton
+            title="Share Finances with Family"
+            description="Invite your partner, spouse, or family member to share financial visibility. Once accepted, you'll both see a Combined view on the dashboard showing everyone's income, expenses, and investments together."
+            impact="Sharing doesn't expose passwords or recovery keys — only financial data. You can revoke access anytime. The Combined view gives families a unified picture of household finances."
+            howItWorks={[
+              "Invite a companion by their FinFlow username",
+              "They'll see the request in their Notifications and can accept or decline",
+              "Once accepted, both users can switch to the 'Combined' view on the dashboard",
+              "You can revoke sharing at any time from this page",
+              "Comments on activities let shared members discuss spending in context"
+            ]}
+          />
+        </h1>
         <button className="add-button" onClick={() => setShowInviteForm(true)}>
           <FaUserPlus style={{ marginRight: 6 }} />Invite Companion
         </button>

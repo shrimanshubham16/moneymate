@@ -111,9 +111,6 @@ export function useEncryptedApiCalls() {
     fetchActivity: (token: string, startDate?: string, endDate?: string, view?: string) => 
       baseApi.fetchActivity(token, startDate, endDate, key || undefined, view),
     
-    // Alerts
-    fetchAlerts: (token: string) => 
-      baseApi.fetchAlerts(token),
     
     // Export (with decryption)
     exportFinances: (token: string) =>

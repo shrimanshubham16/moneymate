@@ -478,9 +478,6 @@ export async function fetchActivity(token: string, startDate?: string, endDate?:
   return request<{ data: any[] }>(url, { method: "GET" }, token, cryptoKey);
 }
 
-export async function fetchAlerts(token: string) {
-  return request<{ data: any[] }>("/alerts", { method: "GET" }, token);
-}
 
 // Export finances with decryption support
 export async function exportFinances(token: string, cryptoKey?: CryptoKey) {

@@ -207,14 +207,14 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
           <h1>Fixed Expenses</h1>
           <PageInfoButton
             title="Fixed Expenses"
-            description="Track your recurring monthly expenses like rent, subscriptions, insurance, and other regular payments. These are expenses that remain constant each month."
-            impact="Fixed expenses are automatically deducted from your available funds and directly impact your health score. Unpaid fixed expenses reduce your financial health, so it's important to mark them as paid when you make payments."
+            description="Your non-negotiable monthly commitments — rent, EMIs, subscriptions, insurance, and everything you pay like clockwork. Add them once and FinFlow tracks them every month automatically."
+            impact="Fixed expenses are the backbone of your budget. They're deducted from your income before anything else to show your real available funds. Marking them as paid keeps your health score accurate and lets you see what's still outstanding."
             howItWorks={[
-              "Add fixed expenses with amount, frequency, and category",
-              "Mark expenses as paid when you make payments to update your available funds",
-              "Expenses with 'Loan' category automatically appear in your Loans widget",
-              "Use SIP flag for expenses that are Systematic Investment Plans",
-              "Set start and end dates for time-bound expenses"
+              "Add expenses with amount, frequency (monthly/quarterly/yearly), and category",
+              "Monthly dues appear in the Dues page — mark them paid to update your health score",
+              "Expenses with 'Loan' category auto-appear in the Loans widget on your dashboard",
+              "Enable the SIP flag on periodic expenses to accumulate savings towards them",
+              "Start/end dates let you track time-bound commitments like 12-month subscriptions"
             ]}
           />
         </div>

@@ -15,7 +15,7 @@ import { CreditCardsManagementPage } from "./pages/CreditCardsManagementPage";
 import { LoansPage } from "./pages/LoansPage";
 import { FutureBombsPage } from "./pages/FutureBombsPage";
 import { ActivitiesPage } from "./pages/ActivitiesPage";
-import { AlertsPage } from "./pages/AlertsPage";
+
 import { DuesPage } from "./pages/DuesPage";
 import { CurrentMonthExpensesPage } from "./pages/CurrentMonthExpensesPage";
 import { SIPExpensesPage } from "./pages/SIPExpensesPage";
@@ -306,7 +306,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/settings/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/settings/manage-debts/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/investments" element={<InvestmentsPage token={token} />} />
-          <Route path="/alerts" element={<AlertsPage token={token} />} />
+          <Route path="/alerts" element={<Navigate to="/notifications" replace />} />
           <Route path="/credit-cards" element={<CreditCardsManagementPage token={token} />} />
           <Route path="/loans" element={<LoansPage token={token} />} />
           <Route path="/future-bombs" element={<FutureBombsPage token={token} />} />

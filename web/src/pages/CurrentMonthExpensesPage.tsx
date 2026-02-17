@@ -208,14 +208,14 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
           <h1>Current Month Expenses</h1>
           <PageInfoButton
             title="Current Month Expenses"
-            description="View all your expenses for the current month, organized by category, subcategory, and payment mode. Analyze your spending patterns with interactive charts. Use the History button to view past months."
-            impact="This page helps you understand where your money is going. Expenses are grouped by category and payment mode, helping you identify spending patterns and make informed financial decisions."
+            description="A single, beautiful breakdown of every rupee you've spent this month — organised by category, subcategory, and payment mode. Charts make patterns obvious. Use the History button to compare with previous months."
+            impact="Understanding where your money goes is the first step to controlling it. This view combines fixed and variable expenses into one unified picture, so you can spot the categories that eat the most and adjust next month's plan."
             howItWorks={[
-              "Expenses are grouped by Category → Subcategory → Payment Mode",
-              "Payment modes: UPI/Cash (reduces available funds), Extra Cash (doesn't reduce funds), Credit Card (billed later)",
-              "View payment mode distribution with pie chart",
-              "See category breakdown with bar chart",
-              "All expenses from fixed expenses and variable expense actuals are included"
+              "Expenses are grouped by Category → Subcategory → Payment Mode for easy drill-down",
+              "UPI/Cash reduces available funds, Extra Cash doesn't, Credit Card defers to your card bill",
+              "Interactive pie chart shows payment mode split; bar chart shows category-wise totals",
+              "Click History to compare spending across previous months and spot trends",
+              "Both fixed expense payments and variable expense actuals are included automatically"
             ]}
           />
         </div>

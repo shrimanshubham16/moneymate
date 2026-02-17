@@ -7,6 +7,7 @@ import { saveAs } from "file-saver";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./ExportPage.css";
 
 interface ExportPageProps {
@@ -420,7 +421,20 @@ export function ExportPage({ token }: ExportPageProps) {
     <div className="export-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <h1>Export Finances</h1>
+        <h1>
+          Export Finances
+          <PageInfoButton
+            title="Export Your Data"
+            description="Download your entire financial picture as a professional Excel spreadsheet — perfect for sharing with a financial advisor, backing up your data, or doing custom analysis in Excel or Google Sheets."
+            impact="Your data is encrypted on our servers. The export decrypts it on your device and packages everything into a clean, organised workbook. Nothing leaves your device unencrypted."
+            howItWorks={[
+              "Click Export to download a .xlsx file with multiple sheets",
+              "Sheets include: Summary, Income, Fixed Expenses, Variable Expenses, Investments, Credit Cards, Loans, Future Bombs, and Category Breakdown",
+              "In shared view, each row shows the owner so you can see combined data",
+              "Health score is recalculated from your decrypted data for accuracy"
+            ]}
+          />
+        </h1>
       </div>
 
       <motion.div

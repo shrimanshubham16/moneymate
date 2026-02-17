@@ -6,6 +6,7 @@ import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { PageInfoButton } from "../components/PageInfoButton";
 import "./SIPExpensesPage.css";
 
 interface SIPExpensesPageProps {
@@ -47,8 +48,20 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
     <div className="sip-expenses-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
-        <h1>SIP for Periodic Expenses</h1>
-        <p className="page-subtitle">Expenses marked for SIP accumulation with potential growth</p>
+        <h1>
+          SIP for Periodic Expenses
+          <PageInfoButton
+            title="SIP for Periodic Expenses"
+            description="These are expenses that don't hit every month — like insurance premiums (quarterly/annual) or school fees. By marking them as SIP, you set aside a small monthly amount so you're always prepared when payment is due."
+            impact="SIP expenses smooth out large irregular payments into manageable monthly contributions. This prevents financial shocks and keeps your health score stable across months."
+            howItWorks={[
+              "Create a fixed expense with quarterly or annual frequency and enable the SIP flag",
+              "The monthly equivalent is auto-calculated (e.g., ₹12,000/year = ₹1,000/month)",
+              "Funds accumulate month over month towards the next due date",
+              "To manage SIP expenses, edit them in the Fixed Expenses page"
+            ]}
+          />
+        </h1>
       </div>
 
       <SharedViewBanner />
