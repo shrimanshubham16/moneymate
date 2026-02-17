@@ -1,33 +1,85 @@
-.actual-form input,
-.actual-form select,
-.actual-form textarea {
-  color: #00ff88;
-  background: #0b1020;
-  border: 1px solid #1f2937;
-  caret-color: #00ff88;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
-}
+/* Variable Expenses Page – Premium Dark Theme (matches CreditCardsPage) */
 
-.actual-form input:focus,
-.actual-form select:focus,
-.actual-form textarea:focus {
-  outline: none;
-  border-color: #00ff88;
-  box-shadow: 0 0 0 3px rgba(0,255,136,0.25);
-}
 .variable-expenses-page {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: var(--space-10) var(--space-6);
+  min-height: calc(100vh - 72px);
 }
 
+.variable-expenses-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.variable-expenses-page .page-header h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Summary Strip ─── */
+.ve-summary-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.08));
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--space-8);
+  box-shadow: var(--shadow-md);
+  overflow-x: auto;
+}
+
+.ve-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: max-content;
+}
+
+.ve-summary-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ve-summary-value {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.ve-summary-value.ve-planned { color: var(--accent-cyan, #22d3ee); }
+.ve-summary-value.ve-spent { color: #f59e0b; }
+.ve-summary-value.ve-remaining { color: #10b981; }
+.ve-summary-value.ve-overspent { color: #ef4444; }
+
+.ve-summary-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border-subtle, rgba(184, 193, 236, 0.12));
+  flex-shrink: 0;
+}
+
+/* ─── Modal Overlay ─── */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -35,172 +87,277 @@
 }
 
 .modal-content {
-  background: white;
-  border-radius: 20px;
-  padding: 32px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.1));
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-xl);
 }
 
 .modal-content h2 {
-  margin: 0 0 24px 0;
-  font-size: 24px;
+  margin: 0 0 var(--space-6) 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+/* ─── Form Fields (Dark Theme) ─── */
+.variable-expenses-page .form-group {
+  margin-bottom: var(--space-5);
+}
+
+.variable-expenses-page .form-group label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.variable-expenses-page .form-group input,
+.variable-expenses-page .form-group select,
+.variable-expenses-page .form-group textarea {
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--bg-primary, #0A0E27);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.15));
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  transition: all 0.2s ease;
+}
+
+.variable-expenses-page .form-group input:focus,
+.variable-expenses-page .form-group select:focus,
+.variable-expenses-page .form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-cyan, #22d3ee);
+  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+}
+
+.variable-expenses-page .form-group textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.variable-expenses-page .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.variable-expenses-page .form-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.variable-expenses-page .form-actions button {
+  flex: 1;
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.variable-expenses-page .form-actions button[type="button"] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.15));
+}
+
+.variable-expenses-page .form-actions button[type="submit"] {
+  background: linear-gradient(135deg, var(--accent-cyan, #22d3ee) 0%, var(--accent-purple, #a78bfa) 100%);
+  color: #041019;
   font-weight: 700;
 }
 
-.form-group textarea {
-  width: 100%;
-  padding: 12px;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  font-size: 16px;
-  font-family: inherit;
-  resize: vertical;
+.variable-expenses-page .form-actions button[type="submit"]:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 217, 255, 0.3);
 }
 
+/* ─── Actions Bar ─── */
 .actions-bar {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .secondary-button {
-  background: #f1f5f9;
-  color: #0f172a;
-  border: none;
-  border-radius: 12px;
-  padding: 12px 24px;
-  font-size: 16px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.15));
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .secondary-button:hover {
-  background: #e2e8f0;
+  background: var(--bg-hover);
+  border-color: var(--accent-cyan, #22d3ee);
+  box-shadow: 0 4px 12px rgba(0, 217, 255, 0.1);
 }
 
+/* ─── Plan Cards ─── */
 .plans-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: var(--space-6);
 }
 
 .plan-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.08));
+  border-radius: var(--radius-2xl);
+  padding: var(--space-6);
   transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.plan-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-cyan, #22d3ee), var(--accent-purple, #a78bfa));
+  opacity: 0.6;
+}
+
+.plan-card:hover {
+  border-color: rgba(0, 217, 255, 0.2);
+  box-shadow: var(--shadow-lg), var(--card-glow);
+  transform: translateY(-2px);
 }
 
 .plan-card.overspend {
-  border-color: #ef4444;
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
+.plan-card.overspend::before {
+  background: linear-gradient(90deg, #ef4444, #f87171) !important;
+  opacity: 1;
+}
+
+.plan-card.shared-item {
+  border-style: dashed;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.plan-card.shared-item::before {
+  background: linear-gradient(90deg, #6366f1, #a78bfa) !important;
+}
+
+/* ─── Plan Header ─── */
 .plan-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .plan-header h3 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e293b;
-  /* FIX: Dark text for visibility */
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
 }
 
 .plan-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .plan-actions button {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border: none;
-  border-radius: 8px;
-  font-size: 18px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  color: var(--text-secondary);
 }
 
 .plan-actions button:first-child {
-  background: #dbeafe;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
 }
 
 .plan-actions button:first-child:hover {
-  background: #3b82f6;
-  transform: scale(1.1);
+  background: rgba(59, 130, 246, 0.3);
+  transform: scale(1.08);
 }
 
 .plan-actions .delete-btn {
-  background: #fee2e2;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
 }
 
 .plan-actions .delete-btn:hover {
-  background: #ef4444;
-  transform: scale(1.1);
+  background: rgba(239, 68, 68, 0.3);
+  transform: scale(1.08);
 }
 
+/* ─── Plan Stats ─── */
 .plan-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
-/* Mobile: Stack stats vertically to prevent overflow */
-@media (max-width: 640px) {
-  .plan-stats {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  
-  .stat {
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 8px;
-    backdrop-filter: blur(5px);
-  }
+.ve-stats-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
 }
 
 .stat {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  padding: var(--space-3);
+  background: var(--bg-primary, rgba(10, 14, 39, 0.5));
+  border-radius: var(--radius-md);
+  flex: 1;
+  text-align: center;
 }
 
 .stat-label {
-  font-size: 12px;
-  color: #64748b;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
   word-break: break-word;
 }
 
-/* Responsive font sizing for large amounts */
 .stat-value.large-amount {
-  font-size: 16px;
+  font-size: 0.9rem;
 }
 
 .stat-value.extra-large-amount {
-  font-size: 14px;
+  font-size: 0.8rem;
 }
 
 .stat-value.overspend {
@@ -211,66 +368,179 @@
   color: #10b981;
 }
 
+/* ─── Actuals List ─── */
 .actuals-list {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.1));
 }
 
 .actuals-list h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #64748b;
+  margin: 0 0 var(--space-3) 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .actual-item {
   display: flex;
-  gap: 16px;
-  padding: 8px;
-  background: #f8fafc;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  font-size: 14px;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-primary, rgba(10, 14, 39, 0.5));
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-small);
+  align-items: center;
+  flex-wrap: wrap;
+  color: var(--text-secondary);
 }
 
 .actual-item .justification {
-  color: #64748b;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
-/* Sharing UX Styles */
-.plan-card.shared-item {
-  border-left: 4px solid #6366f1;
-  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+/* ─── Payment Mode Grid (Dark) ─── */
+.payment-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-2);
 }
 
+.payment-mode-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 2px solid var(--border-subtle, rgba(184, 193, 236, 0.12));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.payment-mode-option:hover {
+  background: var(--bg-hover);
+  border-color: rgba(0, 217, 255, 0.2);
+}
+
+.payment-mode-option.selected {
+  border-color: var(--accent-cyan, #22d3ee);
+  background: rgba(0, 217, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.payment-mode-option span {
+  font-weight: 600;
+  font-size: var(--text-small);
+}
+
+.payment-mode-option small {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+/* Subcategory badge in actuals */
+.actual-subcategory-badge {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent-purple);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Payment mode tag in actuals */
+.actual-payment-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ─── Sharing UX ─── */
 .owner-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 12px;
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
   font-weight: 500;
 }
 
 .owner-badge.own {
-  background: #dcfce7;
-  color: #166534;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
 }
 
 .owner-badge.shared {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
 }
 
 .read-only-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 0.72rem;
   padding: 4px 10px;
-  border-radius: 12px;
-  background: #f1f5f9;
-  color: #64748b;
+  border-radius: var(--radius-full);
+  background: var(--bg-primary, rgba(10, 14, 39, 0.5));
+  color: var(--text-tertiary);
   font-weight: 500;
+}
+
+/* ─── Empty State ─── */
+.variable-expenses-page .empty-state-container {
+  padding: var(--space-16) var(--space-6);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .variable-expenses-page {
+    padding: var(--space-8) var(--space-4);
+  }
+
+  .plans-list {
+    grid-template-columns: 1fr;
+  }
+
+  .ve-summary-strip {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+
+  .ve-summary-divider {
+    display: none;
+  }
+
+  .ve-summary-item {
+    flex: 1;
+    min-width: 80px;
+    text-align: center;
+  }
+
+  .variable-expenses-page .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-mode-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ve-stats-row {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .plan-card {
+    padding: var(--space-4);
+  }
 }

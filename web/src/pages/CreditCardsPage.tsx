@@ -37,14 +37,9 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
 
   const loadCards = async () => {
     try {
-      if (isSharedView) {
-        const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
-        const cardsRes = await api.fetchCreditCards(token);
-        setCards(cardsRes.data);
-      } else {
-        const res = await api.fetchCreditCards(token);
-        setCards(res.data);
-      }
+      // Use dashboard endpoint with view param so shared/combined view includes all members' cards
+      const dashboardRes = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
+      setCards(dashboardRes.data.creditCards || []);
     } catch (e) {
       console.error("Failed to load cards:", e);
     } finally {

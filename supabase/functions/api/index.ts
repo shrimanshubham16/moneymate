@@ -940,8 +940,8 @@ serve(async (req) => {
       const { data: constraint } = await supabase.from('constraint_scores').select('*').eq('user_id', userId).single();
       timings.constraintScore = Date.now() - t1;
       
-      // Query 2.5: Credit cards (needed for health calc)
-      const { data: directCreditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
+      // Query 2.5: Credit cards (needed for health calc) — use queryUserIds for shared/merged view
+      const { data: directCreditCards } = await supabase.from('credit_cards').select('*').in('user_id', queryUserIds);
       
       // Query 3: Health calculation - INLINE to match /health/details exactly
       const t2 = Date.now();

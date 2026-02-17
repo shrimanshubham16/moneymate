@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaUserCircle, FaLock } from "react-icons/fa";
+import { FaUserCircle, FaLock, FaInfoCircle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
@@ -47,6 +47,12 @@ export function LoansPage({ token }: LoansPageProps) {
         <h1>Loans</h1>
         <p className="page-subtitle">Auto-fetched from fixed expenses with category=Loan</p>
       </div>
+      {isSharedView && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', backgroundColor: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#a78bfa' }}>
+          <FaInfoCircle size={14} />
+          <span>Loans are derived from your own fixed expenses. Shared members&apos; loans are private.</span>
+        </div>
+      )}
       {loading ? <SkeletonLoader type="card" count={3} /> : loans.length === 0 ? (
         <div className="empty-state">No loans found. Add a fixed expense with category=Loan to see it here.</div>
       ) : (

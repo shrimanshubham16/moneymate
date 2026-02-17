@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaMoneyBillWave, FaPlus, FaEdit } from "react-icons/fa";
+import { FaMoneyBillWave, FaPlus, FaEdit, FaLock, FaUserCircle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { SharedViewBanner } from "../components/SharedViewBanner";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { isFeatureEnabled } from "../features";
 import { Modal } from "../components/Modal";
@@ -27,14 +29,22 @@ export function IncomePage({ token }: IncomePageProps) {
   });
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const hasFetchedRef = useRef(false);
+  const lastViewRef = useRef<string>("");
+
+  // Shared view support
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
 
   useEffect(() => {
+    if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
+    hasFetchedRef.current = true;
+    lastViewRef.current = selectedView;
     loadIncomes();
-  }, []);
+  }, [selectedView]);
 
   const loadIncomes = async () => {
     try {
-      const res = await api.fetchDashboard(token, new Date().toISOString());
+      const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       setIncomes(res.data.incomes || []);
     } catch (e: any) {
       console.error("Failed to load incomes:", e);
@@ -70,7 +80,6 @@ export function IncomePage({ token }: IncomePageProps) {
     setConfirmDeleteId(null);
     try {
       await api.deleteIncome(token, id);
-      // Optimistic UI: Remove from state immediately
       setIncomes(prev => prev.filter(inc => inc.id !== id));
       invalidateDashboardCache();
       await loadIncomes();
@@ -108,12 +117,18 @@ export function IncomePage({ token }: IncomePageProps) {
               ]}
             />
           </div>
-          <button className="add-income-btn" onClick={() => { setShowForm(true); setEditingId(null); }}>
-            <FaPlus style={{ marginRight: 6 }} />
-            Add Income
-          </button>
+          {/* Only show Add button for own view */}
+          {!isSharedView && (
+            <button className="add-income-btn" onClick={() => { setShowForm(true); setEditingId(null); }}>
+              <FaPlus style={{ marginRight: 6 }} />
+              Add Income
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Shared view banner */}
+      <SharedViewBanner />
 
       <div className="income-summary">
         <div className="summary-card">
@@ -139,37 +154,57 @@ export function IncomePage({ token }: IncomePageProps) {
             </div>
           ) : (
             <div className="income-list">
-              {incomes.map((income) => (
-                <div key={income.id} className="income-card">
-                  <div className="income-header">
-                    <h3>{income.source}</h3>
-                    {isFeatureEnabled("income_update_btn") && (
-                      <button
-                        className="edit-btn"
-                        onClick={() => {
-                          setEditingId(income.id);
-                          setForm({ source: income.source, amount: income.amount.toString(), frequency: income.frequency });
-                          setShowForm(true);
-                        }}
-                        title="Edit income source"
-                      >
-                        <FaEdit />
-                      </button>
-                    )}
-                    <button
-                      className="delete-btn"
-                      onClick={() => setConfirmDeleteId(income.id)}
-                      title="Delete income source"
-                    >
-                      ✕
-                    </button>
+              {incomes.map((income) => {
+                const itemUserId = income.userId || income.user_id;
+                const isOwn = !itemUserId || isOwnItem(itemUserId);
+                return (
+                  <div key={income.id} className={`income-card ${!isOwn ? "shared-item" : ""}`}>
+                    <div className="income-header">
+                      <h3>{formatSharedField(income.source, isOwn)}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {isSharedView && (
+                          <span className="owner-badge" style={{ fontSize: 11, color: isOwn ? '#10b981' : '#8b5cf6', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {isOwn ? <FaUserCircle size={12} /> : <FaLock size={12} />}
+                            {getOwnerName(itemUserId)}
+                          </span>
+                        )}
+                        {isOwn ? (
+                          <>
+                            {isFeatureEnabled("income_update_btn") && (
+                              <button
+                                className="edit-btn"
+                                onClick={() => {
+                                  setEditingId(income.id);
+                                  setForm({ source: income.source, amount: income.amount.toString(), frequency: income.frequency });
+                                  setShowForm(true);
+                                }}
+                                title="Edit income source"
+                              >
+                                <FaEdit />
+                              </button>
+                            )}
+                            <button
+                              className="delete-btn"
+                              onClick={() => setConfirmDeleteId(income.id)}
+                              title="Delete income source"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <FaLock size={10} /> View Only
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="income-details">
+                      <p className="amount">₹{(income.amount || 0).toLocaleString()}</p>
+                      <p className="frequency">{income.frequency}</p>
+                    </div>
                   </div>
-                  <div className="income-details">
-                    <p className="amount">₹{income.amount.toLocaleString()}</p>
-                    <p className="frequency">{income.frequency}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -224,7 +259,6 @@ export function IncomePage({ token }: IncomePageProps) {
             </Modal>
           )}
 
-          {/* Confirm Delete Modal */}
           {confirmDeleteId && (
             <Modal
               isOpen={!!confirmDeleteId}
@@ -241,7 +275,6 @@ export function IncomePage({ token }: IncomePageProps) {
             </Modal>
           )}
 
-          {/* Error Modal */}
           {errorMsg && (
             <Modal
               isOpen={!!errorMsg}

@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaLightbulb } from "react-icons/fa";
+import { FaLightbulb, FaUserCircle, FaLock } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
+import { SharedViewBanner } from "../components/SharedViewBanner";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import "./SIPExpensesPage.css";
 
@@ -15,14 +17,23 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
   const api = useEncryptedApiCalls();
   const [sipExpenses, setSipExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasFetchedRef = useRef(false);
+  const lastViewRef = useRef<string>("");
+
+  // Shared view support
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem } = useSharedView(token);
 
   useEffect(() => {
+    if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
+    hasFetchedRef.current = true;
+    lastViewRef.current = selectedView;
     loadSIPExpenses();
-  }, []);
+  }, [selectedView]);
 
   const loadSIPExpenses = async () => {
     try {
-      const res = await api.fetchDashboard(token, new Date().toISOString());
+      // Pass view param for shared view support
+      const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       const sips = (res.data.fixedExpenses || []).filter((exp: any) => exp.is_sip_flag || exp.isSipFlag);
       setSipExpenses(sips);
     } catch (e) {
@@ -40,6 +51,8 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
         <p className="page-subtitle">Expenses marked for SIP accumulation with potential growth</p>
       </div>
 
+      <SharedViewBanner />
+
       {loading ? <SkeletonLoader type="card" count={3} /> : sipExpenses.length === 0 ? (
         <div className="empty-state">
           No SIP expenses. Mark expenses with frequency &gt; monthly as SIP to accumulate funds with growth.
@@ -48,16 +61,26 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
         <div className="sip-list">
           {sipExpenses.map((sip, index) => {
             const monthly = sip.frequency === "quarterly" ? sip.amount / 3 : sip.amount / 12;
+            const sipUserId = sip.userId || sip.user_id;
+            const isOwn = !sipUserId || isOwnItem(sipUserId);
             return (
               <motion.div
                 key={sip.id}
-                className="sip-card"
+                className={`sip-card ${!isOwn ? "shared-item" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
                 <div className="sip-header">
-                  <h3>{sip.name}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h3>{sip.name}</h3>
+                    {isSharedView && (
+                      <span style={{ fontSize: 11, color: isOwn ? '#10b981' : '#8b5cf6', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {isOwn ? <FaUserCircle size={12} /> : <FaLock size={12} />}
+                        {getOwnerName(sipUserId)}
+                      </span>
+                    )}
+                  </div>
                   <span className="sip-badge">SIP</span>
                 </div>
                 <div className="sip-details">
@@ -89,4 +112,3 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
     </div>
   );
 }
-

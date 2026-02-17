@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaHistory } from "react-icons/fa";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
+import { SharedViewBanner } from "../components/SharedViewBanner";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { ActivityHistoryModal } from "../components/ActivityHistoryModal";
@@ -20,14 +22,23 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const hasFetchedRef = useRef(false);
+  const lastViewRef = useRef<string>("");
+
+  // Shared view support
+  const { selectedView, getViewParam } = useSharedView(token);
 
   useEffect(() => {
+    if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
+    hasFetchedRef.current = true;
+    lastViewRef.current = selectedView;
     loadExpenses();
-  }, []);
+  }, [selectedView]);
 
   const loadExpenses = async () => {
     try {
-      const res = await api.fetchDashboard(token, new Date().toISOString());  // v1.2: Use current date
+      // Pass view param for shared view support
+      const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       const today = new Date();
       const expensesList: any[] = [];
 
@@ -42,16 +53,15 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
           category: exp.category,
           type: "Fixed",
           amount: Math.round(monthly),
-          status: exp.paid ? "completed" : "pending",  // v1.2: Use actual payment status
+          status: exp.paid ? "completed" : "pending",
           dueDate: today.toISOString().split("T")[0],
-          subcategory: "Unspecified",  // v1.2: Fixed expenses default
-          paymentMode: "Cash"  // v1.2: Fixed expenses default
+          subcategory: "Unspecified",
+          paymentMode: "Cash"
         });
       });
 
-      // v1.2: Variable expenses with actuals (grouped by subcategory and payment mode)
+      // Variable expenses with actuals (grouped by subcategory and payment mode)
       res.data.variablePlans?.forEach((plan: any) => {
-        // Group actuals by subcategory and payment mode
         const actualsBySubcategory: any = {};
         
         (plan.actuals || []).forEach((actual: any) => {
@@ -67,7 +77,6 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
           actualsBySubcategory[subcategory][paymentMode].push(actual);
         });
 
-        // Create expense items for each subcategory/payment mode combination
         Object.entries(actualsBySubcategory).forEach(([subcategory, modes]: [string, any]) => {
           Object.entries(modes).forEach(([paymentMode, actuals]: [string, any]) => {
             const total = (actuals as any[]).reduce((sum, a) => sum + a.amount, 0);
@@ -75,18 +84,17 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
               id: `${plan.id}-${subcategory}-${paymentMode}`,
               name: plan.name,
               category: plan.category,
-              subcategory,  // v1.2: Subcategory
-              paymentMode,  // v1.2: Payment mode
+              subcategory,
+              paymentMode,
               type: "Variable",
               amount: total,
               planned: plan.planned,
               status: total >= plan.planned ? "completed" : "pending",
-              actuals: actuals  // Store actuals for detail view
+              actuals: actuals
             });
           });
         });
 
-        // If no actuals, show plan summary
         if (!plan.actuals || plan.actuals.length === 0) {
           expensesList.push({
             id: plan.id,
@@ -102,7 +110,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
         }
       });
 
-      // v1.2: Group by category → subcategory → payment mode
+      // Group by category → subcategory → payment mode
       const grouped = expensesList.reduce((acc: any, exp: any) => {
         if (!acc[exp.category]) acc[exp.category] = {};
         if (!acc[exp.category][exp.subcategory || "Unspecified"]) {
@@ -115,7 +123,6 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
         return acc;
       }, {});
 
-      // Transform to display format
       const displayData = Object.entries(grouped).map(([category, subcategories]: [string, any]) => {
         const subcategoryData = Object.entries(subcategories).map(([subcategory, modes]: [string, any]) => {
           const modeData = Object.entries(modes).map(([paymentMode, items]: [string, any]) => {
@@ -143,7 +150,6 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     return "#64748b";
   };
 
-  // v1.2: Get payment mode icon and color
   const getPaymentModeInfo = (mode: string) => {
     switch (mode) {
       case "UPI":
@@ -159,9 +165,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     }
   };
 
-  // v1.2: Prepare chart data
   const prepareChartData = (selectedCat: string | null) => {
-    // Payment mode distribution
     const paymentModeData: any = {};
     expenses.forEach(categoryGroup => {
       categoryGroup.subcategories.forEach((subcategoryGroup: any) => {
@@ -178,13 +182,11 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
       color: getPaymentModeInfo(name).color
     }));
 
-    // Category breakdown
     const categoryChartData = expenses.map(categoryGroup => ({
       name: categoryGroup.category,
       amount: categoryGroup.total
     }));
 
-    // Subcategory breakdown for selected category
     const subcategoryChartData = selectedCat 
       ? expenses.find(cg => cg.category === selectedCat)?.subcategories.map((sub: any) => ({
           name: sub.subcategory,
@@ -240,14 +242,15 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
         </button>
       </div>
 
+      <SharedViewBanner />
+
       {loading ? <SkeletonLoader type="card" count={5} /> : expenses.length === 0 ? (
         <div className="empty-state">No expenses for the current month.</div>
       ) : (
         <>
-          {/* v1.2: Charts Section */}
+          {/* Charts Section */}
           {paymentModeChartData.length > 0 && (
             <div className="chart-grid">
-              {/* Payment Mode Distribution Pie Chart */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -275,7 +278,6 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                 </ResponsiveContainer>
               </motion.div>
 
-              {/* Category Breakdown Bar Chart - Clickable */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -353,7 +355,6 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                 <div className="category-total">₹{categoryGroup.total.toLocaleString("en-IN")}</div>
               </div>
               
-              {/* v1.2: Subcategory grouping */}
               {categoryGroup.subcategories.map((subcategoryGroup: any, subcategoryIndex: number) => (
                 <div key={`${categoryGroup.category}-${subcategoryGroup.subcategory}`} style={{ marginTop: subcategoryIndex > 0 ? '20px' : '0' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', paddingLeft: '12px' }}>
@@ -365,7 +366,6 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                     </span>
                   </div>
                   
-                  {/* v1.2: Payment mode grouping */}
                   {subcategoryGroup.modes.map((modeGroup: any, modeIndex: number) => {
                     const paymentInfo = getPaymentModeInfo(modeGroup.paymentMode);
                     return (
@@ -381,7 +381,6 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
                           </span>
                         </div>
                         
-                        {/* Individual expense items */}
                         {modeGroup.items.map((item: any) => (
                           <div key={item.id} className="expense-item" style={{ marginLeft: '8px', marginBottom: '8px' }}>
                             <div className="expense-info">
@@ -427,4 +426,3 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
     </div>
   );
 }
-

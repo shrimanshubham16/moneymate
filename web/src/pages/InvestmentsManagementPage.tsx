@@ -4,7 +4,9 @@ import { motion } from "framer-motion";
 import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaUsers, FaExclamationTriangle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
+import { SharedViewBanner } from "../components/SharedViewBanner";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { Modal } from "../components/Modal";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
@@ -28,6 +30,12 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     monthlyAmount: "",
     status: "active" as "active" | "paused"
   });
+
+  // Wallet update modal state (replaces prompt())
+  const [walletModal, setWalletModal] = useState<{ isOpen: boolean; investmentId: string; investmentName: string; currentFund: number }>({
+    isOpen: false, investmentId: "", investmentName: "", currentFund: 0
+  });
+  const [walletAmount, setWalletAmount] = useState("");
   
   // Shared view support
   const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
@@ -153,13 +161,15 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
           ← Back
         </button>
         <h1>Manage Investments</h1>
-        <button className="add-button" onClick={() => {
-          setEditingId(null);
-          setFormData({ name: "", goal: "", monthlyAmount: "", status: "active" });
-          setShowForm(true);
-        }}>
-          + Add Investment
-        </button>
+        {!isSharedView && (
+          <button className="add-button" onClick={() => {
+            setEditingId(null);
+            setFormData({ name: "", goal: "", monthlyAmount: "", status: "active" });
+            setShowForm(true);
+          }}>
+            + Add Investment
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -224,13 +234,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
         </motion.div>
       )}
 
-      {/* Combined View Banner */}
-      {isSharedView && (
-        <div className="combined-view-banner">
-          <FaUsers style={{ marginRight: 8 }} />
-          <span>Combined View: Showing merged finances from shared members</span>
-        </div>
-      )}
+      <SharedViewBanner />
 
       {loading ? (
         <SkeletonLoader type="card" count={3} />
@@ -289,16 +293,10 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                       <>
                         <button 
                           className="icon-btn wallet-btn" 
-                          onClick={async () => {
-                            const newAmount = prompt(`Update available fund for ${inv.name}:\nCurrent: ₹${Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}\n\nEnter new amount:`);
-                            if (newAmount !== null && !isNaN(parseFloat(newAmount))) {
-                              try {
-                                await api.updateInvestment(token, inv.id, { accumulatedFunds: parseFloat(newAmount) });
-                                await loadInvestments();
-                              } catch (e: any) {
-                                showAlert("Failed to update: " + e.message);
-                              }
-                            }
+                          onClick={() => {
+                            const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
+                            setWalletModal({ isOpen: true, investmentId: inv.id, investmentName: inv.name, currentFund });
+                            setWalletAmount(Math.round(currentFund).toString());
                           }}
                           title="Update Available Fund"
                         >
@@ -337,6 +335,58 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
             })
           )}
         </div>
+      )}
+      {/* Wallet Update Modal (replaces prompt()) */}
+      {walletModal.isOpen && (
+        <Modal
+          isOpen={walletModal.isOpen}
+          onClose={() => { setWalletModal({ isOpen: false, investmentId: "", investmentName: "", currentFund: 0 }); setWalletAmount(""); }}
+          title={`Update Fund — ${walletModal.investmentName}`}
+          size="sm"
+          footer={
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => { setWalletModal({ isOpen: false, investmentId: "", investmentName: "", currentFund: 0 }); setWalletAmount(""); }}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "var(--text-primary)", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const amount = parseFloat(walletAmount);
+                  if (isNaN(amount)) {
+                    showAlert("Please enter a valid amount.");
+                    return;
+                  }
+                  try {
+                    await api.updateInvestment(token, walletModal.investmentId, { accumulatedFunds: amount });
+                    invalidateDashboardCache();
+                    setWalletModal({ isOpen: false, investmentId: "", investmentName: "", currentFund: 0 });
+                    setWalletAmount("");
+                    await loadInvestments();
+                  } catch (e: any) {
+                    showAlert("Failed to update: " + e.message);
+                  }
+                }}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--accent-cyan, #22d3ee)", color: "#041019", fontWeight: 700, cursor: "pointer" }}
+              >
+                Update
+              </button>
+            </div>
+          }
+        >
+          <p style={{ margin: "0 0 12px", color: "var(--text-secondary)" }}>
+            Current: ₹{Math.round(walletModal.currentFund).toLocaleString("en-IN")}
+          </p>
+          <input
+            type="number"
+            value={walletAmount}
+            onChange={(e) => setWalletAmount(e.target.value)}
+            placeholder="Enter new amount"
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "var(--text-primary)", fontSize: 16 }}
+            autoFocus
+          />
+        </Modal>
       )}
       <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>

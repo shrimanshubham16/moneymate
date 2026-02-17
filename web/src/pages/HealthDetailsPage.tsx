@@ -415,8 +415,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         title=" Financial Health Score"
         description="Deep dive into your financial health. See exactly how much money you'll have left after paying all bills, investments, and expenses. Understand every rupee that goes in and out."
         tips={[
-          "Your health score = Available Funds - All Unpaid Obligations",
-          "Green (>₹10k) means you're safe, Yellow (₹5-10k) means caution, Red (<₹5k) means urgent",
+          "Your health score = Available Funds − All Unpaid Obligations",
+          "Green (≥20% left) = Safe, Yellow (10–20%) = Caution, Red (<10%) = Urgent — thresholds are customisable",
           "This page shows the complete calculation breakdown",
           "Fixed expenses are monthly bills, Variable are categories like food/transport"
         ]}
@@ -439,7 +439,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         </h1>
       </div>
 
-      {isFeatureEnabled("health_thresholds_configurable") && (
+      {isFeatureEnabled("health_thresholds_configurable") && !isSharedView && (
         <div className="thresholds-card">
           <div className="thresholds-header">
             <h3><FaQuestionCircle style={{ marginRight: 6, verticalAlign: 'middle', opacity: 0.6, fontSize: '0.85em' }} />When should I feel good about my finances?</h3>

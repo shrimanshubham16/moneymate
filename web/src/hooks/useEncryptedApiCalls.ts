@@ -91,11 +91,11 @@ export function useEncryptedApiCalls() {
     fetchLoans: (token: string) => 
       baseApi.fetchLoans(token, key || undefined),
     
-    // Payments
-    markAsPaid: (token: string, entityType: string, id: string, amount?: number) => 
-      baseApi.markAsPaid(token, entityType, id, amount),
-    markAsUnpaid: (token: string, entityType: string, id: string) => 
-      baseApi.markAsUnpaid(token, entityType, id),
+    // Payments — params: (token, itemId, itemType, amount?)
+    markAsPaid: (token: string, itemId: string, itemType: string, amount?: number) => 
+      baseApi.markAsPaid(token, itemId, itemType, amount),
+    markAsUnpaid: (token: string, itemId: string, itemType: string) => 
+      baseApi.markAsUnpaid(token, itemId, itemType),
     getPaymentStatus: (token: string, entityType: string, id: string) => 
       baseApi.getPaymentStatus(token, entityType, id),
     getPaymentsSummary: (token: string) => 

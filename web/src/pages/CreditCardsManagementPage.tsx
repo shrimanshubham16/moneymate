@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory } from "react-icons/fa";
+import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory, FaInfoCircle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { ClientCache } from "../utils/cache";
@@ -19,6 +20,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
   const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
+  const { isSharedView } = useSharedView(token);
   const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -244,6 +246,13 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
               <span>{alert.message}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {isSharedView && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', backgroundColor: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#a78bfa' }}>
+          <FaInfoCircle size={14} />
+          <span>Credit card management shows only your own cards. Shared members&apos; cards are private.</span>
         </div>
       )}
 

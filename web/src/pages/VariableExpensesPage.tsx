@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaUserCircle, FaLock } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
+import { SharedViewBanner } from "../components/SharedViewBanner";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ProgressBar } from "../components/ProgressBar";
@@ -16,21 +18,11 @@ interface VariableExpensesPageProps {
   token: string;
 }
 
-// Helper to extract user ID from JWT token
-function getUserIdFromToken(token: string): string | null {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    // Token may use 'userId' (camelCase), 'user_id' (snake_case), or 'sub'
-    return payload.userId || payload.user_id || payload.sub || null;
-  } catch {
-    return null;
-  }
-}
-
 export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
   const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPlanForm, setShowPlanForm] = useState(false);
@@ -47,39 +39,30 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const [actualForm, setActualForm] = useState({
     amount: "",
     justification: "",
-    subcategory: "Unspecified",  // v1.2: Default subcategory
-    paymentMode: "Cash" as "UPI" | "Cash" | "ExtraCash" | "CreditCard",  // v1.2: Default payment mode
-    creditCardId: "",  // v1.2: Credit card selection
-    showNewSubcategory: false,  // v1.2: Show new subcategory input
-    newSubcategory: ""  // v1.2: New subcategory input
+    subcategory: "Unspecified",
+    paymentMode: "Cash" as "UPI" | "Cash" | "ExtraCash" | "CreditCard",
+    creditCardId: "",
+    showNewSubcategory: false,
+    newSubcategory: ""
   });
-  const [userSubcategories, setUserSubcategories] = useState<string[]>(["Unspecified"]);  // v1.2: User's subcategories
-  const [creditCards, setCreditCards] = useState<any[]>([]);  // v1.2: User's credit cards
-  const [isSubmitting, setIsSubmitting] = useState(false);  // Prevent multiple submissions
-  const [sharingMembers, setSharingMembers] = useState<any[]>([]);  // Sharing: List of shared members
-  const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
-
-  // Get current user ID and selected view for sharing
-  const currentUserId = useMemo(() => getUserIdFromToken(token), [token]);
-  const selectedView = localStorage.getItem('finflow_selected_view') || 'me';
-  const isSharedView = selectedView !== 'me';
+  const [userSubcategories, setUserSubcategories] = useState<string[]>(["Unspecified"]);
+  const [creditCards, setCreditCards] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasFetchedRef = useRef(false);
+  const lastViewRef = useRef<string>("");
 
   useEffect(() => {
-    // Prevent double fetch in React Strict Mode
-    if (hasFetchedRef.current) return;
+    if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
     hasFetchedRef.current = true;
-    
+    lastViewRef.current = selectedView;
     loadPlans();
-    loadSubcategories();  // v1.2: Load subcategories
-    loadCreditCards();  // v1.2: Load credit cards
-    if (isSharedView) loadSharingMembers();  // Load sharing members for attribution
-  }, []);
+    loadSubcategories();
+    loadCreditCards();
+  }, [selectedView]);
 
   const loadPlans = async (forceRefresh = false) => {
     try {
-      // Use the selected view for shared data (merged or specific user)
-      const viewParam = selectedView === 'me' ? undefined : selectedView;
-      const res = await api.fetchDashboard(token, new Date().toISOString(), viewParam, forceRefresh);
+      const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam(), forceRefresh);
       setPlans(res.data.variablePlans || []);
     } catch (e) {
       console.error("Failed to load plans:", e);
@@ -88,57 +71,14 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     }
   };
 
-  // Load sharing members for attribution
-  const loadSharingMembers = async () => {
-    try {
-      const res = await api.fetchSharingMembers(token);
-      setSharingMembers(res.data?.members || []);
-    } catch (e) {
-      console.error("Failed to load sharing members:", e);
-    }
-  };
-
-  // Helper to get owner name for shared items
-  const getOwnerName = (itemUserId: string): string => {
-    if (itemUserId === currentUserId) return "You";
-    const member = sharingMembers.find((m: any) => m.userId === itemUserId);
-    return member?.username || "Shared User";
-  };
-
-  // Check if current user owns this item
-  const isOwnItem = (itemUserId: string): boolean => {
-    const result = itemUserId === currentUserId;
-    return result;
-  };
-
-  // Format a field value - shows [Private] for encrypted/error fields from shared users
-  const formatSharedField = (value: any, isOwn: boolean): string => {
-    if (isOwn) {
-      // Own data - show as-is
-      if (value === '[decrypt error]' || value === '[encrypted]') {
-        return value;
-      }
-      return String(value ?? '');
-    } else {
-      // Shared user data - show [Private] for encrypted/error fields
-      if (value === '[decrypt error]' || value === '[encrypted]' || value === null || value === undefined) {
-        return '[Private]';
-      }
-      return String(value);
-    }
-  };
-
-  // v1.2: Load user subcategories
   const loadSubcategories = async () => {
     try {
       const res = await api.getUserSubcategories(token);
       const subs = res.data || [];
-      // Always ensure "Unspecified" is first in the list
       if (!subs.includes("Unspecified")) {
         setUserSubcategories(["Unspecified", ...subs]);
       } else {
-        // Move "Unspecified" to the front
-        setUserSubcategories(["Unspecified", ...subs.filter(s => s !== "Unspecified")]);
+        setUserSubcategories(["Unspecified", ...subs.filter((s: string) => s !== "Unspecified")]);
       }
     } catch (e) {
       console.error("Failed to load subcategories:", e);
@@ -146,7 +86,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     }
   };
 
-  // v1.2: Load credit cards
   const loadCreditCards = async () => {
     try {
       const res = await api.fetchCreditCards(token);
@@ -158,7 +97,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
 
   const handlePlanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return; // Prevent multiple submissions
+    if (isSubmitting) return;
     setIsSubmitting(true);
     
     const planData = {
@@ -169,7 +108,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       end_date: planForm.end_date
     };
     
-    // OPTIMISTIC UPDATE: Add/update immediately in UI
     const tempId = `temp-${Date.now()}`;
     const optimisticPlan = {
       id: editingId || tempId,
@@ -184,7 +122,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       setPlans(prev => [optimisticPlan, ...prev]);
     }
     
-    // Close form immediately
     setShowPlanForm(false);
     setEditingId(null);
     setIsSubmitting(false);
@@ -195,17 +132,14 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         response = await api.updateVariableExpensePlan(token, editingId, planData);
       } else {
         response = await api.createVariablePlan(token, planData);
-        // Replace temp item with real one
         if (response?.data) {
           setPlans(prev => prev.map(p => p.id === tempId ? { ...response.data, actuals: [], actualTotal: 0 } : p));
         }
       }
-      // Background refresh with cache bypass
       invalidateDashboardCache();
       loadPlans(true);
     } catch (e: any) {
       showAlert(e.message);
-      // Rollback on error
       if (editingId) {
         loadPlans(true);
       } else {
@@ -214,7 +148,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     }
   };
 
-  // v1.2: Handle adding new subcategory
   const handleAddSubcategory = async () => {
     if (actualForm.newSubcategory.trim()) {
       try {
@@ -235,9 +168,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const handleActualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlanId) return;
-    if (isSubmitting) return; // Prevent multiple submissions
+    if (isSubmitting) return;
     
-    // Validate plan still exists
     const planStillExists = plans.find(p => p.id === selectedPlanId);
     if (!planStillExists) {
       showAlert("This plan no longer exists. Refreshing plans...");
@@ -247,7 +179,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       return;
     }
     
-    // v1.2: Validate credit card selection
     if (actualForm.paymentMode === "CreditCard" && !actualForm.creditCardId) {
       showAlert("Please select a credit card");
       return;
@@ -255,7 +186,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     
     setIsSubmitting(true);
     try {
-      // Optimistic UI update - add expense immediately to UI
       const tempActual = {
         id: `temp-${Date.now()}`,
         amount: Number(actualForm.amount),
@@ -277,7 +207,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         return p;
       }));
       
-      // Update credit card current expenses optimistically if applicable
       if (actualForm.paymentMode === "CreditCard" && actualForm.creditCardId) {
         setCreditCards(cards => cards.map(c => 
           c.id === actualForm.creditCardId 
@@ -286,7 +215,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         ));
       }
       
-      // Close form immediately
       setShowActualForm(false);
       setActualForm({ 
         amount: "", 
@@ -299,7 +227,6 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       });
       setSelectedPlanId(null);
       
-      // Make API call in background
       await api.addVariableActual(token, selectedPlanId, {
         amount: Number(tempActual.amount),
         incurred_at: tempActual.incurredAt,
@@ -309,13 +236,11 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         credit_card_id: tempActual.creditCardId
       });
       
-      // Refresh data in PARALLEL after successful save (bypass cache)
       invalidateDashboardCache();
       await Promise.all([loadPlans(true), loadCreditCards()]);
 
     } catch (e: any) {
       showAlert(e.message);
-      // Revert optimistic update on error
       await loadPlans(true);
       await loadCreditCards();
     } finally {
@@ -328,12 +253,25 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     "Personal Care", "Healthcare", "Education", "Utilities", "Other"
   ];
 
+  // Compute summary stats
+  const totalPlanned = plans.reduce((sum, p) => sum + (p.planned || 0), 0);
+  const totalSpent = plans.reduce((sum, p) => sum + (p.actualTotal || 0), 0);
+  const totalRemaining = totalPlanned - totalSpent;
+  const overspendCount = plans.filter(p => p.actualTotal > p.planned).length;
+
+  const paymentModes = [
+    { key: "UPI", label: "UPI", icon: <FaMobileAlt size={18} />, hint: null },
+    { key: "Cash", label: "Cash", icon: <FaMoneyBillWave size={18} />, hint: null },
+    { key: "ExtraCash", label: "Extra Cash", icon: <FaWallet size={18} />, hint: "Doesn't affect funds" },
+    { key: "CreditCard", label: "Credit Card", icon: <FaCreditCard size={18} />, hint: "Billed later" }
+  ];
+
   return (
     <div className="variable-expenses-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/dashboard")}>← Back</button>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <h1>Variable Expenses</h1>
+          <h1><FaChartBar style={{ marginRight: 10, verticalAlign: 'middle' }} />Variable Expenses</h1>
           <PageInfoButton
             title="Variable Expenses"
             description="Plan and track your variable expenses like groceries, dining, entertainment, and shopping. These expenses can vary each month based on your spending habits."
@@ -347,27 +285,63 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
             ]}
           />
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="add-button" onClick={() => { setShowPlanForm(true); setEditingId(null); }}>
-            + Add New Plan
-          </button>
-        </div>
+        {!isSharedView && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="add-button" onClick={() => { setShowPlanForm(true); setEditingId(null); }}>
+              + Add New Plan
+            </button>
+          </div>
+        )}
       </div>
 
-      {showPlanForm && (
+      <SharedViewBanner />
+
+      {/* Summary Strip */}
+      {!loading && plans.length > 0 && (
+        <div className="ve-summary-strip">
+          <div className="ve-summary-item">
+            <span className="ve-summary-label">Total Planned</span>
+            <span className="ve-summary-value ve-planned">₹{totalPlanned.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="ve-summary-divider" />
+          <div className="ve-summary-item">
+            <span className="ve-summary-label">Total Spent</span>
+            <span className={`ve-summary-value ${totalSpent > totalPlanned ? 've-overspent' : 've-spent'}`}>₹{totalSpent.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="ve-summary-divider" />
+          <div className="ve-summary-item">
+            <span className="ve-summary-label">{totalRemaining >= 0 ? 'Remaining' : 'Overspent'}</span>
+            <span className={`ve-summary-value ${totalRemaining >= 0 ? 've-remaining' : 've-overspent'}`}>
+              {totalRemaining < 0 ? '-' : ''}₹{Math.abs(totalRemaining).toLocaleString("en-IN")}
+            </span>
+          </div>
+          {overspendCount > 0 && (
+            <>
+              <div className="ve-summary-divider" />
+              <div className="ve-summary-item">
+                <span className="ve-summary-label">Overspent Plans</span>
+                <span className="ve-summary-value ve-overspent">{overspendCount}</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Plan Form Modal */}
+      {showPlanForm && !isSharedView && (
         <motion.div className="modal-overlay" onClick={() => setShowPlanForm(false)}>
           <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}
-            initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
+            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
             <h2>{editingId ? "Update" : "Add"} Variable Expense Plan</h2>
             <form onSubmit={handlePlanSubmit}>
               <div className="form-group">
                 <label>Name *</label>
-                <input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} required />
+                <input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} required placeholder="e.g. Groceries, Dining Out" />
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Planned Amount *</label>
-                  <input type="number" value={planForm.planned} onChange={(e) => setPlanForm({ ...planForm, planned: e.target.value })} required />
+                  <label>Planned Amount (₹) *</label>
+                  <input type="number" value={planForm.planned} onChange={(e) => setPlanForm({ ...planForm, planned: e.target.value })} required min="1" placeholder="5000" />
                 </div>
                 <div className="form-group">
                   <label>Category *</label>
@@ -388,41 +362,42 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
               </div>
               <div className="form-actions">
                 <button type="button" onClick={() => setShowPlanForm(false)} disabled={isSubmitting}>Cancel</button>
-                <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : (editingId ? "Update" : "Add")}</button>
+                <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : (editingId ? "Update" : "Add Plan")}</button>
               </div>
             </form>
           </motion.div>
         </motion.div>
       )}
 
-      {showActualForm && (
+      {/* Actual Expense Form Modal */}
+      {showActualForm && !isSharedView && (
         <motion.div className="modal-overlay" onClick={() => setShowActualForm(false)}>
           <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}
-            initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
+            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
             <h2>Add an Expense</h2>
             <form onSubmit={handleActualSubmit}>
               <div className="form-group">
                 <label>Select Plan *</label>
                 <select value={selectedPlanId || ""} onChange={(e) => setSelectedPlanId(e.target.value)} required>
                   <option value="">Select plan</option>
-                  {plans.map(p => (
+                  {plans.filter(p => isOwnItem(p.userId || p.user_id)).map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.name} (planned ₹{p.planned.toLocaleString("en-IN")})
+                      {p.name} (planned ₹{(p.planned || 0).toLocaleString("en-IN")})
                     </option>
                   ))}
                 </select>
-                {plans.length === 0 && (
+                {plans.filter(p => isOwnItem(p.userId || p.user_id)).length === 0 && (
                   <small style={{ color: '#ef4444', display: 'block', marginTop: '4px' }}>
                     No expense plans available. Create a plan first before adding actual expenses.
                   </small>
                 )}
               </div>
               <div className="form-group">
-                <label>Amount *</label>
-                <input type="number" value={actualForm.amount} onChange={(e) => setActualForm({ ...actualForm, amount: e.target.value })} required min="0" step="0.01" />
+                <label>Amount (₹) *</label>
+                <input type="number" value={actualForm.amount} onChange={(e) => setActualForm({ ...actualForm, amount: e.target.value })} required min="0" step="0.01" placeholder="0" />
               </div>
 
-              {/* v1.2: Subcategory Selection */}
+              {/* Subcategory Selection */}
               <div className="form-group">
                 <label>Subcategory</label>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -443,109 +418,41 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                     <option value="__NEW__">+ Add New Subcategory</option>
                   </select>
                   {actualForm.showNewSubcategory && (
-                    <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
-                      <input
-                        type="text"
-                        placeholder="Enter new subcategory"
-                        value={actualForm.newSubcategory}
-                        onChange={(e) => setActualForm({ ...actualForm, newSubcategory: e.target.value })}
-                        onBlur={handleAddSubcategory}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddSubcategory();
-                          }
-                        }}
-                        style={{ flex: 1 }}
-                        autoFocus
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      placeholder="Enter new subcategory"
+                      value={actualForm.newSubcategory}
+                      onChange={(e) => setActualForm({ ...actualForm, newSubcategory: e.target.value })}
+                      onBlur={handleAddSubcategory}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); handleAddSubcategory(); }
+                      }}
+                      style={{ flex: 1 }}
+                      autoFocus
+                    />
                   )}
                 </div>
               </div>
 
-              {/* v1.2: Payment Mode Selection */}
+              {/* Payment Mode Selection - now CSS-driven */}
               <div className="form-group">
                 <label>Payment Mode *</label>
-                <div className="payment-mode-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginTop: '8px' }}>
-                  <div 
-                    className="payment-mode-option" 
-                    onClick={() => setActualForm({ ...actualForm, paymentMode: "UPI", creditCardId: "" })}
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      padding: '12px', 
-                      border: `2px solid ${actualForm.paymentMode === "UPI" ? '#3b82f6' : '#e5e7eb'}`,
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      backgroundColor: actualForm.paymentMode === "UPI" ? '#eff6ff' : 'transparent',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <FaMobileAlt size={20} />
-                    <span>UPI</span>
-                  </div>
-                  <div 
-                    className="payment-mode-option" 
-                    onClick={() => setActualForm({ ...actualForm, paymentMode: "Cash", creditCardId: "" })}
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      padding: '12px', 
-                      border: `2px solid ${actualForm.paymentMode === "Cash" ? '#3b82f6' : '#e5e7eb'}`,
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      backgroundColor: actualForm.paymentMode === "Cash" ? '#eff6ff' : 'transparent',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <FaMoneyBillWave size={20} />
-                    <span>Cash</span>
-                  </div>
-                  <div 
-                    className="payment-mode-option" 
-                    onClick={() => setActualForm({ ...actualForm, paymentMode: "ExtraCash", creditCardId: "" })}
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      padding: '12px', 
-                      border: `2px solid ${actualForm.paymentMode === "ExtraCash" ? '#3b82f6' : '#e5e7eb'}`,
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      backgroundColor: actualForm.paymentMode === "ExtraCash" ? '#eff6ff' : 'transparent',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <FaWallet size={20} />
-                    <span>Extra Cash</span>
-                    <small style={{ fontSize: '10px', color: '#6b7280' }}>(Doesn't affect funds)</small>
-                  </div>
-                  <div 
-                    className="payment-mode-option" 
-                    onClick={() => setActualForm({ ...actualForm, paymentMode: "CreditCard" })}
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      padding: '12px', 
-                      border: `2px solid ${actualForm.paymentMode === "CreditCard" ? '#3b82f6' : '#e5e7eb'}`,
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      backgroundColor: actualForm.paymentMode === "CreditCard" ? '#eff6ff' : 'transparent',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <FaCreditCard size={20} />
-                    <span>Credit Card</span>
-                    <small style={{ fontSize: '10px', color: '#6b7280' }}>(Billed later)</small>
-                  </div>
+                <div className="payment-mode-grid">
+                  {paymentModes.map(mode => (
+                    <div
+                      key={mode.key}
+                      className={`payment-mode-option ${actualForm.paymentMode === mode.key ? 'selected' : ''}`}
+                      onClick={() => setActualForm({ ...actualForm, paymentMode: mode.key as any, creditCardId: mode.key !== "CreditCard" ? "" : actualForm.creditCardId })}
+                    >
+                      {mode.icon}
+                      <span>{mode.label}</span>
+                      {mode.hint && <small>{mode.hint}</small>}
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* v1.2: Credit Card Selection (conditional) */}
+              {/* Credit Card Selection (conditional) */}
               {actualForm.paymentMode === "CreditCard" && (
                 <div className="form-group">
                   <label>Select Credit Card *</label>
@@ -571,41 +478,42 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
 
               <div className="form-group">
                 <label>Justification (if overspend)</label>
-                <textarea value={actualForm.justification} onChange={(e) => setActualForm({ ...actualForm, justification: e.target.value })} rows={3} />
+                <textarea value={actualForm.justification} onChange={(e) => setActualForm({ ...actualForm, justification: e.target.value })} rows={3} placeholder="Why did you overspend?" />
               </div>
               <div className="form-actions">
                 <button type="button" onClick={() => setShowActualForm(false)} disabled={isSubmitting}>Cancel</button>
-                <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Add"}</button>
+                <button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Add Expense"}</button>
               </div>
             </form>
           </motion.div>
         </motion.div>
       )}
 
-      <div className="actions-bar">
-        <button className="secondary-button" onClick={() => setShowActualForm(true)}>
-          + Add an Expense
-        </button>
-      </div>
+      {/* Add Expense Button */}
+      {!isSharedView && (
+        <div className="actions-bar">
+          <button className="secondary-button" onClick={() => setShowActualForm(true)}>
+            + Add an Expense
+          </button>
+        </div>
+      )}
 
       {loading ? (
-        <SkeletonLoader type="list" count={5} />
+        <SkeletonLoader type="card" count={4} />
       ) : plans.length === 0 ? (
         <EmptyState
-          icon={<FaShoppingCart size={80} />}
+          icon={<FaShoppingCart size={56} />}
           title="No Variable Expense Plans"
           description="Create plans to budget for groceries, dining, entertainment, and other variable monthly expenses"
-          actionLabel="Create First Plan"
-          onAction={() => setShowPlanForm(true)}
+          actionLabel={isSharedView ? undefined : "Create First Plan"}
+          onAction={isSharedView ? undefined : () => setShowPlanForm(true)}
         />
       ) : (
         <div className="plans-list">
           {plans.map((plan, index) => {
             const overspend = plan.actualTotal > plan.planned;
-            const percentUsed = plan.planned > 0 ? (plan.actualTotal / plan.planned) * 100 : 0;
             const itemUserId = plan.userId || plan.user_id;
             const isOwn = isOwnItem(itemUserId);
-            // Format name - shows [Private] for encrypted shared user data
             const displayName = formatSharedField(plan.name, isOwn);
             
             return (
@@ -620,20 +528,18 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <h3>{displayName}</h3>
-                      {/* Owner attribution badge for shared views */}
                       {isSharedView && (
                         <span className={`owner-badge ${isOwn ? 'own' : 'shared'}`}>
-                          <FaUserCircle size={12} style={{ marginRight: 4 }} />
+                          {isOwn ? <FaUserCircle size={12} style={{ marginRight: 4 }} /> : <FaLock size={12} style={{ marginRight: 4 }} />}
                           {getOwnerName(itemUserId)}
                         </span>
                       )}
                     </div>
                     <div className="plan-actions">
-                      {/* Only show edit/delete for user's own items */}
                       {isOwn ? (
                         <>
                           <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
-                          <button className="delete-btn" onClick={() => showConfirm("Delete this variable plan?", () => { api.deleteVariableExpensePlan(token, plan.id).then(() => loadPlans(true)); })} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
+                          <button className="delete-btn" onClick={() => showConfirm("Delete this variable plan?", () => { api.deleteVariableExpensePlan(token, plan.id).then(() => { invalidateDashboardCache(); loadPlans(true); }); })} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
                         </>
                       ) : (
                         <span className="read-only-badge" title="View only - belongs to shared member">
@@ -647,62 +553,43 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                   <ProgressBar
                     current={plan.actualTotal}
                     target={plan.planned}
-                    label={`Budget: ₹${plan.actualTotal.toLocaleString("en-IN")} of ₹${plan.planned.toLocaleString("en-IN")}`}
+                    label={`₹${(plan.actualTotal || 0).toLocaleString("en-IN")} / ₹${(plan.planned || 0).toLocaleString("en-IN")}`}
                     showPercentage={true}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, gap: 16 }}>
+                  <div className="ve-stats-row">
                     <div className="stat">
                       <span className="stat-label">Planned</span>
-                      <span className={`stat-value ${plan.planned >= 100000 ? 'large-amount' : ''} ${plan.planned >= 1000000 ? 'extra-large-amount' : ''}`}>
-                        ₹{plan.planned.toLocaleString("en-IN")}
-                      </span>
+                      <span className="stat-value">₹{(plan.planned || 0).toLocaleString("en-IN")}</span>
                     </div>
                     <div className="stat">
                       <span className="stat-label">Actual</span>
-                      <span className={`stat-value ${overspend ? "overspend" : ""} ${plan.actualTotal >= 100000 ? 'large-amount' : ''} ${plan.actualTotal >= 1000000 ? 'extra-large-amount' : ''}`}>
-                        ₹{plan.actualTotal.toLocaleString("en-IN")}
-                      </span>
+                      <span className={`stat-value ${overspend ? "overspend" : ""}`}>₹{(plan.actualTotal || 0).toLocaleString("en-IN")}</span>
                     </div>
                     <div className="stat">
-                      <span className="stat-label">Remaining</span>
-                      <span className={`stat-value ${overspend ? "overspend" : "good"} ${Math.abs(plan.actualTotal - plan.planned) >= 100000 ? 'large-amount' : ''} ${Math.abs(plan.actualTotal - plan.planned) >= 1000000 ? 'extra-large-amount' : ''}`}>
-                        {overspend ? "-" : ""}₹{Math.abs(plan.actualTotal - plan.planned).toLocaleString("en-IN")}
+                      <span className="stat-label">{overspend ? 'Over' : 'Left'}</span>
+                      <span className={`stat-value ${overspend ? "overspend" : "good"}`}>
+                        {overspend ? "-" : ""}₹{Math.abs((plan.actualTotal || 0) - (plan.planned || 0)).toLocaleString("en-IN")}
                       </span>
                     </div>
                   </div>
                 </div>
                 {plan.actuals && plan.actuals.length > 0 && (
                   <div className="actuals-list">
-                    <h4>Actual Expenses:</h4>
+                    <h4>Recent Expenses</h4>
                     {plan.actuals.map((actual: any) => {
                       const paymentInfo = actual.paymentMode === "UPI" ? { icon: <FaMobileAlt size={12} />, label: "UPI", color: "#3b82f6" } :
                                         actual.paymentMode === "Cash" ? { icon: <FaMoneyBillWave size={12} />, label: "Cash", color: "#10b981" } :
                                         actual.paymentMode === "ExtraCash" ? { icon: <FaWallet size={12} />, label: "Extra Cash", color: "#8b5cf6" } :
                                         actual.paymentMode === "CreditCard" ? { icon: <FaCreditCard size={12} />, label: "Credit Card", color: "#f59e0b" } :
-                                        { icon: <FaMoneyBillWave size={12} />, label: actual.paymentMode || "Cash", color: "#64748b" };
+                                        { icon: <FaMoneyBillWave size={12} />, label: actual.paymentMode || "Cash", color: "var(--text-tertiary)" };
                       return (
-                        <div key={actual.id} className="actual-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 'bold' }}>₹{actual.amount.toLocaleString("en-IN")}</span>
+                        <div key={actual.id} className="actual-item">
+                          <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>₹{(actual.amount || 0).toLocaleString("en-IN")}</span>
                           <span>{new Date(actual.incurredAt).toLocaleDateString()}</span>
                           {actual.subcategory && actual.subcategory !== "Unspecified" && (
-                            <span style={{ 
-                              backgroundColor: '#f3f4f6', 
-                              padding: '2px 8px', 
-                              borderRadius: '4px', 
-                              fontSize: '12px',
-                              color: '#4b5563'
-                            }}>
-                              {actual.subcategory}
-                            </span>
+                            <span className="actual-subcategory-badge">{actual.subcategory}</span>
                           )}
-                          <span style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '4px',
-                            color: paymentInfo.color,
-                            fontSize: '12px',
-                            fontWeight: '500'
-                          }}>
+                          <span className="actual-payment-tag" style={{ color: paymentInfo.color }}>
                             {paymentInfo.icon}
                             {paymentInfo.label}
                           </span>

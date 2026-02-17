@@ -1,43 +1,105 @@
+/* Fixed Expenses Page – Premium Dark Theme */
+
 .fixed-expenses-page {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: var(--space-10) var(--space-6);
+  min-height: calc(100vh - 72px);
 }
 
-.page-header {
+.fixed-expenses-page .page-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: var(--space-6);
+  gap: var(--space-4);
   flex-wrap: wrap;
 }
 
-.add-button {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  padding: 12px 24px;
-  font-size: 16px;
+.fixed-expenses-page .page-header h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Summary Strip ─── */
+.fe-summary-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.08));
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--space-8);
+  box-shadow: var(--shadow-md);
+  overflow-x: auto;
+}
+
+.fe-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: max-content;
+}
+
+.fe-summary-label {
+  font-size: 0.72rem;
   font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fe-summary-value {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.fe-summary-value.fe-total { color: var(--accent-cyan, #22d3ee); }
+.fe-summary-value.fe-paid { color: #10b981; }
+.fe-summary-value.fe-unpaid { color: #f59e0b; }
+.fe-summary-value.fe-sip { color: var(--accent-purple, #a78bfa); }
+
+.fe-summary-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border-subtle, rgba(184, 193, 236, 0.12));
+  flex-shrink: 0;
+}
+
+/* ─── Add Button ─── */
+.fixed-expenses-page .add-button {
+  background: linear-gradient(135deg, var(--accent-cyan, #22d3ee) 0%, var(--accent-purple, #a78bfa) 100%);
+  color: #041019;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-base);
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   margin-left: auto;
+  white-space: nowrap;
 }
 
-.add-button:hover {
+.fixed-expenses-page .add-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 6px 16px rgba(0, 217, 255, 0.3);
 }
 
+/* ─── Form Modal (Dark) ─── */
 .expense-form-modal {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -45,189 +107,218 @@
 }
 
 .expense-form {
-  background: white;
-  border-radius: 20px;
-  padding: 32px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.1));
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-xl);
 }
 
 .expense-form h2 {
-  margin: 0 0 24px 0;
-  font-size: 24px;
+  margin: 0 0 var(--space-6) 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+/* ─── Form Fields (Dark Theme) ─── */
+.fixed-expenses-page .form-group {
+  margin-bottom: var(--space-5);
+}
+
+.fixed-expenses-page .form-group label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.fixed-expenses-page .form-group input,
+.fixed-expenses-page .form-group select {
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--bg-primary, #0A0E27);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.15));
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  transition: all 0.2s ease;
+}
+
+.fixed-expenses-page .form-group input:focus,
+.fixed-expenses-page .form-group select:focus {
+  outline: none;
+  border-color: var(--accent-cyan, #22d3ee);
+  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+}
+
+.fixed-expenses-page .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.fixed-expenses-page .form-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.fixed-expenses-page .form-actions button {
+  flex: 1;
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fixed-expenses-page .form-actions button[type="button"] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.15));
+}
+
+.fixed-expenses-page .form-actions button[type="submit"] {
+  background: linear-gradient(135deg, var(--accent-cyan, #22d3ee) 0%, var(--accent-purple, #a78bfa) 100%);
+  color: #041019;
   font-weight: 700;
 }
 
-.form-group {
-  margin-bottom: 20px;
+.fixed-expenses-page .form-actions button[type="submit"]:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 217, 255, 0.3);
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.form-group input,
-.form-group select {
-  color: #1f2937;  /* Dark text for visibility */
-  width: 100%;
-  padding: 12px;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  font-size: 16px;
-  transition: all 0.3s ease;
-}
-
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.form-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.form-actions button {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.form-actions button[type="button"] {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
-.form-actions button[type="submit"] {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  color: white;
-}
-
+/* ─── Expenses List ─── */
 .expenses-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
+/* ─── Expense Card (Dark) ─── */
 .expense-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.08));
+  border-radius: var(--radius-2xl);
+  padding: var(--space-6);
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.expense-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-cyan, #22d3ee), var(--accent-purple, #a78bfa));
+  opacity: 0.5;
 }
 
 .expense-card:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+  border-color: rgba(0, 217, 255, 0.2);
+  box-shadow: var(--shadow-lg), var(--card-glow);
+  transform: translateY(-2px);
+}
+
+.expense-card.shared-item {
+  border-style: dashed;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.expense-card.shared-item::before {
+  background: linear-gradient(90deg, #6366f1, #a78bfa) !important;
 }
 
 .expense-info h3 {
-  margin: 0 0 8px 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e293b;
-  /* FIX: Dark text for visibility */
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
 }
 
 .expense-details {
   display: flex;
-  gap: 16px;
+  gap: var(--space-3);
   flex-wrap: wrap;
-  color: dimgrey;
-  /* FIX: Visible on dark theme */
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: var(--text-small);
+  align-items: center;
 }
 
-.sip-badge {
-  background: #fef3c7;
-  color: #92400e;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 12px;
+.expense-details span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
+/* ─── Action Buttons (Dark) ─── */
 .expense-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-self: flex-start;
-  /* Align to top of card */
 }
 
 .expense-actions button {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border: none;
-  border-radius: 8px;
-  font-size: 18px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  color: var(--text-secondary);
 }
 
 .expense-actions button:first-child {
-  background: #dbeafe;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
 }
 
 .expense-actions button:first-child:hover {
-  background: #3b82f6;
-  transform: scale(1.1);
+  background: rgba(59, 130, 246, 0.3);
+  transform: scale(1.08);
 }
 
 .expense-actions .delete-btn {
-  background: #fee2e2;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
 }
 
 .expense-actions .delete-btn:hover {
-  background: #ef4444;
-  transform: scale(1.1);
+  background: rgba(239, 68, 68, 0.3);
+  transform: scale(1.08);
 }
 
-.empty-state {
-  text-align: center;
-  padding: 48px;
-  color: #64748b;
-  font-size: 18px;
-}
-
-/* SIP Toggle Styles */
+/* ─── SIP Toggle (Dark Theme) ─── */
 .sip-toggle-group {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border: 2px solid #f59e0b;
-  border-radius: 12px;
-  padding: 16px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  margin-top: 8px;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
 }
 
 .sip-info {
@@ -237,37 +328,37 @@
 .sip-label {
   display: block;
   font-weight: 700;
-  font-size: 16px;
-  color: #92400e;
-  margin-bottom: 4px;
+  font-size: var(--text-small);
+  color: #fbbf24;
+  margin-bottom: 2px;
 }
 
 .sip-description {
   margin: 0;
-  font-size: 13px;
-  color: #92400e;
-  opacity: 0.8;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
   line-height: 1.4;
 }
 
 .toggle-button {
   position: relative;
-  width: 56px;
-  height: 32px;
-  background: #e5e7eb;
-  border: none;
-  border-radius: 16px;
+  width: 50px;
+  height: 28px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.15));
+  border-radius: var(--radius-full);
   cursor: pointer;
   transition: background 0.3s ease;
   flex-shrink: 0;
 }
 
 .toggle-button:hover {
-  background: #d1d5db;
+  background: rgba(184, 193, 236, 0.1);
 }
 
 .toggle-button.active {
   background: #10b981;
+  border-color: #10b981;
 }
 
 .toggle-button.active:hover {
@@ -276,65 +367,108 @@
 
 .toggle-slider {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 24px;
-  height: 24px;
-  background: white;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: var(--text-primary);
   border-radius: 50%;
   transition: transform 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .toggle-button.active .toggle-slider {
-  transform: translateX(24px);
+  transform: translateX(22px);
+  background: white;
 }
 
-/* Sharing UX Styles */
+/* ─── SIP Badge ─── */
+.sip-badge {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+
+/* ─── Sharing UX ─── */
 .combined-view-banner {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
   padding: 12px 20px;
-  border-radius: 12px;
-  margin-bottom: 20px;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-6);
   display: flex;
   align-items: center;
   font-weight: 500;
   box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
 }
 
-.expense-card.shared-item {
-  border-left: 4px solid #6366f1;
-  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
-}
-
 .owner-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 12px;
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
   font-weight: 500;
 }
 
 .owner-badge.own {
-  background: #dcfce7;
-  color: #166534;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
 }
 
 .owner-badge.shared {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
 }
 
 .read-only-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 0.72rem;
   padding: 4px 10px;
-  border-radius: 12px;
-  background: #f1f5f9;
-  color: #64748b;
+  border-radius: var(--radius-full);
+  background: var(--bg-primary, rgba(10, 14, 39, 0.5));
+  color: var(--text-tertiary);
   font-weight: 500;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .fixed-expenses-page {
+    padding: var(--space-8) var(--space-4);
+  }
+
+  .expense-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .expense-actions {
+    align-self: flex-end;
+  }
+
+  .fe-summary-strip {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+
+  .fe-summary-divider {
+    display: none;
+  }
+
+  .fe-summary-item {
+    flex: 1;
+    min-width: 80px;
+    text-align: center;
+  }
+
+  .fixed-expenses-page .form-row {
+    grid-template-columns: 1fr;
+  }
 }

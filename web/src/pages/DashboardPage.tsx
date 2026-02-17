@@ -698,16 +698,18 @@ export function DashboardPage({ token }: DashboardPageProps) {
                 format="currency"
                 size="small"
               />
-              <div className="quick-add-tooltip-container" onClick={(e) => e.stopPropagation()}>
-                <button
-                  className="icon-btn quick-add-floating"
-                  title="Log your spend"
-                  onClick={(e) => { e.stopPropagation(); setShowQuickAdd(true); }}
-                >
-                  <FaPlus />
-                </button>
-                <div className="quick-add-tooltip">Log your spend</div>
-              </div>
+              {selectedView === 'me' && (
+                <div className="quick-add-tooltip-container" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="icon-btn quick-add-floating"
+                    title="Log your spend"
+                    onClick={(e) => { e.stopPropagation(); setShowQuickAdd(true); }}
+                  >
+                    <FaPlus />
+                  </button>
+                  <div className="quick-add-tooltip">Log your spend</div>
+                </div>
+              )}
             </div>
           }
           icon={<FaChartBar />}

@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync, FaUserCircle, FaLock, FaUsers } from "react-icons/fa";
+import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync, FaUserCircle, FaLock } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
+import { SharedViewBanner } from "../components/SharedViewBanner";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
-import { ProgressBar } from "../components/ProgressBar";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { ClientCache } from "../utils/cache";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
@@ -86,7 +86,6 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     e.preventDefault();
     if (isSubmitting) return; // Prevent multiple submissions
     setIsSubmitting(true);
-    console.log("💾 Submitting form with is_sip_flag:", formData.is_sip_flag);
     
     const expenseData = {
       name: formData.name,
@@ -134,10 +133,8 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       let response;
       if (editingId) {
         response = await api.updateFixedExpense(token, editingId, expenseData);
-        console.log("✅ Update response:", response);
       } else {
         response = await api.createFixedExpense(token, expenseData);
-        console.log("✅ Create response:", response);
         // Replace temp item with real one
         if (response?.data) {
           setExpenses(prev => prev.map(exp => exp.id === tempId ? { ...response.data, startDate: response.data.start_date, endDate: response.data.end_date } : exp));
@@ -158,8 +155,6 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
   };
 
   const handleEdit = (expense: any) => {
-    console.log("Editing expense:", expense);
-    console.log("ℹ️ is_sip_flag value:", expense.is_sip_flag);
     setEditingId(expense.id);
     setFormData({
       name: expense.name,
@@ -192,8 +187,18 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     "Education", "Healthcare", "Entertainment", "Shopping", "Personal Care", "Subscriptions"
   ];
 
+  // Summary calculations
+  const totalCommitted = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const paidExpenses = expenses.filter(e => e.paid);
+  const unpaidExpenses = expenses.filter(e => !e.paid);
+  const totalPaid = paidExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalUnpaid = unpaidExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const sipCount = expenses.filter(e => e.is_sip_flag).length;
+
   return (
     <div className="fixed-expenses-page">
+      <SharedViewBanner />
+
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/settings/plan-finances")}>
           ← Back
@@ -213,24 +218,55 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
             ]}
           />
         </div>
-        <button className="add-button" onClick={() => {
-          setEditingId(null);
-          setFormData({
-            name: "",
-            amount: "",
-            frequency: "monthly",
-            category: "General",
-            start_date: new Date().toISOString().split("T")[0],
-            end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-            is_sip_flag: false
-          });
-          setShowForm(true);
-        }}>
-          + Add New Fixed Expense
-        </button>
+        {!isSharedView && (
+          <button className="add-button" onClick={() => {
+            setEditingId(null);
+            setFormData({
+              name: "",
+              amount: "",
+              frequency: "monthly",
+              category: "General",
+              start_date: new Date().toISOString().split("T")[0],
+              end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+              is_sip_flag: false
+            });
+            setShowForm(true);
+          }}>
+            + Add New Fixed Expense
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {/* Summary Strip */}
+      {expenses.length > 0 && (
+        <div className="fe-summary-strip">
+          <div className="fe-summary-item">
+            <span className="fe-summary-label">Total</span>
+            <span className="fe-summary-value fe-total">₹{totalCommitted.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="fe-summary-divider" />
+          <div className="fe-summary-item">
+            <span className="fe-summary-label">Paid ({paidExpenses.length})</span>
+            <span className="fe-summary-value fe-paid">₹{totalPaid.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="fe-summary-divider" />
+          <div className="fe-summary-item">
+            <span className="fe-summary-label">Unpaid ({unpaidExpenses.length})</span>
+            <span className="fe-summary-value fe-unpaid">₹{totalUnpaid.toLocaleString("en-IN")}</span>
+          </div>
+          {sipCount > 0 && (
+            <>
+              <div className="fe-summary-divider" />
+              <div className="fe-summary-item">
+                <span className="fe-summary-label">SIPs</span>
+                <span className="fe-summary-value fe-sip">{sipCount}</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {showForm && !isSharedView && (
         <motion.div
           className="expense-form-modal"
           initial={{ opacity: 0 }}
@@ -315,7 +351,6 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                     className={`toggle-button ${formData.is_sip_flag ? "active" : ""}`}
                     onClick={() => {
                       const newValue = !formData.is_sip_flag;
-                      console.log("🔘 Toggle clicked! Old:", formData.is_sip_flag, "New:", newValue);
                       setFormData({ ...formData, is_sip_flag: newValue });
                     }}
                   >
@@ -332,14 +367,6 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
             </form>
           </div>
         </motion.div>
-      )}
-
-      {/* Combined View Banner */}
-      {isSharedView && (
-        <div className="combined-view-banner">
-          <FaUsers style={{ marginRight: 8 }} />
-          <span>Combined View: Showing merged finances from shared members</span>
-        </div>
       )}
 
       {loading ? (

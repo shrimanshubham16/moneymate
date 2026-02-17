@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { FaLock, FaUserCircle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
+import { useSharedView } from "../hooks/useSharedView";
+import { SharedViewBanner } from "../components/SharedViewBanner";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { Toast } from "../components/Toast";
 import { SkeletonLoader } from "../components/SkeletonLoader";
@@ -21,10 +24,18 @@ export function DuesPage({ token }: DuesPageProps) {
   const [loading, setLoading] = useState(true);
   const [totalDues, setTotalDues] = useState(0);
   const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: "" });
+  const hasFetchedRef = useRef(false);
+  const lastViewRef = useRef<string>("");
+
+  // Shared view support
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem } = useSharedView(token);
 
   useEffect(() => {
+    if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
+    hasFetchedRef.current = true;
+    lastViewRef.current = selectedView;
     loadDues();
-  }, []);
+  }, [selectedView]);
 
   const handleTogglePaid = async (due: any) => {
     try {
@@ -33,19 +44,28 @@ export function DuesPage({ token }: DuesPageProps) {
         return;
       }
 
+      // Guard: only own items can be toggled
+      const dueUserId = due.userId || due.user_id;
+      if (dueUserId && !isOwnItem(dueUserId)) {
+        showAlert("You can only mark your own dues as paid.");
+        return;
+      }
+
       const wasPaid = due.paid;
       const dueName = due.name;
       const dueAmount = due.amount;
 
-      // P1 FIX: Optimistic UI update - remove card immediately
+      // Optimistic UI update - remove card immediately
       setDues(prevDues => prevDues.filter(d => d.id !== due.id));
       setTotalDues(prevTotal => prevTotal - (wasPaid ? 0 : dueAmount));
 
       if (wasPaid) {
-        await api.markAsUnpaid(token, due.id, due.itemType);  // FIX: Swapped parameters
+        // Correct order: (token, itemId, itemType)
+        await api.markAsUnpaid(token, due.id, due.itemType);
         setToast({ show: true, message: `${dueName} marked as unpaid` });
       } else {
-        await api.markAsPaid(token, due.id, due.itemType, due.amount);  // FIX: Swapped parameters
+        // Correct order: (token, itemId, itemType, amount)
+        await api.markAsPaid(token, due.id, due.itemType, due.amount);
         setToast({ show: true, message: `Hurray!! ${dueName} Due paid` });
       }
       
@@ -60,7 +80,6 @@ export function DuesPage({ token }: DuesPageProps) {
 
   // Helper function to calculate next due date for periodic expenses
   const getNextDueDate = (startDate: string | undefined, frequency: string, today: Date = new Date()): Date => {
-    // If no start date, use today as fallback (for expenses created without start date)
     const start = startDate ? new Date(startDate) : today;
     if (start > today) return start;
     
@@ -68,13 +87,11 @@ export function DuesPage({ token }: DuesPageProps) {
     const monthsSinceStart = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
     
     if (frequency === 'monthly') {
-      // Next due is same day of next month
       nextDue = new Date(today.getFullYear(), today.getMonth(), start.getDate());
       if (nextDue <= today) {
         nextDue = new Date(today.getFullYear(), today.getMonth() + 1, start.getDate());
       }
     } else if (frequency === 'quarterly') {
-      // Next due is every 3 months from start
       const quartersSinceStart = Math.floor(monthsSinceStart / 3);
       nextDue = new Date(start);
       nextDue.setMonth(start.getMonth() + (quartersSinceStart + 1) * 3);
@@ -82,7 +99,6 @@ export function DuesPage({ token }: DuesPageProps) {
         nextDue.setMonth(nextDue.getMonth() + 3);
       }
     } else if (frequency === 'yearly') {
-      // Next due is every 12 months from start
       const yearsSinceStart = Math.floor(monthsSinceStart / 12);
       nextDue = new Date(start);
       nextDue.setFullYear(start.getFullYear() + yearsSinceStart + 1);
@@ -96,19 +112,11 @@ export function DuesPage({ token }: DuesPageProps) {
   
   // Helper function to check if periodic expense is due in current billing period
   const isPeriodicExpenseDue = (startDate: string | undefined, frequency: string, monthStartDay: number, today: Date = new Date()): boolean => {
-    if (frequency === 'monthly') {
-      // Monthly expenses are always due
-      return true;
-    }
-    
-    // If no start date, show as due if unpaid (fallback for expenses without start date)
-    if (!startDate) {
-      return true; // Show as due if no start date (user can set start date later)
-    }
+    if (frequency === 'monthly') return true;
+    if (!startDate) return true;
     
     const nextDue = getNextDueDate(startDate, frequency, today);
     
-    // Calculate current billing period
     let billingStart: Date;
     let billingEnd: Date;
     
@@ -120,33 +128,30 @@ export function DuesPage({ token }: DuesPageProps) {
       billingEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
     }
     
-    // Check if next due date falls within current billing period
     return nextDue >= billingStart && nextDue < billingEnd;
   };
 
   const loadDues = async () => {
     try {
+      // FIX: Use current date, and pass view param for shared view
       const [cardsRes, loansRes, dashboardRes, prefsRes] = await Promise.all([
         api.fetchCreditCards(token),
         api.fetchLoans(token),
-        api.fetchDashboard(token, "2025-01-15T00:00:00Z"),
+        api.fetchDashboard(token, new Date().toISOString(), getViewParam()),
         api.getUserPreferences(token)
       ]);
 
       const monthStartDay = prefsRes.data?.monthStartDay || prefsRes.data?.month_start_day || 1;
       const duesList: any[] = [];
       let total = 0;
-      const today = new Date(); // P0 FIX: Declare today before using it
+      const today = new Date();
 
       // Credit card dues (current billing period)
-      console.log('[DUES_DEBUG] Credit cards:', cardsRes.data?.length || 0);
       cardsRes.data.forEach((card: any) => {
         const remaining = card.billAmount - card.paidAmount;
-        console.log('[DUES_DEBUG] Credit card:', { name: card.name, billAmount: card.billAmount, paidAmount: card.paidAmount, remaining, dueDate: card.dueDate });
         if (remaining > 0) {
           const dueDate = new Date(card.dueDate);
           
-          // Calculate current billing period (same logic as other dues)
           let billingStart: Date;
           let billingEnd: Date;
           if (today.getDate() >= monthStartDay) {
@@ -157,9 +162,7 @@ export function DuesPage({ token }: DuesPageProps) {
             billingEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
           }
           
-          // Check if due date falls within current billing period
           const isCurrentBillingPeriod = dueDate >= billingStart && dueDate < billingEnd;
-          console.log('[DUES_DEBUG] Credit card billing period check:', { name: card.name, isCurrentBillingPeriod, dueDate: dueDate.toISOString().split('T')[0], billingStart: billingStart.toISOString().split('T')[0], billingEnd: billingEnd.toISOString().split('T')[0] });
           if (isCurrentBillingPeriod) {
             duesList.push({
               id: card.id,
@@ -168,56 +171,30 @@ export function DuesPage({ token }: DuesPageProps) {
               itemType: "credit_card",
               amount: remaining,
               dueDate: card.dueDate,
-              paid: false, // Credit cards handled separately
+              paid: false,
               partialPaid: card.paidAmount,
-              total: card.billAmount
+              total: card.billAmount,
+              userId: card.userId || card.user_id
             });
             total += remaining;
           }
         }
       });
 
-      // Loan EMIs - EXCLUDED from Dues as they are not markable as paid
-      // Loans are auto-tracked from fixed expenses with category "Loan"
-      // Users should mark the corresponding fixed expense as paid instead
-      // loansRes.data.forEach((loan: any) => {
-      //   if (!loan.paid) { // Only show unpaid
-      //     duesList.push({
-      //       id: loan.id,
-      //       name: loan.name,
-      //       type: "Loan EMI",
-      //       itemType: "loan",
-      //       amount: loan.emi,
-      //       dueDate: new Date().toISOString().split("T")[0],
-      //       paid: loan.paid || false,
-      //       total: loan.emi
-      //     });
-      //     total += loan.emi;
-      //   }
-      // });
-
       // Fixed expenses due this month
-      console.log('[DUES_DEBUG] Fixed expenses:', dashboardRes.data.fixedExpenses?.length || 0);
       dashboardRes.data.fixedExpenses?.forEach((exp: any) => {
         const startDate = exp.startDate || exp.start_date;
-        console.log('[DUES_DEBUG] Fixed expense:', { name: exp.name, paid: exp.paid, frequency: exp.frequency, startDate, isSip: exp.is_sip_flag || exp.isSipFlag });
-        if (!exp.paid) { // Only show unpaid items
-          // P0 FIX: For periodic expenses (quarterly/yearly), only show if actually due this billing period
-          // For SIPs (is_sip_flag = true), always show if unpaid (they accumulate monthly)
+        if (!exp.paid) {
           const isSip = exp.is_sip_flag || exp.isSipFlag;
           if (exp.frequency !== 'monthly' && !isSip) {
             const isDue = isPeriodicExpenseDue(startDate, exp.frequency, monthStartDay, today);
-            console.log('[DUES_DEBUG] Periodic expense due check:', { name: exp.name, frequency: exp.frequency, isDue, startDate });
-            if (!isDue) {
-              return; // Skip if not due this period
-            }
+            if (!isDue) return;
           }
           
           const monthly = exp.frequency === "monthly" ? exp.amount : 
                          exp.frequency === "quarterly" ? exp.amount / 3 : 
                          exp.amount / 12;
           
-          // Calculate next due date for periodic expenses
           const nextDue = exp.frequency !== 'monthly' 
             ? getNextDueDate(exp.startDate || exp.start_date || today.toISOString().split('T')[0], exp.frequency, today)
             : today;
@@ -235,19 +212,17 @@ export function DuesPage({ token }: DuesPageProps) {
             total: Math.round(monthly),
             accumulatedFunds: accumulatedFunds,
             isSip: isSip,
-            frequency: exp.frequency
+            frequency: exp.frequency,
+            userId: exp.userId || exp.user_id
           });
           total += Math.round(monthly);
         }
       });
 
       // Investments due this month
-      console.log('[DUES_DEBUG] Investments:', dashboardRes.data.investments?.length || 0);
       dashboardRes.data.investments?.forEach((inv: any) => {
         const monthlyAmount = inv.monthlyAmount || inv.monthly_amount || 0;
         const status = inv.status || 'active';
-        console.log('[DUES_DEBUG] Investment:', { name: inv.name, paid: inv.paid, monthlyAmount, status });
-        // Only show active investments that are unpaid
         if (!inv.paid && status === 'active') {
           const accumulatedFunds = inv.accumulatedFunds || inv.accumulated_funds || 0;
           duesList.push({
@@ -259,20 +234,13 @@ export function DuesPage({ token }: DuesPageProps) {
             dueDate: today.toISOString().split("T")[0],
             paid: inv.paid || false,
             total: monthlyAmount,
-            accumulatedFunds: accumulatedFunds
+            accumulatedFunds: accumulatedFunds,
+            userId: inv.userId || inv.user_id
           });
           total += monthlyAmount;
-          console.log('[DUES_DEBUG] Investment added to dues:', { name: inv.name, amount: monthlyAmount });
-        } else {
-          console.log('[DUES_DEBUG] Investment skipped:', { name: inv.name, reason: inv.paid ? 'paid' : `status: ${status}` });
         }
       });
 
-      console.log('[DUES_DEBUG] Final dues list:', { total, count: duesList.length, breakdown: {
-        fixedExpenses: duesList.filter(d => d.itemType === 'fixed_expense').length,
-        investments: duesList.filter(d => d.itemType === 'investment').length,
-        creditCards: duesList.filter(d => d.itemType === 'credit_card').length
-      }});
       setDues(duesList);
       setTotalDues(total);
     } catch (e) {
@@ -303,6 +271,8 @@ export function DuesPage({ token }: DuesPageProps) {
         </div>
       </div>
 
+      <SharedViewBanner />
+
       <Toast
         message={toast.message}
         show={toast.show}
@@ -321,51 +291,68 @@ export function DuesPage({ token }: DuesPageProps) {
             <div className="empty-state">No dues for the current month. Great job!</div>
           ) : (
             <div className="dues-list">
-              {dues.map((due, index) => (
-                <motion.div
-                  key={due.id}
-                  className="due-card"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <div className="due-header">
-                    {due.itemType !== "credit_card" && (
-                      <input
-                        type="checkbox"
-                        checked={due.paid}
-                        onChange={() => handleTogglePaid(due)}
-                        className="paid-checkbox"
-                        title="Mark as paid"
-                      />
-                    )}
-                    <h3>{due.name}</h3>
-                    <span className="due-type">{due.type}</span>
-                  </div>
-                  <div className="due-details">
-                    <div className="detail-item">
-                      <span className="label">Amount Due</span>
-                      <span className="value">₹{due.amount.toLocaleString("en-IN")}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Due Date</span>
-                      <span className="value">{new Date(due.dueDate).toLocaleDateString()}</span>
-                    </div>
-                    {(due.accumulatedFunds || 0) > 0 && (
-                      <div className="detail-item">
-                        <span className="label">{due.isSip ? "Accumulated Funds" : "Saved Amount"}</span>
-                        <span className="value" style={{ color: '#10b981' }}>₹{Math.round(due.accumulatedFunds).toLocaleString("en-IN")}</span>
+              {dues.map((due, index) => {
+                const dueUserId = due.userId || due.user_id;
+                const isOwn = !dueUserId || isOwnItem(dueUserId);
+                return (
+                  <motion.div
+                    key={due.id}
+                    className={`due-card ${!isOwn ? "shared-item" : ""}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <div className="due-header">
+                      {due.itemType !== "credit_card" && isOwn && (
+                        <input
+                          type="checkbox"
+                          checked={due.paid}
+                          onChange={() => handleTogglePaid(due)}
+                          className="paid-checkbox"
+                          title="Mark as paid"
+                        />
+                      )}
+                      <h3>{due.name}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {isSharedView && (
+                          <span className="owner-badge" style={{ fontSize: 11, color: isOwn ? '#10b981' : '#8b5cf6', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {isOwn ? <FaUserCircle size={12} /> : <FaLock size={12} />}
+                            {getOwnerName(dueUserId)}
+                          </span>
+                        )}
+                        <span className="due-type">{due.type}</span>
+                        {!isOwn && (
+                          <span style={{ fontSize: 10, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <FaLock size={9} /> View Only
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {due.partialPaid > 0 && (
+                    </div>
+                    <div className="due-details">
                       <div className="detail-item">
-                        <span className="label">Paid</span>
-                        <span className="value paid">₹{due.partialPaid.toLocaleString("en-IN")}</span>
+                        <span className="label">Amount Due</span>
+                        <span className="value">₹{due.amount.toLocaleString("en-IN")}</span>
                       </div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
+                      <div className="detail-item">
+                        <span className="label">Due Date</span>
+                        <span className="value">{new Date(due.dueDate).toLocaleDateString()}</span>
+                      </div>
+                      {(due.accumulatedFunds || 0) > 0 && (
+                        <div className="detail-item">
+                          <span className="label">{due.isSip ? "Accumulated Funds" : "Saved Amount"}</span>
+                          <span className="value" style={{ color: '#10b981' }}>₹{Math.round(due.accumulatedFunds).toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
+                      {due.partialPaid > 0 && (
+                        <div className="detail-item">
+                          <span className="label">Paid</span>
+                          <span className="value paid">₹{due.partialPaid.toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </>
