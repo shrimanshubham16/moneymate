@@ -49,6 +49,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
   const [incomes, setIncomes] = useState<any[]>([]);
   const [availableFunds, setAvailableFunds] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [calculating, setCalculating] = useState(false);
   const [userCurrency, setUserCurrency] = useState("INR");
   const hasFetchedRef = useRef(false);
   const lastViewRef = useRef<string>("");
@@ -76,18 +77,32 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     try {
       const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       const data = res.data;
+
+      // Phase 1 → Phase 2: data loaded, now show "calculating" state
+      setLoading(false);
+      const hasBombs = (data.futureBombs || []).length > 0;
+      if (hasBombs) {
+        setCalculating(true);
+      }
+
+      // Small delay to let React paint the "calculating" UI before doing heavy state updates
+      await new Promise(r => setTimeout(r, hasBombs ? 400 : 0));
+
       setBombs(data.futureBombs || []);
       setInvestments(data.investments || []);
       setIncomes(data.incomes || []);
       setUserCurrency(data.preferences?.currency || "INR");
 
-      // Calculate available funds = income - fixed - investments - variable
+      // Calculate available funds
       const health = data.health || {};
       setAvailableFunds(health.remaining || 0);
+
+      // Phase 2 → Phase 3: calculations ready
+      setCalculating(false);
     } catch (e) {
       console.error("Failed to load data:", e);
-    } finally {
       setLoading(false);
+      setCalculating(false);
     }
   };
 
@@ -644,7 +659,30 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
 
       <SharedViewBanner />
 
-      {loading ? <SkeletonLoader type="card" count={3} /> : bombs.length === 0 ? (
+      {loading ? <SkeletonLoader type="card" count={3} /> : calculating ? (
+        <motion.div
+          className="calculating-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <div className="calculating-content">
+            <motion.div
+              className="calculating-icon"
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+            >
+              <FaBomb size={36} />
+            </motion.div>
+            <h3>Analyzing your finances...</h3>
+            <p>Computing optimal defusal strategies for your bombs</p>
+            <div className="calculating-dots">
+              <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: 0 }} />
+              <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: 0.2 }} />
+              <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.2, delay: 0.4 }} />
+            </div>
+          </div>
+        </motion.div>
+      ) : bombs.length === 0 ? (
         <EmptyState
           icon={<FaBomb size={80} />}
           title="No Future Bombs"
