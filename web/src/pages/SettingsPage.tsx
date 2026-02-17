@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaUser, FaCreditCard, FaHandshake, FaPalette, FaInfoCircle, FaChartLine, FaCog, FaShieldAlt, FaBell, FaQuestionCircle } from "react-icons/fa";
+import { FaUser, FaCreditCard, FaHandshake, FaPalette, FaInfoCircle, FaChartLine, FaCog, FaShieldAlt, FaBell, FaHeadset } from "react-icons/fa";
 import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
@@ -47,8 +47,7 @@ export function SettingsPage() {
     {
       title: "Help",
       items: [
-        { id: "walkthrough", title: "Walkthrough", icon: <FaQuestionCircle size={32} />, description: "Restart the guided tour" },
-        { id: "support", title: "Support", icon: <FaPalette size={32} />, description: "Get help and contact support" },
+        { id: "support", title: "Support", icon: <FaHeadset size={32} />, description: "Get help and contact support" },
         { id: "about", title: "About", icon: <FaInfoCircle size={32} />, description: "About FinFlow and usage guide" }
       ]
     }

@@ -11,13 +11,13 @@ interface PageInfoModalProps {
   howItWorks?: string[];
 }
 
-export function PageInfoModal({ 
-  isOpen, 
-  onClose, 
-  title, 
-  description, 
+export function PageInfoModal({
+  isOpen,
+  onClose,
+  title,
+  description,
   impact,
-  howItWorks 
+  howItWorks
 }: PageInfoModalProps) {
   return (
     <AnimatePresence>
@@ -38,34 +38,44 @@ export function PageInfoModal({
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div className="page-info-modal-header">
               <div className="page-info-icon">
-                <FaInfoCircle size={24} />
+                <FaInfoCircle size={20} />
               </div>
-              <h2>{title}</h2>
+              <h2 style={{ color: "#ffffff" }}>{title}</h2>
               <button className="page-info-close-btn" onClick={onClose} aria-label="Close">
-                <FaTimes size={18} />
+                <FaTimes size={16} />
               </button>
             </div>
 
+            {/* Body */}
             <div className="page-info-modal-body">
-              <p className="page-info-description">{description}</p>
+              <p className="page-info-description" style={{ color: "rgba(255,255,255,0.8)" }}>
+                {description}
+              </p>
 
               {impact && (
                 <div className="page-info-section impact">
-                  <h3><FaChartBar style={{ marginRight: 8, verticalAlign: 'middle' }} />Impact on Your Finances</h3>
-                  <p>{impact}</p>
+                  <h3 style={{ color: "#00D9FF" }}>
+                    <FaChartBar style={{ marginRight: 8, flexShrink: 0 }} />
+                    Impact on Your Finances
+                  </h3>
+                  <p style={{ color: "rgba(255,255,255,0.72)" }}>{impact}</p>
                 </div>
               )}
 
               {howItWorks && howItWorks.length > 0 && (
                 <div className="page-info-section how-it-works">
-                  <h3><FaCog style={{ marginRight: 8, verticalAlign: 'middle' }} />How It Works</h3>
+                  <h3 style={{ color: "#A78BFA" }}>
+                    <FaCog style={{ marginRight: 8, flexShrink: 0 }} />
+                    How It Works
+                  </h3>
                   <ul>
                     {howItWorks.map((item, index) => (
-                      <li key={index}>
+                      <li key={index} style={{ color: "rgba(255,255,255,0.72)" }}>
                         <span className="step-number">{index + 1}</span>
-                        {item}
+                        <span>{item}</span>
                       </li>
                     ))}
                   </ul>
@@ -73,6 +83,7 @@ export function PageInfoModal({
               )}
             </div>
 
+            {/* Footer */}
             <div className="page-info-modal-footer">
               <button className="page-info-got-it-btn" onClick={onClose}>
                 Got it!
