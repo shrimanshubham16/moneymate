@@ -411,6 +411,14 @@ export async function rejectRequest(token: string, id: string) {
   return request<{ data: any }>(`/sharing/requests/${id}/reject`, { method: "POST" }, token);
 }
 
+export async function cancelSharingRequest(token: string, id: string) {
+  return request<{ data: any }>(`/sharing/requests/${id}/cancel`, { method: "POST" }, token);
+}
+
+export async function revokeSharing(token: string, sharedAccountId: string) {
+  return request<{ data: any }>("/sharing/revoke", { method: "POST", body: JSON.stringify({ sharedAccountId }) }, token);
+}
+
 export async function fetchCreditCards(token: string, cryptoKey?: CryptoKey) {
   return request<{ data: any[] }>("/debts/credit-cards", { method: "GET" }, token, cryptoKey);
 }

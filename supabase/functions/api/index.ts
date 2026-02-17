@@ -2485,6 +2485,32 @@ serve(async (req) => {
       return json({ data: { success: true } });
     }
     
+    // Cancel outgoing sharing request (inviter withdraws their own pending invite)
+    if (path.match(/\/sharing\/requests\/[^/]+\/cancel$/) && method === 'POST') {
+      const requestId = path.split('/')[3];
+      
+      // Verify this is the user's own outgoing request and it's still pending
+      const { data: request } = await supabase.from('sharing_requests')
+        .select('*')
+        .eq('id', requestId)
+        .eq('inviter_id', userId)
+        .eq('status', 'pending')
+        .single();
+      
+      if (!request) {
+        return error('Request not found or already processed', 404);
+      }
+      
+      // Delete the request entirely (not just status change — it was never accepted)
+      await supabase.from('sharing_requests')
+        .delete()
+        .eq('id', requestId);
+      
+      const { data: invitee } = await supabase.from('users').select('username').eq('id', request.invitee_id).single();
+      await logActivity(userId, 'sharing', 'cancelled_invite', { invitee: invitee?.username });
+      return json({ data: { success: true } });
+    }
+    
     // Revoke sharing (delete shared account and all members)
     if (path === '/sharing/revoke' && method === 'POST') {
       const body = await req.json();

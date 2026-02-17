@@ -136,6 +136,10 @@ export function useEncryptedApiCalls() {
       baseApi.approveRequest(token, id),
     rejectRequest: (token: string, id: string) =>
       baseApi.rejectRequest(token, id),
+    cancelSharingRequest: (token: string, id: string) =>
+      baseApi.cancelSharingRequest(token, id),
+    revokeSharing: (token: string, sharedAccountId: string) =>
+      baseApi.revokeSharing(token, sharedAccountId),
     
     // Theme
     fetchThemeState: (token: string) => 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { FaUsers, FaPaperPlane, FaInbox, FaHandshake, FaTimesCircle, FaUserPlus } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
@@ -16,16 +17,16 @@ export function SharingPage({ token }: SharingPageProps) {
   const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const [requests, setRequests] = useState<{ incoming: any[]; outgoing: any[] }>({ incoming: [], outgoing: [] });
   const [members, setMembers] = useState<{ members: any[]; accounts: any[] }>({ members: [], accounts: [] });
+  const [loading, setLoading] = useState(true);
   const [showInviteForm, setShowInviteForm] = useState(false);
-  const [inviteForm, setInviteForm] = useState({
-    username: ""
-  });
+  const [inviteForm, setInviteForm] = useState({ username: "" });
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+    setLoading(true);
     try {
       const [reqRes, memRes] = await Promise.all([
         api.fetchSharingRequests(token),
@@ -35,13 +36,15 @@ export function SharingPage({ token }: SharingPageProps) {
       setMembers(memRes.data);
     } catch (e) {
       console.error("Failed to load sharing data:", e);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     showConfirm(
-      `You're about to request ${inviteForm.username} to share finances. If they accept, they will see your finances. Continue?`,
+      `You're about to request "${inviteForm.username}" to share finances. If they accept, you'll both see each other's data in the Combined view. Continue?`,
       async () => {
         try {
           await api.sendInvite(token, {
@@ -51,6 +54,7 @@ export function SharingPage({ token }: SharingPageProps) {
           });
           setShowInviteForm(false);
           setInviteForm({ username: "" });
+          showAlert("Invite sent! They'll see your request when they visit their Sharing page.", "Invite Sent");
           await loadData();
         } catch (err: any) {
           showAlert(err.message);
@@ -62,11 +66,11 @@ export function SharingPage({ token }: SharingPageProps) {
 
   const handleApprove = async (id: string, inviterUsername: string) => {
     showConfirm(
-      `Are you sure you want to approve this sharing request from "${inviterUsername}"? This will allow both of you to see each other's financial data in the Combined view.`,
+      `Approve sharing with "${inviterUsername}"? You'll both be able to see each other's financial data in the Combined view on your Dashboard.`,
       async () => {
         try {
           await api.approveRequest(token, id);
-          showAlert("Request approved! You can now see each other's finances in the Combined (Shared) view on your Dashboard.", "Success");
+          showAlert("Request approved! Switch to the Combined view on your Dashboard to see merged finances.", "Success");
           await loadData();
         } catch (err: any) {
           showAlert(err.message);
@@ -76,35 +80,45 @@ export function SharingPage({ token }: SharingPageProps) {
     );
   };
 
-  const handleReject = async (id: string) => {
-    try {
-      await api.rejectRequest(token, id);
-      await loadData();
-    } catch (e: any) {
-      showAlert(e.message);
-    }
+  const handleReject = async (id: string, inviterUsername: string) => {
+    showConfirm(
+      `Decline the sharing request from "${inviterUsername}"? They will be notified.`,
+      async () => {
+        try {
+          await api.rejectRequest(token, id);
+          showAlert("Request declined.", "Done");
+          await loadData();
+        } catch (err: any) {
+          showAlert(err.message);
+        }
+      },
+      "Decline Request?"
+    );
+  };
+
+  const handleCancelOutgoing = async (id: string, inviteeUsername: string) => {
+    showConfirm(
+      `Cancel your pending invite to "${inviteeUsername}"? The request will be withdrawn.`,
+      async () => {
+        try {
+          await api.cancelSharingRequest(token, id);
+          showAlert("Invite withdrawn.", "Done");
+          await loadData();
+        } catch (err: any) {
+          showAlert(err.message);
+        }
+      },
+      "Withdraw Invite?"
+    );
   };
 
   const handleRevoke = async (memberId: string, sharedAccountId: string, username: string) => {
     showConfirm(
-      `Are you sure you want to revoke sharing with "${username}"? This will remove the shared access for both of you.`,
+      `Revoke sharing with "${username}"? Both of you will lose access to each other's finances in the Combined view. This cannot be undone.`,
       async () => {
         try {
-          const result = await fetch(`${api.getBaseUrl()}/sharing/revoke`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ sharedAccountId })
-          });
-          
-          if (!result.ok) {
-            const errData = await result.json();
-            throw new Error(errData.message || 'Failed to revoke');
-          }
-          
-          showAlert('Sharing revoked successfully', 'Success');
+          await api.revokeSharing(token, sharedAccountId);
+          showAlert("Sharing revoked. The combined view has been removed.", "Sharing Ended");
           await loadData();
         } catch (err: any) {
           showAlert(err.message);
@@ -114,19 +128,32 @@ export function SharingPage({ token }: SharingPageProps) {
     );
   };
 
+  const hasAnyContent = requests.incoming.length > 0 || requests.outgoing.length > 0 || members.members.length > 0;
+
   return (
     <div className="sharing-page">
       <div className="page-header">
         <button className="back-button" onClick={() => navigate("/settings")}>← Back</button>
-        <h1>Sharing</h1>
+        <h1><FaUsers style={{ marginRight: 8, color: 'var(--accent-cyan, #22d3ee)' }} />Sharing</h1>
         <button className="add-button" onClick={() => setShowInviteForm(true)}>
-          + Bring Aboard a Companion
+          <FaUserPlus style={{ marginRight: 6 }} />Invite Companion
         </button>
       </div>
 
+      {/* Invite Modal */}
       {showInviteForm && (
-        <motion.div className="modal-overlay" onClick={() => setShowInviteForm(false)}>
-          <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <motion.div
+          className="modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onClick={() => setShowInviteForm(false)}
+        >
+          <motion.div
+            className="modal-content"
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2>Share Your Finances</h2>
             <p className="share-description">
               Invite someone to merge finances with you. You'll share a combined view of income, expenses, and financial health.
@@ -138,7 +165,8 @@ export function SharingPage({ token }: SharingPageProps) {
                   value={inviteForm.username}
                   onChange={(e) => setInviteForm({ ...inviteForm, username: e.target.value })}
                   required
-                  placeholder="their_username"
+                  placeholder="Enter their username"
+                  autoFocus
                 />
               </div>
               <div className="form-actions">
@@ -150,101 +178,146 @@ export function SharingPage({ token }: SharingPageProps) {
         </motion.div>
       )}
 
-      <div className="sharing-sections">
-        {requests.incoming.length > 0 && (
-          <motion.section
-            className="sharing-section"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h2>Pending Requests ({requests.incoming.length})</h2>
-            <div className="requests-list">
-              {requests.incoming.map((req) => (
-                <div key={req.id} className="request-card">
-                  <div className="request-info">
-                    <h3>From: {req.inviterUsername || req.ownerId || 'Unknown'}</h3>
-                    <div className="request-meta">
-                      <span className={`role-badge ${req.role}`}>{req.role}</span>
-                      {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}
-                      <span className="status-badge">{req.status}</span>
-                    </div>
-                  </div>
-                  <div className="request-actions">
-                    <button onClick={() => handleApprove(req.id, req.inviterUsername || 'Unknown')} className="approve-btn">Approve</button>
-                    <button onClick={() => handleReject(req.id)} className="reject-btn">Reject</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.section>
-        )}
-
-        {requests.outgoing.length > 0 && (
-          <motion.section
-            className="sharing-section"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <h2>Sent Requests ({requests.outgoing.length})</h2>
-            <div className="requests-list">
-              {requests.outgoing.map((req) => (
-                <div key={req.id} className="request-card outgoing">
-                  <div className="request-info">
-                    <h3>To: {req.inviteeUsername || req.inviteeId || 'Unknown'}</h3>
-                    <div className="request-meta">
-                      <span className={`role-badge ${req.role}`}>{req.role}</span>
-                      {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}
-                      <span className="status-badge">{req.status}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.section>
-        )}
-
-        {members.members.length > 0 && (
-          <motion.section
-            className="sharing-section"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <h2>Sharing With ({members.members.length})</h2>
-            <div className="members-list">
-              {members.members.map((member) => (
-                <div key={member.userId || member.user_id} className="member-card">
-                  <div className="member-avatar">
-                    {member.username?.charAt(0).toUpperCase() || "U"}
-                  </div>
-                  <div className="member-info">
-                    <h3>{member.username || "User"}</h3>
-                    <p className="member-role-text">{member.role || "member"}</p>
-                    <div className="member-meta">
-                      <span className={`role-badge ${member.role}`}>{member.role}</span>
-                      {member.merge_finances && <span className="merge-badge">Merged</span>}
-                    </div>
-                  </div>
-                  <button 
-                    className="revoke-btn"
-                    onClick={() => handleRevoke(member.userId || member.user_id, member.shared_account_id, member.username || 'User')}
-                    title="Revoke sharing access"
-                  >
-                    Revoke
-                  </button>
-                </div>
-              ))}
-            </div>
-          </motion.section>
-        )}
-
-        {requests.incoming.length === 0 && requests.outgoing.length === 0 && members.members.length === 0 && (
-          <div className="empty-state">
-            No sharing activity yet. Click "Bring Aboard a Companion" to share your finances!
+      {/* Loading */}
+      {loading ? (
+        <div className="sharing-loading">
+          {[1, 2, 3].map(i => <div key={i} className="sharing-skeleton" />)}
+        </div>
+      ) : !hasAnyContent ? (
+        /* Empty State */
+        <div className="sharing-empty-state">
+          <div className="sharing-empty-icon">
+            <FaUsers size={36} />
           </div>
-        )}
-      </div>
+          <h3>No Sharing Activity</h3>
+          <p>
+            Invite a companion to share your financial journey. You'll be able to view a combined picture of incomes, expenses, and health.
+          </p>
+          <button className="primary-btn" onClick={() => setShowInviteForm(true)}>
+            <FaUserPlus style={{ marginRight: 6 }} />Invite Companion
+          </button>
+        </div>
+      ) : (
+        <div className="sharing-sections">
+          {/* Incoming Pending Requests */}
+          {requests.incoming.length > 0 && (
+            <motion.section
+              className="sharing-section"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <h2>
+                <FaInbox className="section-icon" />
+                Pending Requests ({requests.incoming.length})
+              </h2>
+              <div className="requests-list">
+                {requests.incoming.map((req) => (
+                  <div key={req.id} className="request-card incoming">
+                    <div className="request-info">
+                      <h3>From: {req.inviterUsername || 'Unknown'}</h3>
+                      <div className="request-meta">
+                        <span className={`role-badge ${req.role}`}>{req.role}</span>
+                        {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}
+                        <span className="status-badge">{req.status}</span>
+                      </div>
+                    </div>
+                    <div className="request-actions">
+                      <button
+                        onClick={() => handleApprove(req.id, req.inviterUsername || 'Unknown')}
+                        className="approve-btn"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleReject(req.id, req.inviterUsername || 'Unknown')}
+                        className="reject-btn"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          )}
+
+          {/* Outgoing Pending Requests */}
+          {requests.outgoing.length > 0 && (
+            <motion.section
+              className="sharing-section"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <h2>
+                <FaPaperPlane className="section-icon" />
+                Sent Invites — Awaiting Response ({requests.outgoing.length})
+              </h2>
+              <div className="requests-list">
+                {requests.outgoing.map((req) => (
+                  <div key={req.id} className="request-card outgoing">
+                    <div className="request-info">
+                      <h3>To: {req.inviteeUsername || 'Unknown'}</h3>
+                      <div className="request-meta">
+                        <span className={`role-badge ${req.role}`}>{req.role}</span>
+                        {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}
+                        <span className="status-badge">{req.status}</span>
+                      </div>
+                    </div>
+                    <div className="request-actions">
+                      <button
+                        onClick={() => handleCancelOutgoing(req.id, req.inviteeUsername || 'Unknown')}
+                        className="cancel-btn"
+                      >
+                        <FaTimesCircle style={{ marginRight: 4 }} />
+                        Withdraw
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          )}
+
+          {/* Active Sharing Members */}
+          {members.members.length > 0 && (
+            <motion.section
+              className="sharing-section"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <h2>
+                <FaHandshake className="section-icon" />
+                Currently Sharing With ({members.members.length})
+              </h2>
+              <div className="members-list">
+                {members.members.map((member) => (
+                  <div key={member.userId || member.user_id} className="member-card">
+                    <div className="member-avatar">
+                      {member.username?.charAt(0).toUpperCase() || "U"}
+                    </div>
+                    <div className="member-info">
+                      <h3>{member.username || "User"}</h3>
+                      <div className="member-meta">
+                        <span className={`role-badge ${member.role}`}>{member.role}</span>
+                        {member.merge_finances && <span className="merge-badge">Merged</span>}
+                      </div>
+                    </div>
+                    <button
+                      className="revoke-btn"
+                      onClick={() => handleRevoke(member.userId || member.user_id, member.shared_account_id, member.username || 'User')}
+                    >
+                      Revoke
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+          )}
+        </div>
+      )}
+
       <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
