@@ -17,7 +17,7 @@ const commitId = typeof __COMMIT_ID__ !== 'undefined' ? __COMMIT_ID__ : 'dev';
 
 export const VERSION = {
   major: 2,
-  minor: 2,
+  minor: 3,
   patch: 0,
   build: commitId, // Git commit ID (short SHA)
   
@@ -32,7 +32,7 @@ export const VERSION = {
   },
   
   // Code name for this release
-  codeName: "Community Lounge",
+  codeName: "Social Activities",
 
   // Release date
   releaseDate: "Feb 17, 2026",
@@ -52,7 +52,9 @@ export const VERSION = {
     "Dashboard Cache Invalidation — Instant data refresh after changes",
     "PWA Support — Install as a native app on your device",
     "Community Lounge — Real-time chatroom to share tips & make friends",
-    "Zero Edge Function Calls — Chat uses direct PostgREST + Realtime WebSocket"
+    "Zero Edge Function Calls — Chat uses direct PostgREST + Realtime WebSocket",
+    "Activity Pins — Pin important activities to the top for quick access",
+    "Activity Comments — Inline real-time comments on any activity, great for shared accounts"
   ]
 };
 
