@@ -49,13 +49,20 @@ export function AboutPage() {
         <section className="about-section">
           <h2><FaClipboardList style={{ marginRight: 8, color: '#3b82f6' }} /> Key Features</h2>
           <ul>
-            <li><strong>Health-Based Insights:</strong> Visual indicators showing your financial health (Good, OK, Not Well, Worrisome)</li>
+            <li><strong>Health-Based Insights:</strong> Visual indicators showing your financial health (Good, OK, Not Well, Worrisome) — updates live as you mark payments</li>
             <li><strong>Smart Planning:</strong> Plan fixed expenses, variable expenses, and investments with ease</li>
             <li><strong>SIP for Periodic Expenses:</strong> Accumulate funds with potential growth for non-monthly expenses</li>
-            <li><strong>Smart Future Bomb Defusal:</strong> Calculate required monthly SIPs to defuse upcoming liabilities with intelligent investment pause suggestions</li>
-            <li><strong>Investment Priority:</strong> Mark key investments as priority so they're never suggested for pausing</li>
-            <li><strong>RSU Income Tracking:</strong> Track vesting RSU grants with live stock price lookup and currency conversion</li>
-            <li><strong>Income Health Toggle:</strong> Choose which income sources count toward your financial health score</li>
+            <li><strong>Smart Future Bomb Defusal — 3 Strategies:</strong> Large expense looming? Pick from three defusal paths:
+              <ul style={{ marginTop: 4, paddingLeft: 20 }}>
+                <li><strong>Pause First:</strong> Pauses non-priority investments, then sells RSU shares if still short</li>
+                <li><strong>Sell First:</strong> Sells vested RSU shares at conservative (tax-adjusted, decline-buffered) prices</li>
+                <li><strong>Custom Mix:</strong> You choose exactly what to pause and how many shares to sell, with live feedback</li>
+              </ul>
+            </li>
+            <li><strong>Investment Priority:</strong> Mark key investments as priority — they're never suggested for pausing during bomb defusal</li>
+            <li><strong>RSU Income with Live Pricing:</strong> Enter stock ticker, verify with real-time price from market data. Tax withholding, expected decline buffer, and currency conversion are all built in. Auto-refreshes on dashboard and health pages.</li>
+            <li><strong>Conservative Planning:</strong> RSU values use net shares after tax and a user-configurable decline buffer (default −20%). Future bomb defusal always uses these conservative numbers.</li>
+            <li><strong>Income Health Toggle:</strong> Choose which income sources count toward your health score — exclude volatile RSU income if you prefer</li>
             <li><strong>Credit Card & Loan Management:</strong> Keep track of bills, EMIs, and payment deadlines</li>
             <li><strong>Sharing & Collaboration:</strong> Share finances with partners (owner, editor, viewer roles)</li>
             <li><strong>Activity Log:</strong> Pin important activities, comment in real-time — great for shared accounts</li>
@@ -70,11 +77,11 @@ export function AboutPage() {
           <h2><FaPalette style={{ marginRight: 8, color: '#8b5cf6' }} /> Usage Guide</h2>
           <div className="usage-steps-grid">
             {[
-              { title: "Set Up Your Income", desc: "Add all income sources — salary, freelance, and even RSU grants with vesting schedules. Toggle which incomes count toward your health score.", tip: "Use the health toggle to exclude volatile income like RSUs" },
+              { title: "Set Up Your Income", desc: "Add salary, freelance, and RSU grants with vesting schedules. For RSUs, verify the stock ticker with live market prices. Set tax rate & expected decline for conservative planning.", tip: "RSU prices auto-refresh on dashboard — you always plan with current data" },
               { title: "Plan Your Expenses", desc: "Add fixed expenses (rent, EMIs) and variable expense budgets (groceries, entertainment). Enable SIP for periodic expenses.", tip: "Use SIP for yearly/quarterly bills to accumulate funds" },
               { title: "Track Investments", desc: "Create investment goals with monthly contribution targets. Mark key ones as 'Priority' to protect them from pause suggestions.", tip: "Priority investments stay running even during tight months" },
-              { title: "Defuse Future Bombs", desc: "Add large upcoming liabilities. FinFlow calculates the exact monthly SIP needed to defuse each one month before it's due.", tip: "It'll suggest pausing non-priority investments if you're short" },
-              { title: "Monitor Dashboard", desc: "Your dashboard shows real-time financial health, pending dues, and a summary of all obligations for the month.", tip: "Health score updates as you mark payments" },
+              { title: "Defuse Future Bombs — 3 Ways", desc: "Large expense coming? Pick Pause First, Sell RSU First, or build a Custom Mix. All RSU calculations use tax-adjusted net shares at a conservative decline price.", tip: "Custom Mix lets you choose exactly what to pause and how many shares to sell" },
+              { title: "Monitor Dashboard", desc: "Your dashboard shows real-time financial health, pending dues, RSU stock prices, and a summary of all obligations for the month.", tip: "RSU prices and conversion rates refresh automatically" },
               { title: "Stay on Track", desc: "Smart notifications alert you about unpaid dues, overspends, health drops, and upcoming CC billing days. Pin activities for quick access.", tip: "Comment on shared activities to collaborate with partners" },
             ].map((step, i) => (
               <div className="usage-step-card" key={i}>

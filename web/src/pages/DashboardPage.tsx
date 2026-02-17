@@ -65,6 +65,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
   const lastViewRef = useRef<string>(""); // Track view changes to allow refetch
   const lastAggPushRef = useRef<number>(0); // Debounce aggregate pushes
+  const rsuRefreshDoneRef = useRef(false); // Track RSU price refresh
 
   // Persist selectedView when it changes and reload data
   useEffect(() => {
@@ -247,6 +248,77 @@ export function DashboardPage({ token }: DashboardPageProps) {
         .catch(err => console.warn('[AGGREGATES] Failed to push:', err));
     }
   }, [correctHealth.ownAggregates, selectedView, token]);
+
+  // Auto-refresh RSU stock prices on dashboard load
+  useEffect(() => {
+    if (!data?.incomes || rsuRefreshDoneRef.current) return;
+    const rsuIncomes = (data.incomes || []).filter(
+      (inc: any) => inc.incomeType === 'rsu' && inc.rsuTicker && inc.includeInHealth !== false
+    );
+    if (rsuIncomes.length === 0) return;
+    rsuRefreshDoneRef.current = true;
+
+    const userCurrency = data.preferences?.currency || 'INR';
+    // Collect unique tickers
+    const tickers = [...new Set(rsuIncomes.map((inc: any) => inc.rsuTicker))];
+    const quoteCache: Record<string, any> = {};
+
+    (async () => {
+      try {
+        // Fetch all unique tickers in parallel
+        const quotes = await Promise.allSettled(
+          tickers.map((t: string) => api.fetchStockQuote(token, t, userCurrency))
+        );
+        quotes.forEach((result, idx) => {
+          if (result.status === 'fulfilled') {
+            quoteCache[tickers[idx] as string] = result.value.data;
+          }
+        });
+
+        // Update each RSU income with fresh price in background
+        for (const inc of rsuIncomes) {
+          const quote = quoteCache[inc.rsuTicker];
+          if (!quote) continue;
+          const taxRate = inc.rsuTaxRate ?? 33;
+          const netShares = Math.round((inc.rsuGrantCount || 0) * (1 - taxRate / 100));
+          const priceInUserCur = quote.conversionRate ? quote.price * quote.conversionRate : quote.price;
+          const newAmount = Math.round((netShares * priceInUserCur / 12) * 100) / 100;
+
+          // Only update if price actually changed
+          if (Math.abs(newAmount - (inc.amount || 0)) > 0.01) {
+            api.updateIncome(token, inc.id, {
+              amount: newAmount,
+              rsu_stock_price: quote.price,
+              rsu_conversion_rate: quote.conversionRate || undefined
+            }).catch(err => console.warn('[RSU_REFRESH] Failed to update income:', err));
+          }
+        }
+
+        // Update local data with fresh prices for immediate display
+        setData((prev: any) => {
+          if (!prev) return prev;
+          const updatedIncomes = (prev.incomes || []).map((inc: any) => {
+            if (inc.incomeType !== 'rsu' || !inc.rsuTicker) return inc;
+            const quote = quoteCache[inc.rsuTicker];
+            if (!quote) return inc;
+            const taxRate = inc.rsuTaxRate ?? 33;
+            const netShares = Math.round((inc.rsuGrantCount || 0) * (1 - taxRate / 100));
+            const priceInUserCur = quote.conversionRate ? quote.price * quote.conversionRate : quote.price;
+            const newAmount = Math.round((netShares * priceInUserCur / 12) * 100) / 100;
+            return {
+              ...inc,
+              amount: newAmount,
+              rsuStockPrice: quote.price,
+              rsuConversionRate: quote.conversionRate || inc.rsuConversionRate
+            };
+          });
+          return { ...prev, incomes: updatedIncomes };
+        });
+      } catch (err) {
+        console.warn('[RSU_REFRESH] Error refreshing RSU prices:', err);
+      }
+    })();
+  }, [data?.incomes]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");

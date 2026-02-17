@@ -330,9 +330,16 @@ export async function createIncome(token: string, payload: {
   include_in_health?: boolean; income_type?: string;
   rsu_ticker?: string; rsu_grant_count?: number; rsu_vesting_schedule?: string;
   rsu_currency?: string; rsu_stock_price?: number;
+  rsu_tax_rate?: number; rsu_expected_decline?: number; rsu_conversion_rate?: number;
 }, cryptoKey?: CryptoKey) {
   const body = await buildBody(payload, cryptoKey);
   return request<{ data: any }>("/planning/income", { method: "POST", body }, token);
+}
+
+export async function fetchStockQuote(token: string, ticker: string, convertTo?: string) {
+  const params = new URLSearchParams({ ticker });
+  if (convertTo) params.set('convert_to', convertTo);
+  return request<{ data: { ticker: string; name: string; price: number; currency: string; exchange: string; convertedPrice?: number; conversionRate?: number; convertedCurrency?: string } }>(`/stock/quote?${params.toString()}`, { method: "GET" }, token);
 }
 
 export async function createVariablePlan(
@@ -530,6 +537,7 @@ export async function updateIncome(token: string, id: string, payload: {
   include_in_health?: boolean; income_type?: string;
   rsu_ticker?: string; rsu_grant_count?: number; rsu_vesting_schedule?: string;
   rsu_currency?: string; rsu_stock_price?: number;
+  rsu_tax_rate?: number; rsu_expected_decline?: number; rsu_conversion_rate?: number;
 }, cryptoKey?: CryptoKey) {
   const body = await buildBody(payload, cryptoKey);
   return request<{ data: any }>(`/planning/income/${id}`, { method: "PUT", body }, token);

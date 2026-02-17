@@ -8,7 +8,7 @@
 /* Bombs Grid */
 .bombs-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
   gap: 20px;
 }
 
@@ -155,7 +155,7 @@
   text-align: right;
 }
 
-/* Smart Defusal Panel */
+/* ===== Smart Defusal Panel ===== */
 .defusal-panel {
   margin-top: 16px;
   padding: 16px;
@@ -164,14 +164,18 @@
   border: 1px solid rgba(255,255,255,0.06);
 }
 
-.defusal-panel h4 {
-  margin: 0 0 12px 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-secondary, rgba(255,255,255,0.7));
+.defusal-panel-header {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-bottom: 12px;
+}
+
+.defusal-panel-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary, rgba(255,255,255,0.7));
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -179,70 +183,376 @@
 .defusal-sip-amount {
   font-size: 24px;
   font-weight: 800;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .defusal-sip-amount.affordable { color: #10b981; }
-.defusal-sip-amount.needs-pause { color: #f59e0b; }
+.defusal-sip-amount.needs-action { color: #f59e0b; }
 .defusal-sip-amount.unaffordable { color: #ef4444; }
 
-.defusal-status {
+.defusal-ok-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
-  color: var(--text-secondary, rgba(255,255,255,0.7));
-  margin-bottom: 12px;
+  color: #34d399;
   line-height: 1.5;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.15);
 }
 
-.defusal-suggestions {
+/* Strategy Tabs */
+.strategy-tabs {
   display: flex;
-  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.strategy-tab {
+  flex: 1;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+.strategy-tab:hover {
+  color: var(--text-secondary, rgba(255,255,255,0.7));
+}
+
+.strategy-tab.active {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary, #f1f5f9);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.strategy-tab.active.tab-pause {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.strategy-tab.active.tab-sell {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+}
+
+.strategy-tab.active.tab-mix {
+  background: rgba(34, 211, 238, 0.15);
+  color: #22d3ee;
+}
+
+/* Strategy Content */
+.strategy-content {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.strategy-summary {
+  font-size: 12px;
+  color: var(--text-secondary, rgba(255,255,255,0.6));
+  margin-bottom: 12px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
   gap: 8px;
 }
 
-.defusal-suggestion-item {
+.strategy-summary svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Step Items within strategies */
+.strategy-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.strategy-step {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: 8px;
   font-size: 13px;
+  transition: all 0.2s;
 }
 
-.defusal-suggestion-item .inv-name {
+.strategy-step.pause-step {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.strategy-step.sell-step {
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.strategy-step .step-label {
   font-weight: 600;
   color: var(--text-primary, #f1f5f9);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.defusal-suggestion-item .inv-amount {
-  color: #f59e0b;
+.strategy-step .step-value {
   font-weight: 700;
+  font-size: 12px;
 }
 
-.defusal-pause-btn {
-  margin-top: 10px;
+.strategy-step.pause-step .step-value { color: #f59e0b; }
+.strategy-step.sell-step .step-value { color: #a78bfa; }
+
+/* Remaining shortfall pill */
+.shortfall-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.shortfall-pill.covered {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.shortfall-pill.not-covered {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.shortfall-pill.partial {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+/* Action Buttons within strategies */
+.strategy-action-btn {
   width: 100%;
   padding: 10px;
   border: none;
   border-radius: 8px;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #000;
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
-.defusal-pause-btn:hover {
+.strategy-action-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
-.defusal-pause-btn:disabled {
+.strategy-action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+}
+
+.strategy-action-btn.pause-btn {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #000;
+}
+
+.strategy-action-btn.pause-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.strategy-action-btn.sell-btn {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: #fff;
+}
+
+.strategy-action-btn.sell-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.strategy-action-btn.mix-btn {
+  background: linear-gradient(135deg, #22d3ee, #0891b2);
+  color: #000;
+}
+
+.strategy-action-btn.mix-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
+}
+
+/* ===== Custom Mix Controls ===== */
+.custom-mix-section {
+  margin-bottom: 12px;
+}
+
+.custom-mix-section h5 {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary, rgba(255,255,255,0.4));
+}
+
+.mix-investment-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 6px;
+  transition: all 0.2s;
+}
+
+.mix-investment-row:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.mix-investment-row.selected {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.mix-investment-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #f59e0b;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mix-investment-row .mix-inv-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #f1f5f9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mix-investment-row .mix-inv-amount {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.mix-shares-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 10px;
+  margin-top: 4px;
+}
+
+.mix-shares-control .shares-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, rgba(255,255,255,0.7));
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.mix-shares-control input[type="range"] {
+  flex: 1;
+  accent-color: #8b5cf6;
+  cursor: pointer;
+  height: 4px;
+}
+
+.mix-shares-control .shares-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #a78bfa;
+  min-width: 40px;
+  text-align: right;
+}
+
+.mix-shares-preview {
+  font-size: 11px;
+  color: var(--text-tertiary, rgba(255,255,255,0.5));
+  margin-top: 4px;
+  padding-left: 12px;
+}
+
+/* Real-time feedback bar for custom mix */
+.mix-feedback {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.mix-feedback-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.mix-feedback-row .fb-label {
+  color: var(--text-secondary, rgba(255,255,255,0.6));
+}
+
+.mix-feedback-row .fb-value {
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.mix-feedback-row .fb-value.positive { color: #34d399; }
+.mix-feedback-row .fb-value.negative { color: #f87171; }
+.mix-feedback-row .fb-value.warning { color: #fbbf24; }
+
+.mix-feedback-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 6px 0;
+}
+
+/* No RSU info box */
+.no-rsu-info {
+  font-size: 12px;
+  color: var(--text-tertiary, rgba(255,255,255,0.5));
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  border: 1px dashed rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Bomb Actions */
@@ -341,5 +651,10 @@
   
   .future-bombs-page {
     padding: 16px;
+  }
+
+  .strategy-tab {
+    font-size: 10px;
+    padding: 7px 4px;
   }
 }

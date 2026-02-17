@@ -241,6 +241,293 @@
   gap: 12px;
 }
 
+/* RSU Section Header */
+.rsu-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.rsu-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #3b82f6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rsu-info-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.rsu-info-btn:hover {
+  color: #3b82f6;
+}
+
+/* RSU Info Tooltip */
+.rsu-info-tooltip {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.7);
+}
+
+.rsu-info-tooltip p {
+  margin: 0 0 6px;
+}
+
+.rsu-info-tooltip p:last-child {
+  margin-bottom: 0;
+}
+
+.rsu-info-tooltip strong {
+  color: var(--text-primary, #f1f5f9);
+}
+
+.rsu-info-tooltip em {
+  color: rgba(255,255,255,0.5);
+  font-style: normal;
+}
+
+/* Ticker + Verify Row */
+.ticker-verify-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.verify-stock-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.verify-stock-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.verify-stock-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.verify-stock-btn.verified {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+/* Stock Verify Result */
+.stock-verify-result {
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.verify-result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.verify-stock-name {
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+  font-size: 14px;
+}
+
+.verify-exchange {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.06);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.verify-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.verify-price {
+  font-size: 18px;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.verify-converted {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+}
+
+.verify-forex {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 8px;
+}
+
+.confirm-stock-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 6px;
+}
+
+.confirm-stock-btn:hover {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+.verify-confirmed {
+  font-size: 12px;
+  color: #10b981;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* RSU Calc Preview */
+.rsu-calc-preview {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.preview-line {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.preview-line:last-of-type {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.preview-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.4);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.preview-value {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+}
+
+.preview-line.after-tax .preview-value {
+  color: #10b981;
+}
+
+.preview-line.after-tax .preview-value strong {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.preview-line.conservative .preview-value {
+  color: rgba(255,255,255,0.35);
+}
+
+.preview-value.highlight {
+  color: #10b981;
+}
+
+.preview-forex-note {
+  margin-top: 6px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+}
+
+/* Refresh Price Button */
+.refresh-price-btn {
+  background: rgba(59, 130, 246, 0.1);
+  border: none;
+  color: #60a5fa;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.refresh-price-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.refresh-price-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Spinning animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* RSU Card Info */
+.rsu-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  margin-top: 6px;
+  width: 100%;
+}
+
 @media (max-width: 768px) {
   .form-row {
     flex-direction: column;
@@ -252,5 +539,9 @@
   
   .income-summary {
     grid-template-columns: 1fr;
+  }
+
+  .ticker-verify-row {
+    flex-direction: column;
   }
 }

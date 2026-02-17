@@ -1089,7 +1089,10 @@ serve(async (req) => {
         rsuVestingSchedule: i.rsu_vesting_schedule,
         rsuCurrency: i.rsu_currency,
         rsuStockPrice: i.rsu_stock_price ? parseFloat(i.rsu_stock_price) : null,
-        rsuPriceUpdatedAt: i.rsu_price_updated_at
+        rsuPriceUpdatedAt: i.rsu_price_updated_at,
+        rsuTaxRate: i.rsu_tax_rate != null ? parseFloat(i.rsu_tax_rate) : 33,
+        rsuExpectedDecline: i.rsu_expected_decline != null ? parseFloat(i.rsu_expected_decline) : 20,
+        rsuConversionRate: i.rsu_conversion_rate ? parseFloat(i.rsu_conversion_rate) : null
       }));
       
       // Map fixed expenses
@@ -1361,6 +1364,9 @@ serve(async (req) => {
       if (body.rsu_currency) insertData.rsu_currency = body.rsu_currency;
       if (body.rsu_stock_price !== undefined) insertData.rsu_stock_price = body.rsu_stock_price;
       if (body.rsu_stock_price !== undefined) insertData.rsu_price_updated_at = new Date().toISOString();
+      if (body.rsu_tax_rate !== undefined) insertData.rsu_tax_rate = body.rsu_tax_rate;
+      if (body.rsu_expected_decline !== undefined) insertData.rsu_expected_decline = body.rsu_expected_decline;
+      if (body.rsu_conversion_rate !== undefined) insertData.rsu_conversion_rate = body.rsu_conversion_rate;
       // Store encrypted versions if provided
       if (body.source_enc) insertData.source_enc = body.source_enc;
       if (body.source_iv) insertData.source_iv = body.source_iv;
@@ -1403,6 +1409,9 @@ serve(async (req) => {
         updates.rsu_stock_price = body.rsu_stock_price;
         updates.rsu_price_updated_at = new Date().toISOString();
       }
+      if (body.rsu_tax_rate !== undefined) updates.rsu_tax_rate = body.rsu_tax_rate;
+      if (body.rsu_expected_decline !== undefined) updates.rsu_expected_decline = body.rsu_expected_decline;
+      if (body.rsu_conversion_rate !== undefined) updates.rsu_conversion_rate = body.rsu_conversion_rate;
       // E2E: Include encrypted fields if provided
       if (body.source_enc) updates.source_enc = body.source_enc;
       if (body.source_iv) updates.source_iv = body.source_iv;
@@ -1872,6 +1881,73 @@ serve(async (req) => {
       if (deleted) await logActivity(userId, 'future_bomb', 'deleted future bomb', { id, name: deleted.name });
       await invalidateUserCache(userId);
       return json({ data: { deleted: true } });
+    }
+
+    // STOCK QUOTE (Yahoo Finance)
+    if (path === '/stock/quote' && method === 'GET') {
+      const ticker = url.searchParams.get('ticker');
+      const convertTo = url.searchParams.get('convert_to');
+      if (!ticker) return error('Ticker symbol is required');
+
+      try {
+        // Fetch stock data from Yahoo Finance v8 chart API
+        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+        const yahooRes = await fetch(yahooUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (!yahooRes.ok) {
+          const errText = await yahooRes.text();
+          console.error('[STOCK_QUOTE] Yahoo Finance error:', yahooRes.status, errText);
+          return error(`Could not fetch quote for "${ticker}". Verify the ticker symbol.`, 404);
+        }
+        const yahooData = await yahooRes.json();
+        const meta = yahooData?.chart?.result?.[0]?.meta;
+        if (!meta) return error(`No data found for ticker "${ticker}"`, 404);
+
+        const stockPrice = meta.regularMarketPrice ?? meta.previousClose;
+        const stockCurrency = (meta.currency || 'USD').toUpperCase();
+        const stockName = meta.shortName || meta.longName || meta.symbol || ticker;
+        const exchange = meta.exchangeName || meta.fullExchangeName || '';
+
+        const result: any = {
+          ticker: meta.symbol || ticker.toUpperCase(),
+          name: stockName,
+          price: stockPrice,
+          currency: stockCurrency,
+          exchange
+        };
+
+        // Currency conversion if requested and different from stock currency
+        if (convertTo && convertTo.toUpperCase() !== stockCurrency) {
+          const forexTicker = `${stockCurrency}${convertTo.toUpperCase()}=X`;
+          try {
+            const forexUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(forexTicker)}?interval=1d&range=1d`;
+            const forexRes = await fetch(forexUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            if (forexRes.ok) {
+              const forexData = await forexRes.json();
+              const forexMeta = forexData?.chart?.result?.[0]?.meta;
+              const rate = forexMeta?.regularMarketPrice ?? forexMeta?.previousClose;
+              if (rate) {
+                result.conversionRate = rate;
+                result.convertedPrice = Math.round(stockPrice * rate * 100) / 100;
+                result.convertedCurrency = convertTo.toUpperCase();
+              }
+            } else {
+              console.warn(`[STOCK_QUOTE] Forex fetch failed for ${forexTicker}:`, forexRes.status);
+              // Continue without conversion - return stock price as-is
+            }
+          } catch (forexErr) {
+            console.warn('[STOCK_QUOTE] Forex conversion error:', forexErr);
+          }
+        }
+
+        return json({ data: result });
+      } catch (fetchErr: any) {
+        console.error('[STOCK_QUOTE] Fetch error:', fetchErr);
+        return error('Failed to fetch stock quote: ' + fetchErr.message, 500);
+      }
     }
 
     // PREFERENCES

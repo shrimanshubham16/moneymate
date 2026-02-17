@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes, FaComments, FaBomb, FaStar } from "react-icons/fa";
+import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes, FaComments, FaBomb, FaStar, FaSlidersH } from "react-icons/fa";
 import "./LandingPage.css";
 
 export function LandingPage() {
@@ -22,7 +22,8 @@ export function LandingPage() {
           <h1>Your Finances,<br /><span className="gradient-text">Truly Private</span></h1>
           <p className="hero-subtitle">
             The only personal finance app where <strong>even we can't see your data</strong>.
-            Plan expenses, track investments, and stay financially healthy — all encrypted on your device, forever free.
+            Plan expenses, track investments with live stock prices, defuse future bombs with three strategies,
+            and stay financially healthy — all encrypted on your device, forever free.
           </p>
           <div className="hero-actions">
             <button className="cta-primary" onClick={() => window.location.href = "/"}>
@@ -154,8 +155,8 @@ export function LandingPage() {
             <div className="feature-icon investment">
               <FaChartLine />
             </div>
-            <h3>Investment & RSU Tracking</h3>
-            <p>Track SIPs, mutual funds, RSU grants with vesting schedules. Mark priority investments to protect them.</p>
+            <h3>RSU & Investment Tracking</h3>
+            <p>Track SIPs, mutual funds, and RSU grants with live stock prices, tax withholding, currency conversion, and priority protection — all auto-refreshed.</p>
           </motion.div>
 
           <motion.div
@@ -168,8 +169,8 @@ export function LandingPage() {
             <div className="feature-icon alerts">
               <FaBomb />
             </div>
-            <h3>Smart Future Bomb Defusal</h3>
-            <p>Large upcoming expense? We calculate the exact monthly SIP to defuse it — and suggest pausing non-priority investments if needed.</p>
+            <h3>3-Path Bomb Defusal</h3>
+            <p>Big expense incoming? Choose to pause investments, sell RSU shares (at conservative prices), or build your own custom mix — with real-time feedback.</p>
           </motion.div>
 
           <motion.div
@@ -363,7 +364,7 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="landing-footer">
-        <p>Built with privacy in mind • v2.5 • © 2026 FinFlow</p>
+        <p>Built with privacy in mind • v2.6 • © 2026 FinFlow</p>
       </footer>
     </div>
   );

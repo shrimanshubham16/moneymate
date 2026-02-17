@@ -17,7 +17,7 @@ const commitId = typeof __COMMIT_ID__ !== 'undefined' ? __COMMIT_ID__ : 'dev';
 
 export const VERSION = {
   major: 2,
-  minor: 5,
+  minor: 6,
   patch: 0,
   build: commitId, // Git commit ID (short SHA)
   
@@ -32,7 +32,7 @@ export const VERSION = {
   },
   
   // Code name for this release
-  codeName: "Smart Features Upgrade",
+  codeName: "Live Pricing & 3-Path Defusal",
 
   // Release date
   releaseDate: "Feb 18, 2026",
@@ -55,8 +55,10 @@ export const VERSION = {
     "Activity Pins & Comments — Pin activities, inline real-time comments for shared accounts",
     "Smart Notifications — Auto-alerts for unpaid dues, overspends, health drops, CC billing",
     "Investment Priority — Mark investments as priority to protect from pause suggestions",
-    "Smart Future Bomb Defusal — Monthly SIP calculation with investment pause suggestions",
-    "RSU Income Support — Track vesting RSUs with live stock price lookup",
+    "3-Path Future Bomb Defusal — Pause investments, sell RSU shares, or custom mix with live feedback",
+    "RSU Live Pricing — Verify stock tickers with real-time market data, auto-refresh on dashboard",
+    "Conservative RSU Planning — Net shares after tax withholding + configurable decline buffer",
+    "Currency Conversion — Automatic forex rate for RSU stocks in different currencies",
     "Income Health Toggle — Choose which income sources count toward health score",
     "Bill Start Date Reset — Properly resets billing cycle when start day changes"
   ]

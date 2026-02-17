@@ -34,6 +34,8 @@ export function useEncryptedApiCalls() {
       baseApi.updateIncome(token, id, data, key || undefined),
     deleteIncome: (token: string, id: string) => 
       baseApi.deleteIncome(token, id),
+    fetchStockQuote: (token: string, ticker: string, convertTo?: string) =>
+      baseApi.fetchStockQuote(token, ticker, convertTo),
     
     // Fixed Expenses
     createFixedExpense: (token: string, data: any) => 

@@ -73,6 +73,42 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const data = dashRes.data;
       const healthData = healthRes.data;
 
+      // Auto-refresh RSU stock prices for accurate health calculation
+      const rsuIncomes = (data.incomes || []).filter(
+        (inc: any) => inc.incomeType === 'rsu' && inc.rsuTicker && inc.includeInHealth !== false
+      );
+      if (rsuIncomes.length > 0) {
+        const userCurrency = data.preferences?.currency || 'INR';
+        const tickers = [...new Set(rsuIncomes.map((inc: any) => inc.rsuTicker))];
+        try {
+          const quotes = await Promise.allSettled(
+            tickers.map((t: string) => api.fetchStockQuote(token, t, userCurrency))
+          );
+          const quoteMap: Record<string, any> = {};
+          quotes.forEach((result, idx) => {
+            if (result.status === 'fulfilled') quoteMap[tickers[idx] as string] = result.value.data;
+          });
+          // Update incomes in data with fresh prices
+          data.incomes = (data.incomes || []).map((inc: any) => {
+            if (inc.incomeType !== 'rsu' || !inc.rsuTicker || !quoteMap[inc.rsuTicker]) return inc;
+            const quote = quoteMap[inc.rsuTicker];
+            const taxRate = inc.rsuTaxRate ?? 33;
+            const netShares = Math.round((inc.rsuGrantCount || 0) * (1 - taxRate / 100));
+            const priceInUserCur = quote.conversionRate ? quote.price * quote.conversionRate : quote.price;
+            const newAmount = Math.round((netShares * priceInUserCur / 12) * 100) / 100;
+            // Background update stored price
+            api.updateIncome(token, inc.id, {
+              amount: newAmount,
+              rsu_stock_price: quote.price,
+              rsu_conversion_rate: quote.conversionRate || undefined
+            }).catch(() => {});
+            return { ...inc, amount: newAmount, rsuStockPrice: quote.price, rsuConversionRate: quote.conversionRate };
+          });
+        } catch (err) {
+          console.warn('[HEALTH_RSU_REFRESH] Failed:', err);
+        }
+      }
+
       // Thresholds
       if (thresholdsRes) {
         setThresholds(thresholdsRes.data || thresholdsRes);
