@@ -29,6 +29,12 @@ export function Modal({ isOpen, onClose, title, children, footer, size = "md" }:
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          onClick={(e) => {
+            // Close modal when clicking overlay (not the modal content)
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
         >
           <motion.div
             className={`modal-shell modal-${size}`}
@@ -37,6 +43,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = "md" }:
             initial={{ opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.98 }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
               <h3>{title}</h3>
