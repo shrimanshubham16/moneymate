@@ -1,83 +1,382 @@
+/* SIP Expenses Page – Premium Dark Theme */
+
 .sip-expenses-page {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 24px;
+  padding: var(--space-10) var(--space-6);
+  min-height: calc(100vh - 72px);
 }
 
-.sip-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 20px;
+.sip-expenses-page .page-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
-.sip-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
+.sip-expenses-page .page-header h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+
+/* ── Summary Hero ── */
+.sip-summary-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-bottom: var(--space-8);
+  padding: var(--space-6) var(--space-7);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184,193,236,0.08));
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
   position: relative;
+  overflow: hidden;
 }
 
+.sip-summary-hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e0b, #a78bfa, #22d3ee);
+}
+
+.sip-hero-main {
+  flex: 1;
+  min-width: 200px;
+}
+
+.sip-hero-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-1);
+}
+
+.sip-hero-amount {
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #f59e0b, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+}
+
+.sip-hero-stats {
+  display: flex;
+  gap: var(--space-6);
+  align-items: center;
+}
+
+.sip-hero-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--space-5);
+  border-left: 1px solid rgba(184,193,236,0.12);
+}
+
+.sip-hero-stat:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.sip-stat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sip-stat-value {
+  font-size: var(--text-xl);
+  font-weight: var(--font-extrabold);
+  color: var(--text-primary);
+}
+
+.sip-stat-value.stat-count { color: var(--accent-cyan, #22d3ee); }
+.sip-stat-value.stat-total { color: #f59e0b; }
+.sip-stat-value.stat-accumulated { color: #10b981; }
+
+/* ── SIP Grid ── */
+.sip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-5);
+}
+
+/* ── SIP Card ── */
+.sip-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184,193,236,0.08));
+  border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.sip-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e0b, #a78bfa);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.sip-card:hover {
+  border-color: rgba(245,158,11,0.2);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.sip-card:hover::before {
+  opacity: 1;
+}
+
+.sip-card.shared-item {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
+/* Card Header */
 .sip-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  gap: var(--space-3);
+}
+
+.sip-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex: 1;
+}
+
+.sip-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-lg);
+  background: rgba(245,158,11,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f59e0b;
+  flex-shrink: 0;
+  font-size: 15px;
 }
 
 .sip-header h3 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: dimgrey;
-  /* FIX: Visible on dark theme */
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sip-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .sip-badge {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  color: #92400e;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.68rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgba(245,158,11,0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.2);
 }
 
-.sip-details {
+.sip-freq-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: rgba(167,139,250,0.12);
+  color: #a78bfa;
+  border: 1px solid rgba(167,139,250,0.2);
+  text-transform: capitalize;
+}
+
+.sip-owner-badge {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  background: var(--bg-base);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Card Details Grid */
+.sip-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.sip-detail-item {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 1px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-base);
+  border-radius: var(--radius-md);
 }
 
-.detail-item {
+.sip-detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.sip-detail-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sip-detail-value {
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.sip-detail-value.val-total { color: #f59e0b; }
+.sip-detail-value.val-monthly { color: var(--accent-cyan, #22d3ee); }
+.sip-detail-value.val-accumulated { color: #10b981; }
+.sip-detail-value.val-category { color: #a78bfa; }
+
+/* Accumulation Progress */
+.sip-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sip-progress-meta {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-}
-
-.detail-item .label {
-  font-size: 14px;
-  color: #64748b;
+  font-size: 0.7rem;
   font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.detail-item .value {
-  font-size: 16px;
-  font-weight: 700;
-  color: dimgrey;
-  /* FIX: Visible on dark theme */
+.sip-progress-bar {
+  height: 6px;
+  background: var(--bg-base);
+  border-radius: 3px;
+  overflow: hidden;
 }
 
-.sip-growth-info {
-  background: #fef3c7;
-  border-radius: 12px;
-  padding: 12px;
-  margin-top: 16px;
+.sip-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #f59e0b, #10b981);
+  transition: width 0.5s ease;
 }
 
-.sip-growth-info p {
-  margin: 0;
-  font-size: 14px;
-  color: #92400e;
+/* Tip Banner */
+.sip-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.12);
+  border-radius: var(--radius-lg);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
   line-height: 1.5;
+}
+
+.sip-tip svg {
+  color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ── Empty State ── */
+.sip-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-16) var(--space-6);
+  gap: var(--space-4);
+}
+
+.sip-empty-state h3 {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.sip-empty-state p {
+  color: var(--text-secondary);
+  max-width: 400px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .sip-expenses-page {
+    padding: var(--space-8) var(--space-4);
+  }
+
+  .sip-summary-hero {
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+
+  .sip-hero-amount {
+    font-size: 2rem;
+  }
+
+  .sip-hero-stats {
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  }
+
+  .sip-hero-stat {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .sip-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sip-details-grid {
+    grid-template-columns: 1fr;
+  }
 }
