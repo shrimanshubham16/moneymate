@@ -327,6 +327,9 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       remaining,
       monthsLeft,
       monthlySIP,
+      monthlyEquivalent: monthlySIP, // getDefusalData reads this field
+      defusalMonths: monthsLeft,
+      preparednessRatio: totalAmount > 0 ? savedAmount / totalAmount : 0,
       progress,
     };
   };

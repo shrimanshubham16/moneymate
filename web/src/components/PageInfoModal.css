@@ -1,4 +1,5 @@
-/* Page Info Modal — Premium Glass Card */
+/* Page Info Modal — Premium Glass Card
+   Forces dark-mode context to guarantee visible text regardless of app theme */
 
 .pim-overlay {
   position: fixed;
@@ -27,6 +28,16 @@
   box-shadow:
     0 32px 80px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(0, 217, 255, 0.06);
+  /* Force dark color context — immune to light-theme globals */
+  color-scheme: dark;
+  color: #ffffff;
+}
+
+/* Ensure ALL nested text inherits white base (overrides global --text-primary) */
+.pim-card *,
+.pim-card *::before,
+.pim-card *::after {
+  color: inherit;
 }
 
 .pim-accent-bar {
@@ -51,7 +62,7 @@
   border-radius: 8px;
   border: none;
   background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.4) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -62,7 +73,7 @@
 
 .pim-close:hover {
   background: rgba(255, 0, 110, 0.12);
-  color: #FF006E;
+  color: #FF006E !important;
   transform: rotate(90deg);
 }
 
@@ -90,7 +101,7 @@
 .pim-title {
   font-size: 20px;
   font-weight: 800;
-  color: #ffffff;
+  color: #ffffff !important;
   margin: 0;
   line-height: 1.35;
   letter-spacing: -0.01em;
@@ -98,7 +109,7 @@
 
 .pim-desc {
   font-size: 14.5px;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.78) !important;
   line-height: 1.72;
   margin: 0 0 22px 0;
 }
@@ -133,7 +144,7 @@
   display: block;
   font-size: 11px;
   font-weight: 700;
-  color: #00D9FF;
+  color: #00D9FF !important;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 6px;
@@ -141,7 +152,7 @@
 
 .pim-impact-content p {
   font-size: 13.5px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.7) !important;
   line-height: 1.6;
   margin: 0;
 }
@@ -153,7 +164,7 @@
 .pim-steps-header {
   font-size: 10.5px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.45) !important;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 14px;
@@ -184,7 +195,7 @@
   border-radius: 50%;
   background: rgba(167, 139, 250, 0.12);
   border: 1.5px solid rgba(167, 139, 250, 0.3);
-  color: #c4b5fd;
+  color: #c4b5fd !important;
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -203,7 +214,7 @@
 
 .pim-step-text {
   font-size: 13.5px;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.72) !important;
   line-height: 1.55;
   margin: 0;
   padding-bottom: 14px;
@@ -229,7 +240,7 @@
   border: none;
   border-radius: 12px;
   background: linear-gradient(135deg, #00D9FF 0%, #A78BFA 100%);
-  color: #0a0e27;
+  color: #0a0e27 !important;
   font-size: 14.5px;
   font-weight: 700;
   cursor: pointer;
@@ -237,6 +248,14 @@
   letter-spacing: 0.01em;
   position: relative;
   overflow: hidden;
+}
+
+.pim-cta span {
+  color: #0a0e27 !important;
+}
+
+.pim-cta svg {
+  color: #0a0e27 !important;
 }
 
 .pim-cta::after {

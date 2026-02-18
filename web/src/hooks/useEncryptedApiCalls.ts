@@ -187,6 +187,10 @@ export function useEncryptedApiCalls() {
 
     // Utility
     getBaseUrl: () => baseApi.getBaseUrl(),
+
+    // Avatar
+    updateAvatarUrl: (token: string, avatarUrl: string) =>
+      baseApi.updateAvatarUrl(token, avatarUrl),
   };
 }
 

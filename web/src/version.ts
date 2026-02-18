@@ -17,7 +17,7 @@ const commitId = typeof __COMMIT_ID__ !== 'undefined' ? __COMMIT_ID__ : 'dev';
 
 export const VERSION = {
   major: 2,
-  minor: 6,
+  minor: 7,
   patch: 0,
   build: commitId, // Git commit ID (short SHA)
   
@@ -32,7 +32,7 @@ export const VERSION = {
   },
   
   // Code name for this release
-  codeName: "Live Pricing & 3-Path Defusal",
+  codeName: "Profile & Avatar",
 
   // Release date
   releaseDate: "Feb 18, 2026",
@@ -60,7 +60,10 @@ export const VERSION = {
     "Conservative RSU Planning — Net shares after tax withholding + configurable decline buffer",
     "Currency Conversion — Automatic forex rate for RSU stocks in different currencies",
     "Income Health Toggle — Choose which income sources count toward health score",
-    "Bill Start Date Reset — Properly resets billing cycle when start day changes"
+    "Bill Start Date Reset — Properly resets billing cycle when start day changes",
+    "Account Page Redesign — Premium dark theme with profile hero & detail sections",
+    "Avatar Upload — Upload your profile picture via Supabase Storage",
+    "Tooltip & Modal Fixes — Forced dark context for text visibility across all themes"
   ]
 };
 

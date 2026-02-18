@@ -751,12 +751,26 @@ serve(async (req) => {
     if (path === '/user/profile' && method === 'GET') {
       const { data: profile, error: profileErr } = await supabase
         .from('users')
-        .select('id, username, encryption_salt, created_at')
+        .select('id, username, encryption_salt, avatar_url, created_at')
         .eq('id', userId)
         .single();
       
       if (profileErr || !profile) return error('User not found', 404);
       return json({ data: profile });
+    }
+    
+    // UPDATE user avatar URL
+    if (path === '/user/avatar' && method === 'PUT') {
+      const body = await req.json();
+      const { avatar_url } = body;
+      
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update({ avatar_url })
+        .eq('id', userId);
+      
+      if (updateErr) return error(updateErr.message, 500);
+      return json({ data: { avatar_url } });
     }
     
     // UPDATE user password (authenticated - requires old password)
@@ -2156,7 +2170,7 @@ serve(async (req) => {
 
     // AUTH/ME - Get current user info
     if (path === '/auth/me' && method === 'GET') {
-      const { data: userData } = await supabase.from('users').select('id, username, encryption_salt, created_at').eq('id', userId).single();
+      const { data: userData } = await supabase.from('users').select('id, username, encryption_salt, avatar_url, created_at').eq('id', userId).single();
       return json({ data: userData });
     }
 

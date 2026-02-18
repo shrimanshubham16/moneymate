@@ -645,3 +645,8 @@ export async function fetchHealthDetails(token: string, asOf?: string, cryptoKey
   const query = asOf ? `?today=${encodeURIComponent(asOf)}` : "";
   return request<{ data: any }>(`/health/details${query}`, { method: "GET" }, token, cryptoKey);
 }
+
+// Avatar
+export async function updateAvatarUrl(token: string, avatarUrl: string) {
+  return request<{ data: { avatar_url: string } }>("/user/avatar", { method: "PUT", body: JSON.stringify({ avatar_url: avatarUrl }) }, token);
+}
