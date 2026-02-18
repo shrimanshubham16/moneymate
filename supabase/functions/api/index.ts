@@ -589,6 +589,26 @@ serve(async (req) => {
       const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
       const { data: loans } = await supabase.from('loans').select('*').eq('user_id', userId);
       
+      // Fetch user's health thresholds
+      const { data: userThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).single();
+      const ht = userThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
+      
+      // Fetch payment status to know which items are paid this billing period
+      const todayForPayments = new Date();
+      const { data: prefsForBilling } = await supabase.from('user_preferences')
+        .select('month_start_day').eq('user_id', userId).single();
+      const msd = prefsForBilling?.month_start_day || 1;
+      let bms: Date;
+      if (todayForPayments.getDate() >= msd) {
+        bms = new Date(todayForPayments.getFullYear(), todayForPayments.getMonth(), msd);
+      } else {
+        bms = new Date(todayForPayments.getFullYear(), todayForPayments.getMonth() - 1, msd);
+      }
+      const billingMo = `${bms.getFullYear()}-${String(bms.getMonth() + 1).padStart(2, '0')}`;
+      const { data: paymentsData } = await supabase.from('payments')
+        .select('entity_type, entity_id').eq('user_id', userId).eq('month', billingMo);
+      const paidSet = new Set((paymentsData || []).map((p: any) => `${p.entity_type}:${p.entity_id}`));
+      
       // Calculate totals — filter out incomes excluded from health
       const healthIncomeItems = (incomes || []).filter((i: any) => i.include_in_health !== false);
       const incomeItems = healthIncomeItems.map((i: any) => ({
@@ -598,23 +618,30 @@ serve(async (req) => {
       }));
       const totalIncome = incomeItems.reduce((sum: number, i: any) => sum + i.monthlyEquivalent, 0);
       
+      // Fixed expenses — only count UNPAID ones
       const fixedExpenseItems = (fixedExpenses || []).map((e: any) => ({
         ...e,
+        paid: paidSet.has(`fixed_expense:${e.id}`),
         monthlyEquivalent: e.frequency === 'monthly' ? e.amount :
           e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12
       }));
-      const totalFixedExpenses = fixedExpenseItems.reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
+      const unpaidFixedExpenseItems = fixedExpenseItems.filter((e: any) => !e.paid);
+      const totalFixedExpenses = unpaidFixedExpenseItems.reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
       
+      // Variable expenses — exclude ExtraCash & CreditCard payment modes from actual totals
       const variablePlanItems = (variablePlans || []).map((p: any) => {
-        const actuals = (variableActuals || []).filter((a: any) => a.plan_id === p.id);
-        const calcActualTotal = actuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
-        return { ...p, actuals, actualTotal: calcActualTotal };
+        const allActuals = (variableActuals || []).filter((a: any) => a.plan_id === p.id);
+        const healthActuals = allActuals.filter((a: any) => a.payment_mode !== 'ExtraCash' && a.payment_mode !== 'CreditCard');
+        const calcActualTotal = healthActuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
+        return { ...p, actuals: allActuals, actualTotal: calcActualTotal };
       });
       const totalVariablePlanned = variablePlanItems.reduce((sum: number, p: any) => sum + (p.planned || 0), 0);
       const totalVariableActual = variablePlanItems.reduce((sum: number, p: any) => sum + p.actualTotal, 0);
       
+      // Investments — only count UNPAID active ones
       const activeInvestments = (investments || []).filter((i: any) => i.status === 'active');
-      const totalInvestments = activeInvestments.reduce((sum: number, i: any) => sum + (i.monthly_amount || 0), 0);
+      const unpaidActiveInvestments = activeInvestments.filter((i: any) => !paidSet.has(`investment:${i.id}`));
+      const totalInvestments = unpaidActiveInvestments.reduce((sum: number, i: any) => sum + (i.monthly_amount || 0), 0);
       
       const creditCardItems = (creditCards || []).map((c: any) => ({
         ...c,
@@ -638,17 +665,16 @@ serve(async (req) => {
       const totalExpenses = totalFixedExpenses + effectiveVariable + totalInvestments + totalCreditCardDue;
       const remaining = totalIncome - totalExpenses;
       
-      // Determine category - MUST match PostgreSQL calculate_full_health function
-      // Good: Remaining > ₹10,000
-      // OK: Remaining >= 0 (but <= 10,000)
-      // Not Well: Short by ₹1 - ₹3,000 (remaining is -3000 to -1)
-      // Worrisome: Short by > ₹3,000 (remaining < -3000)
+      // Determine category using PERCENTAGE-BASED thresholds (matching frontend)
+      const healthScore = totalIncome > 0
+        ? Math.max(0, Math.min(100, (remaining / totalIncome) * 100))
+        : 0;
       let category: string;
-      if (remaining > 10000) {
+      if (healthScore >= ht.good_min) {
         category = 'good';
-      } else if (remaining >= 0) {
+      } else if (healthScore >= ht.ok_min && healthScore <= ht.ok_max) {
         category = 'ok';
-      } else if (remaining >= -3000) {
+      } else if (healthScore >= 0 && healthScore <= ht.not_well_max) {
         category = 'not_well';
       } else {
         category = 'worrisome';
@@ -975,6 +1001,10 @@ serve(async (req) => {
       const t2 = Date.now();
       const today = new Date();
       
+      // Fetch user's configurable health thresholds
+      const { data: userHealthThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).single();
+      const ht = userHealthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
+      
       // Calculate health using same logic as /health/details endpoint
       // Filter out incomes where include_in_health is explicitly false
       const healthIncomes = (directIncomes || []).filter((i: any) => i.include_in_health !== false);
@@ -991,8 +1021,9 @@ serve(async (req) => {
       const calcTotalFixed = fixedItems.reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
       
       const calcTotalVariablePlanned = (directVariablePlans || []).reduce((sum: number, p: any) => sum + (p.planned || 0), 0);
+      // Exclude ExtraCash and CreditCard payment modes from actual totals (they don't reduce available funds)
       const calcTotalVariableActual = (directVariablePlans || []).reduce((sum: number, p: any) => {
-        const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === p.id);
+        const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === p.id && a.payment_mode !== 'ExtraCash' && a.payment_mode !== 'CreditCard');
         return sum + actuals.reduce((s: number, a: any) => s + (a.amount || 0), 0);
       }, 0);
       
@@ -1014,13 +1045,16 @@ serve(async (req) => {
       // Final remaining
       const calcRemaining = calcTotalIncome - (calcTotalFixed + calcEffectiveVariable + calcTotalInvestments + calcTotalCreditCard);
       
-      // Category - must match /health/details exactly
+      // Category — use PERCENTAGE-BASED configurable thresholds (matching frontend)
+      const calcHealthScore = calcTotalIncome > 0
+        ? Math.max(0, Math.min(100, (calcRemaining / calcTotalIncome) * 100))
+        : 0;
       let calcCategory: string;
-      if (calcRemaining > 10000) {
+      if (calcHealthScore >= ht.good_min) {
         calcCategory = 'good';
-      } else if (calcRemaining >= 0) {
+      } else if (calcHealthScore >= ht.ok_min && calcHealthScore <= ht.ok_max) {
         calcCategory = 'ok';
-      } else if (calcRemaining >= -3000) {
+      } else if (calcHealthScore >= 0 && calcHealthScore <= ht.not_well_max) {
         calcCategory = 'not_well';
       } else {
         calcCategory = 'worrisome';
@@ -1029,7 +1063,8 @@ serve(async (req) => {
       const healthData = {
         health: {
           remaining: Math.round(calcRemaining),
-          category: calcCategory
+          category: calcCategory,
+          score: Math.round(calcHealthScore * 100) / 100
         }
       };
       timings.healthCalc = Date.now() - t2;
@@ -1264,7 +1299,8 @@ serve(async (req) => {
           monthStartDay: userPrefs.month_start_day || 1,
           currency: userPrefs.currency || 'INR'
         } : { monthStartDay: 1, currency: 'INR' },
-        health: healthData?.health || { remaining: 0, category: 'ok' },
+        health: healthData?.health || { remaining: 0, category: 'ok', score: 0 },
+        healthThresholds: { good_min: ht.good_min, ok_min: ht.ok_min, ok_max: ht.ok_max, not_well_max: ht.not_well_max },
         constraintScore: constraint ? {
           score: constraint.score,
           tier: constraint.tier,
@@ -1748,13 +1784,18 @@ serve(async (req) => {
     if (path === '/planning/investments' && method === 'POST') {
       const body = await req.json();
       console.log(`[INVESTMENT_CREATE] Creating investment for user ${userId}, body:`, body);
-      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
+      // Validation
       const hasEncryption = body.name_enc && body.name_iv;
+      if (!body.name && !hasEncryption) return error('Investment name is required', 400);
+      if (body.monthly_amount !== undefined && (isNaN(body.monthly_amount) || body.monthly_amount < 0)) {
+        return error('Monthly amount must be a non-negative number', 400);
+      }
+      // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
       const insertData: any = { 
         user_id: userId, 
-        name: body.name || (hasEncryption ? '[encrypted]' : null), 
-        goal: body.goal || (body.goal_enc ? '[encrypted]' : null), 
-        monthly_amount: body.monthly_amount ?? (body.monthly_amount_enc ? 0 : null), 
+        name: body.name || (hasEncryption ? '[encrypted]' : 'Untitled'), 
+        goal: body.goal || (body.goal_enc ? '[encrypted]' : ''), 
+        monthly_amount: body.monthly_amount ?? (body.monthly_amount_enc ? 0 : 0), 
         status: body.status || 'active',
         is_priority: body.is_priority || false
       };

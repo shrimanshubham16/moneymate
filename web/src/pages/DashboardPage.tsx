@@ -155,12 +155,15 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const ccDues = ownCcDues + sharedCreditCardDues;
     
     // Calculate total income (own + shared) - use filtered ownIncomes
-    const ownIncome = ownIncomes.reduce((sum: number, inc: any) => {
-      const amount = parseFloat(inc.amount) || 0;
-      const monthly = inc.frequency === 'monthly' ? amount :
-        inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
-      return sum + monthly;
-    }, 0);
+    // Respect includeInHealth flag: exclude incomes where includeInHealth === false
+    const ownIncome = ownIncomes
+      .filter((inc: any) => inc.includeInHealth !== false)
+      .reduce((sum: number, inc: any) => {
+        const amount = parseFloat(inc.amount) || 0;
+        const monthly = inc.frequency === 'monthly' ? amount :
+          inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
+        return sum + monthly;
+      }, 0);
     const totalIncome = ownIncome + sharedIncomeTotal;
     
     // Calculate unpaid fixed expenses (respecting 'paid' status) - use filtered ownFixedExpenses
@@ -205,11 +208,16 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const totalOutflow = unpaidFixedTotal + variableTotal + unpaidInvestmentsTotal + ccDues;
     const remaining = totalIncome - totalOutflow;
     
-    // Determine category
+    // Determine category using PERCENTAGE-BASED configurable thresholds
+    // Use thresholds from dashboard response, fallback to defaults
+    const ht = data.healthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
+    const healthScore = totalIncome > 0
+      ? Math.max(0, Math.min(100, (remaining / totalIncome) * 100))
+      : 0;
     let category: string;
-    if (remaining > 10000) category = "good";
-    else if (remaining >= 0) category = "ok";
-    else if (remaining >= -3000) category = "not_well";
+    if (healthScore >= ht.good_min) category = "good";
+    else if (healthScore >= ht.ok_min && healthScore <= ht.ok_max) category = "ok";
+    else if (healthScore >= 0 && healthScore <= ht.not_well_max) category = "not_well";
     else category = "worrisome";
     
     

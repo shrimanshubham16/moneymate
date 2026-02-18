@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaUsers, FaExclamationTriangle } from "react-icons/fa";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaUsers, FaExclamationTriangle, FaStar, FaShieldAlt } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -142,15 +142,33 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   };
 
   const handleTogglePause = async (inv: any) => {
+    // Priority investments cannot be paused
+    if (inv.isPriority && inv.status === "active") {
+      showAlert("This investment is marked as Priority (Critical) and cannot be paused. Remove the Priority tag first if you want to pause it.");
+      return;
+    }
     try {
       if (inv.status === "active") {
         await api.pauseInvestment(token, inv.id);
       } else {
         await api.resumeInvestment(token, inv.id);
       }
+      invalidateDashboardCache();
       await loadInvestments();
     } catch (e: any) {
       showAlert(e.message);
+    }
+  };
+
+  const handleTogglePriority = async (inv: any) => {
+    try {
+      const newPriority = !inv.isPriority;
+      await api.updateInvestment(token, inv.id, { isPriority: newPriority });
+      // Optimistic update
+      setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, isPriority: newPriority } : i));
+      invalidateDashboardCache();
+    } catch (e: any) {
+      showAlert("Failed to update priority: " + e.message);
     }
   };
 
@@ -258,8 +276,18 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                   transition={{ delay: index * 0.05 }}
                 >
                   <div className="investment-info">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <h3>{displayName}</h3>
+                      {inv.isPriority && (
+                        <span style={{ 
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          fontSize: 10, fontWeight: 700, color: '#f59e0b',
+                          background: 'rgba(245, 158, 11, 0.12)', padding: '2px 8px', borderRadius: 12,
+                          border: '1px solid rgba(245, 158, 11, 0.25)', letterSpacing: '0.5px', textTransform: 'uppercase'
+                        }}>
+                          <FaShieldAlt size={10} /> Critical
+                        </span>
+                      )}
                       {/* Owner badge for shared views */}
                       {isSharedView && (
                         <span className={`owner-badge ${isOwn ? 'own' : 'shared'}`}>
@@ -292,6 +320,14 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                     {isOwn ? (
                       <>
                         <button 
+                          className={`icon-btn priority-btn ${inv.isPriority ? 'active' : ''}`}
+                          onClick={() => handleTogglePriority(inv)}
+                          title={inv.isPriority ? "Remove Priority (can be paused for Future Bombs)" : "Mark as Critical (never paused)"}
+                          style={{ color: inv.isPriority ? '#f59e0b' : 'rgba(255,255,255,0.3)' }}
+                        >
+                          <FaStar />
+                        </button>
+                        <button 
                           className="icon-btn wallet-btn" 
                           onClick={() => {
                             const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
@@ -310,9 +346,12 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                           <FaEdit />
                         </button>
                         <button 
-                          className="icon-btn pause-btn" 
+                          className={`icon-btn pause-btn ${inv.isPriority && inv.status === "active" ? "disabled" : ""}`}
                           onClick={() => handleTogglePause(inv)}
-                          title={inv.status === "active" ? "Pause" : "Resume"}
+                          title={inv.isPriority && inv.status === "active" 
+                            ? "Critical investment — cannot be paused" 
+                            : inv.status === "active" ? "Pause" : "Resume"}
+                          style={inv.isPriority && inv.status === "active" ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
                         >
                           {inv.status === "active" ? <FaPause /> : <FaPlay />}
                         </button>

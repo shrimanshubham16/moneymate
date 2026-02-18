@@ -75,6 +75,11 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
   };
 
   const handlePauseResume = async (inv: any) => {
+    // Priority investments cannot be paused
+    if (inv.isPriority && inv.status === "active") {
+      showAlert("This investment is marked as Priority (Critical) and cannot be paused. Remove the Priority tag first if you want to pause it.");
+      return;
+    }
     try {
       if (inv.status === "active") {
         await api.pauseInvestment(token, inv.id);
@@ -228,9 +233,12 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                       <FaEdit />
                     </button>
                     <button 
-                      className="icon-btn pause-btn" 
+                      className={`icon-btn pause-btn ${inv.isPriority && inv.status === "active" ? "disabled" : ""}`}
                       onClick={() => handlePauseResume(inv)}
-                      title={inv.status === "active" ? "Pause" : "Resume"}
+                      title={inv.isPriority && inv.status === "active" 
+                        ? "Priority investment — cannot be paused" 
+                        : inv.status === "active" ? "Pause" : "Resume"}
+                      style={inv.isPriority && inv.status === "active" ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
                     >
                       {inv.status === "active" ? <FaPause /> : <FaPlay />}
                     </button>

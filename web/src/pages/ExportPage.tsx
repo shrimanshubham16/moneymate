@@ -93,11 +93,14 @@ export function ExportPage({ token }: ExportPageProps) {
       } catch {}
 
       // Recalculate totals after decryption - MATCHING HEALTH PAGE LOGIC
-      const recalcTotalIncome = (data.incomes || []).reduce((sum: number, i: any) => {
-        const amount = parseFloat(i.amount) || 0;
-        const monthly = i.frequency === 'monthly' ? amount : i.frequency === 'quarterly' ? amount / 3 : amount / 12;
-        return sum + monthly;
-      }, 0);
+      // Respect includeInHealth flag for health calculation
+      const recalcTotalIncome = (data.incomes || [])
+        .filter((i: any) => i.includeInHealth !== false)
+        .reduce((sum: number, i: any) => {
+          const amount = parseFloat(i.amount) || 0;
+          const monthly = i.frequency === 'monthly' ? amount : i.frequency === 'quarterly' ? amount / 3 : amount / 12;
+          return sum + monthly;
+        }, 0);
       
       // Only count UNPAID fixed expenses (matching health page)
       const recalcTotalFixed = (data.fixedExpenses || []).reduce((sum: number, e: any) => {
@@ -159,11 +162,15 @@ export function ExportPage({ token }: ExportPageProps) {
       const recalcRemaining = recalcTotalIncome - (totalFixedForDisplay + recalcTotalVariableActual + totalInvestmentsForDisplay);
       
       
-      // Determine health category (matching health page thresholds)
+      // Determine health category using PERCENTAGE-BASED thresholds (matching health page)
+      const ht = data.healthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
+      const exportHealthScore = recalcTotalIncome > 0
+        ? Math.max(0, Math.min(100, (healthRemaining / recalcTotalIncome) * 100))
+        : 0;
       let healthCategory: string;
-      if (healthRemaining > 10000) healthCategory = "good";
-      else if (healthRemaining >= 0) healthCategory = "ok";
-      else if (healthRemaining >= -3000) healthCategory = "not_well";
+      if (exportHealthScore >= ht.good_min) healthCategory = "good";
+      else if (exportHealthScore >= ht.ok_min && exportHealthScore <= ht.ok_max) healthCategory = "ok";
+      else if (exportHealthScore >= 0 && exportHealthScore <= ht.not_well_max) healthCategory = "not_well";
       else healthCategory = "worrisome";
       
       // Update summary with recalculated values
