@@ -30,6 +30,7 @@ export interface ChatMessage {
   username: string;
   message: string;
   created_at: string;
+  avatar_url?: string | null;
   /** Client-only — true while the optimistic insert is in-flight */
   _optimistic?: boolean;
 }
@@ -71,6 +72,7 @@ export async function sendMessage(
   userId: string,
   username: string,
   message: string,
+  avatarUrl?: string | null,
 ): Promise<ChatMessage> {
   const now = Date.now();
   if (now - lastSentAt < RATE_LIMIT_MS) {
@@ -81,9 +83,12 @@ export async function sendMessage(
   const trimmed = message.trim().slice(0, 500);
   if (!trimmed) throw new Error('Message cannot be empty.');
 
+  const row: Record<string, unknown> = { user_id: userId, username, message: trimmed };
+  if (avatarUrl) row.avatar_url = avatarUrl;
+
   const { data, error } = await supabase
     .from('chat_messages')
-    .insert({ user_id: userId, username, message: trimmed })
+    .insert(row)
     .select()
     .single();
 

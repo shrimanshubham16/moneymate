@@ -164,22 +164,17 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
             return (
               <motion.div
                 key={inv.id}
-                className={`investment-card ${!isOwn ? "shared-item" : ""}`}
+                className={`investment-card ${!isOwn ? "shared-item" : ""} ${inv.isPriority ? "priority" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
                 <div className="investment-info">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <h3>{formatSharedField(inv.name, isOwn)}</h3>
                     {inv.isPriority && (
-                      <span style={{ 
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 10, fontWeight: 700, color: '#f59e0b',
-                        background: 'rgba(245, 158, 11, 0.12)', padding: '2px 8px', borderRadius: 12,
-                        border: '1px solid rgba(245, 158, 11, 0.25)', letterSpacing: '0.5px', textTransform: 'uppercase'
-                      }}>
-                        <FaShieldAlt size={10} /> Priority
+                      <span className="priority-badge">
+                        <FaShieldAlt size={10} /> Critical
                       </span>
                     )}
                     {isSharedView && (
@@ -203,52 +198,54 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                     {inv.paid && <StatusBadge status="paid" size="small" />}
                   </div>
                 </div>
+
                 {isOwn ? (
-                  <div className="investment-actions">
+                  <div className="investment-actions-column">
+                    {/* Priority toggle — highly visible */}
                     <button 
-                      className={`icon-btn priority-btn ${inv.isPriority ? 'active' : ''}`}
+                      className={`priority-toggle-btn ${inv.isPriority ? 'active' : ''}`}
                       onClick={() => handleTogglePriority(inv)}
-                      title={inv.isPriority ? "Remove Priority (can be paused for Future Bombs)" : "Mark as Priority (never suggested for pausing)"}
-                      style={{ color: inv.isPriority ? '#f59e0b' : 'rgba(255,255,255,0.3)' }}
                     >
-                      <FaStar />
+                      <FaShieldAlt size={12} />
+                      <span>{inv.isPriority ? 'Critical' : 'Mark Critical'}</span>
                     </button>
-                    <button 
-                      className="icon-btn wallet-btn" 
-                      onClick={() => {
-                        const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
-                        setWalletModal({ isOpen: true, investmentId: inv.id, investmentName: inv.name, currentFund });
-                        setWalletAmount(Math.round(currentFund).toString());
-                      }}
-                      title="Update Available Fund"
-                      style={{ color: '#10b981' }}
-                    >
-                      <FaWallet />
-                    </button>
-                    <button 
-                      className="icon-btn edit-btn" 
-                      onClick={() => navigate(`/settings/plan-finances/investments?edit=${inv.id}`)}
-                      title="Edit"
-                    >
-                      <FaEdit />
-                    </button>
-                    <button 
-                      className={`icon-btn pause-btn ${inv.isPriority && inv.status === "active" ? "disabled" : ""}`}
-                      onClick={() => handlePauseResume(inv)}
-                      title={inv.isPriority && inv.status === "active" 
-                        ? "Priority investment — cannot be paused" 
-                        : inv.status === "active" ? "Pause" : "Resume"}
-                      style={inv.isPriority && inv.status === "active" ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
-                    >
-                      {inv.status === "active" ? <FaPause /> : <FaPlay />}
-                    </button>
-                    <button 
-                      className="icon-btn delete-btn" 
-                      onClick={() => handleDelete(inv)}
-                      title="Delete"
-                    >
-                      <FaTrashAlt />
-                    </button>
+
+                    <div className="investment-actions">
+                      <button 
+                        className="icon-btn wallet-btn" 
+                        onClick={() => {
+                          const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
+                          setWalletModal({ isOpen: true, investmentId: inv.id, investmentName: inv.name, currentFund });
+                          setWalletAmount(Math.round(currentFund).toString());
+                        }}
+                        title="Update Available Fund"
+                      >
+                        <FaWallet />
+                      </button>
+                      <button 
+                        className="icon-btn edit-btn" 
+                        onClick={() => navigate(`/settings/plan-finances/investments?edit=${inv.id}`)}
+                        title="Edit"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button 
+                        className={`icon-btn pause-btn ${inv.isPriority && inv.status === "active" ? "disabled" : ""}`}
+                        onClick={() => handlePauseResume(inv)}
+                        title={inv.isPriority && inv.status === "active" 
+                          ? "Priority investment — cannot be paused" 
+                          : inv.status === "active" ? "Pause" : "Resume"}
+                      >
+                        {inv.status === "active" ? <FaPause /> : <FaPlay />}
+                      </button>
+                      <button 
+                        className="icon-btn delete-btn" 
+                        onClick={() => handleDelete(inv)}
+                        title="Delete"
+                      >
+                        <FaTrashAlt />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="investment-actions">

@@ -125,6 +125,81 @@
   transform: scale(1.1);
 }
 
+/* ── Priority Card Glow ────────────────── */
+.investment-card.priority {
+  border-color: rgba(245, 158, 11, 0.2);
+  box-shadow: var(--shadow-md), 0 0 16px rgba(245, 158, 11, 0.08);
+}
+.investment-card.priority:hover {
+  border-color: rgba(245, 158, 11, 0.35);
+  box-shadow: var(--shadow-lg), 0 0 24px rgba(245, 158, 11, 0.15);
+}
+
+/* ── Priority Badge (inline) ───────────── */
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ── Actions Column (priority toggle + row) */
+.investment-actions-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── Priority Toggle Button ────────────── */
+.priority-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+}
+.priority-toggle-btn:hover {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.08);
+  color: #f59e0b;
+}
+.priority-toggle-btn.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+}
+.priority-toggle-btn.active:hover {
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--text-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+/* ── Disabled Pause ────────────────────── */
+.investment-actions .icon-btn.pause-btn.disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 @media (max-width: 768px) {
   .investments-page {
     padding: var(--space-8) var(--space-4);
@@ -134,6 +209,15 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-6);
+  }
+
+  .investment-actions-column {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .priority-toggle-btn {
+    justify-content: center;
   }
 
   .investment-actions {

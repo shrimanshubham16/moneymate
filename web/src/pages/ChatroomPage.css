@@ -117,8 +117,9 @@
 .chat-msg-row {
   display: flex;
   gap: 10px;
-  max-width: 82%;
+  max-width: 78%;
   align-items: flex-end;
+  margin-top: 6px;
 }
 
 .chat-msg-row.own {
@@ -130,30 +131,50 @@
   align-self: flex-start;
 }
 
-/* Avatar */
-.chat-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+.chat-msg-row.grouped {
+  margin-top: 2px;
+}
+
+/* Avatar — wrapper + image / gradient */
+.chat-avatar-wrap {
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
+}
+
+.chat-avatar-spacer {
+  width: 34px;
+  height: 0;
+  flex-shrink: 0;
+}
+
+.chat-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: var(--font-bold);
-  font-size: 14px;
+  font-size: 13px;
   color: #fff;
   text-transform: uppercase;
 }
 
-.chat-avatar.hidden {
-  visibility: hidden;
+.chat-avatar-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255 255 255 / .08);
 }
 
 /* Bubble */
 .chat-bubble-wrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  min-width: 0;
 }
 
 .chat-bubble-meta {
@@ -161,7 +182,7 @@
   align-items: center;
   gap: 8px;
   font-size: 11px;
-  padding: 0 4px;
+  padding: 0 6px;
 }
 
 .own .chat-bubble-meta {
@@ -174,6 +195,7 @@
 
 .chat-bubble-time {
   color: var(--text-tertiary);
+  font-size: 10px;
 }
 
 .chat-bubble {
@@ -199,11 +221,7 @@
   color: var(--text-primary);
 }
 
-/* Grouped (consecutive same-user) — smaller gap, no meta */
-.chat-msg-row.grouped {
-  margin-top: 0;
-}
-
+/* Grouped — continuation corners */
 .chat-msg-row.grouped .chat-bubble {
   border-radius: 18px;
 }
