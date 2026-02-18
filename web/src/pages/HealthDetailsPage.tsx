@@ -307,10 +307,13 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       // For merged view, add shared aggregate as a visible line item so totals match breakdown
       const isShowingSharedData = selectedView === 'merged' && sharedAggregates.length > 0;
       
+      // Only show health-included incomes in breakdown so items sum to total
+      const healthIncomes = ownIncomes.filter((inc: any) => inc.includeInHealth !== false);
+      
       setBreakdown({
         income: {
           total: totalIncomeForHealth,
-          sources: ownIncomes,
+          sources: healthIncomes,
           sharedTotal: isShowingSharedData ? sharedIncomeTotal : 0
         },
         expenses: {
@@ -657,7 +660,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           </div>
           <div className="items-list">
             {(!breakdown.expenses?.fixed?.items || breakdown.expenses.fixed.items.length === 0) && !breakdown.expenses?.fixed?.sharedTotal ? (
-              <div className="item-row"><span>All fixed expenses are paid! </span></div>
+              <div className="item-row"><span>No fixed expenses added</span></div>
             ) : (
               <>
                 {breakdown.expenses.fixed.items.map((exp: any) => {
@@ -712,8 +715,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
                 a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
               );
               
-              const actualTotal = actuals.reduce((sum: number, a: any) => sum + (a.amount || 0), 0);
-              const proratedForRemainingDays = (plan.planned || 0) * remainingDaysRatio;
+              const actualTotal = actuals.reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+              const proratedForRemainingDays = (parseFloat(plan.planned) || 0) * remainingDaysRatio;
               
               // Use higher of actual (excluding non-fund-deducting modes) or prorated
               const amountToShow = Math.max(proratedForRemainingDays, actualTotal);
@@ -761,7 +764,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             </div>
             <div className="items-list">
               {(!breakdown.investments?.items || breakdown.investments.items.length === 0) && !breakdown.investments?.sharedTotal ? (
-                <div className="item-row"><span>All investments are paid or paused! </span></div>
+                <div className="item-row"><span>No active investments</span></div>
               ) : (
                 <>
                   {breakdown.investments.items.map((inv: any) => (

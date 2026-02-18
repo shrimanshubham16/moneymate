@@ -80,6 +80,7 @@ export function ExportPage({ token }: ExportPageProps) {
         creditCards: [],
         loans: [],
         constraintScore: dashRes.data.constraintScore,
+        healthThresholds: dashRes.data.healthThresholds,
         user: dashRes.data.user
       };
       // Fetch credit cards and loans separately
@@ -109,24 +110,30 @@ export function ExportPage({ token }: ExportPageProps) {
         return sum + monthly;
       }, 0);
       
-      // Recalculate variable actuals after decryption
+      // Recalculate variable actuals after decryption (for display — includes all payment modes)
       const variableExpensesWithActuals = (data.variableExpenses || []).map((exp: any) => {
         const recalcActualTotal = (exp.actuals || []).reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
         return { ...exp, actualTotal: recalcActualTotal };
       });
       
       // Variable: use max of actual vs prorated planned (matching health page EXACTLY)
+      // CRITICAL: Exclude ExtraCash & CreditCard payment modes from health actuals
       const today = new Date();
       const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
       const daysPassed = today.getDate();
       const monthProgress = daysPassed / daysInMonth;
-      const remainingDaysRatio = 1 - monthProgress; // FIXED: Use REMAINING ratio, not passed ratio
+      const remainingDaysRatio = 1 - monthProgress;
       
       const recalcTotalVariableActual = variableExpensesWithActuals.reduce((sum: number, e: any) => {
-        const actual = e.actualTotal || 0;
+        // Filter out ExtraCash and CreditCard payment modes (they don't reduce available funds)
+        const healthActuals = (e.actuals || []).filter((a: any) => 
+          a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard" &&
+          a.payment_mode !== "ExtraCash" && a.payment_mode !== "CreditCard"
+        );
+        const healthActualTotal = healthActuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
         const planned = parseFloat(e.planned) || 0;
         const prorated = planned * remainingDaysRatio;
-        return sum + Math.max(actual, prorated);
+        return sum + Math.max(healthActualTotal, prorated);
       }, 0);
       
       // Count ALL active investments (commitment exists whether paid or not)
@@ -181,7 +188,8 @@ export function ExportPage({ token }: ExportPageProps) {
         creditCardDues: creditCardDues,
         bombDefusalSip: Math.round(bombSipTotal),
         remainingBalance: Math.round(recalcRemaining),
-        healthScore: Math.round(healthRemaining), // Always integer
+        healthRemaining: Math.round(healthRemaining),
+        healthPercentage: Math.round(exportHealthScore * 100) / 100,
         healthCategory: healthCategory,
       };
       
@@ -208,10 +216,11 @@ export function ExportPage({ token }: ExportPageProps) {
         ["Credit Card Dues", data.summary?.creditCardDues],
         ["Bomb Defusal SIP", data.summary?.bombDefusalSip],
         [],
-        ["HEALTH SCORE (Matching /health page)"],
-        ["Health Score", data.summary?.healthScore],
+        ["HEALTH (Matching /health page exactly)"],
+        ["Remaining Balance", data.summary?.healthRemaining],
+        ["Health Score %", data.summary?.healthPercentage],
         ["Health Status", (data.summary?.healthCategory || "good").toUpperCase()],
-        ["Note", "Health = Income - (Fixed + max(Prorated,Actual) Variable + Investments + CC Dues + Bomb SIP)"],
+        ["Formula", "Income - (Fixed + max(Prorated,Actual) Variable + Investments + CC Dues + Bomb SIP)"],
         [],
         ["CONSTRAINT SCORE"],
         ["Score", data.constraintScore?.score || 0],
@@ -387,19 +396,25 @@ export function ExportPage({ token }: ExportPageProps) {
       // Category-wise Breakdown Sheet
       const categoryMap = new Map<string, number>();
       data.fixedExpenses?.forEach((exp: any) => {
-        const current = categoryMap.get(exp.category) || 0;
-        categoryMap.set(exp.category, current + exp.monthlyEquivalent);
+        const cat = exp.category || 'Uncategorized';
+        const amount = parseFloat(exp.amount) || 0;
+        const monthly = exp.frequency === 'monthly' ? amount : exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
+        const current = categoryMap.get(cat) || 0;
+        categoryMap.set(cat, current + monthly);
       });
       data.variableExpenses?.forEach((exp: any) => {
-        const current = categoryMap.get(exp.category) || 0;
-        categoryMap.set(exp.category, current + exp.actualTotal);
+        const cat = exp.category || 'Uncategorized';
+        const actual = parseFloat(exp.actualTotal) || 0;
+        const current = categoryMap.get(cat) || 0;
+        categoryMap.set(cat, current + actual);
       });
 
+      const totalCategorySpend = Array.from(categoryMap.values()).reduce((sum, v) => sum + v, 0);
       if (categoryMap.size > 0) {
         const categoryData = Array.from(categoryMap.entries()).map(([category, amount]) => ({
-          Category: category,
-          "Total Spend": amount,
-          "% of Total": (((amount) / Math.max(1, data.summary.totalFixedExpenses + data.summary.totalVariableActual)) * 100).toFixed(1) + "%"
+          Category: category || 'Uncategorized',
+          "Total Spend": Math.round(amount),
+          "% of Total": totalCategorySpend > 0 ? ((amount / totalCategorySpend) * 100).toFixed(1) + "%" : "0%"
         }));
         const wsCategory = XLSX.utils.json_to_sheet(categoryData);
         wsCategory["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }];

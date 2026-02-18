@@ -139,18 +139,12 @@ export function DashboardPage({ token }: DashboardPageProps) {
       : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
     
     
-    // Calculate credit card dues first (needed for health calculation)
+    // Calculate credit card dues (ALL outstanding balances — matches /health and export)
     const ownCcDues = (creditCards || []).reduce((sum: number, c: any) => {
-      const billAmount = parseFloat(c.billAmount || 0);
-      const paidAmount = parseFloat(c.paidAmount || 0);
-      const remaining = billAmount - paidAmount;
-      if (remaining > 0) {
-        const dueDate = new Date(c.dueDate);
-        const isCurrentMonth = dueDate.getMonth() === new Date().getMonth() && 
-                              dueDate.getFullYear() === new Date().getFullYear();
-        if (isCurrentMonth) return sum + remaining;
-      }
-      return sum;
+      const billAmount = parseFloat(c.billAmount || c.bill_amount || 0);
+      const paidAmount = parseFloat(c.paidAmount || c.paid_amount || 0);
+      const remaining = Math.max(0, billAmount - paidAmount);
+      return sum + remaining;
     }, 0);
     const ccDues = ownCcDues + sharedCreditCardDues;
     
