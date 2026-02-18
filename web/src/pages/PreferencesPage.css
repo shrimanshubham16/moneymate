@@ -1,7 +1,10 @@
+/* Preferences Page – Dark + Light Premium Theme */
+
 .preferences-page {
   max-width: 900px;
   margin: 0 auto;
   padding: 24px;
+  color: var(--text-primary);
 }
 
 .preferences-content {
@@ -9,30 +12,30 @@
 }
 
 .preference-card {
-  background: white;
-  border: 2px solid #e2e8f0;
+  background: var(--bg-elevated, #151B3D);
+  border: 1px solid rgba(184, 193, 236, 0.08);
   border-radius: 16px;
   padding: 32px;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-md);
 }
 
 .preference-header h2 {
   margin: 0 0 16px 0;
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .preference-description {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 16px;
   margin-bottom: 16px;
   line-height: 1.6;
 }
 
 .preference-features {
-  color: #475569;
+  color: var(--text-secondary);
   margin-left: 24px;
   line-height: 1.8;
 }
@@ -47,53 +50,69 @@
 
 .preference-control label {
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   font-weight: 600;
-  color: #374151;
-  font-size: 16px;
+  color: var(--form-label);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .day-selector,
 .preference-control select {
   width: 100%;
-  padding: 14px 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  font-size: 16px;
-  background: white;
+  padding: 12px 14px;
+  border: 1.5px solid var(--form-input-border);
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  background: var(--form-input-bg);
+  color: var(--form-input-text);
   cursor: pointer;
   transition: all 0.2s;
+  outline: none;
+  box-sizing: border-box;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
 }
 
 .day-selector:hover,
 .preference-control select:hover {
-  border-color: #3b82f6;
+  border-color: var(--form-input-border-focus);
 }
 
 .day-selector:focus,
 .preference-control select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--form-input-border-focus);
+  box-shadow: 0 0 0 3px var(--form-input-focus-glow);
+}
+
+.day-selector option,
+.preference-control select option {
+  background: var(--form-select-option-bg);
+  color: var(--form-select-option-text);
 }
 
 .preference-example {
   margin-top: 24px;
   padding: 20px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: rgba(59, 130, 246, 0.06);
   border-radius: 12px;
   border-left: 4px solid #3b82f6;
 }
 
 .preference-example h3 {
   margin: 0 0 12px 0;
-  color: #1e40af;
+  color: var(--accent-cyan, #00D9FF);
   font-size: 16px;
   font-weight: 700;
 }
 
 .preference-example p {
-  color: #1e40af;
+  color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.8;
   margin: 0;
@@ -101,7 +120,7 @@
 
 .preference-example strong {
   font-weight: 700;
-  color: #1e3a8a;
+  color: var(--text-primary);
 }
 
 .save-section {
@@ -133,7 +152,7 @@
 }
 
 .warning-box {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  background: rgba(245, 158, 11, 0.08);
   border-left: 4px solid #f59e0b;
   border-radius: 12px;
   padding: 20px;
@@ -142,7 +161,7 @@
 
 .warning-box h3 {
   margin: 0 0 12px 0;
-  color: #92400e;
+  color: var(--accent-yellow, #FFB800);
   font-size: 16px;
   font-weight: 700;
 }
@@ -150,7 +169,7 @@
 .warning-box ul {
   margin: 0;
   padding-left: 24px;
-  color: #92400e;
+  color: var(--text-secondary);
   line-height: 1.8;
 }
 
@@ -161,7 +180,27 @@
 .loading {
   text-align: center;
   padding: 60px 20px;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 18px;
 }
 
+/* Light Theme Overrides */
+.theme-light .preference-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.theme-light .preference-example {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.theme-light .preference-example h3 { color: #1e40af; }
+.theme-light .preference-example p { color: #1e40af; }
+.theme-light .preference-example strong { color: #1e3a8a; }
+
+.theme-light .warning-box {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+.theme-light .warning-box h3 { color: #92400e; }
+.theme-light .warning-box ul { color: #92400e; }

@@ -50,10 +50,41 @@
 
 .modal-body {
   padding: 16px 20px 8px;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+}
+
+/* Modal form fields use global form-group styles from design-system.css.
+   Labels inside modals should have clear contrast against the elevated bg. */
+.modal-body .form-group label {
+  color: var(--form-label);
+}
+
+.modal-body .form-group input,
+.modal-body .form-group select,
+.modal-body .form-group textarea {
+  background: var(--form-input-bg);
+  border-color: var(--form-input-border);
+  color: var(--form-input-text);
+}
+
+.modal-body .form-group input::placeholder,
+.modal-body .form-group textarea::placeholder {
+  color: var(--form-placeholder);
+}
+
+.modal-body .form-group input:focus,
+.modal-body .form-group select:focus,
+.modal-body .form-group textarea:focus {
+  border-color: var(--form-input-border-focus);
+  box-shadow: 0 0 0 3px var(--form-input-focus-glow);
+}
+
+.modal-body .form-group select option {
+  background: var(--form-select-option-bg);
+  color: var(--form-select-option-text);
 }
 
 .modal-footer {

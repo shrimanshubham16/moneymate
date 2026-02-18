@@ -359,28 +359,51 @@
 
 .cc-form-group label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: var(--space-2);
+  color: var(--form-label);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .cc-form-group select,
 .cc-form-group input {
   width: 100%;
-  padding: var(--space-3);
-  background: var(--bg-base);
-  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.15));
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--text-base);
+  padding: 11px 14px;
+  background: var(--form-input-bg);
+  border: 1.5px solid var(--form-input-border);
+  border-radius: 10px;
+  color: var(--form-input-text);
+  font-size: 15px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.cc-form-group input::placeholder {
+  color: var(--form-placeholder);
 }
 
 .cc-form-group select:focus,
 .cc-form-group input:focus {
-  outline: none;
-  border-color: var(--accent-cyan, #22d3ee);
-  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+  border-color: var(--form-input-border-focus);
+  box-shadow: 0 0 0 3px var(--form-input-focus-glow);
+}
+
+.cc-form-group select option {
+  background: var(--form-select-option-bg);
+  color: var(--form-select-option-text);
+}
+
+.cc-form-group select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
 }
 
 .cc-form-actions {

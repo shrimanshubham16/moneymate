@@ -81,31 +81,38 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Inputs - Dark theme */
+/* Inputs - Uses form variables from design-system.css */
 input,
 textarea,
 select {
   font-family: var(--font-body);
   font-size: var(--text-base);
-  color: var(--text-primary);
-  background: var(--bg-elevated);
-  border: 1px solid rgba(184, 193, 236, 0.1);
+  color: var(--form-input-text, var(--text-primary));
+  background: var(--form-input-bg, var(--bg-elevated));
+  border: 1.5px solid var(--form-input-border, rgba(184, 193, 236, 0.15));
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
-  transition: all var(--transition-base);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
 }
 
 input:focus,
 textarea:focus,
 select:focus {
-  outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: var(--glow-cyan);
-  background: var(--bg-hover);
+  border-color: var(--form-input-border-focus, var(--accent-cyan));
+  box-shadow: 0 0 0 3px var(--form-input-focus-glow, rgba(0, 217, 255, 0.12));
 }
 
-input::placeholder {
-  color: var(--text-tertiary);
+input::placeholder,
+textarea::placeholder {
+  color: var(--form-placeholder, var(--text-tertiary));
+  font-weight: 400;
+  opacity: 1;
+}
+
+select option {
+  background: var(--form-select-option-bg, #0f1729);
+  color: var(--form-select-option-text, #E8ECF8);
 }
 
 /* Links */

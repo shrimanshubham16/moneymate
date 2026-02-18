@@ -32,12 +32,32 @@ textarea {
     --color-info: #06b6d4;
 
     /* Text Colors */
-    --text-primary: #82827c;
-    /* Primary text */
+    --text-primary: #E8ECF8;
+    /* Primary text — bright for readability */
     --text-secondary: #B8C1EC;
     /* Muted text */
     --text-tertiary: #6B7299;
     /* Subtle text */
+
+    /* ── Form Field Colors (Dark Theme) ── */
+    --form-label: #C8D0E8;
+    /* Label text — clear, slightly muted */
+    --form-input-bg: #0D1230;
+    /* Input background — deep dark */
+    --form-input-text: #F1F5F9;
+    /* Typed text — crispest white */
+    --form-input-border: rgba(184, 193, 236, 0.15);
+    /* Resting border */
+    --form-input-border-focus: #00D9FF;
+    /* Focus border — accent cyan */
+    --form-input-focus-glow: rgba(0, 217, 255, 0.12);
+    /* Focus ring glow */
+    --form-placeholder: #4A5278;
+    /* Placeholder — clearly muted */
+    --form-select-option-bg: #0f1729;
+    /* Dropdown option background */
+    --form-select-option-text: #E8ECF8;
+    /* Dropdown option text */
 
     /* Neon Accents (CRED Style) */
     --accent-cyan: #00D9FF;
@@ -260,4 +280,98 @@ textarea {
 
     --card-glow: 0 10px 30px rgba(37, 99, 235, 0.12);
     --card-glow-hover: 0 14px 40px rgba(37, 99, 235, 0.16);
+
+    /* ── Form Field Colors (Light Theme) ── */
+    --form-label: #374151;
+    --form-input-bg: #ffffff;
+    --form-input-text: #0f172a;
+    --form-input-border: #d1d5db;
+    --form-input-border-focus: #2563eb;
+    --form-input-focus-glow: rgba(37, 99, 235, 0.15);
+    --form-placeholder: #9ca3af;
+    --form-select-option-bg: #ffffff;
+    --form-select-option-text: #1e293b;
+}
+
+/* ============================================
+   GLOBAL FORM FIELD RESET
+   Consistent label / input / select / textarea
+   across ALL pages for both themes.
+   ============================================ */
+
+/* ── Labels ── */
+.form-group label,
+.form-group > span:first-child {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--form-label);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+/* ── Inputs, Selects, Textareas ── */
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--form-input-bg);
+    border: 1.5px solid var(--form-input-border);
+    border-radius: 10px;
+    color: var(--form-input-text);
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    outline: none;
+    box-sizing: border-box;
+}
+
+/* ── Placeholder ── */
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--form-placeholder);
+    font-weight: 400;
+    opacity: 1; /* Override browser defaults */
+}
+
+/* ── Focus states ── */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: var(--form-input-border-focus);
+    box-shadow: 0 0 0 3px var(--form-input-focus-glow);
+    background: var(--form-input-bg);
+}
+
+/* ── Select dropdown arrow ── */
+.form-group select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+}
+
+/* ── Select options (dropdown) ── */
+.form-group select option {
+    background: var(--form-select-option-bg);
+    color: var(--form-select-option-text);
+}
+
+/* ── Textarea ── */
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* ── Disabled inputs ── */
+.form-group input:disabled,
+.form-group select:disabled,
+.form-group textarea:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

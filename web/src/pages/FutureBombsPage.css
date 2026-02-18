@@ -607,36 +607,35 @@
   font-size: 15px;
 }
 
-/* Form styling in Modal */
+/* Form styling in Modal — inherits global .form-group from design-system.css */
 .bomb-form .form-group {
   margin-bottom: 16px;
 }
 
 .bomb-form .form-group label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary, rgba(255,255,255,0.7));
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--form-label);
 }
 
-.bomb-form .form-group input {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.05);
-  color: var(--text-primary, #f1f5f9);
-  font-size: 15px;
-  outline: none;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
+.bomb-form .form-group input,
+.bomb-form .form-group select {
+  background: var(--form-input-bg);
+  border-color: var(--form-input-border);
+  color: var(--form-input-text);
 }
 
-.bomb-form .form-group input:focus {
-  border-color: var(--accent-cyan, #22d3ee);
+.bomb-form .form-group input::placeholder {
+  color: var(--form-placeholder);
+}
+
+.bomb-form .form-group input:focus,
+.bomb-form .form-group select:focus {
+  border-color: var(--form-input-border-focus);
+  box-shadow: 0 0 0 3px var(--form-input-focus-glow);
+}
+
+.bomb-form .form-group select option {
+  background: var(--form-select-option-bg);
+  color: var(--form-select-option-text);
 }
 
 /* Responsive */

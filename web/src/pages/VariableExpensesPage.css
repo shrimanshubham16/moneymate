@@ -110,38 +110,34 @@
   margin-bottom: var(--space-5);
 }
 
+/* Form fields inherit from global .form-group in design-system.css. */
 .variable-expenses-page .form-group label {
-  display: block;
-  margin-bottom: var(--space-2);
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: var(--form-label);
 }
 
 .variable-expenses-page .form-group input,
 .variable-expenses-page .form-group select,
 .variable-expenses-page .form-group textarea {
-  width: 100%;
-  padding: var(--space-3);
-  background: var(--bg-primary, #0A0E27);
-  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.15));
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--text-base);
-  transition: all 0.2s ease;
+  background: var(--form-input-bg);
+  border-color: var(--form-input-border);
+  color: var(--form-input-text);
+}
+
+.variable-expenses-page .form-group input::placeholder,
+.variable-expenses-page .form-group textarea::placeholder {
+  color: var(--form-placeholder);
 }
 
 .variable-expenses-page .form-group input:focus,
 .variable-expenses-page .form-group select:focus,
 .variable-expenses-page .form-group textarea:focus {
-  outline: none;
-  border-color: var(--accent-cyan, #22d3ee);
-  box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+  border-color: var(--form-input-border-focus);
+  box-shadow: 0 0 0 3px var(--form-input-focus-glow);
 }
 
-.variable-expenses-page .form-group textarea {
-  resize: vertical;
-  font-family: inherit;
+.variable-expenses-page .form-group select option {
+  background: var(--form-select-option-bg);
+  color: var(--form-select-option-text);
 }
 
 .variable-expenses-page .form-row {
