@@ -237,12 +237,13 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       });
       
       invalidateDashboardCache();
-      await Promise.all([loadPlans(true), loadCreditCards()]);
+      // Background refresh — fire-and-forget
+      Promise.all([loadPlans(true), loadCreditCards()]);
 
     } catch (e: any) {
       showAlert(e.message);
-      await loadPlans(true);
-      await loadCreditCards();
+      loadPlans(true);
+      loadCreditCards();
     } finally {
       setIsSubmitting(false);
     }

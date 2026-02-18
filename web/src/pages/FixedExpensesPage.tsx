@@ -170,14 +170,15 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
 
   const handleDelete = async (id: string) => {
     showConfirm("Delete this expense?", async () => {
+      const prevExpenses = expenses;
+      setExpenses(prev => prev.filter(e => e.id !== id)); // optimistic removal
       try {
         await api.deleteFixedExpense(token, id);
-        setExpenses(prev => prev.filter(e => e.id !== id));
         invalidateDashboardCache();
-        await loadExpenses();
+        loadExpenses(); // background refresh
       } catch (e: any) {
         showAlert(e.message);
-        await loadExpenses();
+        setExpenses(prevExpenses); // rollback
       }
     });
   };

@@ -65,9 +65,10 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
     try {
       await api.updateInvestment(token, walletModal.investmentId, { accumulatedFunds: amount });
       invalidateDashboardCache();
+      setInvestments(prev => prev.map(i => i.id === walletModal.investmentId ? { ...i, accumulatedFunds: amount } : i));
       setWalletModal({ isOpen: false, investmentId: "", investmentName: "", currentFund: 0 });
       setWalletAmount("");
-      await loadInvestments();
+      loadInvestments();
     } catch (e: any) {
       showAlert("Failed to update: " + e.message);
     }
@@ -79,13 +80,15 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
       return;
     }
     try {
+      const newStatus = inv.status === "active" ? "paused" : "active";
+      setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, status: newStatus } : i));
       if (inv.status === "active") {
         await api.pauseInvestment(token, inv.id);
       } else {
         await api.resumeInvestment(token, inv.id);
       }
       invalidateDashboardCache();
-      await loadInvestments();
+      loadInvestments();
     } catch (e: any) {
       showAlert("Failed to update status: " + e.message);
     }
@@ -94,9 +97,10 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
   const handleDelete = async (inv: any) => {
     showConfirm(`Delete investment "${inv.name}"? This action cannot be undone.`, async () => {
       try {
+        setInvestments(prev => prev.filter(i => i.id !== inv.id));
         await api.deleteInvestment(token, inv.id);
         invalidateDashboardCache();
-        await loadInvestments();
+        loadInvestments();
       } catch (e: any) {
         showAlert("Failed to delete: " + e.message);
       }

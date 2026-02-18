@@ -147,13 +147,13 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   const handleDelete = async (id: string) => {
     showConfirm("Delete this investment? This action cannot be undone.", async () => {
       try {
-        await api.deleteInvestment(token, id);
         setInvestments(prev => prev.filter(inv => inv.id !== id));
+        await api.deleteInvestment(token, id);
         invalidateDashboardCache();
-        await loadInvestments();
+        loadInvestments();
       } catch (e: any) {
         showAlert(e.message);
-        await loadInvestments();
+        loadInvestments();
       }
     });
   };
@@ -164,13 +164,15 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
       return;
     }
     try {
+      const newStatus = inv.status === "active" ? "paused" : "active";
+      setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, status: newStatus } : i));
       if (inv.status === "active") {
         await api.pauseInvestment(token, inv.id);
       } else {
         await api.resumeInvestment(token, inv.id);
       }
       invalidateDashboardCache();
-      await loadInvestments();
+      loadInvestments();
     } catch (e: any) {
       showAlert(e.message);
     }
@@ -431,9 +433,10 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                   try {
                     await api.updateInvestment(token, walletModal.investmentId, { accumulatedFunds: amount });
                     invalidateDashboardCache();
+                    setInvestments(prev => prev.map(i => i.id === walletModal.investmentId ? { ...i, accumulatedFunds: amount } : i));
                     setWalletModal({ isOpen: false, investmentId: "", investmentName: "", currentFund: 0 });
                     setWalletAmount("");
-                    await loadInvestments();
+                    loadInvestments();
                   } catch (e: any) { showAlert("Failed to update: " + e.message); }
                 }}
                 className="inv-btn-submit"

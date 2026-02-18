@@ -174,13 +174,21 @@ export function IncomePage({ token }: IncomePageProps) {
       const priceInUserCur = quote.conversionRate ? quote.price * quote.conversionRate : quote.price;
       const newAmount = (netShares * priceInUserCur) / 12;
 
+      // Optimistic update on the card immediately
+      setIncomes(prev => prev.map(inc => inc.id === income.id ? {
+        ...inc,
+        amount: Math.round(newAmount * 100) / 100,
+        rsuStockPrice: quote.price,
+        rsuConversionRate: quote.conversionRate || inc.rsuConversionRate
+      } : inc));
+
       await api.updateIncome(token, income.id, {
         amount: Math.round(newAmount * 100) / 100,
         rsu_stock_price: quote.price,
         rsu_conversion_rate: quote.conversionRate || undefined
       });
       invalidateDashboardCache();
-      await loadIncomes();
+      loadIncomes(); // background refresh
     } catch (e: any) {
       setErrorMsg("Failed to refresh price: " + e.message);
     } finally {
@@ -190,66 +198,109 @@ export function IncomePage({ token }: IncomePageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isRsu = form.incomeType === "rsu";
+    
+    let amount = Number(form.amount);
+    if (isRsu) {
+      amount = calculateRsuMonthly();
+      if (amount === 0) {
+        setErrorMsg("Please fill in RSU grant count and verify stock price to calculate income.");
+        return;
+      }
+      amount = Math.round(amount * 100) / 100;
+    }
+
+    const payload: any = {
+      source: form.source,
+      amount,
+      frequency: isRsu ? "monthly" : form.frequency,
+      include_in_health: form.includeInHealth,
+      income_type: form.incomeType
+    };
+
+    if (isRsu) {
+      payload.rsu_ticker = form.rsuTicker;
+      payload.rsu_grant_count = parseInt(form.rsuGrantCount);
+      payload.rsu_vesting_schedule = form.rsuVestingSchedule;
+      payload.rsu_currency = form.rsuCurrency;
+      payload.rsu_stock_price = parseFloat(form.rsuStockPrice);
+      payload.rsu_tax_rate = parseFloat(form.rsuTaxRate) || 33;
+      payload.rsu_expected_decline = parseFloat(form.rsuExpectedDecline) || 20;
+      if (form.rsuConversionRate) {
+        payload.rsu_conversion_rate = parseFloat(form.rsuConversionRate);
+      }
+    }
+
+    // Build optimistic income object for instant UI
+    const tempId = `temp-${Date.now()}`;
+    const optimisticIncome: any = {
+      id: editingId || tempId,
+      source: form.source,
+      amount,
+      frequency: isRsu ? "monthly" : form.frequency,
+      includeInHealth: form.includeInHealth,
+      incomeType: form.incomeType,
+      ...(isRsu ? {
+        rsuTicker: form.rsuTicker,
+        rsuGrantCount: parseInt(form.rsuGrantCount),
+        rsuVestingSchedule: form.rsuVestingSchedule,
+        rsuCurrency: form.rsuCurrency,
+        rsuStockPrice: parseFloat(form.rsuStockPrice),
+        rsuTaxRate: parseFloat(form.rsuTaxRate) || 33,
+        rsuExpectedDecline: parseFloat(form.rsuExpectedDecline) || 20,
+        rsuConversionRate: form.rsuConversionRate ? parseFloat(form.rsuConversionRate) : undefined
+      } : {})
+    };
+
+    // Optimistic update: show item immediately
+    if (editingId) {
+      setIncomes(prev => prev.map(inc => inc.id === editingId ? { ...inc, ...optimisticIncome } : inc));
+    } else {
+      setIncomes(prev => [optimisticIncome, ...prev]);
+    }
+
+    // Close form immediately
+    const prevEditingId = editingId;
+    setShowForm(false);
+    setEditingId(null);
+    resetForm();
+
     try {
-      const isRsu = form.incomeType === "rsu";
-      
-      let amount = Number(form.amount);
-      if (isRsu) {
-        amount = calculateRsuMonthly();
-        if (amount === 0) {
-          setErrorMsg("Please fill in RSU grant count and verify stock price to calculate income.");
-          return;
-        }
-        // Round to 2 decimal places
-        amount = Math.round(amount * 100) / 100;
-      }
-
-      const payload: any = {
-        source: form.source,
-        amount,
-        frequency: isRsu ? "monthly" : form.frequency,
-        include_in_health: form.includeInHealth,
-        income_type: form.incomeType
-      };
-
-      if (isRsu) {
-        payload.rsu_ticker = form.rsuTicker;
-        payload.rsu_grant_count = parseInt(form.rsuGrantCount);
-        payload.rsu_vesting_schedule = form.rsuVestingSchedule;
-        payload.rsu_currency = form.rsuCurrency;
-        payload.rsu_stock_price = parseFloat(form.rsuStockPrice);
-        payload.rsu_tax_rate = parseFloat(form.rsuTaxRate) || 33;
-        payload.rsu_expected_decline = parseFloat(form.rsuExpectedDecline) || 20;
-        if (form.rsuConversionRate) {
-          payload.rsu_conversion_rate = parseFloat(form.rsuConversionRate);
-        }
-      }
-
-      if (editingId && isFeatureEnabled("income_update_btn")) {
-        await api.updateIncome(token, editingId, payload);
+      if (prevEditingId && isFeatureEnabled("income_update_btn")) {
+        await api.updateIncome(token, prevEditingId, payload);
       } else {
-        await api.createIncome(token, payload);
+        const res = await api.createIncome(token, payload);
+        // Replace temp item with real server response
+        if (res?.data) {
+          setIncomes(prev => prev.map(inc => inc.id === tempId ? { ...inc, ...res.data, id: res.data.id } : inc));
+        }
       }
-      setShowForm(false);
-      setEditingId(null);
-      resetForm();
       invalidateDashboardCache();
-      await loadIncomes();
+      // Background refresh — fire-and-forget (don't await)
+      loadIncomes();
     } catch (e: any) {
       setErrorMsg(e.message);
+      // Rollback optimistic update
+      if (prevEditingId) {
+        loadIncomes();
+      } else {
+        setIncomes(prev => prev.filter(inc => inc.id !== tempId));
+      }
     }
   };
 
   const handleDelete = async (id: string) => {
     setConfirmDeleteId(null);
+    // Optimistic removal
+    const prevIncomes = incomes;
+    setIncomes(prev => prev.filter(inc => inc.id !== id));
     try {
       await api.deleteIncome(token, id);
-      setIncomes(prev => prev.filter(inc => inc.id !== id));
       invalidateDashboardCache();
-      await loadIncomes();
+      loadIncomes(); // background refresh
     } catch (e: any) {
       setErrorMsg(e.message);
-      await loadIncomes();
+      setIncomes(prevIncomes); // rollback
     }
   };
 

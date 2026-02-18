@@ -114,9 +114,10 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
     showConfirm(`Reset current expenses for ${cardName}? You'll need to manually update the bill amount.`, async () => {
       try {
         await api.resetCreditCardBilling(token, cardId);
-        await loadCards();
-        await loadBillingAlerts();
+        invalidateDashboardCache();
         showAlert("Current expenses reset. Please update the bill amount manually.", "Success");
+        loadCards();
+        loadBillingAlerts();
       } catch (e: any) {
         showAlert(e.message);
       }
@@ -157,48 +158,70 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         showAlert("Please enter a valid bill amount");
         return;
       }
-      // Update bill amount via API helper
-      await api.updateCreditCardBill(token, cardId, amount);
-      await loadCards();
-      await loadBillingAlerts();
+      // Optimistic update
+      setCards(prev => prev.map(c => c.id === cardId ? { ...c, billAmount: amount } : c));
       setShowUpdateBillModal(false);
       setUpdateBillForm({ billAmount: "" });
       setSelectedCardId(null);
+      
+      await api.updateCreditCardBill(token, cardId, amount);
+      invalidateDashboardCache();
+      loadCards(); // background refresh
+      loadBillingAlerts(); // background refresh
       showAlert("Bill amount updated successfully", "Success");
     } catch (e: any) {
       showAlert(e.message || "Failed to update bill");
+      loadCards(); // rollback
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cardData = {
+      name: form.name,
+      billAmount: Number(form.billAmount) || 0,
+      paidAmount: Number(form.paidAmount) || 0,
+      dueDate: form.dueDate,
+      billingDate: Number(form.billingDate)
+    };
+
+    // Optimistic: add card immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimisticCard = {
+      id: tempId,
+      ...cardData,
+      currentExpenses: 0,
+      remainingDue: (Number(form.billAmount) || 0) - (Number(form.paidAmount) || 0)
+    };
+    setCards(prev => [optimisticCard, ...prev]);
+    setShowForm(false);
+    setForm({ name: "", billAmount: "0", paidAmount: "0", dueDate: new Date().toISOString().split('T')[0], billingDate: "1" });
+
     try {
-      const cardData = {
-        name: form.name,
-        billAmount: Number(form.billAmount) || 0,  // v1.2: Default to 0
-        paidAmount: Number(form.paidAmount) || 0,
-        dueDate: form.dueDate,
-        billingDate: Number(form.billingDate)  // v1.2: Billing date
-      };
-      await api.createCreditCard(token, cardData);
-      setShowForm(false);
-      setForm({ name: "", billAmount: "0", paidAmount: "0", dueDate: new Date().toISOString().split('T')[0], billingDate: "1" });
+      const res = await api.createCreditCard(token, cardData);
+      // Replace temp with real
+      if (res?.data) {
+        setCards(prev => prev.map(c => c.id === tempId ? { ...c, ...res.data } : c));
+      }
       invalidateDashboardCache();
-      await loadCards();
+      loadCards(); // background refresh
     } catch (e: any) {
       showAlert(e.message);
+      setCards(prev => prev.filter(c => c.id !== tempId)); // rollback
     }
   };
 
   const handleDelete = async (id: string) => {
     showConfirm("Are you sure you want to delete this credit card?", async () => {
+      const prevCards = cards;
+      setCards(prev => prev.filter(c => c.id !== id)); // optimistic removal
       try {
         await api.deleteCreditCard(token, id);
-        setCards(prev => prev.filter(c => c.id !== id));
-        await loadCards();
+        invalidateDashboardCache();
+        loadCards(); // background refresh
       } catch (e: any) {
         showAlert(e.message);
-        await loadCards();
+        setCards(prevCards); // rollback
       }
     });
   };

@@ -54,7 +54,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
       await api.payCreditCard(token, selectedCard, Number(paymentAmount));
       setShowPaymentForm(false);
       setPaymentAmount("");
-      await loadCards();
+      loadCards();
     } catch (e: any) {
       showAlert(e.message);
     }

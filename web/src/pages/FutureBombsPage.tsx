@@ -373,20 +373,20 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     } catch (e: any) {
       showAlert("Failed to save: " + e.message);
       // Revert on failure — reload from server
-      await loadData();
+      loadData();
     }
   };
 
   const handleDelete = (bomb: any) => {
     showConfirm(`Delete "${bomb.name}"? This cannot be undone.`, async () => {
+      const prevBombs = bombs;
+      setBombs(prev => prev.filter(b => b.id !== bomb.id)); // optimistic removal
       try {
-        // Optimistic delete: remove from local state immediately
-        setBombs(prev => prev.filter(b => b.id !== bomb.id));
         await api.deleteFutureBomb(token, bomb.id);
         invalidateDashboardCache();
       } catch (e: any) {
         showAlert("Failed to delete: " + e.message);
-        await loadData();
+        setBombs(prevBombs); // rollback
       }
     });
   };
@@ -408,7 +408,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
           invalidateDashboardCache();
         } catch (e: any) {
           showAlert("Failed to pause investments: " + e.message);
-          await loadData();
+          loadData(); // background reload
         }
       }
     );
@@ -419,12 +419,15 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     if (newSaved === null) return;
     const val = parseFloat(newSaved);
     if (isNaN(val)) { showAlert("Invalid amount"); return; }
+    // Optimistic update
+    setBombs(prev => prev.map(b => b.id === bomb.id ? enrichBomb({ ...b, saved_amount: val, savedAmount: val }) : b));
     try {
       await api.updateFutureBomb(token, bomb.id, { saved_amount: val });
       invalidateDashboardCache();
-      await loadData();
+      loadData(); // background refresh
     } catch (e: any) {
       showAlert("Failed to update: " + e.message);
+      loadData(); // rollback by reloading
     }
   };
 
