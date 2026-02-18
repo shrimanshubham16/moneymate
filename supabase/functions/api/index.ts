@@ -593,21 +593,8 @@ serve(async (req) => {
       const { data: userThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).single();
       const ht = userThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
       
-      // Fetch payment status to know which items are paid this billing period
-      const todayForPayments = new Date();
-      const { data: prefsForBilling } = await supabase.from('user_preferences')
-        .select('month_start_day').eq('user_id', userId).single();
-      const msd = prefsForBilling?.month_start_day || 1;
-      let bms: Date;
-      if (todayForPayments.getDate() >= msd) {
-        bms = new Date(todayForPayments.getFullYear(), todayForPayments.getMonth(), msd);
-      } else {
-        bms = new Date(todayForPayments.getFullYear(), todayForPayments.getMonth() - 1, msd);
-      }
-      const billingMo = `${bms.getFullYear()}-${String(bms.getMonth() + 1).padStart(2, '0')}`;
-      const { data: paymentsData } = await supabase.from('payments')
-        .select('entity_type, entity_id').eq('user_id', userId).eq('month', billingMo);
-      const paidSet = new Set((paymentsData || []).map((p: any) => `${p.entity_type}:${p.entity_id}`));
+      // Fetch future bombs for defusal SIP calculation
+      const { data: futureBombs } = await supabase.from('future_bombs').select('*').eq('user_id', userId);
       
       // Calculate totals — filter out incomes excluded from health
       const healthIncomeItems = (incomes || []).filter((i: any) => i.include_in_health !== false);
@@ -618,15 +605,13 @@ serve(async (req) => {
       }));
       const totalIncome = incomeItems.reduce((sum: number, i: any) => sum + i.monthlyEquivalent, 0);
       
-      // Fixed expenses — only count UNPAID ones
+      // Fixed expenses — count ALL (commitment exists whether paid or not)
       const fixedExpenseItems = (fixedExpenses || []).map((e: any) => ({
         ...e,
-        paid: paidSet.has(`fixed_expense:${e.id}`),
         monthlyEquivalent: e.frequency === 'monthly' ? e.amount :
           e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12
       }));
-      const unpaidFixedExpenseItems = fixedExpenseItems.filter((e: any) => !e.paid);
-      const totalFixedExpenses = unpaidFixedExpenseItems.reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
+      const totalFixedExpenses = fixedExpenseItems.reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
       
       // Variable expenses — exclude ExtraCash & CreditCard payment modes from actual totals
       const variablePlanItems = (variablePlans || []).map((p: any) => {
@@ -638,10 +623,9 @@ serve(async (req) => {
       const totalVariablePlanned = variablePlanItems.reduce((sum: number, p: any) => sum + (p.planned || 0), 0);
       const totalVariableActual = variablePlanItems.reduce((sum: number, p: any) => sum + p.actualTotal, 0);
       
-      // Investments — only count UNPAID active ones
+      // Investments — count ALL active (commitment exists whether paid or not)
       const activeInvestments = (investments || []).filter((i: any) => i.status === 'active');
-      const unpaidActiveInvestments = activeInvestments.filter((i: any) => !paidSet.has(`investment:${i.id}`));
-      const totalInvestments = unpaidActiveInvestments.reduce((sum: number, i: any) => sum + (i.monthly_amount || 0), 0);
+      const totalInvestments = activeInvestments.reduce((sum: number, i: any) => sum + (i.monthly_amount || 0), 0);
       
       const creditCardItems = (creditCards || []).map((c: any) => ({
         ...c,
@@ -661,8 +645,20 @@ serve(async (req) => {
       const totalVariableProrated = totalVariablePlanned * remainingDaysRatio;
       const effectiveVariable = Math.max(totalVariableActual, totalVariableProrated);
       
+      // Future Bomb Defusal SIP — the monthly amount needed to defuse bombs 1 month before due
+      const totalBombSip = (futureBombs || []).reduce((sum: number, bomb: any) => {
+        const remaining = Math.max(0, (bomb.total_amount || 0) - (bomb.saved_amount || 0));
+        if (remaining <= 0) return sum;
+        const dueDate = new Date(bomb.due_date);
+        // Defuse 1 month before due
+        const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
+        const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
+        const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today.getTime()) / msPerMonth));
+        return sum + (remaining / monthsLeft);
+      }, 0);
+      
       // Calculate remaining (available funds)
-      const totalExpenses = totalFixedExpenses + effectiveVariable + totalInvestments + totalCreditCardDue;
+      const totalExpenses = totalFixedExpenses + effectiveVariable + totalInvestments + totalCreditCardDue + totalBombSip;
       const remaining = totalIncome - totalExpenses;
       
       // Determine category using PERCENTAGE-BASED thresholds (matching frontend)
@@ -685,21 +681,20 @@ serve(async (req) => {
           remaining: Math.round(remaining),
           category
         },
-        formula: "Income - (Fixed + Prorated Variable + Investments + CreditCards)",
-        calculation: `${Math.round(totalIncome)} - (${Math.round(totalFixedExpenses)} + ${Math.round(effectiveVariable)} + ${Math.round(totalInvestments)} + ${Math.round(totalCreditCardDue)}) = ${Math.round(remaining)}`,
+        formula: "Income - (Fixed + max(Prorated,Actual) Variable + Investments + CreditCards + BombSIP)",
+        calculation: `${Math.round(totalIncome)} - (${Math.round(totalFixedExpenses)} + ${Math.round(effectiveVariable)} + ${Math.round(totalInvestments)} + ${Math.round(totalCreditCardDue)} + ${Math.round(totalBombSip)}) = ${Math.round(remaining)}`,
         monthProgress,
         // Structure expected by frontend
         totalIncome: Math.round(totalIncome),
         obligations: {
           totalFixed: Math.round(totalFixedExpenses),
-          unpaidFixed: Math.round(totalFixedExpenses),
-          unpaidProratedVariable: Math.round(effectiveVariable),
+          totalVariableEffective: Math.round(effectiveVariable),
           totalVariablePlanned: Math.round(totalVariablePlanned),
           totalVariableProrated: Math.round(totalVariableProrated),
-          unpaidVariable: Math.round(totalVariableActual),
+          totalVariableActual: Math.round(totalVariableActual),
           totalInvestments: Math.round(totalInvestments),
-          unpaidInvestments: Math.round(totalInvestments),
-          totalCreditCardDue: Math.round(totalCreditCardDue)
+          totalCreditCardDue: Math.round(totalCreditCardDue),
+          totalBombSip: Math.round(totalBombSip)
         },
         breakdown: {
           income: {
@@ -721,6 +716,15 @@ serve(async (req) => {
             investments: {
               total: Math.round(totalInvestments),
               items: activeInvestments
+            },
+            bombDefusal: {
+              total: Math.round(totalBombSip),
+              items: (futureBombs || []).map((b: any) => ({
+                name: b.name,
+                totalAmount: b.total_amount,
+                savedAmount: b.saved_amount,
+                dueDate: b.due_date
+              }))
             }
           },
           debts: {
@@ -1042,8 +1046,19 @@ serve(async (req) => {
       const calcVariableProrated = calcTotalVariablePlanned * remainingDaysRatio;
       const calcEffectiveVariable = Math.max(calcTotalVariableActual, calcVariableProrated);
       
+      // Future Bomb Defusal SIP — monthly amount needed to defuse bombs 1 month before due
+      const calcBombSip = (directFutureBombs || []).reduce((sum: number, bomb: any) => {
+        const bombRemaining = Math.max(0, (bomb.total_amount || 0) - (bomb.saved_amount || 0));
+        if (bombRemaining <= 0) return sum;
+        const dueDate = new Date(bomb.due_date);
+        const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
+        const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
+        const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today.getTime()) / msPerMonth));
+        return sum + (bombRemaining / monthsLeft);
+      }, 0);
+      
       // Final remaining
-      const calcRemaining = calcTotalIncome - (calcTotalFixed + calcEffectiveVariable + calcTotalInvestments + calcTotalCreditCard);
+      const calcRemaining = calcTotalIncome - (calcTotalFixed + calcEffectiveVariable + calcTotalInvestments + calcTotalCreditCard + calcBombSip);
       
       // Category — use PERCENTAGE-BASED configurable thresholds (matching frontend)
       const calcHealthScore = calcTotalIncome > 0

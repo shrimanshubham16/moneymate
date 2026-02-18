@@ -166,22 +166,21 @@ export function DashboardPage({ token }: DashboardPageProps) {
       }, 0);
     const totalIncome = ownIncome + sharedIncomeTotal;
     
-    // Calculate unpaid fixed expenses (respecting 'paid' status) - use filtered ownFixedExpenses
-    const ownUnpaidFixed = ownFixedExpenses
-      .filter((exp: any) => !exp.paid)
+    // Calculate ALL fixed expenses (commitment exists whether paid or not — paying doesn't improve health)
+    const ownFixedTotal = ownFixedExpenses
       .reduce((sum: number, exp: any) => {
         const amount = parseFloat(exp.amount) || 0;
         const monthly = exp.frequency === 'monthly' ? amount :
           exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
       }, 0);
-    const unpaidFixedTotal = ownUnpaidFixed + sharedFixedTotal;
+    const totalFixedForHealth = ownFixedTotal + sharedFixedTotal;
     
-    // Calculate unpaid investments (respecting 'paid' status) - use filtered ownInvestments
-    const ownUnpaidInvestments = ownInvestments
-      .filter((inv: any) => inv.status === 'active' && !inv.paid)
+    // Calculate ALL active investments (commitment exists whether paid or not)
+    const ownInvestmentsTotal = ownInvestments
+      .filter((inv: any) => inv.status === 'active')
       .reduce((sum: number, inv: any) => sum + (parseFloat(inv.monthlyAmount) || 0), 0);
-    const unpaidInvestmentsTotal = ownUnpaidInvestments + sharedInvestmentsTotal;
+    const totalInvestmentsForHealth = ownInvestmentsTotal + sharedInvestmentsTotal;
     
     // Variable expenses - FIXED: Calculate per-plan max(actual, prorated) then sum
     // This matches the /health page breakdown exactly
@@ -205,7 +204,19 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const sharedVariableEffective = Math.max(sharedVariableActual, sharedVariablePlanned * remainingDaysRatio);
     const variableTotal = ownVariableTotal + sharedVariableEffective;
     
-    const totalOutflow = unpaidFixedTotal + variableTotal + unpaidInvestmentsTotal + ccDues;
+    // Future Bomb Defusal SIP — monthly amount needed to defuse bombs 1 month before due
+    const today2 = new Date();
+    const bombSipTotal = ((data.futureBombs || []) as any[]).reduce((sum: number, bomb: any) => {
+      const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount || bomb.total_amount) || 0) - (parseFloat(bomb.savedAmount || bomb.saved_amount) || 0));
+      if (bombRemaining <= 0) return sum;
+      const dueDate = new Date(bomb.dueDate || bomb.due_date);
+      const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
+      const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
+      const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today2.getTime()) / msPerMonth));
+      return sum + (bombRemaining / monthsLeft);
+    }, 0);
+    
+    const totalOutflow = totalFixedForHealth + variableTotal + totalInvestmentsForHealth + ccDues + bombSipTotal;
     const remaining = totalIncome - totalOutflow;
     
     // Determine category using PERCENTAGE-BASED configurable thresholds
@@ -234,8 +245,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
       // Use filtered ownVariablePlans to avoid including shared users' data
       ownAggregates: {
         total_income_monthly: ownIncome,
-        total_fixed_monthly: ownUnpaidFixed,
-        total_investments_monthly: ownUnpaidInvestments,
+        total_fixed_monthly: ownFixedTotal,
+        total_investments_monthly: ownInvestmentsTotal,
         total_variable_planned: ownVariablePlans.reduce((sum: number, p: any) => sum + (parseFloat(p.planned) || 0), 0),
         total_variable_actual: ownVariableTotal,
         total_credit_card_dues: ownCcDues

@@ -102,16 +102,8 @@ export function ExportPage({ token }: ExportPageProps) {
           return sum + monthly;
         }, 0);
       
-      // Only count UNPAID fixed expenses (matching health page)
+      // Count ALL fixed expenses (commitment exists whether paid or not)
       const recalcTotalFixed = (data.fixedExpenses || []).reduce((sum: number, e: any) => {
-        if (e.paid) return sum; // Skip paid expenses
-        const amount = parseFloat(e.amount) || 0;
-        const monthly = e.frequency === 'monthly' ? amount : e.frequency === 'quarterly' ? amount / 3 : amount / 12;
-        return sum + monthly;
-      }, 0);
-      
-      // All fixed for display (both paid and unpaid)
-      const totalFixedForDisplay = (data.fixedExpenses || []).reduce((sum: number, e: any) => {
         const amount = parseFloat(e.amount) || 0;
         const monthly = e.frequency === 'monthly' ? amount : e.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
@@ -137,14 +129,9 @@ export function ExportPage({ token }: ExportPageProps) {
         return sum + Math.max(actual, prorated);
       }, 0);
       
-      // Only count UNPAID active investments (matching health page)
+      // Count ALL active investments (commitment exists whether paid or not)
       const recalcTotalInvestments = (data.investments || []).reduce((sum: number, inv: any) => {
-        if (inv.paid || inv.status === 'paused') return sum; // Skip paid or paused
-        return sum + (parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0);
-      }, 0);
-      
-      // All investments for display
-      const totalInvestmentsForDisplay = (data.investments || []).reduce((sum: number, inv: any) => {
+        if (inv.status === 'paused') return sum; // Skip paused only
         return sum + (parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0);
       }, 0);
       
@@ -155,11 +142,22 @@ export function ExportPage({ token }: ExportPageProps) {
         return sum + Math.max(0, bill - paid);
       }, 0);
       
-      // Health score calculation (matching health page exactly)
-      const healthRemaining = recalcTotalIncome - (recalcTotalFixed + recalcTotalVariableActual + recalcTotalInvestments + creditCardDues);
+      // Future Bomb Defusal SIP
+      const bombSipTotal = ((data.futureBombs || []) as any[]).reduce((sum: number, bomb: any) => {
+        const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount || bomb.total_amount) || 0) - (parseFloat(bomb.savedAmount || bomb.saved_amount) || 0));
+        if (bombRemaining <= 0) return sum;
+        const dueDate = new Date(bomb.dueDate || bomb.due_date);
+        const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
+        const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
+        const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today.getTime()) / msPerMonth));
+        return sum + (bombRemaining / monthsLeft);
+      }, 0);
       
-      // For backward compatibility - simple remaining without credit cards
-      const recalcRemaining = recalcTotalIncome - (totalFixedForDisplay + recalcTotalVariableActual + totalInvestmentsForDisplay);
+      // Health score calculation (matching health page exactly)
+      const healthRemaining = recalcTotalIncome - (recalcTotalFixed + recalcTotalVariableActual + recalcTotalInvestments + creditCardDues + bombSipTotal);
+      
+      // For backward compatibility - simple remaining
+      const recalcRemaining = healthRemaining;
       
       
       // Determine health category using PERCENTAGE-BASED thresholds (matching health page)
@@ -177,12 +175,11 @@ export function ExportPage({ token }: ExportPageProps) {
       data.summary = {
         ...data.summary,
         totalIncome: recalcTotalIncome,
-        totalFixedExpenses: totalFixedForDisplay,
-        unpaidFixedExpenses: recalcTotalFixed,
+        totalFixedExpenses: recalcTotalFixed,
         totalVariableActual: recalcTotalVariableActual,
-        totalInvestments: totalInvestmentsForDisplay,
-        unpaidInvestments: recalcTotalInvestments,
+        totalInvestments: recalcTotalInvestments,
         creditCardDues: creditCardDues,
+        bombDefusalSip: Math.round(bombSipTotal),
         remainingBalance: Math.round(recalcRemaining),
         healthScore: Math.round(healthRemaining), // Always integer
         healthCategory: healthCategory,
@@ -205,17 +202,16 @@ export function ExportPage({ token }: ExportPageProps) {
         ["Total Monthly Income", data.summary?.totalIncome],
         [],
         ["OUTFLOW BREAKDOWN"],
-        ["Fixed Expenses (Total)", data.summary?.totalFixedExpenses],
-        ["Fixed Expenses (Unpaid)", data.summary?.unpaidFixedExpenses],
-        ["Variable Expenses (Prorated)", data.summary?.totalVariableActual],
-        ["Investments (Total)", data.summary?.totalInvestments],
-        ["Investments (Unpaid)", data.summary?.unpaidInvestments],
+        ["Fixed Expenses", data.summary?.totalFixedExpenses],
+        ["Variable Expenses (max of Prorated/Actual)", data.summary?.totalVariableActual],
+        ["Investments (Active)", data.summary?.totalInvestments],
         ["Credit Card Dues", data.summary?.creditCardDues],
+        ["Bomb Defusal SIP", data.summary?.bombDefusalSip],
         [],
         ["HEALTH SCORE (Matching /health page)"],
         ["Health Score", data.summary?.healthScore],
         ["Health Status", (data.summary?.healthCategory || "good").toUpperCase()],
-        ["Note", "Health = Income - (Unpaid Fixed + Prorated Variable + Unpaid Investments + CC Dues)"],
+        ["Note", "Health = Income - (Fixed + max(Prorated,Actual) Variable + Investments + CC Dues + Bomb SIP)"],
         [],
         ["CONSTRAINT SCORE"],
         ["Score", data.constraintScore?.score || 0],

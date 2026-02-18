@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaMoneyBillWave, FaShoppingCart, FaChartLine, FaCreditCard, FaUniversity, FaHeart, FaUsers } from "react-icons/fa";
+import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaMoneyBillWave, FaShoppingCart, FaChartLine, FaCreditCard, FaUniversity, FaHeart, FaUsers, FaBomb } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { IntroModal } from "../components/IntroModal";
@@ -191,22 +191,20 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         }, 0);
       const totalIncomeForHealth = ownIncomeTotal + sharedIncomeTotal;
       
-      // Use filtered own items (not all items which includes shared users')
-      const unpaidFixedExpenses = ownFixedExpenses.filter((exp: any) => !exp.paid);
-      const unpaidInvestmentsForCalc = ownInvestmentsData.filter((inv: any) => inv.status === 'active' && !inv.paid);
-      
-      const ownUnpaidFixedTotal = unpaidFixedExpenses.reduce((sum: number, exp: any) => {
+      // Fixed expenses — count ALL (commitment exists whether paid or not)
+      const ownFixedTotal = ownFixedExpenses.reduce((sum: number, exp: any) => {
         const amount = parseFloat(exp.amount) || 0;
         const monthly = exp.frequency === 'monthly' ? amount :
           exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
         return sum + monthly;
       }, 0);
-      const unpaidFixedTotalForHealth = ownUnpaidFixedTotal + sharedFixedTotal;
+      const fixedTotalForHealth = ownFixedTotal + sharedFixedTotal;
       
-      const ownUnpaidInvestmentsTotal = unpaidInvestmentsForCalc.reduce((sum: number, inv: any) => {
-        return sum + (parseFloat(inv.monthlyAmount) || 0);
-      }, 0);
-      const unpaidInvestmentsTotalForHealth = ownUnpaidInvestmentsTotal + sharedInvestmentsTotal;
+      // Investments — count ALL active (commitment exists whether paid or not)
+      const ownInvestmentsTotal = ownInvestmentsData
+        .filter((inv: any) => inv.status === 'active')
+        .reduce((sum: number, inv: any) => sum + (parseFloat(inv.monthlyAmount) || 0), 0);
+      const investmentsTotalForHealth = ownInvestmentsTotal + sharedInvestmentsTotal;
       
       // Calculate variable total from dashboard's decrypted/recalculated data
       // FIXED: Calculate per-plan max(actual, prorated) then sum - matches breakdown display
@@ -246,7 +244,19 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       }, 0);
       const creditCardTotalForHealth = ownCreditCardTotal + sharedCreditCardDues;
       
-      const totalOutflowForHealth = unpaidFixedTotalForHealth + variableTotalForHealth + unpaidInvestmentsTotalForHealth + creditCardTotalForHealth;
+      // Future Bomb Defusal SIP — monthly amount needed to defuse bombs 1 month before due
+      const today2 = new Date();
+      const bombSipForHealth = ((data.futureBombs || []) as any[]).reduce((sum: number, bomb: any) => {
+        const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount || bomb.total_amount) || 0) - (parseFloat(bomb.savedAmount || bomb.saved_amount) || 0));
+        if (bombRemaining <= 0) return sum;
+        const dueDate = new Date(bomb.dueDate || bomb.due_date);
+        const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
+        const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
+        const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today2.getTime()) / msPerMonth));
+        return sum + (bombRemaining / monthsLeft);
+      }, 0);
+      
+      const totalOutflowForHealth = fixedTotalForHealth + variableTotalForHealth + investmentsTotalForHealth + creditCardTotalForHealth + bombSipForHealth;
       
       // Calculate correct remaining using frontend's decrypted totals
       const correctRemaining = totalIncomeForHealth - totalOutflowForHealth;
@@ -291,40 +301,38 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const breakdown = healthData.breakdown;
       const obligations = healthData.obligations || {};
 
-      // Reuse the already calculated unpaid items and totals
-      const unpaidInvestments = unpaidInvestmentsForCalc;
-      const unpaidFixedTotal = unpaidFixedTotalForHealth;
-      const unpaidInvestmentsTotal = unpaidInvestmentsTotalForHealth;
+      // Use ALL items for health calculation (paid/unpaid doesn't matter — commitment exists regardless)
+      const allActiveInvestments = ownInvestmentsData.filter((inv: any) => inv.status === 'active');
       
       // For merged view, add shared aggregate as a visible line item so totals match breakdown
       const isShowingSharedData = selectedView === 'merged' && sharedAggregates.length > 0;
       
       setBreakdown({
         income: {
-          total: totalIncomeForHealth,  // Use frontend-calculated total from decrypted data
-          sources: ownIncomes,  // Use filtered incomes (not ALL data which includes shared users in merged view)
-          sharedTotal: isShowingSharedData ? sharedIncomeTotal : 0  // Add shared aggregate total for merged view
+          total: totalIncomeForHealth,
+          sources: ownIncomes,
+          sharedTotal: isShowingSharedData ? sharedIncomeTotal : 0
         },
         expenses: {
           fixed: {
-            total: unpaidFixedTotal,  // Use calculated unpaid total, not backend's total
-            items: unpaidFixedExpenses,
+            total: fixedTotalForHealth,  // ALL fixed (commitment always exists)
+            items: ownFixedExpenses,     // Show all items regardless of paid status
             sharedTotal: isShowingSharedData ? sharedFixedTotal : 0
           },
           variable: {
-            total: variableTotalForHealth,  // Use recalculated variable total from decrypted data
-            items: ownVariablePlansData,  // Use filtered variable plans (not ALL data)
+            total: variableTotalForHealth,
+            items: ownVariablePlansData,
             sharedTotal: isShowingSharedData ? sharedVariableEffective : 0
           }
         },
         investments: {
-          total: unpaidInvestmentsTotal,  // Use calculated unpaid total
-          items: unpaidInvestments,  // This already uses filtered ownInvestmentsData
+          total: investmentsTotalForHealth,  // ALL active (commitment always exists)
+          items: allActiveInvestments,
           sharedTotal: isShowingSharedData ? sharedInvestmentsTotal : 0
         },
         debts: {
           creditCards: {
-            total: creditCardTotalForHealth,  // Use combined total including shared
+            total: creditCardTotalForHealth,
             items: cardsRes.data.filter((card: any) => {
               const billAmount = card.billAmount || card.bill_amount || 0;
               const paidAmount = card.paidAmount || card.paid_amount || 0;
@@ -337,7 +345,11 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             items: loansRes.data
           }
         },
-        totalOutflow: unpaidFixedTotal + variableTotalForHealth + unpaidInvestmentsTotal + creditCardTotalForHealth,
+        bombDefusal: {
+          total: bombSipForHealth,
+          items: (data.futureBombs || [])
+        },
+        totalOutflow: fixedTotalForHealth + variableTotalForHealth + investmentsTotalForHealth + creditCardTotalForHealth + bombSipForHealth,
         monthProgress: healthData.monthProgress || 0
       });
 
@@ -454,7 +466,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         title="Financial Health Score"
         description="This is the page that tells you the truth — how much money you really have left after every bill, investment, and variable expense. A single number that captures your entire financial standing this month."
         tips={[
-          "Health Score = Income − (Unpaid Fixed Expenses + Prorated Variable + Unpaid Investments + Credit Card Dues)",
+          "Health Score = Income − (Fixed Expenses + max(Prorated, Actual) Variable + Investments + Credit Card Dues + Bomb Defusal SIP)",
           "Green (≥20% of income left) = Healthy, Yellow (10–20%) = Tight, Red (<10%) = Danger — you can customise these thresholds",
           "Overspend Risk tracks how often you exceed variable expense budgets and decays monthly",
           "The full breakdown shows exactly where every rupee is going so you can optimise",
@@ -592,7 +604,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       <div className="calculation-section">
         <h2><FaChartLine style={{ marginRight: 8 }} />How We Calculated Your Health</h2>
         <div className="calculation-explanation">
-          <p><strong>Health Score = Funds Available - (Unpaid Fixed + Prorated Variable + Active Unpaid Investments + Credit card bill)</strong></p>
+          <p><strong>Health Score = Income - (Fixed + max(Prorated, Actual) Variable + Active Investments + CC Dues + Bomb SIP)</strong></p>
           
         </div>
 
@@ -637,11 +649,11 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           transition={{ delay: 0.2 }}
         >
           <div className="card-header">
-            <h3><FaMoneyBillWave style={{ marginRight: 8 }} />Unpaid Fixed Expenses</h3>
+            <h3><FaMoneyBillWave style={{ marginRight: 8 }} />Fixed Expenses</h3>
             <span className="amount negative">-₹{Math.round(breakdown.expenses?.fixed?.total || 0).toLocaleString("en-IN")}</span>
           </div>
           <div className="sub-note">
-            <small>Only showing unpaid fixed expenses (paid items don't count)</small>
+            <small>All fixed expenses — commitment exists whether paid or not</small>
           </div>
           <div className="items-list">
             {(!breakdown.expenses?.fixed?.items || breakdown.expenses.fixed.items.length === 0) && !breakdown.expenses?.fixed?.sharedTotal ? (
@@ -741,11 +753,11 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             transition={{ delay: 0.4 }}
           >
             <div className="card-header">
-              <h3><FaChartLine style={{ marginRight: 8 }} />Active Unpaid Investments</h3>
+              <h3><FaChartLine style={{ marginRight: 8 }} />Active Investments</h3>
               <span className="amount negative">-₹{(breakdown.investments?.total || 0).toLocaleString("en-IN")}</span>
             </div>
             <div className="sub-note">
-              <small>Only active, unpaid investments are counted in your health</small>
+              <small>All active investments — commitment exists whether paid or not</small>
             </div>
             <div className="items-list">
               {(!breakdown.investments?.items || breakdown.investments.items.length === 0) && !breakdown.investments?.sharedTotal ? (
@@ -770,8 +782,43 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           </motion.div>
         )}
 
+        {/* Future Bomb Defusal SIP */}
+        {breakdown.bombDefusal && breakdown.bombDefusal.total > 0 && (
+          <motion.div
+            className="breakdown-card bomb-card"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.45 }}
+          >
+            <div className="card-header">
+              <h3><FaBomb style={{ marginRight: 8 }} />Bomb Defusal SIP</h3>
+              <span className="amount negative">-₹{Math.round(breakdown.bombDefusal.total).toLocaleString("en-IN")}</span>
+            </div>
+            <div className="sub-note">
+              <small>Monthly amount needed to defuse future bombs 1 month before due</small>
+            </div>
+            <div className="items-list">
+              {(breakdown.bombDefusal.items || []).map((bomb: any) => {
+                const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount || bomb.total_amount) || 0) - (parseFloat(bomb.savedAmount || bomb.saved_amount) || 0));
+                if (bombRemaining <= 0) return null;
+                const dueDate = new Date(bomb.dueDate || bomb.due_date);
+                const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
+                const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
+                const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - new Date().getTime()) / msPerMonth));
+                const monthlySip = bombRemaining / monthsLeft;
+                return (
+                  <div key={bomb.id || bomb.name} className="item-row">
+                    <span>{bomb.name || bomb.title} <span className="goal-badge">{monthsLeft}mo left</span></span>
+                    <span>-₹{Math.round(monthlySip).toLocaleString("en-IN")}/mo</span>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
         
-        {/* Credit Cards - FIX: Display in breakdown */}
+        {/* Credit Cards - Display in breakdown */}
         {breakdown.debts.creditCards.total > 0 && (
           <motion.div
             className="breakdown-card debt-card"
