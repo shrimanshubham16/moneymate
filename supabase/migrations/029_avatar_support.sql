@@ -12,12 +12,13 @@ CREATE POLICY "Avatars are publicly accessible"
   USING (bucket_id = 'avatars');
 
 -- RLS policy: authenticated users can upload their own avatar
--- File path must start with their user ID
+-- File path format: {userId}/avatar.{ext}
+-- Extract user ID from path (everything before first '/')
 CREATE POLICY "Users can upload their own avatar"
   ON storage.objects FOR INSERT
   WITH CHECK (
     bucket_id = 'avatars'
-    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND auth.uid()::text = split_part(name, '/', 1)
   );
 
 -- RLS policy: users can update their own avatar
@@ -25,7 +26,7 @@ CREATE POLICY "Users can update their own avatar"
   ON storage.objects FOR UPDATE
   USING (
     bucket_id = 'avatars'
-    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND auth.uid()::text = split_part(name, '/', 1)
   );
 
 -- RLS policy: users can delete their own avatar
@@ -33,5 +34,5 @@ CREATE POLICY "Users can delete their own avatar"
   ON storage.objects FOR DELETE
   USING (
     bucket_id = 'avatars'
-    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND auth.uid()::text = split_part(name, '/', 1)
   );
