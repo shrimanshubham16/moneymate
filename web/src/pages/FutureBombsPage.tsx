@@ -306,6 +306,31 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     setFormModal({ isOpen: true, editId: bomb.id });
   };
 
+  // Helper to compute derived bomb fields (same as backend)
+  const enrichBomb = (raw: any) => {
+    const totalAmount = raw.total_amount ?? raw.totalAmount ?? 0;
+    const savedAmount = raw.saved_amount ?? raw.savedAmount ?? 0;
+    const dueDate = raw.due_date ?? raw.dueDate ?? "";
+    const remaining = totalAmount - savedAmount;
+    const monthsLeft = dueDate
+      ? Math.max(1, Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30.44)) - 1)
+      : 1;
+    const monthlySIP = remaining > 0 ? Math.ceil(remaining / monthsLeft) : 0;
+    const progress = totalAmount > 0 ? Math.min(100, Math.round((savedAmount / totalAmount) * 100)) : 0;
+    return {
+      ...raw,
+      id: raw.id || `temp-${Date.now()}`,
+      name: raw.name,
+      totalAmount,
+      savedAmount,
+      dueDate,
+      remaining,
+      monthsLeft,
+      monthlySIP,
+      progress,
+    };
+  };
+
   const handleFormSubmit = async () => {
     if (!formData.name.trim()) { showAlert("Name is required."); return; }
     if (!formData.totalAmount || parseFloat(formData.totalAmount) <= 0) { showAlert("Total amount must be a positive number."); return; }
@@ -323,27 +348,42 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
         saved_amount: saved,
         due_date: formData.dueDate
       };
+
+      setFormModal({ isOpen: false });
+
       if (formModal.editId) {
+        // Optimistic update: patch local state immediately
+        setBombs(prev => prev.map(b => b.id === formModal.editId ? enrichBomb({ ...b, ...payload }) : b));
         await api.updateFutureBomb(token, formModal.editId, payload);
       } else {
-        await api.createFutureBomb(token, payload);
+        // Optimistic create: add to local state immediately
+        const optimistic = enrichBomb({ ...payload, id: `temp-${Date.now()}` });
+        setBombs(prev => [...prev, optimistic]);
+        const res = await api.createFutureBomb(token, payload);
+        // Replace temp entry with the real server-returned record
+        if (res?.data) {
+          setBombs(prev => prev.map(b => b.id === optimistic.id ? enrichBomb(res.data) : b));
+        }
       }
+
       invalidateDashboardCache();
-      setFormModal({ isOpen: false });
-      await loadData();
     } catch (e: any) {
       showAlert("Failed to save: " + e.message);
+      // Revert on failure — reload from server
+      await loadData();
     }
   };
 
   const handleDelete = (bomb: any) => {
     showConfirm(`Delete "${bomb.name}"? This cannot be undone.`, async () => {
       try {
+        // Optimistic delete: remove from local state immediately
+        setBombs(prev => prev.filter(b => b.id !== bomb.id));
         await api.deleteFutureBomb(token, bomb.id);
         invalidateDashboardCache();
-        await loadData();
       } catch (e: any) {
         showAlert("Failed to delete: " + e.message);
+        await loadData();
       }
     });
   };
@@ -354,13 +394,18 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       `Pause ${suggestions.length} investment(s) to free up ${cs}${fmt(suggestions.reduce((s, i) => s + i.monthlyAmount, 0))}/month? You can resume them anytime from the Investments page.`,
       async () => {
         try {
+          const pausedIds = new Set(suggestions.map(s => s.id));
+          // Optimistic: mark investments as paused locally
+          setInvestments(prev => prev.map(inv =>
+            pausedIds.has(inv.id) ? { ...inv, status: "paused" } : inv
+          ));
           for (const s of suggestions) {
             await api.pauseInvestment(token, s.id);
           }
           invalidateDashboardCache();
-          await loadData();
         } catch (e: any) {
           showAlert("Failed to pause investments: " + e.message);
+          await loadData();
         }
       }
     );
