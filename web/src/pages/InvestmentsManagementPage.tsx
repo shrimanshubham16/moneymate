@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaUsers, FaExclamationTriangle, FaStar, FaShieldAlt } from "react-icons/fa";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaExclamationTriangle, FaShieldAlt, FaPlus } from "react-icons/fa";
+import { MdTrendingUp } from "react-icons/md";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
 import { SkeletonLoader } from "../components/SkeletonLoader";
+import { EmptyState } from "../components/EmptyState";
 import { Modal } from "../components/Modal";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
@@ -18,6 +20,7 @@ interface InvestmentsManagementPageProps {
 
 export function InvestmentsManagementPage({ token }: InvestmentsManagementPageProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const api = useEncryptedApiCalls();
   const [investments, setInvestments] = useState<any[]>([]);
@@ -28,10 +31,11 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     name: "",
     goal: "",
     monthlyAmount: "",
-    status: "active" as "active" | "paused"
+    status: "active" as "active" | "paused",
+    isPriority: false
   });
 
-  // Wallet update modal state (replaces prompt())
+  // Wallet update modal state
   const [walletModal, setWalletModal] = useState<{ isOpen: boolean; investmentId: string; investmentName: string; currentFund: number }>({
     isOpen: false, investmentId: "", investmentName: "", currentFund: 0
   });
@@ -39,16 +43,26 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   
   // Shared view support
   const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
-  const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
-  const lastViewRef = useRef<string>(""); // Track view changes
+  const hasFetchedRef = useRef(false);
+  const lastViewRef = useRef<string>("");
 
   useEffect(() => {
-    // Prevent double fetch in React Strict Mode, but allow on view change
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
     hasFetchedRef.current = true;
     lastViewRef.current = selectedView;
     loadInvestments();
-  }, [selectedView]); // Re-fetch when view changes
+  }, [selectedView]);
+
+  // Auto-open edit form if ?edit=id is in URL
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (editId && investments.length > 0) {
+      const inv = investments.find(i => i.id === editId);
+      if (inv) {
+        handleEdit(inv);
+      }
+    }
+  }, [searchParams, investments]);
 
   const loadInvestments = async () => {
     try {
@@ -61,6 +75,12 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     }
   };
 
+  const resetForm = () => {
+    setFormData({ name: "", goal: "", monthlyAmount: "", status: "active", isPriority: false });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -68,10 +88,11 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
       name: formData.name,
       goal: formData.goal,
       monthlyAmount: Number(formData.monthlyAmount),
-      status: formData.status
+      status: formData.status,
+      isPriority: formData.isPriority
     };
     
-    // OPTIMISTIC UPDATE: Add/update immediately in UI
+    // Optimistic update
     const tempId = `temp-${Date.now()}`;
     const optimisticInvestment = {
       id: editingId || tempId,
@@ -87,10 +108,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
       setInvestments(prev => [optimisticInvestment, ...prev]);
     }
     
-    // Close form immediately
-    setShowForm(false);
-    setEditingId(null);
-    setFormData({ name: "", goal: "", monthlyAmount: "", status: "active" });
+    resetForm();
     
     try {
       let response;
@@ -98,17 +116,14 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
         response = await api.updateInvestment(token, editingId, investmentData);
       } else {
         response = await api.createInvestment(token, investmentData);
-        // Replace temp item with real one
         if (response?.data) {
           setInvestments(prev => prev.map(inv => inv.id === tempId ? response.data : inv));
         }
       }
-      // Background refresh
       invalidateDashboardCache();
       loadInvestments();
     } catch (e: any) {
       showAlert(e.message);
-      // Rollback on error
       if (editingId) {
         loadInvestments();
       } else {
@@ -122,17 +137,19 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     setFormData({
       name: investment.name,
       goal: investment.goal,
-      monthlyAmount: investment.monthlyAmount.toString(),
-      status: investment.status
+      monthlyAmount: (investment.monthlyAmount ?? investment.monthly_amount ?? 0).toString(),
+      status: investment.status,
+      isPriority: investment.isPriority || false
     });
     setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
-    showConfirm("Delete this investment?", async () => {
+    showConfirm("Delete this investment? This action cannot be undone.", async () => {
       try {
         await api.deleteInvestment(token, id);
         setInvestments(prev => prev.filter(inv => inv.id !== id));
+        invalidateDashboardCache();
         await loadInvestments();
       } catch (e: any) {
         showAlert(e.message);
@@ -142,9 +159,8 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   };
 
   const handleTogglePause = async (inv: any) => {
-    // Priority investments cannot be paused
     if (inv.isPriority && inv.status === "active") {
-      showAlert("This investment is marked as Priority (Critical) and cannot be paused. Remove the Priority tag first if you want to pause it.");
+      showAlert("This investment is marked as Critical and cannot be paused. Edit it to remove the Critical tag first.");
       return;
     }
     try {
@@ -160,222 +176,240 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     }
   };
 
-  const handleTogglePriority = async (inv: any) => {
-    try {
-      const newPriority = !inv.isPriority;
-      await api.updateInvestment(token, inv.id, { isPriority: newPriority });
-      // Optimistic update
-      setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, isPriority: newPriority } : i));
-      invalidateDashboardCache();
-    } catch (e: any) {
-      showAlert("Failed to update priority: " + e.message);
-    }
-  };
-
   return (
-    <div className="investments-management-page">
+    <div className="inv-mgmt-page">
       <div className="page-header">
-        <button className="back-button" onClick={() => navigate("/settings/plan-finances")}>
-          ← Back
-        </button>
+        <button className="back-button" onClick={() => navigate("/settings/plan-finances")}>← Back</button>
         <h1>Manage Investments</h1>
         {!isSharedView && (
           <button className="add-button" onClick={() => {
-            setEditingId(null);
-            setFormData({ name: "", goal: "", monthlyAmount: "", status: "active" });
+            resetForm();
             setShowForm(true);
           }}>
-            + Add Investment
+            <FaPlus size={12} /> Add Investment
           </button>
         )}
       </div>
 
-      {showForm && (
-        <motion.div
-          className="form-modal"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          onClick={() => setShowForm(false)}
-        >
-          <div className="form-content" onClick={(e) => e.stopPropagation()}>
-            <h2>{editingId ? "Update" : "Add"} Investment</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Investment Name *</label>
-                <input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  placeholder="Mutual Fund SIP"
-                />
+      {/* ── Investment Form Modal ─────────────── */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            className="inv-form-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={resetForm}
+          >
+            <motion.div 
+              className="inv-form-card"
+              initial={{ opacity: 0, y: 40, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.95 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="inv-form-header">
+                <h2>{editingId ? "Update" : "Add"} Investment</h2>
+                <button className="inv-form-close" onClick={resetForm}>✕</button>
               </div>
-              <div className="form-group">
-                <label>Goal *</label>
-                <input
-                  value={formData.goal}
-                  onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
-                  required
-                  placeholder="Retirement, Education, etc."
-                />
-              </div>
-              <div className="form-group">
-                <label>Monthly Amount *</label>
-                <input
-                  type="number"
-                  value={formData.monthlyAmount}
-                  onChange={(e) => setFormData({ ...formData, monthlyAmount: e.target.value })}
-                  required
-                  min="0"
-                  placeholder="10000"
-                />
-              </div>
-              <div className="form-group">
-                <label>Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "paused" })}
+
+              <form onSubmit={handleSubmit}>
+                <div className="inv-form-grid">
+                  <div className="inv-field">
+                    <label>Investment Name</label>
+                    <input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      placeholder="e.g. SIP Mutual Fund, PPF, NPS"
+                    />
+                  </div>
+
+                  <div className="inv-field">
+                    <label>Goal</label>
+                    <input
+                      value={formData.goal}
+                      onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
+                      required
+                      placeholder="e.g. Retirement, Education, House"
+                    />
+                  </div>
+
+                  <div className="inv-field-row">
+                    <div className="inv-field">
+                      <label>Monthly Amount (₹)</label>
+                      <input
+                        type="number"
+                        value={formData.monthlyAmount}
+                        onChange={(e) => setFormData({ ...formData, monthlyAmount: e.target.value })}
+                        required
+                        min="1"
+                        placeholder="10000"
+                      />
+                    </div>
+                    <div className="inv-field">
+                      <label>Status</label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "paused" })}
+                      >
+                        <option value="active">Active</option>
+                        <option value="paused">Paused</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Critical Investment Toggle ─────── */}
+                <div 
+                  className={`inv-critical-toggle ${formData.isPriority ? "active" : ""}`}
+                  onClick={() => setFormData({ ...formData, isPriority: !formData.isPriority })}
                 >
-                  <option value="active">Active</option>
-                  <option value="paused">Paused</option>
-                </select>
-              </div>
-              <div className="form-actions">
-                <button type="button" onClick={() => setShowForm(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="primary">
-                  {editingId ? "Update" : "Add"} Investment
-                </button>
-              </div>
-            </form>
-          </div>
-        </motion.div>
-      )}
+                  <div className="inv-critical-left">
+                    <div className={`inv-critical-icon ${formData.isPriority ? "active" : ""}`}>
+                      <FaShieldAlt size={16} />
+                    </div>
+                    <div className="inv-critical-text">
+                      <span className="inv-critical-label">Critical Investment</span>
+                      <span className="inv-critical-desc">
+                        {formData.isPriority 
+                          ? "This investment is protected — it will never be suggested for pausing."
+                          : "Enable to protect this investment from being suggested for pausing in Future Bombs."
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`inv-critical-switch ${formData.isPriority ? "on" : ""}`}>
+                    <div className="inv-critical-knob" />
+                  </div>
+                </div>
+
+                <div className="inv-form-actions">
+                  <button type="button" className="inv-btn-cancel" onClick={resetForm}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="inv-btn-submit">
+                    {editingId ? "Update" : "Add"} Investment
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <SharedViewBanner />
 
       {loading ? (
         <SkeletonLoader type="card" count={3} />
+      ) : investments.length === 0 ? (
+        <EmptyState
+          icon={<MdTrendingUp size={80} />}
+          title="No Investments Yet"
+          description="Start tracking your SIPs, mutual funds, stocks, or savings plans"
+          actionLabel={isSharedView ? undefined : "Add First Investment"}
+          onAction={isSharedView ? undefined : () => { resetForm(); setShowForm(true); }}
+        />
       ) : (
-        <div className="investments-list">
-          {investments.length === 0 ? (
-            <div className="empty-state">No investments. Add one to get started!</div>
-          ) : (
-            investments.map((inv, index) => {
-              const itemUserId = inv.userId || inv.user_id;
-              const isOwn = isOwnItem(itemUserId);
-              const displayName = isOwn ? inv.name : formatSharedField(inv.name, isOwn);
-              const displayGoal = isOwn ? inv.goal : formatSharedField(inv.goal, isOwn);
-              
-              return (
-                <motion.div
-                  key={inv.id}
-                  className={`investment-card ${isSharedView && !isOwn ? 'shared-item' : ''}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <div className="investment-info">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div className="inv-list">
+          {investments.map((inv, index) => {
+            const itemUserId = inv.userId || inv.user_id;
+            const isOwn = !itemUserId || isOwnItem(itemUserId);
+            const displayName = isOwn ? inv.name : formatSharedField(inv.name, isOwn);
+            const displayGoal = isOwn ? inv.goal : formatSharedField(inv.goal, isOwn);
+            const monthlyVal = parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0);
+            const accumVal = Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0);
+            
+            return (
+              <motion.div
+                key={inv.id}
+                className={`inv-card ${isSharedView && !isOwn ? "shared" : ""} ${inv.isPriority ? "critical" : ""}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.04 }}
+              >
+                <div className="inv-card-body">
+                  <div className="inv-card-top">
+                    <div className="inv-card-name-row">
                       <h3>{displayName}</h3>
                       {inv.isPriority && (
-                        <span style={{ 
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          fontSize: 10, fontWeight: 700, color: '#f59e0b',
-                          background: 'rgba(245, 158, 11, 0.12)', padding: '2px 8px', borderRadius: 12,
-                          border: '1px solid rgba(245, 158, 11, 0.25)', letterSpacing: '0.5px', textTransform: 'uppercase'
-                        }}>
-                          <FaShieldAlt size={10} /> Critical
+                        <span className="inv-critical-badge">
+                          <FaShieldAlt size={9} /> Critical
                         </span>
                       )}
-                      {/* Owner badge for shared views */}
                       {isSharedView && (
-                        <span className={`owner-badge ${isOwn ? 'own' : 'shared'}`}>
-                          <FaUserCircle size={12} style={{ marginRight: 4 }} />
+                        <span className={`inv-owner-badge ${isOwn ? "own" : "shared"}`}>
+                          <FaUserCircle size={11} />
                           {getOwnerName(itemUserId)}
                         </span>
                       )}
                     </div>
-                    <div className="investment-details">
-                      <span>Goal: {displayGoal}</span>
-                      {(() => {
-                        const monthlyVal = parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0);
-                        const formatted = isNaN(monthlyVal) ? "0" : monthlyVal.toLocaleString("en-IN");
-                        return <span>₹{formatted}/month</span>;
-                      })()}
-                      {(inv.accumulatedFunds || inv.accumulated_funds || 0) > 0 && (
-                        <span className="accumulated-funds">
-                          Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
-                        </span>
-                      )}
-                      <span className={`status ${inv.status}`}>
-                        {inv.status === "active" ? "● Active" : "⏸ Paused"}
+                    <span className="inv-card-goal">Goal: {displayGoal}</span>
+                  </div>
+
+                  <div className="inv-card-stats">
+                    <div className="inv-stat">
+                      <span className="inv-stat-label">Monthly</span>
+                      <span className="inv-stat-value">₹{isNaN(monthlyVal) ? "0" : monthlyVal.toLocaleString("en-IN")}</span>
+                    </div>
+                    {accumVal > 0 && (
+                      <div className="inv-stat">
+                        <span className="inv-stat-label">Saved</span>
+                        <span className="inv-stat-value green">₹{accumVal.toLocaleString("en-IN")}</span>
+                      </div>
+                    )}
+                    <div className="inv-stat">
+                      <span className="inv-stat-label">Status</span>
+                      <span className={`inv-status-pill ${inv.status}`}>
+                        {inv.status === "active" ? "Active" : "Paused"}
                       </span>
-                      {inv.paid && <span className="paid-badge">✓ Paid This Month</span>}
-                      {!inv.paid && <span className="unpaid-badge"><FaExclamationTriangle style={{ marginRight: 4, fontSize: 12 }} /> Not Paid</span>}
+                    </div>
+                    <div className="inv-stat">
+                      <span className="inv-stat-label">This Month</span>
+                      {inv.paid 
+                        ? <span className="inv-paid-pill">✓ Paid</span>
+                        : <span className="inv-unpaid-pill"><FaExclamationTriangle size={10} /> Unpaid</span>
+                      }
                     </div>
                   </div>
-                  <div className="investment-actions">
-                    {/* Only show edit actions for own items */}
-                    {isOwn ? (
-                      <>
-                        <button 
-                          className={`icon-btn priority-btn ${inv.isPriority ? 'active' : ''}`}
-                          onClick={() => handleTogglePriority(inv)}
-                          title={inv.isPriority ? "Remove Priority (can be paused for Future Bombs)" : "Mark as Critical (never paused)"}
-                          style={{ color: inv.isPriority ? '#f59e0b' : 'rgba(255,255,255,0.3)' }}
-                        >
-                          <FaStar />
-                        </button>
-                        <button 
-                          className="icon-btn wallet-btn" 
-                          onClick={() => {
-                            const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
-                            setWalletModal({ isOpen: true, investmentId: inv.id, investmentName: inv.name, currentFund });
-                            setWalletAmount(Math.round(currentFund).toString());
-                          }}
-                          title="Update Available Fund"
-                        >
-                          <FaWallet />
-                        </button>
-                        <button 
-                          className="icon-btn edit-btn" 
-                          onClick={() => handleEdit(inv)}
-                          title="Edit"
-                        >
-                          <FaEdit />
-                        </button>
-                        <button 
-                          className={`icon-btn pause-btn ${inv.isPriority && inv.status === "active" ? "disabled" : ""}`}
-                          onClick={() => handleTogglePause(inv)}
-                          title={inv.isPriority && inv.status === "active" 
-                            ? "Critical investment — cannot be paused" 
-                            : inv.status === "active" ? "Pause" : "Resume"}
-                          style={inv.isPriority && inv.status === "active" ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
-                        >
-                          {inv.status === "active" ? <FaPause /> : <FaPlay />}
-                        </button>
-                        <button 
-                          className="icon-btn delete-btn" 
-                          onClick={() => handleDelete(inv.id)}
-                          title="Delete"
-                        >
-                          <FaTrashAlt />
-                        </button>
-                      </>
-                    ) : (
-                      <span className="read-only-badge" title="View only - belongs to shared member">
-                        <FaLock size={12} /> View Only
-                      </span>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })
-          )}
+                </div>
+
+                <div className="inv-card-actions">
+                  {isOwn ? (
+                    <>
+                      <button className="inv-action-btn wallet" onClick={() => {
+                        const cf = inv.accumulatedFunds || inv.accumulated_funds || 0;
+                        setWalletModal({ isOpen: true, investmentId: inv.id, investmentName: inv.name, currentFund: cf });
+                        setWalletAmount(Math.round(cf).toString());
+                      }} title="Update Fund">
+                        <FaWallet />
+                      </button>
+                      <button className="inv-action-btn edit" onClick={() => handleEdit(inv)} title="Edit">
+                        <FaEdit />
+                      </button>
+                      <button 
+                        className={`inv-action-btn pause ${inv.isPriority && inv.status === "active" ? "locked" : ""}`}
+                        onClick={() => handleTogglePause(inv)}
+                        title={inv.isPriority && inv.status === "active" ? "Critical — cannot pause" : inv.status === "active" ? "Pause" : "Resume"}
+                      >
+                        {inv.status === "active" ? <FaPause /> : <FaPlay />}
+                      </button>
+                      <button className="inv-action-btn delete" onClick={() => handleDelete(inv.id)} title="Delete">
+                        <FaTrashAlt />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="inv-readonly"><FaLock size={11} /> View Only</span>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       )}
-      {/* Wallet Update Modal (replaces prompt()) */}
+
+      {/* Wallet Update Modal */}
       {walletModal.isOpen && (
         <Modal
           isOpen={walletModal.isOpen}
@@ -386,28 +420,23 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button
                 onClick={() => { setWalletModal({ isOpen: false, investmentId: "", investmentName: "", currentFund: 0 }); setWalletAmount(""); }}
-                style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "var(--text-primary)", cursor: "pointer" }}
+                className="inv-btn-cancel"
               >
                 Cancel
               </button>
               <button
                 onClick={async () => {
                   const amount = parseFloat(walletAmount);
-                  if (isNaN(amount)) {
-                    showAlert("Please enter a valid amount.");
-                    return;
-                  }
+                  if (isNaN(amount)) { showAlert("Please enter a valid amount."); return; }
                   try {
                     await api.updateInvestment(token, walletModal.investmentId, { accumulatedFunds: amount });
                     invalidateDashboardCache();
                     setWalletModal({ isOpen: false, investmentId: "", investmentName: "", currentFund: 0 });
                     setWalletAmount("");
                     await loadInvestments();
-                  } catch (e: any) {
-                    showAlert("Failed to update: " + e.message);
-                  }
+                  } catch (e: any) { showAlert("Failed to update: " + e.message); }
                 }}
-                style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--accent-cyan, #22d3ee)", color: "#041019", fontWeight: 700, cursor: "pointer" }}
+                className="inv-btn-submit"
               >
                 Update
               </button>
@@ -422,11 +451,12 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
             value={walletAmount}
             onChange={(e) => setWalletAmount(e.target.value)}
             placeholder="Enter new amount"
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "var(--text-primary)", fontSize: 16 }}
+            className="inv-wallet-input"
             autoFocus
           />
         </Modal>
       )}
+
       <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );

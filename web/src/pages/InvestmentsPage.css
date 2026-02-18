@@ -1,4 +1,6 @@
-/* Investments Page - CRED/Blissy Style */
+/* ═══════════════════════════════════════
+   Investments Page — Premium Dark (View)
+   ═══════════════════════════════════════ */
 
 .investments-page {
   max-width: 1400px;
@@ -44,6 +46,8 @@
   gap: var(--space-4);
   font-size: var(--text-small);
   color: var(--text-secondary);
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .investment-amount {
@@ -73,6 +77,7 @@
 .investment-actions {
   display: flex;
   gap: var(--space-3);
+  flex-shrink: 0;
 }
 
 .investment-actions .icon-btn {
@@ -87,6 +92,18 @@
   transition: all var(--transition-base);
   font-size: 16px;
   background: transparent;
+  padding: 0;
+}
+
+.investment-actions .wallet-btn {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-green);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.investment-actions .wallet-btn:hover {
+  background: rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  transform: scale(1.1);
 }
 
 .investment-actions .edit-btn {
@@ -94,7 +111,6 @@
   color: var(--accent-cyan);
   border-color: rgba(0, 217, 255, 0.3);
 }
-
 .investment-actions .edit-btn:hover {
   background: rgba(0, 217, 255, 0.2);
   box-shadow: var(--glow-cyan);
@@ -106,7 +122,6 @@
   color: var(--accent-yellow);
   border-color: rgba(255, 184, 0, 0.3);
 }
-
 .investment-actions .pause-btn:hover {
   background: rgba(255, 184, 0, 0.2);
   box-shadow: 0 0 20px rgba(255, 184, 0, 0.3);
@@ -118,14 +133,13 @@
   color: var(--accent-pink);
   border-color: rgba(255, 0, 110, 0.3);
 }
-
 .investment-actions .delete-btn:hover {
   background: rgba(255, 0, 110, 0.2);
   box-shadow: var(--glow-pink);
   transform: scale(1.1);
 }
 
-/* ── Priority Card Glow ────────────────── */
+/* ── Priority Card Glow ────────────── */
 .investment-card.priority {
   border-color: rgba(245, 158, 11, 0.2);
   box-shadow: var(--shadow-md), 0 0 16px rgba(245, 158, 11, 0.08);
@@ -135,100 +149,40 @@
   box-shadow: var(--shadow-lg), 0 0 24px rgba(245, 158, 11, 0.15);
 }
 
-/* ── Priority Badge (inline) ───────────── */
+/* ── Priority Badge (inline) ────────── */
 .priority-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 10px;
   font-weight: 800;
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.14);
   padding: 3px 10px;
-  border-radius: 12px;
-  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  border-radius: 10px;
+  border: 1.5px solid rgba(245, 158, 11, 0.3);
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.1);
 }
 
-/* ── Actions Column (priority toggle + row) */
-.investment-actions-column {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-/* ── Priority Toggle Button ────────────── */
-.priority-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 16px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1.5px solid #6b7280;
-  background: rgba(107, 114, 128, 0.15);
-  color: #9ca3af;
-}
-.priority-toggle-btn:hover {
-  border-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
-}
-.priority-toggle-btn.active {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.15));
-  border-color: #f59e0b;
-  color: #fbbf24;
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25), inset 0 0 8px rgba(245, 158, 11, 0.08);
-}
-.priority-toggle-btn.active:hover {
-  background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
-  border-color: #d97706;
-  box-shadow: none;
-}
-
-/* Light theme overrides for priority toggle */
-.theme-light .priority-toggle-btn {
-  border-color: #9ca3af;
-  background: rgba(156, 163, 175, 0.12);
-  color: #6b7280;
-}
-.theme-light .priority-toggle-btn:hover {
-  border-color: #d97706;
-  background: rgba(217, 119, 6, 0.1);
-  color: #d97706;
-}
-.theme-light .priority-toggle-btn.active {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(251, 191, 36, 0.12));
-  border-color: #d97706;
-  color: #92400e;
-  box-shadow: 0 0 12px rgba(217, 119, 6, 0.2);
-}
-.theme-light .priority-badge {
-  color: #b45309;
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(217, 119, 6, 0.3);
-}
-.theme-light .investment-card.priority {
-  border-color: rgba(217, 119, 6, 0.25);
-}
-
-/* ── Disabled Pause ────────────────────── */
+/* ── Disabled Pause ─────────────────── */
 .investment-actions .icon-btn.pause-btn.disabled {
   opacity: 0.25;
   cursor: not-allowed;
   pointer-events: none;
 }
 
+/* ── Light Theme ────────────────────── */
+.theme-light .priority-badge {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(217, 119, 6, 0.25);
+}
+.theme-light .investment-card.priority {
+  border-color: rgba(217, 119, 6, 0.2);
+}
+
+/* ── Responsive ─────────────────────── */
 @media (max-width: 768px) {
   .investments-page {
     padding: var(--space-8) var(--space-4);
@@ -238,15 +192,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-6);
-  }
-
-  .investment-actions-column {
-    width: 100%;
-    align-items: stretch;
-  }
-
-  .priority-toggle-btn {
-    justify-content: center;
   }
 
   .investment-actions {

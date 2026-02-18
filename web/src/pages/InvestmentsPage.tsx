@@ -29,7 +29,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
   const hasFetchedRef = useRef(false);
   const lastViewRef = useRef<string>("");
 
-  // Wallet update modal state (replaces prompt())
+  // Wallet update modal state
   const [walletModal, setWalletModal] = useState<{ isOpen: boolean; investmentId: string; investmentName: string; currentFund: number }>({
     isOpen: false, investmentId: "", investmentName: "", currentFund: 0
   });
@@ -47,7 +47,6 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
 
   const loadInvestments = async () => {
     try {
-      // FIX: Use current date and pass view param
       const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       setInvestments(res.data.investments || []);
     } catch (e) {
@@ -75,9 +74,8 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
   };
 
   const handlePauseResume = async (inv: any) => {
-    // Priority investments cannot be paused
     if (inv.isPriority && inv.status === "active") {
-      showAlert("This investment is marked as Priority (Critical) and cannot be paused. Remove the Priority tag first if you want to pause it.");
+      showAlert("This investment is marked as Critical and cannot be paused. Edit it to remove the Critical tag first.");
       return;
     }
     try {
@@ -90,22 +88,6 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
       await loadInvestments();
     } catch (e: any) {
       showAlert("Failed to update status: " + e.message);
-    }
-  };
-
-  const handleTogglePriority = async (inv: any) => {
-    const newPriority = !inv.isPriority;
-    // Optimistic update immediately for responsiveness
-    setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, isPriority: newPriority } : i));
-    try {
-      await api.updateInvestment(token, inv.id, { isPriority: newPriority });
-      invalidateDashboardCache();
-      // Re-fetch from API to confirm persistence
-      await loadInvestments();
-    } catch (e: any) {
-      // Revert optimistic update on failure
-      setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, isPriority: !newPriority } : i));
-      showAlert("Failed to update priority: " + e.message);
     }
   };
 
@@ -134,8 +116,8 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
             howItWorks={[
               "Add investments with a monthly amount, goal description, and status",
               "Active investments appear in your Dues each month — mark them paid after contributing",
-              "Mark an investment as Priority (star icon) to protect it from pause suggestions",
-              "Non-priority investments may be suggested for pausing on the Future Bombs page to free up funds",
+              "Mark an investment as Critical (via Edit form) to protect it from pause suggestions",
+              "Non-critical investments may be suggested for pausing on the Future Bombs page to free up funds",
               "Pause an investment to temporarily exclude it from health calculations",
               "Track accumulated funds to see how much you've built up over time"
             ]}
@@ -158,7 +140,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
           title="No Investments Yet"
           description="Start building wealth by adding your investments like SIPs, mutual funds, stocks, or savings plans"
           actionLabel={isSharedView ? undefined : "Add First Investment"}
-          onAction={isSharedView ? undefined : () => navigate("/settings/plan-finances/investments/manage")}
+          onAction={isSharedView ? undefined : () => navigate("/settings/plan-finances/investments")}
         />
       ) : (
         <div className="investments-list">
@@ -204,52 +186,41 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                 </div>
 
                 {isOwn ? (
-                  <div className="investment-actions-column">
-                    {/* Priority toggle — highly visible */}
+                  <div className="investment-actions">
                     <button 
-                      className={`priority-toggle-btn ${inv.isPriority ? 'active' : ''}`}
-                      onClick={() => handleTogglePriority(inv)}
+                      className="icon-btn wallet-btn" 
+                      onClick={() => {
+                        const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
+                        setWalletModal({ isOpen: true, investmentId: inv.id, investmentName: inv.name, currentFund });
+                        setWalletAmount(Math.round(currentFund).toString());
+                      }}
+                      title="Update Available Fund"
                     >
-                      <FaShieldAlt size={12} />
-                      <span>{inv.isPriority ? 'Critical' : 'Mark Critical'}</span>
+                      <FaWallet />
                     </button>
-
-                    <div className="investment-actions">
-                      <button 
-                        className="icon-btn wallet-btn" 
-                        onClick={() => {
-                          const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
-                          setWalletModal({ isOpen: true, investmentId: inv.id, investmentName: inv.name, currentFund });
-                          setWalletAmount(Math.round(currentFund).toString());
-                        }}
-                        title="Update Available Fund"
-                      >
-                        <FaWallet />
-                      </button>
-                      <button 
-                        className="icon-btn edit-btn" 
-                        onClick={() => navigate(`/settings/plan-finances/investments?edit=${inv.id}`)}
-                        title="Edit"
-                      >
-                        <FaEdit />
-                      </button>
-                      <button 
-                        className={`icon-btn pause-btn ${inv.isPriority && inv.status === "active" ? "disabled" : ""}`}
-                        onClick={() => handlePauseResume(inv)}
-                        title={inv.isPriority && inv.status === "active" 
-                          ? "Priority investment — cannot be paused" 
-                          : inv.status === "active" ? "Pause" : "Resume"}
-                      >
-                        {inv.status === "active" ? <FaPause /> : <FaPlay />}
-                      </button>
-                      <button 
-                        className="icon-btn delete-btn" 
-                        onClick={() => handleDelete(inv)}
-                        title="Delete"
-                      >
-                        <FaTrashAlt />
-                      </button>
-                    </div>
+                    <button 
+                      className="icon-btn edit-btn" 
+                      onClick={() => navigate(`/settings/plan-finances/investments?edit=${inv.id}`)}
+                      title="Edit"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button 
+                      className={`icon-btn pause-btn ${inv.isPriority && inv.status === "active" ? "disabled" : ""}`}
+                      onClick={() => handlePauseResume(inv)}
+                      title={inv.isPriority && inv.status === "active" 
+                        ? "Critical — cannot be paused (edit to change)" 
+                        : inv.status === "active" ? "Pause" : "Resume"}
+                    >
+                      {inv.status === "active" ? <FaPause /> : <FaPlay />}
+                    </button>
+                    <button 
+                      className="icon-btn delete-btn" 
+                      onClick={() => handleDelete(inv)}
+                      title="Delete"
+                    >
+                      <FaTrashAlt />
+                    </button>
                   </div>
                 ) : (
                   <div className="investment-actions">
@@ -264,7 +235,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
         </div>
       )}
 
-      {/* Wallet Update Modal (replaces prompt()) */}
+      {/* Wallet Update Modal */}
       {walletModal.isOpen && (
         <Modal
           isOpen={walletModal.isOpen}
