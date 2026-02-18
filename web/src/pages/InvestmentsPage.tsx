@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MdTrendingUp } from "react-icons/md";
-import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaShieldAlt, FaStar } from "react-icons/fa";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaShieldAlt } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -94,13 +94,17 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
   };
 
   const handleTogglePriority = async (inv: any) => {
+    const newPriority = !inv.isPriority;
+    // Optimistic update immediately for responsiveness
+    setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, isPriority: newPriority } : i));
     try {
-      const newPriority = !inv.isPriority;
       await api.updateInvestment(token, inv.id, { isPriority: newPriority });
-      // Optimistic update
-      setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, isPriority: newPriority } : i));
       invalidateDashboardCache();
+      // Re-fetch from API to confirm persistence
+      await loadInvestments();
     } catch (e: any) {
+      // Revert optimistic update on failure
+      setInvestments(prev => prev.map(i => i.id === inv.id ? { ...i, isPriority: !newPriority } : i));
       showAlert("Failed to update priority: " + e.message);
     }
   };
