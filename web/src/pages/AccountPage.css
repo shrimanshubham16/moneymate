@@ -573,6 +573,38 @@
 }
 .account-info-footer p:last-child { margin-bottom: 0; }
 
+/* ── Toast Notification ─────────────────────────── */
+.account-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+}
+.account-toast.success {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(5, 150, 105, 0.9));
+}
+.account-toast.error {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(185, 28, 28, 0.9));
+}
+.account-toast svg {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
 /* ── Responsive ─────────────────────────────────── */
 @media (max-width: 600px) {
   .account-page { padding: 16px 12px 32px; }
@@ -580,4 +612,5 @@
   .avatar-circle { width: 80px; height: 80px; font-size: 30px; }
   .profile-username { font-size: 22px; }
   .form-btn-row { flex-direction: column; }
+  .account-toast { bottom: 20px; font-size: 13px; padding: 12px 18px; }
 }

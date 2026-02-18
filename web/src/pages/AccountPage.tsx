@@ -11,7 +11,6 @@ import { SkeletonLoader } from "../components/SkeletonLoader";
 import { useCrypto } from "../contexts/CryptoContext";
 import { deriveKey, saltFromBase64, generateSalt } from "../lib/crypto";
 import { reEncryptAllData, ReEncryptionProgress } from "../services/reEncryptionService";
-import { supabase } from "../lib/supabase";
 import { RecoveryKeyModal } from "../components/RecoveryKeyModal";
 import "./AccountPage.css";
 
@@ -73,13 +72,6 @@ function getBaseUrl(): string {
 }
 const BASE_URL = getBaseUrl();
 
-// ── Supabase project URL (for storage) ─────────────
-function getSupabaseProjectUrl(): string {
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  if (url) return url.replace('/rest/v1', '').replace(/\/$/, '');
-  return 'https://eklennfapovprkebdsml.supabase.co';
-}
-
 interface AccountPageProps {
   token: string;
   onLogout: () => void;
@@ -90,7 +82,13 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const showToast = (type: 'success' | 'error', text: string) => {
+    setToast({ type, text });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const fetchUser = async () => {
     try {
@@ -110,7 +108,7 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
 
   useEffect(() => { fetchUser(); }, [token]);
 
-  // ── Avatar upload ───────────────────────────────
+  // ── Avatar upload (via Edge Function — bypasses Storage RLS) ──
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
   };
@@ -119,50 +117,41 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate file
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      showToast('error', 'Please select an image file (JPG, PNG, WebP, GIF)');
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      alert('Image must be under 2MB');
+      showToast('error', 'Image must be under 2 MB');
       return;
     }
 
     setAvatarUploading(true);
     try {
-      const ext = file.name.split('.').pop() || 'jpg';
-      const filePath = `${user.id}/avatar.${ext}`;
+      // Upload via our backend (service role client bypasses Storage RLS)
+      const formData = new FormData();
+      formData.append('avatar', file);
 
-      // Upload to Supabase Storage
-      const { error: uploadErr } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true, contentType: file.type });
-
-      if (uploadErr) throw uploadErr;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const avatarUrl = urlData.publicUrl + `?t=${Date.now()}`; // cache-bust
-
-      // Update backend
       const resp = await fetch(`${BASE_URL}/user/avatar`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ avatar_url: avatarUrl })
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
-      if (!resp.ok) throw new Error('Failed to save avatar URL');
 
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        throw new Error(errBody?.error?.message || errBody?.error || 'Upload failed');
+      }
+
+      const result = await resp.json();
+      const avatarUrl = result.data?.avatar_url;
       setUser((prev: any) => ({ ...prev, avatar_url: avatarUrl }));
+      showToast('success', 'Profile photo updated!');
     } catch (err: any) {
       console.error('Avatar upload error:', err);
-      alert('Failed to upload avatar: ' + (err.message || 'Unknown error'));
+      showToast('error', err.message || 'Failed to upload photo. Please try again.');
     } finally {
       setAvatarUploading(false);
-      // Reset input so same file can be selected again
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -310,6 +299,22 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
           Avatar images are stored securely and visible to your shared users. Max size: 2 MB.
         </p>
       </motion.div>
+
+      {/* ── In-app Toast ─────────────────────────── */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            className={`account-toast ${toast.type}`}
+            initial={{ opacity: 0, y: 60, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 60, scale: 0.9 }}
+            transition={{ duration: 0.25 }}
+          >
+            {toast.type === 'success' ? <FaCheckCircle /> : <FaExclamationTriangle />}
+            <span>{toast.text}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

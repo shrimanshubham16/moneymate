@@ -759,18 +759,65 @@ serve(async (req) => {
       return json({ data: profile });
     }
     
-    // UPDATE user avatar URL
+    // UPDATE user avatar — accepts multipart/form-data with an image file
+    // Uses service role client so RLS on storage.objects is bypassed
     if (path === '/user/avatar' && method === 'PUT') {
-      const body = await req.json();
-      const { avatar_url } = body;
-      
-      const { error: updateErr } = await supabase
-        .from('users')
-        .update({ avatar_url })
-        .eq('id', userId);
-      
-      if (updateErr) return error(updateErr.message, 500);
-      return json({ data: { avatar_url } });
+      try {
+        const contentType = req.headers.get('content-type') || '';
+        
+        let avatarUrl: string;
+        
+        if (contentType.includes('multipart/form-data')) {
+          // File upload via FormData
+          const formData = await req.formData();
+          const file = formData.get('avatar') as File | null;
+          
+          if (!file) return error('No avatar file provided', 400);
+          if (!file.type.startsWith('image/')) return error('File must be an image', 400);
+          if (file.size > 2 * 1024 * 1024) return error('Image must be under 2 MB', 400);
+          
+          const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+          const allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+          const safeExt = allowed.includes(ext) ? ext : 'jpg';
+          const filePath = `${userId}/avatar.${safeExt}`;
+          
+          const fileBuffer = await file.arrayBuffer();
+          
+          // Upload to Supabase Storage (service role client bypasses RLS)
+          const { error: uploadErr } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, fileBuffer, {
+              upsert: true,
+              contentType: file.type,
+            });
+          
+          if (uploadErr) {
+            console.error('[AVATAR_UPLOAD_ERROR]', uploadErr);
+            return error('Failed to upload image: ' + uploadErr.message, 500);
+          }
+          
+          // Build public URL
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+          avatarUrl = `${supabaseUrl}/storage/v1/object/public/avatars/${filePath}?t=${Date.now()}`;
+        } else {
+          // JSON body with avatar_url (backward compat)
+          const body = await req.json();
+          avatarUrl = body.avatar_url;
+          if (!avatarUrl) return error('avatar_url is required', 400);
+        }
+        
+        // Save URL to users table
+        const { error: updateErr } = await supabase
+          .from('users')
+          .update({ avatar_url: avatarUrl })
+          .eq('id', userId);
+        
+        if (updateErr) return error(updateErr.message, 500);
+        return json({ data: { avatar_url: avatarUrl } });
+      } catch (e) {
+        console.error('[AVATAR_ERROR]', e);
+        return error('Avatar upload failed', 500);
+      }
     }
     
     // UPDATE user password (authenticated - requires old password)
