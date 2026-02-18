@@ -103,21 +103,27 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
         setLoading(false);
         return; // Don't complete auth yet - wait for modal close
       } else {
-        const res = await login(username, password);
-        encryptionSalt = res.encryption_salt;
-        if (!encryptionSalt) {
-          const saltRes = await fetchSalt(username);
-          encryptionSalt = saltRes.encryption_salt;
+        try {
+          const res = await login(username, password);
+          encryptionSalt = res.encryption_salt;
+          if (!encryptionSalt) {
+            const saltRes = await fetchSalt(username);
+            encryptionSalt = saltRes.encryption_salt;
+          }
+          if (!encryptionSalt) {
+            throw new Error("Encryption salt not found for user");
+          }
+          const key = await deriveKey(password, saltFromBase64(encryptionSalt));
+          await cryptoCtx.setKey(key, encryptionSalt);
+          onAuth(res.access_token);
+        } catch (loginErr: any) {
+          console.error('[LOGIN_ERROR]', loginErr);
+          throw loginErr; // Re-throw to be caught by outer catch
         }
-        if (!encryptionSalt) {
-          throw new Error("Encryption salt not found for user");
-        }
-        const key = await deriveKey(password, saltFromBase64(encryptionSalt));
-        await cryptoCtx.setKey(key, encryptionSalt);
-        onAuth(res.access_token);
       }
     } catch (err: any) {
-      setError(err.message);
+      console.error('[AUTH_ERROR]', err);
+      setError(err.message || 'An error occurred during login. Please try again.');
     } finally {
       setLoading(false);
     }

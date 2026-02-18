@@ -169,14 +169,27 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   });
   
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    let body: any = {};
+    try {
+      const text = await res.text();
+      body = text ? JSON.parse(text) : {};
+    } catch (e) {
+      console.error('[API_ERROR] Failed to parse error response:', e);
+      body = {};
+    }
+    
     // Provide more helpful error message for 401 on auth endpoints
     if (res.status === 401 && (path.includes('/auth/') || path.includes('/signup'))) {
       if (isSupabaseEdgeFunction && !SUPABASE_ANON_KEY) {
         throw new Error('Authentication failed: VITE_SUPABASE_ANON_KEY environment variable is missing. Please configure it in your deployment settings.');
       }
+      // More specific error for login failures
+      const errorMsg = body?.error?.message || 'Invalid username or password';
+      throw new Error(errorMsg);
     }
-    throw new Error(body?.error?.message || `Request failed: ${res.status}`);
+    
+    const errorMsg = body?.error?.message || body?.error || `Request failed: ${res.status}`;
+    throw new Error(errorMsg);
   }
   const data = await res.json() as any;
   
