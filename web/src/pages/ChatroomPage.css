@@ -1,11 +1,11 @@
 /* ============================================================
-   ChatroomPage — GenAlpha Vibes Dark Theme
+   ChatroomPage — GenAlpha Vibes Dark Theme (Mobile-First)
    ============================================================ */
 
 .chatroom-page {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 64px);          /* below header */
+  height: calc(100dvh - 64px);
   background: var(--bg-primary);
   overflow: hidden;
   position: relative;
@@ -79,11 +79,11 @@
   text-align: center;
   font-size: var(--text-tiny);
   color: var(--text-tertiary);
-  padding: 8px 16px;
+  padding: 6px 16px;
   background: rgba(255 255 255 / .02);
   border-bottom: 1px solid rgba(255 255 255 / .04);
   flex-shrink: 0;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .chat-disclaimer code {
@@ -99,14 +99,13 @@
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 16px 8px;
+  padding: 12px 12px 8px;
   display: flex;
   flex-direction: column;
   gap: 2px;
   scroll-behavior: smooth;
 }
 
-/* scrollbar */
 .chat-messages::-webkit-scrollbar { width: 4px; }
 .chat-messages::-webkit-scrollbar-track { background: transparent; }
 .chat-messages::-webkit-scrollbar-thumb {
@@ -119,16 +118,21 @@
   text-align: center;
   font-size: 11px;
   color: var(--text-tertiary);
-  margin: 16px 0 8px;
+  margin: 14px 0 6px;
   opacity: .7;
 }
 
-/* ---- Message Row ------------------------------------------- */
+/* ============================================================
+   MESSAGE ROW
+   Key fix: align-items: flex-start so avatar anchors to TOP
+   of the bubble, not pushed down by reaction pills.
+   ============================================================ */
+
 .chat-msg-row {
   display: flex;
-  gap: 10px;
-  max-width: 78%;
-  align-items: flex-end;
+  gap: 8px;
+  max-width: 82%;
+  align-items: flex-start;   /* ← avatar at top of bubble */
   margin-top: 6px;
 }
 
@@ -145,46 +149,52 @@
   margin-top: 2px;
 }
 
-/* Avatar — wrapper + image / gradient */
+/* ---- Avatar ------------------------------------------------ */
 .chat-avatar-wrap {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
+  margin-top: 18px;   /* offset past the username/meta line */
+}
+
+.chat-msg-row.grouped .chat-avatar-wrap {
+  margin-top: 0;
 }
 
 .chat-avatar-spacer {
-  width: 34px;
+  width: 32px;
   height: 0;
   flex-shrink: 0;
 }
 
 .chat-avatar {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: var(--font-bold);
-  font-size: 13px;
+  font-size: 12px;
   color: #fff;
   text-transform: uppercase;
 }
 
 .chat-avatar-img {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid rgba(255 255 255 / .08);
 }
 
-/* Bubble */
+/* ---- Bubble Wrap ------------------------------------------- */
 .chat-bubble-wrap {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .chat-bubble-meta {
@@ -192,7 +202,7 @@
   align-items: center;
   gap: 8px;
   font-size: 11px;
-  padding: 0 6px;
+  padding: 0 4px;
 }
 
 .own .chat-bubble-meta {
@@ -208,6 +218,7 @@
   font-size: 10px;
 }
 
+/* ---- Bubble ------------------------------------------------ */
 .chat-bubble {
   padding: 10px 14px;
   border-radius: 18px;
@@ -237,22 +248,10 @@
   color: var(--text-primary);
 }
 
-/* Grouped — continuation corners */
-.chat-msg-row.grouped .chat-bubble {
-  border-radius: 18px;
-}
+.chat-msg-row.grouped .chat-bubble { border-radius: 18px; }
+.own.grouped .chat-bubble    { border-bottom-right-radius: 6px; border-top-right-radius: 6px; }
+.other.grouped .chat-bubble  { border-bottom-left-radius: 6px;  border-top-left-radius: 6px; }
 
-.own.grouped .chat-bubble {
-  border-bottom-right-radius: 6px;
-  border-top-right-radius: 6px;
-}
-
-.other.grouped .chat-bubble {
-  border-bottom-left-radius: 6px;
-  border-top-left-radius: 6px;
-}
-
-/* Optimistic (sending…) */
 .chat-bubble.sending {
   opacity: .55;
   cursor: default;
@@ -260,21 +259,30 @@
 
 /* ============================================================
    MESSAGE TAGS — :BUG: and :Feature:
+   Key fix: display BLOCK so badge sits on its own line.
    ============================================================ */
 
 .chat-tag-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 3px 10px;
+  border-radius: 8px;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   margin-bottom: 6px;
-  vertical-align: middle;
   line-height: 1;
+  /* Force onto its own line */
+  float: left;
+  clear: both;
+}
+
+/* The text after a tag wraps to next line */
+.chat-bubble-text {
+  display: block;
+  clear: both;
 }
 
 .chat-tag-badge.bug {
@@ -302,53 +310,55 @@
   background: var(--bg-elevated, #1e1e2e);
   border: 1px solid rgba(255 255 255 / .12);
   border-radius: 24px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   z-index: 10;
   white-space: nowrap;
 }
 
-.chat-reaction-bar.right {
-  left: 0;
-}
-
-.chat-reaction-bar.left {
-  right: 0;
-}
+.chat-reaction-bar.right { left: 0; }
+.chat-reaction-bar.left  { right: 0; }
 
 .reaction-emoji-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: transparent;
   border-radius: 50%;
-  font-size: 18px;
+  font-size: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: transform 0.12s, background 0.12s;
   padding: 0;
+  /* Ensure proper touch target */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .reaction-emoji-btn:hover {
-  transform: scale(1.3);
+  transform: scale(1.25);
   background: rgba(255 255 255 / .08);
+}
+
+.reaction-emoji-btn:active {
+  transform: scale(0.9);
 }
 
 .reaction-emoji-btn.active {
   background: rgba(99, 102, 241, 0.2);
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 /* ============================================================
    REACTION PILLS (aggregated counts below bubble)
+   Tightly coupled to the bubble — minimal gap.
    ============================================================ */
 
 .chat-reaction-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 2px 4px;
+  padding: 2px 2px 0;
 }
 
 .own .chat-reaction-pills {
@@ -359,7 +369,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 2px 8px;
+  padding: 2px 8px 3px;
   border-radius: 12px;
   background: rgba(255 255 255 / .05);
   border: 1px solid rgba(255 255 255 / .08);
@@ -367,11 +377,16 @@
   transition: all 0.15s;
   font-size: 12px;
   line-height: 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .chat-reaction-pill:hover {
   background: rgba(255 255 255 / .1);
   border-color: rgba(255 255 255 / .15);
+}
+
+.chat-reaction-pill:active {
+  transform: scale(0.92);
 }
 
 .chat-reaction-pill.mine {
@@ -399,30 +414,92 @@
 }
 
 /* ============================================================
-   QUICK-TAG BUTTONS (input bar)
+   INPUT BAR — Tag chip + tag buttons
    ============================================================ */
 
+.chat-input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: var(--bg-elevated);
+  border-top: 1px solid rgba(255 255 255 / .06);
+  flex-shrink: 0;
+}
+
+/* ---- Active Tag Chip (shows when tag is prepended) -------- */
+.chat-active-tag-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  animation: chip-in 0.2s ease;
+}
+
+@keyframes chip-in {
+  from { transform: scale(0.8); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.chat-active-tag-chip.bug {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.chat-active-tag-chip.feature {
+  background: rgba(34, 211, 238, 0.15);
+  color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+.chat-active-tag-chip .tag-chip-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+}
+
+.chat-active-tag-chip .tag-chip-remove:hover {
+  opacity: 1;
+}
+
+/* ---- Quick-Tag Buttons ------------------------------------ */
 .chat-tag-buttons {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 4px;
   flex-shrink: 0;
 }
 
 .chat-tag-btn {
-  width: 32px;
-  height: 20px;
+  width: 36px;
+  height: 36px;
   border: 1px solid rgba(255 255 255 / .1);
-  border-radius: 6px;
+  border-radius: 10px;
   background: rgba(255 255 255 / .04);
   color: var(--text-tertiary);
-  font-size: 13px;
+  font-size: 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .chat-tag-btn:hover {
@@ -430,49 +507,25 @@
   color: var(--text-secondary);
 }
 
+.chat-tag-btn:active {
+  transform: scale(0.9);
+}
+
 .chat-tag-btn.bug:hover,
 .chat-tag-btn.bug.active {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.35);
   color: #f87171;
 }
 
 .chat-tag-btn.feature:hover,
 .chat-tag-btn.feature.active {
-  background: rgba(34, 211, 238, 0.15);
-  border-color: rgba(34, 211, 238, 0.3);
+  background: rgba(34, 211, 238, 0.18);
+  border-color: rgba(34, 211, 238, 0.35);
   color: #22d3ee;
 }
 
-/* ---- New-Messages Pill ------------------------------------- */
-.chat-new-pill {
-  position: absolute;
-  bottom: 90px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
-  color: #fff;
-  font-size: 12px;
-  font-weight: var(--font-semibold);
-  padding: 6px 18px;
-  border-radius: 999px;
-  cursor: pointer;
-  z-index: 3;
-  box-shadow: 0 4px 16px rgba(0, 217, 255, .3);
-  border: none;
-}
-
-/* ---- Input Bar --------------------------------------------- */
-.chat-input-bar {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 12px 16px;
-  background: var(--bg-elevated);
-  border-top: 1px solid rgba(255 255 255 / .06);
-  flex-shrink: 0;
-}
-
+/* ---- Input Wrap ------------------------------------------- */
 .chat-input-wrap {
   flex: 1;
   display: flex;
@@ -480,8 +533,9 @@
   background: rgba(255 255 255 / .04);
   border: 1px solid rgba(255 255 255 / .08);
   border-radius: 22px;
-  padding: 0 16px;
+  padding: 0 14px;
   transition: border-color var(--transition-quick);
+  min-width: 0;
 }
 
 .chat-input-wrap:focus-within {
@@ -497,39 +551,36 @@
   font-size: 15px !important;
   resize: none;
   padding: 10px 0;
-  max-height: 120px;
+  max-height: 100px;
   line-height: 1.4;
+  width: 100%;
 }
 
 .chat-char-count {
   font-size: 10px;
   text-align: right;
   color: var(--text-tertiary);
-  padding: 0 0 6px;
+  padding: 0 0 4px;
 }
 
-.chat-char-count.warn {
-  color: var(--accent-yellow);
-}
-
-.chat-char-count.over {
-  color: var(--accent-pink);
-}
+.chat-char-count.warn { color: var(--accent-yellow); }
+.chat-char-count.over { color: var(--accent-pink); }
 
 .chat-send-btn {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: none;
   background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
   color: #fff;
-  font-size: 18px;
+  font-size: 17px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   transition: transform var(--transition-quick), opacity var(--transition-quick);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .chat-send-btn:disabled {
@@ -538,7 +589,25 @@
 }
 
 .chat-send-btn:not(:disabled):active {
-  transform: scale(.9);
+  transform: scale(.88);
+}
+
+/* ---- New-Messages Pill ------------------------------------- */
+.chat-new-pill {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+  color: #fff;
+  font-size: 12px;
+  font-weight: var(--font-semibold);
+  padding: 6px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  z-index: 3;
+  box-shadow: 0 4px 16px rgba(0, 217, 255, .3);
+  border: none;
 }
 
 /* ---- Empty State ------------------------------------------- */
@@ -579,7 +648,7 @@
 /* ---- Error Toast ------------------------------------------- */
 .chat-error-toast {
   position: fixed;
-  bottom: 100px;
+  bottom: 90px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--accent-pink);
@@ -620,13 +689,36 @@
   50%      { transform: translateY(-8px); opacity: 1; }
 }
 
-/* ---- Responsive -------------------------------------------- */
+/* ============================================================
+   RESPONSIVE — Mobile-first tweaks
+   ============================================================ */
+
 @media (max-width: 480px) {
-  .chat-msg-row { max-width: 90%; }
+  .chat-msg-row { max-width: 88%; }
   .chat-title { font-size: var(--text-base); letter-spacing: 1px; }
   .chat-header { padding: 10px 14px; }
-  .chat-input-bar { padding: 10px 12px; }
-  .chat-tag-buttons { flex-direction: row; }
-  .chat-tag-btn { width: 28px; height: 18px; font-size: 11px; }
-  .reaction-emoji-btn { width: 28px; height: 28px; font-size: 16px; }
+  .chat-disclaimer { font-size: 10px; padding: 5px 12px; }
+
+  .chat-input-bar { gap: 6px; padding: 8px 10px; }
+  .chat-tag-btn { width: 34px; height: 34px; font-size: 14px; }
+  .chat-send-btn { width: 40px; height: 40px; font-size: 16px; }
+  .chat-input-wrap { padding: 0 12px; }
+  .chat-input-wrap textarea { font-size: 14px !important; padding: 8px 0; }
+
+  /* Emoji bar: center it to prevent off-screen clipping */
+  .chat-reaction-bar {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+  }
+
+  .reaction-emoji-btn { width: 34px; height: 34px; font-size: 18px; }
+}
+
+/* Extra small (iPhone SE etc.) */
+@media (max-width: 380px) {
+  .chat-msg-row { max-width: 92%; }
+  .chat-tag-btn { width: 32px; height: 32px; font-size: 13px; }
+  .reaction-emoji-btn { width: 30px; height: 30px; font-size: 16px; }
+  .chat-reaction-bar { padding: 3px 4px; }
 }

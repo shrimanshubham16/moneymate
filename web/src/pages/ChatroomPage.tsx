@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoArrowBack, IoSend } from 'react-icons/io5';
+import { IoArrowBack, IoSend, IoClose } from 'react-icons/io5';
 import { HiChatBubbleLeftRight } from 'react-icons/hi2';
 import { VscBug } from 'react-icons/vsc';
 import { HiLightBulb } from 'react-icons/hi';
@@ -47,11 +47,22 @@ function parseTag(message: string): { tag: TagType; cleanText: string } {
   return { tag, cleanText };
 }
 
+/** Detect active tag in draft text */
+function detectDraftTag(draft: string): TagType {
+  if (/^:BUG:/i.test(draft)) return 'bug';
+  if (/^:FEATURE:/i.test(draft)) return 'feature';
+  return null;
+}
+
+/** Strip tag prefix from draft to show clean text in textarea */
+function stripTagPrefix(draft: string): string {
+  return draft.replace(/^:(BUG|FEATURE):\s*/i, '');
+}
+
 // -------------------------------------------------------------------
 // Helpers
 // -------------------------------------------------------------------
 
-/** Show a time separator between two messages when gap > 5 min */
 function needsTimeSep(prev: ChatMessage | null, curr: ChatMessage): boolean {
   if (!prev) return true;
   return (
@@ -61,7 +72,6 @@ function needsTimeSep(prev: ChatMessage | null, curr: ChatMessage): boolean {
   );
 }
 
-/** Group consecutive messages from same user within 2 min */
 function isGrouped(prev: ChatMessage | null, curr: ChatMessage, hasTimeSep: boolean): boolean {
   if (!prev || hasTimeSep) return false;
   if (prev.user_id !== curr.user_id) return false;
@@ -71,7 +81,6 @@ function isGrouped(prev: ChatMessage | null, curr: ChatMessage, hasTimeSep: bool
   return gap < 2 * 60 * 1000;
 }
 
-/** API base URL for fetching user profile (avatar) */
 function getBaseUrl(): string {
   const envUrl = (import.meta as any).env?.VITE_API_URL;
   if (envUrl) return envUrl;
@@ -80,7 +89,6 @@ function getBaseUrl(): string {
   return 'https://eklennfapovprkebdsml.supabase.co/functions/v1/api';
 }
 
-/** Aggregate reactions by emoji, preserving who reacted */
 function aggregateReactions(
   reactions: ChatReaction[],
 ): { emoji: string; count: number; userIds: string[] }[] {
@@ -113,15 +121,23 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
   const [showNewPill, setShowNewPill] = useState(false);
   const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
 
-  // Reactions state: messageId -> ChatReaction[]
   const [reactions, setReactions] = useState<Record<string, ChatReaction[]>>({});
-  // Which message currently has the emoji bar open
   const [emojiBarMsgId, setEmojiBarMsgId] = useState<string | null>(null);
+
+  // Active tag state (managed separately from raw draft)
+  const [activeTag, setActiveTag] = useState<TagType>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const isNearBottom = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Derived: the text that will actually be sent (tag prefix + draft)
+  const fullMessage = useMemo(() => {
+    if (!activeTag) return draft;
+    const prefix = activeTag === 'bug' ? ':BUG: ' : ':Feature: ';
+    return prefix + draft;
+  }, [activeTag, draft]);
 
   // ---- Scroll helpers ----
   const scrollToBottom = useCallback((smooth = true) => {
@@ -151,7 +167,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
           setMyAvatarUrl(data.data?.avatar_url || null);
         }
       } catch {
-        // silently fail — gradient avatar will be used
+        // silently fail
       }
     })();
   }, [token]);
@@ -161,20 +177,17 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     let unsubs: Array<() => void> = [];
 
     (async () => {
-      // Fetch messages
       const history = await fetchMessages();
       setMessages(history);
       setLoading(false);
       requestAnimationFrame(() => scrollToBottom(false));
 
-      // Fetch reactions for all messages
       if (history.length > 0) {
         const ids = history.map((m) => m.id);
         const reactionsMap = await fetchReactions(ids);
         setReactions(reactionsMap);
       }
 
-      // Subscribe to new messages
       const unsubMsg = subscribeToNewMessages((msg) => {
         setMessages((prev) => {
           const exists = prev.some((m) => m.id === msg.id);
@@ -202,18 +215,14 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
       });
       unsubs.push(unsubMsg);
 
-      // Subscribe to reactions (realtime)
       const unsubReactions = subscribeToReactions(
-        // onInsert
         (reaction) => {
           setReactions((prev) => {
             const list = prev[reaction.message_id] || [];
-            // Avoid duplicates
             if (list.some((r) => r.id === reaction.id)) return prev;
             return { ...prev, [reaction.message_id]: [...list, reaction] };
           });
         },
-        // onDelete
         (deleted) => {
           setReactions((prev) => {
             const msgId = deleted.message_id;
@@ -227,7 +236,6 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
       );
       unsubs.push(unsubReactions);
 
-      // Join presence
       const unsubPresence = joinPresence(username, setOnlineUsers);
       unsubs.push(unsubPresence);
     })();
@@ -248,10 +256,11 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
 
   // ---- Send ----
   const handleSend = async () => {
-    const text = draft.trim();
+    const text = fullMessage.trim();
     if (!text || sending) return;
 
     setDraft('');
+    setActiveTag(null);
     setSending(true);
     setError(null);
 
@@ -272,7 +281,8 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     } catch (err: any) {
       setError(err.message || 'Failed to send');
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
-      setDraft(text);
+      setDraft(stripTagPrefix(text));
+      setActiveTag(detectDraftTag(text));
       setTimeout(() => setError(null), 3000);
     } finally {
       setSending(false);
@@ -282,19 +292,16 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
 
   // ---- Reaction toggle ----
   const handleReaction = async (messageId: string, emoji: string) => {
-    // Optimistic update
     const existing = (reactions[messageId] || []).find(
       (r) => r.user_id === userId && r.emoji === emoji,
     );
 
     if (existing) {
-      // Remove optimistically
       setReactions((prev) => ({
         ...prev,
         [messageId]: (prev[messageId] || []).filter((r) => r.id !== existing.id),
       }));
     } else {
-      // Add optimistically
       const optimistic: ChatReaction = {
         id: `opt-react-${Date.now()}`,
         message_id: messageId,
@@ -313,24 +320,34 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     try {
       await toggleReaction(messageId, userId, emoji);
     } catch {
-      // Realtime will reconcile; if it fails we'll show stale data briefly
+      // Realtime will reconcile
     }
   };
 
-  // ---- Quick-tag buttons ----
-  const prependTag = (tag: string) => {
-    const prefix = `:${tag}: `;
-    if (draft.startsWith(prefix)) return; // already there
-    // Remove any existing tag prefix
-    const cleaned = draft.replace(/^:(BUG|FEATURE):\s*/i, '');
-    const newDraft = prefix + cleaned;
-    if (newDraft.length <= MAX_CHARS) setDraft(newDraft);
+  // ---- Tag management (visual chip instead of raw prefix) ----
+  const setTag = (tag: TagType) => {
+    if (activeTag === tag) {
+      setActiveTag(null);
+    } else {
+      setActiveTag(tag);
+    }
+    textareaRef.current?.focus();
+  };
+
+  const removeTag = () => {
+    setActiveTag(null);
     textareaRef.current?.focus();
   };
 
   // Auto-resize textarea
   const handleDraftChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
+    let val = e.target.value;
+    // If user manually types :BUG: or :Feature: detect and extract
+    const detected = detectDraftTag(val);
+    if (detected) {
+      setActiveTag(detected);
+      val = stripTagPrefix(val);
+    }
     if (val.length <= MAX_CHARS) setDraft(val);
     const ta = e.target;
     ta.style.height = 'auto';
@@ -344,9 +361,10 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     }
   };
 
+  const effectiveLength = fullMessage.length;
   const charClass =
-    draft.length > MAX_CHARS - 20
-      ? draft.length >= MAX_CHARS
+    effectiveLength > MAX_CHARS - 20
+      ? effectiveLength >= MAX_CHARS
         ? 'over'
         : 'warn'
       : '';
@@ -370,7 +388,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
 
       {/* Disclaimer */}
       <div className="chat-disclaimer">
-        Messages cleared daily. Use <code>:BUG:</code> or <code>:Feature:</code> tags to report issues or suggest features. Be cool, be kind ✌️
+        Messages cleared daily · Tap a bubble to react · Be cool, be kind ✌️
       </div>
 
       {/* Messages */}
@@ -403,8 +421,6 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
             const { tag, cleanText } = parseTag(msg.message);
             const msgReactions = reactions[msg.id] || [];
             const aggregated = aggregateReactions(msgReactions);
-
-            // Determine avatar to show
             const avatarSrc = isOwn ? (myAvatarUrl || msg.avatar_url) : msg.avatar_url;
             const showHeader = !grouped;
 
@@ -458,7 +474,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
                       </div>
                     )}
 
-                    {/* Bubble with tag + emoji trigger */}
+                    {/* Bubble */}
                     <div
                       className={`chat-bubble ${msg._optimistic ? 'sending' : ''}`}
                       onClick={(e) => {
@@ -467,14 +483,16 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
                         setEmojiBarMsgId((prev) => (prev === msg.id ? null : msg.id));
                       }}
                     >
+                      {/* Tag badge — block-level above text */}
                       {tag && (
                         <span className={`chat-tag-badge ${tag}`}>
                           {tag === 'bug' ? '🐛 BUG' : '💡 Feature'}
                         </span>
                       )}
-                      {cleanText}
+                      {/* Message text on its own line when tag present */}
+                      <span className="chat-bubble-text">{cleanText}</span>
 
-                      {/* Emoji bar — appears on click */}
+                      {/* Emoji bar — floating picker */}
                       <AnimatePresence>
                         {emojiBarMsgId === msg.id && !msg._optimistic && (
                           <motion.div
@@ -566,44 +584,59 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
 
       {/* Input bar */}
       <div className="chat-input-bar">
-        {/* Quick-tag buttons */}
-        <div className="chat-tag-buttons">
-          <button
-            className={`chat-tag-btn bug ${draft.match(/^:BUG:/i) ? 'active' : ''}`}
-            onClick={() => prependTag('BUG')}
-            title="Report a bug"
-          >
-            <VscBug />
-          </button>
-          <button
-            className={`chat-tag-btn feature ${draft.match(/^:FEATURE:/i) ? 'active' : ''}`}
-            onClick={() => prependTag('Feature')}
-            title="Suggest a feature"
-          >
-            <HiLightBulb />
-          </button>
-        </div>
+        {/* Quick-tag buttons — only show when no tag is active */}
+        {!activeTag && (
+          <div className="chat-tag-buttons">
+            <button
+              className="chat-tag-btn bug"
+              onClick={() => setTag('bug')}
+              title="Report a bug"
+            >
+              <VscBug />
+            </button>
+            <button
+              className="chat-tag-btn feature"
+              onClick={() => setTag('feature')}
+              title="Suggest a feature"
+            >
+              <HiLightBulb />
+            </button>
+          </div>
+        )}
+
+        {/* Active tag chip — replaces the raw `:BUG:` / `:Feature:` prefix */}
+        {activeTag && (
+          <div className={`chat-active-tag-chip ${activeTag}`}>
+            {activeTag === 'bug' ? '🐛 BUG' : '💡 Feature'}
+            <button className="tag-chip-remove" onClick={removeTag}>
+              <IoClose />
+            </button>
+          </div>
+        )}
 
         <div className="chat-input-wrap">
           <textarea
             ref={textareaRef}
             rows={1}
-            placeholder="Type your message…"
+            placeholder={activeTag
+              ? (activeTag === 'bug' ? 'Describe the bug…' : 'Describe your idea…')
+              : 'Type your message…'
+            }
             value={draft}
             onChange={handleDraftChange}
             onKeyDown={handleKeyDown}
             maxLength={MAX_CHARS}
           />
-          {draft.length > 0 && (
+          {effectiveLength > 0 && (
             <span className={`chat-char-count ${charClass}`}>
-              {draft.length}/{MAX_CHARS}
+              {effectiveLength}/{MAX_CHARS}
             </span>
           )}
         </div>
         <button
           className="chat-send-btn"
           onClick={handleSend}
-          disabled={!draft.trim() || sending}
+          disabled={!fullMessage.trim() || sending}
           title="Send"
         >
           <IoSend />
