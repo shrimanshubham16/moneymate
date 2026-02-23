@@ -31,7 +31,7 @@ interface ChatroomPageProps {
 // Constants
 // -------------------------------------------------------------------
 const MAX_CHARS = 500;
-const EMOJI_PALETTE = ['👍', '❤️', '🔥', '😂', '👀', '🎯'];
+const EMOJI_PALETTE = ['👍', '❤️', '🔥', '😂', '👀', '🎯', '😮', '💯', '👏', '🙌', '😊', '🤔'];
 
 // -------------------------------------------------------------------
 // Tag parser
@@ -219,17 +219,25 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
         (reaction) => {
           setReactions((prev) => {
             const list = prev[reaction.message_id] || [];
+            // Check if this exact reaction already exists (by ID)
             if (list.some((r) => r.id === reaction.id)) return prev;
-            return { ...prev, [reaction.message_id]: [...list, reaction] };
+            // Remove any optimistic reaction from same user+emoji (replace with real one)
+            const cleaned = list.filter(
+              (r) => !(r.id?.startsWith('opt-react-') && r.user_id === reaction.user_id && r.emoji === reaction.emoji)
+            );
+            return { ...prev, [reaction.message_id]: [...cleaned, reaction] };
           });
         },
         (deleted) => {
           setReactions((prev) => {
             const msgId = deleted.message_id;
             if (!msgId || !prev[msgId]) return prev;
+            // Remove by ID, or by user_id+emoji if ID doesn't match (for optimistic)
             return {
               ...prev,
-              [msgId]: prev[msgId].filter((r) => r.id !== deleted.id),
+              [msgId]: prev[msgId].filter(
+                (r) => r.id !== deleted.id && !(r.id?.startsWith('opt-react-') && r.user_id === deleted.user_id && r.emoji === deleted.emoji)
+              ),
             };
           });
         },
@@ -297,11 +305,20 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     );
 
     if (existing) {
+      // Remove all instances (optimistic + real) for this user+emoji
       setReactions((prev) => ({
         ...prev,
-        [messageId]: (prev[messageId] || []).filter((r) => r.id !== existing.id),
+        [messageId]: (prev[messageId] || []).filter(
+          (r) => !(r.user_id === userId && r.emoji === emoji)
+        ),
       }));
     } else {
+      // Check if already exists to prevent double-click
+      const alreadyExists = (reactions[messageId] || []).some(
+        (r) => r.user_id === userId && r.emoji === emoji
+      );
+      if (alreadyExists) return; // Already processing
+
       const optimistic: ChatReaction = {
         id: `opt-react-${Date.now()}`,
         message_id: messageId,
@@ -320,7 +337,15 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     try {
       await toggleReaction(messageId, userId, emoji);
     } catch {
-      // Realtime will reconcile
+      // Realtime will reconcile; rollback optimistic on error
+      if (!existing) {
+        setReactions((prev) => ({
+          ...prev,
+          [messageId]: (prev[messageId] || []).filter(
+            (r) => !(r.id?.startsWith('opt-react-') && r.user_id === userId && r.emoji === emoji)
+          ),
+        }));
+      }
     }
   };
 

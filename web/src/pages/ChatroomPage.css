@@ -313,6 +313,9 @@
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   z-index: 10;
   white-space: nowrap;
+  flex-wrap: wrap;
+  max-width: 280px;
+  justify-content: center;
 }
 
 .chat-reaction-bar.right { left: 0; }

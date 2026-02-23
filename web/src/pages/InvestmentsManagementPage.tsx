@@ -119,19 +119,35 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
       let response;
       if (editingId) {
         response = await api.updateInvestment(token, editingId, investmentData);
+        if (response?.data) {
+          // Update the optimistic investment with real data
+          setInvestments(prev => prev.map(inv => 
+            inv.id === editingId 
+              ? { ...inv, ...response.data, accumulatedFunds: response.data.accumulatedFunds || response.data.accumulated_funds || parsedAccumulated }
+              : inv
+          ));
+        }
       } else {
         response = await api.createInvestment(token, investmentData);
         if (response?.data) {
-          setInvestments(prev => prev.map(inv => inv.id === tempId ? response.data : inv));
+          // Replace optimistic with real data, preserving accumulatedFunds
+          setInvestments(prev => prev.map(inv => 
+            inv.id === tempId 
+              ? { ...response.data, accumulatedFunds: response.data.accumulatedFunds || response.data.accumulated_funds || parsedAccumulated }
+              : inv
+          ));
         }
       }
       invalidateDashboardCache();
-      loadInvestments();
+      // Non-blocking refresh in background
+      setTimeout(() => loadInvestments(), 100);
     } catch (e: any) {
       showAlert(e.message);
       if (editingId) {
+        // Rollback on error
         loadInvestments();
       } else {
+        // Remove optimistic investment on error
         setInvestments(prev => prev.filter(inv => inv.id !== tempId));
       }
     }

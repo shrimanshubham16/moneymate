@@ -1885,7 +1885,9 @@ export async function getDashboardData(userId: string, billingPeriodId?: string)
       name: inv.name,
       monthlyAmount: parseFloat(inv.monthlyAmount) || 0,
       goal: inv.goal,
-      status: inv.status || 'active'
+      status: inv.status || 'active',
+      accumulatedFunds: parseFloat(inv.accumulated_funds || inv.accumulatedFunds || 0) || 0,
+      isPriority: inv.is_priority || inv.isPriority || false
     })),
     futureBombs: (data.futureBombs || []).map((fb: any) => ({
       id: fb.id,
