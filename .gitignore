@@ -44,3 +44,54 @@ mobile/android/local.properties
 # Misc
 *.iml
 .gradle
+
+# Internal documentation (keep locally, exclude from repo)
+ANNOUNCEMENT.md
+COST-ANALYSIS.md
+DEPLOYMENT-*.md
+E2E-ENCRYPTION-*.md
+ENCRYPTION-*.md
+LAUNCH-MESSAGE.md
+MARKETING-PACKAGE.md
+MIGRATION-*.md
+PLANETSCALE-ANALYSIS.md
+PRIVACY-QUICK-REFERENCE.md
+PRODUCT-HUNT-LAUNCH.md
+PRODUCTION-BUGS.md
+QUICK-MARKETING-START.md
+QUICK-START.md
+RAILWAY-*.md
+READY-TO-POST.md
+RELEASE-NOTES-*.md
+SOCIAL-MEDIA-SCHEDULE.md
+TEST-PLAN.md
+USER-PRIVACY-EXPLANATION.md
+WHATSAPP-MESSAGE.md
+
+# Internal scripts (keep locally, exclude from repo)
+*.sh
+!deploy.sh
+
+# Backend internal docs
+backend/*.md
+backend/CONNECTION-STRING-FIX.md
+backend/CRITICAL-FIX-*.md
+backend/EXPORT-DATA.md
+backend/FIND-*.md
+backend/GET-DIRECT-CONNECTION.md
+backend/MIGRATION-PROGRESS.md
+backend/NEW-SUPABASE-PROJECT-SETUP.md
+backend/PASSWORD-ENCODING.md
+backend/QUICK-FIX-*.md
+
+# Test files
+test-*.sh
+tests/
+web/playwright-report/
+
+# Internal data and docs
+data/
+docs/
+presentation/
+backend/testdata/
+backend/scripts/
