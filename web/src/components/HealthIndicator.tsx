@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircle, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 import { AppEmoji } from "./AppEmoji";
@@ -47,21 +47,15 @@ const healthConfig = {
 };
 
 export function HealthIndicator({ category, remaining, currencySymbol = "₹", onClick }: HealthIndicatorProps) {
+  // Privacy-first: always start hidden on every mount (dashboard open).
+  // User must explicitly tap the eye icon to reveal their score.
   const [isHidden, setIsHidden] = useState<boolean>(true);
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("finflow_health_hidden");
-    if (saved !== null) {
-      setIsHidden(saved === "true");
-    }
-  }, []);
 
   const toggleHidden = () => {
     const next = !isHidden;
     setIsHidden(next);
     setIsRevealed(!next);
-    localStorage.setItem("finflow_health_hidden", String(next));
   };
 
   const theme = useMemo(() => {

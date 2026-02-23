@@ -10,27 +10,13 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const { showIntro, closeIntro } = useIntroModal("settings");
 
+  // Sections ordered by user visit frequency: finances → preferences → account → help
   const settingsSections = [
     {
-      title: "Account & Security",
+      title: "Your Finances",
       items: [
-        { id: "account", title: "Account", icon: <FaUser size={32} />, description: "Manage username and profile" },
-        { id: "privacy", title: "Privacy & Security", icon: <FaShieldAlt size={32} />, description: "How we protect your financial data" },
-      ]
-    },
-    {
-      title: "Preferences",
-      items: [
-        { id: "preferences", title: "Billing Preferences", icon: <FaCog size={32} />, description: "Set month start day & currency" },
-        { id: "notifications", title: "Notifications", icon: <FaBell size={32} />, description: "Manage alerts and notifications" },
-        { id: "theme", title: "Themes", icon: <FaPalette size={32} />, description: "Switch between Dark and Light" },
-      ]
-    },
-    {
-      title: "Finances",
-      items: [
-        { id: "plan-finances", title: "Plan Finances", icon: <FaChartLine size={32} />, description: "Plan income, expenses, and investments" },
-        { id: "credit-cards", title: "Credit Cards", icon: <FaCreditCard size={32} />, description: "Manage credit card bills" },
+        { id: "plan-finances", title: "Plan Finances", icon: <FaChartLine size={32} />, description: "Income, expenses, investments — all in one place" },
+        { id: "credit-cards", title: "Credit Cards", icon: <FaCreditCard size={32} />, description: "Track bills and manage card payments" },
         { 
           id: "sharing", 
           title: (
@@ -40,15 +26,30 @@ export function SettingsPage() {
             </div>
           ), 
           icon: <FaHandshake size={32} />, 
-          description: "Share account and manage members" 
+          description: "Share finances with family or partners" 
         },
       ]
     },
     {
-      title: "Help",
+      title: "App Settings",
       items: [
-        { id: "support", title: "Support", icon: <FaHeadset size={32} />, description: "Get help and contact support" },
-        { id: "about", title: "About", icon: <FaInfoCircle size={32} />, description: "About FinFlow and usage guide" }
+        { id: "preferences", title: "Billing & Currency", icon: <FaCog size={32} />, description: "Month start day, currency, and billing cycle" },
+        { id: "theme", title: "Themes", icon: <FaPalette size={32} />, description: "Switch between Dark and Light mode" },
+        { id: "notifications", title: "Notifications", icon: <FaBell size={32} />, description: "Control alerts and smart reminders" },
+      ]
+    },
+    {
+      title: "Account",
+      items: [
+        { id: "account", title: "Profile & Security", icon: <FaUser size={32} />, description: "Username, password, and recovery key" },
+        { id: "privacy", title: "Privacy", icon: <FaShieldAlt size={32} />, description: "How your financial data stays protected" },
+      ]
+    },
+    {
+      title: "Help & Info",
+      items: [
+        { id: "support", title: "Support", icon: <FaHeadset size={32} />, description: "Get help or report an issue" },
+        { id: "about", title: "About FinFlow", icon: <FaInfoCircle size={32} />, description: "Version, features, and usage guide" }
       ]
     }
   ];
@@ -61,11 +62,11 @@ export function SettingsPage() {
         title="Settings & Configuration"
         description="Make FinFlow work the way you want. Manage your account security, set billing preferences, share finances with family, customise themes, and configure every aspect of your experience."
         tips={[
-          "Account — update your username, password, and download your recovery key",
-          "Billing Preferences — set the day your billing cycle starts (e.g., salary day)",
-          "Sharing — invite family members to see a combined financial view",
-          "Plan Finances — manage income, fixed expenses, variable plans, and investments",
-          "Notifications — control which smart alerts you receive and how"
+          "Plan Finances — manage income, expenses, investments, and future bombs",
+          "Billing & Currency — set the day your cycle starts and your preferred currency",
+          "Sharing — invite family or partners to see a combined financial view",
+          "Themes — switch between Dark and Light mode",
+          "Profile & Security — update password and download your recovery key"
         ]}
       />
       <div className="settings-header">

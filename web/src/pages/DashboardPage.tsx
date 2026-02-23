@@ -804,22 +804,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       </motion.div>
 
       <div className="widgets-grid">
-        {/* ─── Core Financial Widgets ─── */}
-        <DashboardWidget
-          title="Income"
-          value={`${currSym}${Math.round(incomeTotal).toLocaleString("en-IN")}`}
-          subtitle={
-            <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              <StatusBadge status="active" size="small" label={`${(data.incomes || []).length} Source${(data.incomes || []).length !== 1 ? 's' : ''}`} />
-              {(data.incomes || []).some((i: any) => i.incomeType === 'rsu') && (
-                <StatusBadge status="info" size="small" label="RSU" />
-              )}
-            </div>
-          }
-          icon={<FaHandHoldingUsd />}
-          onClick={() => navigate("/settings/plan-finances/income")}
-          color="#22d3ee"
-        />
+        {/* ─── Action-First: what you interact with most ─── */}
         <DashboardWidget
           title="Variable Expenses"
           value={data.variablePlans?.length || 0}
@@ -849,6 +834,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
           color="#3b82f6"
         />
         <DashboardWidget
+          title="This Month's Spend"
+          value={`${currSym}${Math.round(totalSpentThisMonth).toLocaleString("en-IN")}`}
+          subtitle="Tap for full breakdown"
+          icon={<FaCalendar />}
+          onClick={() => navigate("/current-month-expenses")}
+          color="#14b8a6"
+        />
+        <DashboardWidget
           title="Fixed Expenses"
           value={data.fixedExpenses?.length || 0}
           subtitle={`${currSym}${Math.round(fixedTotal).toLocaleString("en-IN")}/month`}
@@ -856,6 +849,26 @@ export function DashboardPage({ token }: DashboardPageProps) {
           onClick={() => navigate("/fixed-expenses")}
           color="#8b5cf6"
         />
+        <DashboardWidget
+          title="Dues"
+          value={`${currSym}${Math.round(duesTotal).toLocaleString("en-IN")}`}
+          subtitle={
+            <div style={{ marginTop: 8 }}>
+              {duesTotal === 0 ? (
+                <StatusBadge status="completed" size="small" label="All Paid!" />
+              ) : duesTotal > 10000 ? (
+                <StatusBadge status="overdue" size="small" label="High Dues" />
+              ) : (
+                <StatusBadge status="pending" size="small" label="Pending" />
+              )}
+            </div>
+          }
+          icon={<FaClock />}
+          onClick={() => navigate("/dues")}
+          color="#ec4899"
+        />
+
+        {/* ─── Planning & Growth ─── */}
         <DashboardWidget
           title="Investments"
           value={data.investments?.length || 0}
@@ -887,6 +900,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
           color="#f59e0b"
         />
         <DashboardWidget
+          title="Future Bombs"
+          value={futureBombsCount}
+          subtitle={futureBombsCount > 0 ? `${futureBombsCount} upcoming liabilit${futureBombsCount !== 1 ? 'ies' : 'y'}` : 'No ticking bombs'}
+          icon={<FaBomb />}
+          onClick={() => navigate("/future-bombs")}
+          color="#f97316"
+        />
+        <DashboardWidget
           title="Credit Cards"
           value={creditCards.length}
           subtitle={`${currSym}${(creditCards || []).reduce((s: number, c: any) => s + (parseFloat(c.billAmount || 0)), 0).toLocaleString("en-IN")} total bills`}
@@ -902,41 +923,22 @@ export function DashboardPage({ token }: DashboardPageProps) {
           onClick={() => navigate("/loans")}
           color="#6366f1"
         />
-        <DashboardWidget
-          title="Future Bombs"
-          value={futureBombsCount}
-          subtitle={futureBombsCount > 0 ? `${futureBombsCount} upcoming liabilit${futureBombsCount !== 1 ? 'ies' : 'y'}` : 'No ticking bombs'}
-          icon={<FaBomb />}
-          onClick={() => navigate("/future-bombs")}
-          color="#f97316"
-        />
 
-        {/* ─── Tracking & Overview Widgets ─── */}
+        {/* ─── Overview & Social ─── */}
         <DashboardWidget
-          title="Dues"
-          value={`${currSym}${Math.round(duesTotal).toLocaleString("en-IN")}`}
+          title="Income"
+          value={`${currSym}${Math.round(incomeTotal).toLocaleString("en-IN")}`}
           subtitle={
-            <div style={{ marginTop: 8 }}>
-              {duesTotal === 0 ? (
-                <StatusBadge status="completed" size="small" label="All Paid!" />
-              ) : duesTotal > 10000 ? (
-                <StatusBadge status="overdue" size="small" label="High Dues" />
-              ) : (
-                <StatusBadge status="pending" size="small" label="Pending" />
+            <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <StatusBadge status="active" size="small" label={`${(data.incomes || []).length} Source${(data.incomes || []).length !== 1 ? 's' : ''}`} />
+              {(data.incomes || []).some((i: any) => i.incomeType === 'rsu') && (
+                <StatusBadge status="info" size="small" label="RSU" />
               )}
             </div>
           }
-          icon={<FaClock />}
-          onClick={() => navigate("/dues")}
-          color="#ec4899"
-        />
-        <DashboardWidget
-          title="This Month's Spend"
-          value={`${currSym}${Math.round(totalSpentThisMonth).toLocaleString("en-IN")}`}
-          subtitle="Tap for full breakdown"
-          icon={<FaCalendar />}
-          onClick={() => navigate("/current-month-expenses")}
-          color="#14b8a6"
+          icon={<FaHandHoldingUsd />}
+          onClick={() => navigate("/settings/plan-finances/income")}
+          color="#22d3ee"
         />
         <DashboardWidget
           title="Activities"
