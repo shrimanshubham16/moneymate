@@ -184,7 +184,7 @@ export function OnboardingFlow({ token, onClose, onComplete }: OnboardingFlowPro
       calls.push({ category: "Fixed", name: fix.name, fn: () => api.createFixedExpense(token, { name: fix.name, amount: fix.amount, frequency: fix.frequency }) })
     );
     variablePlans.forEach(vp =>
-      calls.push({ category: "Variable", name: vp.name, fn: () => api.createVariablePlan(token, { name: vp.name, planned: vp.planned }) })
+      calls.push({ category: "Variable", name: vp.name, fn: () => api.createVariablePlan(token, { name: vp.name, planned: vp.planned, category: "general", start_date: new Date().toISOString().split("T")[0] }) })
     );
     creditCards.forEach(cc =>
       calls.push({ category: "Credit Card", name: cc.name, fn: () => api.createCreditCard(token, { name: cc.name, billAmount: cc.bill, dueDate: cc.dueDate }) })

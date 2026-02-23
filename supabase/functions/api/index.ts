@@ -1651,8 +1651,8 @@ serve(async (req) => {
         user_id: userId, 
         name: body.name || (hasEncryption ? '[encrypted]' : null), 
         planned: body.planned ?? (body.planned_enc ? 0 : null), 
-        category: body.category, 
-        start_date: body.start_date 
+        category: body.category || 'general', 
+        start_date: body.start_date || new Date().toISOString().split('T')[0] 
       };
       if (body.name_enc) insertData.name_enc = body.name_enc;
       if (body.name_iv) insertData.name_iv = body.name_iv;

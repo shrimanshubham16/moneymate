@@ -294,7 +294,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
                           className="chat-avatar"
                           style={{ background: `linear-gradient(135deg, ${g1}, ${g2})` }}
                         >
-                          {msg.username.charAt(0).toUpperCase()}
+                          {(msg.username || 'A').charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
@@ -307,7 +307,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
                     {showHeader && (
                       <div className="chat-bubble-meta">
                         <span className="chat-bubble-username" style={{ color: g1 }}>
-                          {isOwn ? 'You' : msg.username}
+                          {isOwn ? 'You' : (msg.username || 'Anonymous')}
                         </span>
                         {/* Only show time in meta when NO time separator is visible above */}
                         {!showTimeSep && (

@@ -284,9 +284,10 @@ export function getUserFromToken(token: string): {
 } {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
+    const rawUsername = payload.username || payload.user_name || '';
     return {
       userId: payload.userId || payload.user_id || payload.sub || '',
-      username: payload.username || payload.user_name || 'anon',
+      username: rawUsername.trim() || 'anon',
     };
   } catch {
     return { userId: '', username: 'anon' };
