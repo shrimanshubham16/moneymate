@@ -22,26 +22,61 @@
   align-items: center;
 }
 
-.cme-history-btn {
-  margin-left: auto;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
+/* ── Month Navigator ── */
+.cme-month-nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
-  transition: all 0.2s;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  padding: var(--space-3) 0;
 }
 
-.cme-history-btn:hover {
+.cme-month-arrow {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full, 50%);
+  border: 1px solid rgba(184,193,236,0.15);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.cme-month-arrow:hover:not(.disabled) {
+  border-color: rgba(0,217,255,0.35);
+  color: var(--text-primary);
+  background: rgba(0,217,255,0.06);
   transform: scale(1.08);
-  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.45);
+}
+
+.cme-month-arrow.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cme-month-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 180px;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+.cme-month-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: rgba(16,185,129,0.12);
+  color: #34d399;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 /* ── Summary Hero ── */
@@ -49,7 +84,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-5);
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-6);
   padding: var(--space-6) var(--space-7);
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle, rgba(184,193,236,0.08));
@@ -127,6 +162,40 @@
 .cme-stat-value.stat-fixed { color: #60a5fa; }
 .cme-stat-value.stat-variable { color: #a78bfa; }
 .cme-stat-value.stat-categories { color: var(--accent-cyan, #22d3ee); }
+
+/* ── Payment Mode Summary Strip ── */
+.cme-mode-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.cme-mode-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(184,193,236,0.08);
+  border-radius: var(--radius-xl, 16px);
+  transition: border-color 0.2s;
+}
+
+.cme-mode-pill:hover {
+  border-color: rgba(184,193,236,0.18);
+}
+
+.cme-mode-pill-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.cme-mode-pill-amount {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
 
 /* ── Charts Section ── */
 .cme-chart-grid {
@@ -319,6 +388,7 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1;
 }
 
 .cme-expense-name {
@@ -335,6 +405,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .cme-expense-type-badge {
@@ -374,6 +445,7 @@
   color: var(--text-primary);
 }
 
+/* ── Status Badges (Improved) ── */
 .cme-expense-status {
   font-size: 0.65rem;
   font-weight: 700;
@@ -383,30 +455,63 @@
   text-transform: uppercase;
 }
 
-.cme-expense-status.status-completed {
+.cme-expense-status.status-paid {
   background: rgba(16,185,129,0.12);
   color: #34d399;
 }
 
-.cme-expense-status.status-pending {
+.cme-expense-status.status-due {
   background: rgba(245,158,11,0.12);
   color: #f59e0b;
 }
 
-/* ── Overspend Bar ── */
-.cme-overspend-bar {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--bg-base);
+.cme-expense-status.status-over {
+  background: rgba(239,68,68,0.12);
+  color: #ef4444;
+}
+
+.cme-expense-status.status-partial {
+  background: rgba(59,130,246,0.12);
+  color: #60a5fa;
+}
+
+.cme-expense-status.status-none {
+  background: rgba(100,116,139,0.08);
+  color: var(--text-tertiary);
+}
+
+/* ── Progress Row (Overspend Bar + Percentage) ── */
+.cme-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: var(--space-2);
+}
+
+.cme-overspend-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(184,193,236,0.1);
   overflow: hidden;
 }
 
 .cme-overspend-fill {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 3px;
   transition: width 0.5s ease;
 }
+
+.cme-pct-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 32px;
+  text-align: right;
+}
+
+.cme-pct-label.ok { color: #10b981; }
+.cme-pct-label.warn { color: #f59e0b; }
+.cme-pct-label.over { color: #ef4444; }
 
 /* ── Empty State ── */
 .cme-empty-state {
@@ -508,4 +613,40 @@
   .cme-category-total {
     font-size: var(--text-lg);
   }
+
+  .cme-mode-strip {
+    gap: var(--space-2);
+  }
+
+  .cme-mode-pill {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .cme-month-label {
+    font-size: 0.95rem;
+    min-width: 140px;
+  }
+}
+
+/* ── Light Theme Overrides ── */
+.theme-light .cme-month-arrow {
+  background: #fff;
+  border-color: rgba(0,0,0,0.1);
+  color: #374151;
+}
+
+.theme-light .cme-month-arrow:hover:not(.disabled) {
+  border-color: #3b82f6;
+  color: #1e293b;
+  background: rgba(59,130,246,0.04);
+}
+
+.theme-light .cme-mode-pill {
+  background: #fff;
+  border-color: rgba(0,0,0,0.08);
+}
+
+.theme-light .cme-mode-pill-label {
+  color: #475569;
 }

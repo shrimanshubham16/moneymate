@@ -648,12 +648,32 @@ export function DashboardPage({ token }: DashboardPageProps) {
     );
   }
 
+  // Currency symbol from preferences
+  const currSym = (() => {
+    const pref = data?.preferences;
+    if (!pref?.currency) return "₹";
+    const sym: Record<string, string> = { INR: "₹", USD: "$", EUR: "€", GBP: "£" };
+    return sym[pref.currency] || pref.currency;
+  })();
+
   const variableTotal = data.variablePlans?.reduce((sum: number, p: any) => sum + (p.actualTotal || 0), 0) || 0;
   const fixedTotal = data.fixedExpenses?.reduce((sum: number, f: any) => {
     const monthly = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
     return sum + monthly;
   }, 0) || 0;
   const investmentsTotal = data.investments?.reduce((sum: number, i: any) => sum + i.monthlyAmount, 0) || 0;
+  const incomeTotal = (data.incomes || [])
+    .filter((inc: any) => inc.includeInHealth !== false)
+    .reduce((sum: number, inc: any) => {
+      const amount = parseFloat(inc.amount) || 0;
+      return sum + (inc.frequency === 'monthly' ? amount : inc.frequency === 'quarterly' ? amount / 3 : amount / 12);
+    }, 0);
+  const totalSpentThisMonth = variableTotal + (data.fixedExpenses || [])
+    .filter((f: any) => f.paid)
+    .reduce((sum: number, f: any) => {
+      const monthly = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
+      return sum + monthly;
+    }, 0);
   const futureBombsCount = data.futureBombs?.length || 0;
   const notifCount = data._notificationCount || 0;
 
@@ -778,11 +798,28 @@ export function DashboardPage({ token }: DashboardPageProps) {
         <HealthIndicator
           category={correctHealth.category as any}
           remaining={correctHealth.remaining ?? 0}
+          currencySymbol={currSym}
           onClick={() => navigate("/health")}
         />
       </motion.div>
 
       <div className="widgets-grid">
+        {/* ─── Core Financial Widgets ─── */}
+        <DashboardWidget
+          title="Income"
+          value={`${currSym}${Math.round(incomeTotal).toLocaleString("en-IN")}`}
+          subtitle={
+            <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <StatusBadge status="active" size="small" label={`${(data.incomes || []).length} Source${(data.incomes || []).length !== 1 ? 's' : ''}`} />
+              {(data.incomes || []).some((i: any) => i.incomeType === 'rsu') && (
+                <StatusBadge status="info" size="small" label="RSU" />
+              )}
+            </div>
+          }
+          icon={<FaHandHoldingUsd />}
+          onClick={() => navigate("/settings/plan-finances/income")}
+          color="#22d3ee"
+        />
         <DashboardWidget
           title="Variable Expenses"
           value={data.variablePlans?.length || 0}
@@ -814,7 +851,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         <DashboardWidget
           title="Fixed Expenses"
           value={data.fixedExpenses?.length || 0}
-          subtitle={`₹${Math.round(fixedTotal).toLocaleString("en-IN")}/month`}
+          subtitle={`${currSym}${Math.round(fixedTotal).toLocaleString("en-IN")}/month`}
           icon={<FaMoneyBillWave />}
           onClick={() => navigate("/fixed-expenses")}
           color="#8b5cf6"
@@ -824,17 +861,15 @@ export function DashboardPage({ token }: DashboardPageProps) {
           value={data.investments?.length || 0}
           subtitle={
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <TrendIndicator
-                value={investmentsTotal}
-                format="currency"
-                size="small"
-              />
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                {currSym}{Math.round(investmentsTotal).toLocaleString("en-IN")}/mo
+              </span>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {data.investments?.filter((i: any) => i.status === 'active').length > 0 && (
-                  <StatusBadge status="active" size="small" label={`${data.investments?.filter((i: any) => i.status === 'active').length} Active`} />
+                  <StatusBadge status="active" size="small" label={`${data.investments.filter((i: any) => i.status === 'active').length} Active`} />
                 )}
                 {data.investments?.filter((i: any) => i.status === 'paused').length > 0 && (
-                  <StatusBadge status="paused" size="small" label={`${data.investments?.filter((i: any) => i.status === 'paused').length} Paused`} />
+                  <StatusBadge status="paused" size="small" label={`${data.investments.filter((i: any) => i.status === 'paused').length} Paused`} />
                 )}
               </div>
             </div>
@@ -844,9 +879,9 @@ export function DashboardPage({ token }: DashboardPageProps) {
           color="#10b981"
         />
         <DashboardWidget
-          title="SIP for Periodic"
+          title="Periodic SIPs"
           value={data.fixedExpenses?.filter((f: any) => f.is_sip_flag).length || 0}
-          subtitle="Active SIPs"
+          subtitle={`${currSym}${Math.round((data.fixedExpenses || []).filter((f: any) => f.is_sip_flag).reduce((s: number, f: any) => s + (f.amount || 0), 0)).toLocaleString("en-IN")}/cycle`}
           icon={<FaExchangeAlt />}
           onClick={() => navigate("/sip-expenses")}
           color="#f59e0b"
@@ -854,7 +889,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         <DashboardWidget
           title="Credit Cards"
           value={creditCards.length}
-          subtitle={`₹${(creditCards || []).reduce((s: number, c: any) => s + (parseFloat(c.billAmount || 0)), 0).toLocaleString("en-IN")} bills`}
+          subtitle={`${currSym}${(creditCards || []).reduce((s: number, c: any) => s + (parseFloat(c.billAmount || 0)), 0).toLocaleString("en-IN")} total bills`}
           icon={<FaCreditCard />}
           onClick={() => navigate("/credit-cards")}
           color="#ef4444"
@@ -862,7 +897,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         <DashboardWidget
           title="Loans"
           value={loans.length}
-          subtitle={`₹${loans.reduce((s, l) => s + l.emi, 0).toLocaleString("en-IN")}/month EMI`}
+          subtitle={`${currSym}${loans.reduce((s, l) => s + l.emi, 0).toLocaleString("en-IN")}/month EMI`}
           icon={<FaUniversity />}
           onClick={() => navigate("/loans")}
           color="#6366f1"
@@ -870,22 +905,16 @@ export function DashboardPage({ token }: DashboardPageProps) {
         <DashboardWidget
           title="Future Bombs"
           value={futureBombsCount}
-          subtitle="Upcoming liabilities"
+          subtitle={futureBombsCount > 0 ? `${futureBombsCount} upcoming liabilit${futureBombsCount !== 1 ? 'ies' : 'y'}` : 'No ticking bombs'}
           icon={<FaBomb />}
           onClick={() => navigate("/future-bombs")}
           color="#f97316"
         />
-        <DashboardWidget
-          title="Activities"
-          value={activities.length}
-          subtitle="Recent actions"
-          icon={<FaClipboardList />}
-          onClick={() => navigate("/activities")}
-          color="#64748b"
-        />
+
+        {/* ─── Tracking & Overview Widgets ─── */}
         <DashboardWidget
           title="Dues"
-          value={`₹${Math.round(duesTotal).toLocaleString("en-IN")}`}
+          value={`${currSym}${Math.round(duesTotal).toLocaleString("en-IN")}`}
           subtitle={
             <div style={{ marginTop: 8 }}>
               {duesTotal === 0 ? (
@@ -902,12 +931,20 @@ export function DashboardPage({ token }: DashboardPageProps) {
           color="#ec4899"
         />
         <DashboardWidget
-          title="Current Month Expenses"
-          value="View"
-          subtitle="Category-wise breakdown"
+          title="This Month's Spend"
+          value={`${currSym}${Math.round(totalSpentThisMonth).toLocaleString("en-IN")}`}
+          subtitle="Tap for full breakdown"
           icon={<FaCalendar />}
           onClick={() => navigate("/current-month-expenses")}
           color="#14b8a6"
+        />
+        <DashboardWidget
+          title="Activities"
+          value={activities.length}
+          subtitle={activities.length > 0 ? `Last: ${new Date((activities[0] as any)?.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'No recent actions'}
+          icon={<FaClipboardList />}
+          onClick={() => navigate("/activities")}
+          color="#64748b"
         />
         <DashboardWidget
           title="Community Lounge"

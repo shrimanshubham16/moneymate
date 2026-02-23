@@ -9,6 +9,7 @@ type HealthCategory = "good" | "ok" | "not well" | "worrisome" | "unavailable";
 interface HealthIndicatorProps {
   category: HealthCategory;
   remaining: number | null;
+  currencySymbol?: string;
   onClick?: () => void;
 }
 
@@ -45,7 +46,7 @@ const healthConfig = {
   }
 };
 
-export function HealthIndicator({ category, remaining, onClick }: HealthIndicatorProps) {
+export function HealthIndicator({ category, remaining, currencySymbol = "₹", onClick }: HealthIndicatorProps) {
   const [isHidden, setIsHidden] = useState<boolean>(true);
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
 
@@ -114,7 +115,7 @@ export function HealthIndicator({ category, remaining, onClick }: HealthIndicato
               ? <><AppEmoji name="lock" /> Private</>
               : isHidden 
                 ? "••••••" 
-                : `${isPositive ? "₹" : "-₹"}${displayAmount.toLocaleString("en-IN")}`}
+                : `${isPositive ? currencySymbol : `-${currencySymbol}`}${displayAmount.toLocaleString("en-IN")}`}
           </div>
         </div>
       </div>
