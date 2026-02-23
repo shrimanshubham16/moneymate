@@ -1278,6 +1278,7 @@ serve(async (req) => {
         monthly_amount_iv: i.monthly_amount_iv,
         status: i.status,
         isPriority: i.is_priority || false,
+        accumulatedFunds: i.accumulated_funds || 0,
         accumulated_funds: i.accumulated_funds || 0,
         accumulated_funds_enc: i.accumulated_funds_enc,
         accumulated_funds_iv: i.accumulated_funds_iv,
@@ -1873,7 +1874,8 @@ serve(async (req) => {
         goal: body.goal || (body.goal_enc ? '[encrypted]' : ''), 
         monthly_amount: body.monthly_amount ?? (body.monthly_amount_enc ? 0 : 0), 
         status: body.status || 'active',
-        is_priority: body.is_priority || false
+        is_priority: body.is_priority || false,
+        accumulated_funds: body.accumulated_funds ?? 0
       };
       if (body.name_enc) insertData.name_enc = body.name_enc;
       if (body.name_iv) insertData.name_iv = body.name_iv;
@@ -1881,6 +1883,8 @@ serve(async (req) => {
       if (body.goal_iv) insertData.goal_iv = body.goal_iv;
       if (body.monthly_amount_enc) insertData.monthly_amount_enc = body.monthly_amount_enc;
       if (body.monthly_amount_iv) insertData.monthly_amount_iv = body.monthly_amount_iv;
+      if (body.accumulated_funds_enc) insertData.accumulated_funds_enc = body.accumulated_funds_enc;
+      if (body.accumulated_funds_iv) insertData.accumulated_funds_iv = body.accumulated_funds_iv;
       
       const { data, error: e } = await supabase.from('investments')
         .insert(insertData).select().single();
@@ -1904,10 +1908,18 @@ serve(async (req) => {
         monthlyAmount: body.monthly_amount || data.monthly_amount || 0,
         monthly_amount_enc: body.monthly_amount_enc,
         monthly_amount_iv: body.monthly_amount_iv,
+        accumulatedFunds: data.accumulated_funds || 0,
         status: data.status
       });
       await invalidateUserCache(userId); // P0 FIX: Invalidate cache after creation
-      return json({ data }, 201);
+      // Transform response to include camelCase for frontend
+      const createResponseData = {
+        ...data,
+        monthlyAmount: data.monthly_amount,
+        accumulatedFunds: data.accumulated_funds || 0,
+        isPriority: data.is_priority || false
+      };
+      return json({ data: createResponseData }, 201);
     }
     if (path.startsWith('/planning/investments/') && method === 'PUT') {
       const id = path.split('/').pop();
