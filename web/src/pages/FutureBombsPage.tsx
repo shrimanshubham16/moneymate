@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import {
   FaUserCircle, FaLock, FaBomb, FaEdit, FaTrashAlt, FaPause,
   FaLightbulb, FaCheckCircle, FaExclamationTriangle, FaChartLine, FaSlidersH,
-  FaInfoCircle
+  FaInfoCircle, FaWallet
 } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
@@ -26,6 +26,20 @@ interface PausableInvestment {
   id: string;
   name: string;
   monthlyAmount: number;
+}
+
+interface WithdrawableInvestment {
+  id: string;
+  name: string;
+  accumulatedFunds: number;  // current wallet balance
+  monthlyAmount: number;     // for context display
+}
+
+interface WithdrawSuggestion {
+  id: string;
+  name: string;
+  amount: number;            // suggested withdrawal amount
+  maxAmount: number;         // max available (accumulatedFunds)
 }
 
 interface RsuSource {
@@ -56,8 +70,8 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
 
   // Per-bomb strategy tab state
   const [activeStrategies, setActiveStrategies] = useState<Record<string, StrategyTab>>({});
-  // Custom mix state per bomb: { bombId: { pausedIds: Set<string>, sharesToSell: Record<rsuId, number> } }
-  const [customMix, setCustomMix] = useState<Record<string, { pausedIds: string[]; sharesToSell: Record<string, number> }>>({});
+  // Custom mix state per bomb: { bombId: { pausedIds: [...], sharesToSell: { rsuId: n }, withdrawAmounts: { invId: amount } } }
+  const [customMix, setCustomMix] = useState<Record<string, { pausedIds: string[]; sharesToSell: Record<string, number>; withdrawAmounts: Record<string, number> }>>({});
 
   // Form modal state
   const [formModal, setFormModal] = useState<{ isOpen: boolean; editId?: string }>({ isOpen: false });
@@ -115,6 +129,18 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       .map((inv: any) => ({ id: inv.id, name: inv.name, monthlyAmount: inv.monthlyAmount || 0 }));
   }, [investments]);
 
+  const getWithdrawableInvestments = useCallback((): WithdrawableInvestment[] => {
+    return investments
+      .filter((inv: any) => inv.status === "active" && !inv.isPriority && (inv.accumulatedFunds || inv.accumulated_funds || 0) > 0)
+      .sort((a: any, b: any) => (b.accumulatedFunds || b.accumulated_funds || 0) - (a.accumulatedFunds || a.accumulated_funds || 0))
+      .map((inv: any) => ({
+        id: inv.id,
+        name: inv.name,
+        accumulatedFunds: inv.accumulatedFunds || inv.accumulated_funds || 0,
+        monthlyAmount: inv.monthlyAmount || inv.monthly_amount || 0
+      }));
+  }, [investments]);
+
   const getRsuSources = useCallback((): RsuSource[] => {
     return incomes
       .filter((inc: any) => inc.incomeType === "rsu" && inc.rsuTicker && inc.rsuStockPrice)
@@ -146,29 +172,82 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       .filter(r => r.monthlyNetShares > 0);
   }, [incomes, userCurrency]);
 
+  // ===== Withdrawal helpers =====
+
+  // Auto-suggest withdrawals greedily (highest wallet first) up to needed amount
+  const autoSuggestWithdrawals = (bombRemaining: number, withdrawable: WithdrawableInvestment[]): WithdrawSuggestion[] => {
+    let needed = bombRemaining;
+    const suggestions: WithdrawSuggestion[] = [];
+    for (const inv of withdrawable) {
+      if (needed <= 0) break;
+      const amount = Math.min(inv.accumulatedFunds, needed);
+      suggestions.push({ id: inv.id, name: inv.name, amount, maxAmount: inv.accumulatedFunds });
+      needed -= amount;
+    }
+    return suggestions;
+  };
+
   // ===== Defusal computation for a bomb =====
 
   const getDefusalData = useCallback((bomb: any) => {
-    const sipAmount = bomb.monthlyEquivalent || 0;
-    const shortfall = Math.max(0, sipAmount - Math.max(0, availableFunds));
-    const canAfford = shortfall === 0;
+    const originalSipAmount = bomb.monthlyEquivalent || 0;
+    const bombRemaining = bomb.remaining || 0;
+    const monthsLeft = bomb.defusalMonths || bomb.monthsLeft || 1;
 
     const pausable = getPausableInvestments();
+    const withdrawable = getWithdrawableInvestments();
     const rsuSources = getRsuSources();
+    const totalWithdrawable = withdrawable.reduce((s, w) => s + w.accumulatedFunds, 0);
 
-    // Path 1: Pause investments first, then sell RSU
-    const path1 = computePauseFirst(shortfall, pausable, rsuSources);
-    // Path 2: Sell RSU first, then pause investments
-    const path2 = computeSellFirst(shortfall, pausable, rsuSources);
+    // Withdrawal is a lump-sum that reduces the bomb's remaining balance directly
+    // This recalculates the monthly SIP needed after withdrawal
+    const withdrawalCap = Math.min(totalWithdrawable, Math.max(0, bombRemaining));
+    const adjustedRemaining = Math.max(0, bombRemaining - withdrawalCap);
+    const adjustedSIP = adjustedRemaining > 0 ? Math.ceil(adjustedRemaining / monthsLeft) : 0;
+    const adjustedShortfall = Math.max(0, adjustedSIP - Math.max(0, availableFunds));
+
+    // Original shortfall (without any withdrawal)
+    const originalShortfall = Math.max(0, originalSipAmount - Math.max(0, availableFunds));
+    const canAfford = originalShortfall === 0;
+
+    // Auto-suggest withdrawals for paths 1 & 2
+    const withdrawSuggestions = autoSuggestWithdrawals(bombRemaining, withdrawable);
+    const totalWithdrawSuggested = withdrawSuggestions.reduce((s, w) => s + w.amount, 0);
+
+    // Path 1: Withdraw + Pause investments first, then sell RSU
+    const path1 = computePauseFirst(adjustedShortfall, pausable, rsuSources, withdrawSuggestions, totalWithdrawSuggested);
+    // Path 2: Withdraw + Sell RSU first, then pause investments
+    const path2 = computeSellFirst(adjustedShortfall, pausable, rsuSources, withdrawSuggestions, totalWithdrawSuggested);
 
     const canResolve = canAfford || path1.covered || path2.covered;
     const severity: "ok" | "warn" | "critical" = canAfford ? "ok" : canResolve ? "warn" : "critical";
 
-    return { sipAmount, shortfall, canAfford, path1, path2, severity, pausable, rsuSources };
-  }, [availableFunds, getPausableInvestments, getRsuSources]);
+    return {
+      sipAmount: originalSipAmount,
+      adjustedSIP,
+      shortfall: originalShortfall,
+      adjustedShortfall,
+      canAfford,
+      path1,
+      path2,
+      severity,
+      pausable,
+      withdrawable,
+      rsuSources,
+      totalWithdrawable: withdrawalCap,
+      bombRemaining,
+      monthsLeft
+    };
+  }, [availableFunds, getPausableInvestments, getWithdrawableInvestments, getRsuSources]);
 
-  // Path 1: Pause investments first, then sell RSU shares
-  const computePauseFirst = (shortfall: number, pausable: PausableInvestment[], rsuSources: RsuSource[]) => {
+  // Path 1: Pause investments first, then sell RSU shares (after withdrawal reduces SIP)
+  const computePauseFirst = (
+    shortfall: number,
+    pausable: PausableInvestment[],
+    rsuSources: RsuSource[],
+    withdrawSuggestions: WithdrawSuggestion[],
+    totalWithdrawSuggested: number
+  ) => {
     let remaining = shortfall;
     const pauseSuggestions: PausableInvestment[] = [];
 
@@ -195,11 +274,26 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     const sellFreed = sellSuggestions.reduce((s, i) => s + i.value, 0);
     const covered = remaining <= 0;
 
-    return { pauseSuggestions, sellSuggestions, pauseFreed, sellFreed, remaining: Math.max(0, remaining), covered };
+    return {
+      withdrawSuggestions,
+      totalWithdrawSuggested,
+      pauseSuggestions,
+      sellSuggestions,
+      pauseFreed,
+      sellFreed,
+      remaining: Math.max(0, remaining),
+      covered
+    };
   };
 
-  // Path 2: Sell RSU shares first, then pause investments
-  const computeSellFirst = (shortfall: number, pausable: PausableInvestment[], rsuSources: RsuSource[]) => {
+  // Path 2: Sell RSU shares first, then pause investments (after withdrawal reduces SIP)
+  const computeSellFirst = (
+    shortfall: number,
+    pausable: PausableInvestment[],
+    rsuSources: RsuSource[],
+    withdrawSuggestions: WithdrawSuggestion[],
+    totalWithdrawSuggested: number
+  ) => {
     let remaining = shortfall;
 
     const sellSuggestions: { rsuId: string; ticker: string; shares: number; value: number }[] = [];
@@ -226,14 +320,34 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     const pauseFreed = pauseSuggestions.reduce((s, i) => s + i.monthlyAmount, 0);
     const covered = remaining <= 0;
 
-    return { sellSuggestions, pauseSuggestions, sellFreed, pauseFreed, remaining: Math.max(0, remaining), covered };
+    return {
+      withdrawSuggestions,
+      totalWithdrawSuggested,
+      sellSuggestions,
+      pauseSuggestions,
+      sellFreed,
+      pauseFreed,
+      remaining: Math.max(0, remaining),
+      covered
+    };
   };
 
-  // Custom mix calculation
-  const computeCustomMix = (bombId: string, shortfall: number) => {
-    const mixState = customMix[bombId] || { pausedIds: [], sharesToSell: {} };
+  // Custom mix calculation (includes withdrawal amounts)
+  const computeCustomMix = (bombId: string, bomb: any) => {
+    const mixState = customMix[bombId] || { pausedIds: [], sharesToSell: {}, withdrawAmounts: {} };
     const pausable = getPausableInvestments();
     const rsuSources = getRsuSources();
+    const bombRemaining = bomb.remaining || 0;
+    const monthsLeft = bomb.defusalMonths || bomb.monthsLeft || 1;
+
+    // Lump-sum withdrawal reduces the bomb balance first
+    let totalWithdraw = 0;
+    for (const [, amount] of Object.entries(mixState.withdrawAmounts)) {
+      totalWithdraw += (amount as number) || 0;
+    }
+    const adjustedRemaining = Math.max(0, bombRemaining - totalWithdraw);
+    const adjustedSIP = adjustedRemaining > 0 ? Math.ceil(adjustedRemaining / monthsLeft) : 0;
+    const adjustedShortfall = Math.max(0, adjustedSIP - Math.max(0, availableFunds));
 
     let freedFromPause = 0;
     for (const inv of pausable) {
@@ -248,11 +362,21 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       freedFromSell += shares * rsu.conservativePriceLocal;
     }
 
-    const totalFreed = freedFromPause + freedFromSell;
-    const remaining = Math.max(0, shortfall - totalFreed);
+    const totalMonthlyFreed = freedFromPause + freedFromSell;
+    const remaining = Math.max(0, adjustedShortfall - totalMonthlyFreed);
     const covered = remaining <= 0;
 
-    return { freedFromPause, freedFromSell, totalFreed, remaining, covered };
+    return {
+      totalWithdraw,
+      adjustedRemaining,
+      adjustedSIP,
+      adjustedShortfall,
+      freedFromPause,
+      freedFromSell,
+      totalMonthlyFreed,
+      remaining,
+      covered
+    };
   };
 
   // ===== Formatting helpers =====
@@ -269,13 +393,13 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     setActiveStrategies(prev => ({ ...prev, [bombId]: tab }));
     // Initialize custom mix state if switching to mix
     if (tab === "mix" && !customMix[bombId]) {
-      setCustomMix(prev => ({ ...prev, [bombId]: { pausedIds: [], sharesToSell: {} } }));
+      setCustomMix(prev => ({ ...prev, [bombId]: { pausedIds: [], sharesToSell: {}, withdrawAmounts: {} } }));
     }
   };
 
   const toggleMixPause = (bombId: string, invId: string) => {
     setCustomMix(prev => {
-      const current = prev[bombId] || { pausedIds: [], sharesToSell: {} };
+      const current = prev[bombId] || { pausedIds: [], sharesToSell: {}, withdrawAmounts: {} };
       const pausedIds = current.pausedIds.includes(invId)
         ? current.pausedIds.filter(id => id !== invId)
         : [...current.pausedIds, invId];
@@ -285,8 +409,15 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
 
   const setMixShares = (bombId: string, rsuId: string, shares: number) => {
     setCustomMix(prev => {
-      const current = prev[bombId] || { pausedIds: [], sharesToSell: {} };
+      const current = prev[bombId] || { pausedIds: [], sharesToSell: {}, withdrawAmounts: {} };
       return { ...prev, [bombId]: { ...current, sharesToSell: { ...current.sharesToSell, [rsuId]: shares } } };
+    });
+  };
+
+  const setMixWithdraw = (bombId: string, invId: string, amount: number) => {
+    setCustomMix(prev => {
+      const current = prev[bombId] || { pausedIds: [], sharesToSell: {}, withdrawAmounts: {} };
+      return { ...prev, [bombId]: { ...current, withdrawAmounts: { ...current.withdrawAmounts, [invId]: amount } } };
     });
   };
 
@@ -431,6 +562,47 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     }
   };
 
+  // ===== Withdraw handler for bomb defusal =====
+
+  const handleWithdrawForBomb = async (bomb: any, withdrawals: WithdrawSuggestion[]) => {
+    const totalWithdraw = withdrawals.reduce((s, w) => s + w.amount, 0);
+    if (totalWithdraw <= 0) return;
+
+    showConfirm(
+      `Withdraw ${cs}${fmt(totalWithdraw)} from ${withdrawals.length} investment wallet(s) and apply it to "${bomb.name}"? This reduces the bomb balance and lowers your monthly SIP.`,
+      async () => {
+        try {
+          // Optimistic UI: update investments and bomb locally
+          const withdrawMap = new Map(withdrawals.map(w => [w.id, w.amount]));
+          setInvestments(prev => prev.map(inv => {
+            const withdrawAmt = withdrawMap.get(inv.id);
+            if (withdrawAmt) {
+              const currentFunds = inv.accumulatedFunds || inv.accumulated_funds || 0;
+              return { ...inv, accumulatedFunds: Math.max(0, currentFunds - withdrawAmt), accumulated_funds: Math.max(0, currentFunds - withdrawAmt) };
+            }
+            return inv;
+          }));
+          const newSaved = (bomb.savedAmount || 0) + totalWithdraw;
+          setBombs(prev => prev.map(b => b.id === bomb.id ? enrichBomb({ ...b, saved_amount: newSaved, savedAmount: newSaved }) : b));
+
+          // API calls: update each investment's accumulated funds, then update bomb's saved amount
+          for (const w of withdrawals) {
+            const inv = investments.find(i => i.id === w.id);
+            const currentFunds = inv?.accumulatedFunds || inv?.accumulated_funds || 0;
+            await api.updateInvestment(token, w.id, { accumulatedFunds: Math.max(0, currentFunds - w.amount) });
+          }
+          await api.updateFutureBomb(token, bomb.id, { saved_amount: newSaved });
+
+          invalidateDashboardCache();
+          loadData(); // background refresh for consistency
+        } catch (e: any) {
+          showAlert("Failed to apply withdrawal: " + e.message);
+          loadData(); // rollback by reloading
+        }
+      }
+    );
+  };
+
   // ===== Render helpers for strategy panels =====
 
   const renderShortfallPill = (remaining: number, covered: boolean) => {
@@ -448,24 +620,75 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
     );
   };
 
+  const renderWithdrawalSection = (
+    withdrawSuggestions: WithdrawSuggestion[],
+    totalWithdrawSuggested: number,
+    defusal: ReturnType<typeof getDefusalData>,
+    bomb: any,
+    isOwn: boolean
+  ) => {
+    if (withdrawSuggestions.length === 0 || totalWithdrawSuggested <= 0) return null;
+    return (
+      <div className="withdrawal-section">
+        <div className="withdrawal-header">
+          <FaWallet size={11} color="#10b981" />
+          <span className="withdrawal-header-label">Step 1: Withdraw from Investment Wallets</span>
+          <span className="withdrawal-header-note">(one-time, reduces bomb balance)</span>
+        </div>
+        <div className="strategy-steps">
+          {withdrawSuggestions.map(w => (
+            <div key={w.id} className="strategy-step withdraw-step">
+              <span className="step-label"><FaWallet size={10} /> {w.name}</span>
+              <span className="step-value">{cs}{fmt(w.amount)} of {cs}{fmt(w.maxAmount)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="withdrawal-impact">
+          <FaInfoCircle size={10} />
+          <span>
+            Withdrawing {cs}{fmt(totalWithdrawSuggested)} reduces monthly SIP from{" "}
+            <strong>{cs}{fmt(defusal.sipAmount)}</strong> to{" "}
+            <strong>{cs}{fmt(defusal.adjustedSIP)}</strong>/mo
+          </span>
+        </div>
+        {isOwn && (
+          <button
+            className="strategy-action-btn withdraw-btn"
+            onClick={() => handleWithdrawForBomb(bomb, withdrawSuggestions)}
+          >
+            <FaWallet size={12} /> Withdraw {cs}{fmt(totalWithdrawSuggested)} and Apply to Bomb
+          </button>
+        )}
+      </div>
+    );
+  };
+
   const renderPauseFirstPanel = (bomb: any, defusal: ReturnType<typeof getDefusalData>, isOwn: boolean) => {
     const { path1, rsuSources } = defusal;
     return (
       <div className="strategy-content" key="pause">
         <div className="strategy-summary">
           <FaPause size={12} color="#f59e0b" />
-          <span>First pauses non-priority investments, then sells RSU shares if still needed.</span>
+          <span>Withdraws from investment wallets first, then pauses non-priority investments, then sells RSU shares if still needed.</span>
         </div>
 
+        {/* Withdrawal (lump-sum step) */}
+        {renderWithdrawalSection(path1.withdrawSuggestions, path1.totalWithdrawSuggested, defusal, bomb, isOwn)}
+
         {path1.pauseSuggestions.length > 0 && (
-          <div className="strategy-steps">
-            {path1.pauseSuggestions.map(s => (
-              <div key={s.id} className="strategy-step pause-step">
-                <span className="step-label"><FaPause size={10} /> {s.name}</span>
-                <span className="step-value">{cs}{fmt(s.monthlyAmount)}/mo</span>
-              </div>
-            ))}
-          </div>
+          <>
+            {path1.withdrawSuggestions.length > 0 && (
+              <div className="strategy-step-divider">Then, monthly strategies:</div>
+            )}
+            <div className="strategy-steps">
+              {path1.pauseSuggestions.map(s => (
+                <div key={s.id} className="strategy-step pause-step">
+                  <span className="step-label"><FaPause size={10} /> {s.name}</span>
+                  <span className="step-value">{cs}{fmt(s.monthlyAmount)}/mo</span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {path1.sellSuggestions.length > 0 && (
@@ -502,11 +725,11 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
   const renderSellFirstPanel = (bomb: any, defusal: ReturnType<typeof getDefusalData>, isOwn: boolean) => {
     const { path2, rsuSources } = defusal;
 
-    if (rsuSources.length === 0) {
+    if (rsuSources.length === 0 && path2.withdrawSuggestions.length === 0) {
       return (
         <div className="strategy-content" key="sell">
           <div className="no-rsu-info" style={{ marginBottom: 12 }}>
-            <FaInfoCircle size={12} /> No RSU income configured. Add RSU stocks on the Income page to use this strategy.
+            <FaInfoCircle size={12} /> No RSU income configured and no investment wallets to withdraw from. Add RSU stocks on the Income page or fund investment wallets to use this strategy.
           </div>
           <div className="strategy-summary">
             <FaChartLine size={12} color="#8b5cf6" />
@@ -520,18 +743,26 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       <div className="strategy-content" key="sell">
         <div className="strategy-summary">
           <FaChartLine size={12} color="#8b5cf6" />
-          <span>First sells RSU shares (at conservative price with tax deducted), then pauses investments if still needed.</span>
+          <span>Withdraws from investment wallets first, then sells RSU shares (at conservative price with tax deducted), then pauses investments if still needed.</span>
         </div>
 
+        {/* Withdrawal (lump-sum step) */}
+        {renderWithdrawalSection(path2.withdrawSuggestions, path2.totalWithdrawSuggested, defusal, bomb, isOwn)}
+
         {path2.sellSuggestions.length > 0 && (
-          <div className="strategy-steps">
-            {path2.sellSuggestions.map(s => (
-              <div key={s.rsuId} className="strategy-step sell-step">
-                <span className="step-label"><FaChartLine size={10} /> Sell ~{s.shares} {s.ticker}/mo</span>
-                <span className="step-value">≈ {cs}{fmt(s.value)}/mo</span>
-              </div>
-            ))}
-          </div>
+          <>
+            {path2.withdrawSuggestions.length > 0 && (
+              <div className="strategy-step-divider">Then, monthly strategies:</div>
+            )}
+            <div className="strategy-steps">
+              {path2.sellSuggestions.map(s => (
+                <div key={s.rsuId} className="strategy-step sell-step">
+                  <span className="step-label"><FaChartLine size={10} /> Sell ~{s.shares} {s.ticker}/mo</span>
+                  <span className="step-value">≈ {cs}{fmt(s.value)}/mo</span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {path2.pauseSuggestions.length > 0 && (
@@ -560,21 +791,69 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
   };
 
   const renderCustomMixPanel = (bomb: any, defusal: ReturnType<typeof getDefusalData>, isOwn: boolean) => {
-    const { shortfall, pausable, rsuSources } = defusal;
-    const mixState = customMix[bomb.id] || { pausedIds: [], sharesToSell: {} };
-    const mixResult = computeCustomMix(bomb.id, shortfall);
+    const { pausable, withdrawable, rsuSources } = defusal;
+    const mixState = customMix[bomb.id] || { pausedIds: [], sharesToSell: {}, withdrawAmounts: {} };
+    const mixResult = computeCustomMix(bomb.id, bomb);
+
+    // Build withdrawal suggestions from custom mix amounts
+    const customWithdrawals: WithdrawSuggestion[] = withdrawable
+      .filter(w => (mixState.withdrawAmounts[w.id] || 0) > 0)
+      .map(w => ({ id: w.id, name: w.name, amount: mixState.withdrawAmounts[w.id] || 0, maxAmount: w.accumulatedFunds }));
+    const totalCustomWithdraw = customWithdrawals.reduce((s, w) => s + w.amount, 0);
+
+    const hasAnySources = pausable.length > 0 || rsuSources.length > 0 || withdrawable.length > 0;
 
     return (
       <div className="strategy-content" key="mix">
         <div className="strategy-summary">
           <FaSlidersH size={12} color="#22d3ee" />
-          <span>Customise exactly which investments to pause and how many shares to sell. Real-time feedback below.</span>
+          <span>Customise how much to withdraw from wallets, which investments to pause, and how many shares to sell. Real-time feedback below.</span>
         </div>
 
-        {/* Investments Section */}
+        {/* Withdrawal Section */}
+        {withdrawable.length > 0 && (
+          <div className="custom-mix-section">
+            <h5><FaWallet size={10} /> Withdraw from Investment Wallets <span className="mix-section-tag lump">(one-time)</span></h5>
+            {withdrawable.map(inv => {
+              const currentAmount = mixState.withdrawAmounts[inv.id] || 0;
+              return (
+                <div key={inv.id} className="mix-withdraw-row">
+                  <div className="mix-withdraw-control">
+                    <span className="mix-withdraw-name">{inv.name}</span>
+                    <span className="mix-withdraw-balance">Balance: {cs}{fmt(inv.accumulatedFunds)}</span>
+                  </div>
+                  <div className="mix-withdraw-slider">
+                    <input
+                      type="range"
+                      min={0}
+                      max={Math.round(inv.accumulatedFunds)}
+                      step={Math.max(1, Math.round(inv.accumulatedFunds / 100))}
+                      value={currentAmount}
+                      onChange={e => setMixWithdraw(bomb.id, inv.id, parseInt(e.target.value))}
+                      disabled={!isOwn}
+                    />
+                    <span className="mix-withdraw-value">{cs}{fmt(currentAmount)}</span>
+                  </div>
+                </div>
+              );
+            })}
+            {totalCustomWithdraw > 0 && (
+              <div className="withdrawal-impact compact">
+                <FaInfoCircle size={10} />
+                <span>
+                  Withdrawing {cs}{fmt(totalCustomWithdraw)} reduces monthly SIP from{" "}
+                  <strong>{cs}{fmt(defusal.sipAmount)}</strong> to{" "}
+                  <strong>{cs}{fmt(mixResult.adjustedSIP)}</strong>/mo
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Investments Pause Section */}
         {pausable.length > 0 && (
           <div className="custom-mix-section">
-            <h5><FaPause size={10} /> Investments to Pause</h5>
+            <h5><FaPause size={10} /> Investments to Pause <span className="mix-section-tag monthly">(monthly)</span></h5>
             {pausable.map(inv => (
               <div
                 key={inv.id}
@@ -596,7 +875,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
         {/* RSU Section */}
         {rsuSources.length > 0 && (
           <div className="custom-mix-section">
-            <h5><FaChartLine size={10} /> RSU Shares to Sell Monthly</h5>
+            <h5><FaChartLine size={10} /> RSU Shares to Sell <span className="mix-section-tag monthly">(monthly)</span></h5>
             {rsuSources.map(rsu => {
               const maxShares = Math.floor(rsu.monthlyNetShares);
               const currentShares = mixState.sharesToSell[rsu.id] || 0;
@@ -624,36 +903,54 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
           </div>
         )}
 
-        {pausable.length === 0 && rsuSources.length === 0 && (
+        {!hasAnySources && (
           <div className="no-rsu-info">
-            <FaInfoCircle size={12} /> No pausable investments or RSU stocks available. Add investments (non-priority) or RSU income to unlock this strategy.
+            <FaInfoCircle size={12} /> No investment wallets, pausable investments, or RSU stocks available. Add investments or RSU income to unlock this strategy.
           </div>
         )}
 
         {/* Real-time Feedback */}
-        {(pausable.length > 0 || rsuSources.length > 0) && (
+        {hasAnySources && (
           <div className="mix-feedback">
-            <div className="mix-feedback-row">
-              <span className="fb-label">Monthly SIP Needed</span>
-              <span className="fb-value">{cs}{fmt(defusal.sipAmount)}/mo</span>
-            </div>
+            {totalCustomWithdraw > 0 && (
+              <>
+                <div className="mix-feedback-row">
+                  <span className="fb-label">Withdrawal (lump-sum)</span>
+                  <span className="fb-value" style={{ color: "#10b981" }}>{cs}{fmt(totalCustomWithdraw)}</span>
+                </div>
+                <div className="mix-feedback-row">
+                  <span className="fb-label">Adjusted Monthly SIP</span>
+                  <span className="fb-value">{cs}{fmt(mixResult.adjustedSIP)}/mo</span>
+                </div>
+              </>
+            )}
+            {totalCustomWithdraw === 0 && (
+              <div className="mix-feedback-row">
+                <span className="fb-label">Monthly SIP Needed</span>
+                <span className="fb-value">{cs}{fmt(defusal.sipAmount)}/mo</span>
+              </div>
+            )}
             <div className="mix-feedback-row">
               <span className="fb-label">Available from Budget</span>
               <span className="fb-value">{cs}{fmt(Math.max(0, availableFunds))}/mo</span>
             </div>
             <div className="mix-feedback-row">
-              <span className="fb-label">Shortfall</span>
-              <span className="fb-value warning">{cs}{fmt(shortfall)}/mo</span>
+              <span className="fb-label">Monthly Shortfall</span>
+              <span className="fb-value warning">{cs}{fmt(mixResult.adjustedShortfall)}/mo</span>
             </div>
             <div className="mix-feedback-divider" />
-            <div className="mix-feedback-row">
-              <span className="fb-label">Freed from Pausing</span>
-              <span className="fb-value" style={{ color: "#f59e0b" }}>{cs}{fmt(mixResult.freedFromPause)}/mo</span>
-            </div>
-            <div className="mix-feedback-row">
-              <span className="fb-label">Freed from Selling</span>
-              <span className="fb-value" style={{ color: "#a78bfa" }}>{cs}{fmt(mixResult.freedFromSell)}/mo</span>
-            </div>
+            {mixResult.freedFromPause > 0 && (
+              <div className="mix-feedback-row">
+                <span className="fb-label">Freed from Pausing</span>
+                <span className="fb-value" style={{ color: "#f59e0b" }}>{cs}{fmt(mixResult.freedFromPause)}/mo</span>
+              </div>
+            )}
+            {mixResult.freedFromSell > 0 && (
+              <div className="mix-feedback-row">
+                <span className="fb-label">Freed from Selling</span>
+                <span className="fb-value" style={{ color: "#a78bfa" }}>{cs}{fmt(mixResult.freedFromSell)}/mo</span>
+              </div>
+            )}
             <div className="mix-feedback-divider" />
             <div className="mix-feedback-row">
               <span className="fb-label" style={{ fontWeight: 700 }}>Remaining Gap</span>
@@ -664,18 +961,28 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
           </div>
         )}
 
-        {isOwn && mixState.pausedIds.length > 0 && (
-          <button
-            className="strategy-action-btn mix-btn"
-            style={{ marginTop: 10 }}
-            onClick={() => {
-              const toPause = getPausableInvestments().filter(inv => mixState.pausedIds.includes(inv.id));
-              handlePauseInvestments(toPause);
-            }}
-          >
-            <FaPause size={12} /> Apply — Pause {mixState.pausedIds.length} Investment(s)
-          </button>
-        )}
+        {/* Action buttons */}
+        <div className="mix-action-buttons">
+          {isOwn && totalCustomWithdraw > 0 && (
+            <button
+              className="strategy-action-btn withdraw-btn"
+              onClick={() => handleWithdrawForBomb(bomb, customWithdrawals)}
+            >
+              <FaWallet size={12} /> Withdraw {cs}{fmt(totalCustomWithdraw)} from Wallets
+            </button>
+          )}
+          {isOwn && mixState.pausedIds.length > 0 && (
+            <button
+              className="strategy-action-btn mix-btn"
+              onClick={() => {
+                const toPause = getPausableInvestments().filter(inv => mixState.pausedIds.includes(inv.id));
+                handlePauseInvestments(toPause);
+              }}
+            >
+              <FaPause size={12} /> Pause {mixState.pausedIds.length} Investment(s)
+            </button>
+          )}
+        </div>
       </div>
     );
   };
@@ -689,13 +996,14 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
           <PageInfoButton
             title="Future Bombs — Smart Defusal"
             description="Future Bombs are big-ticket expenses heading your way — vacations, home renovations, weddings, or large purchases. The Smart Defusal system calculates exactly how much you need to save monthly and offers three strategic paths to cover it."
-            impact="Each bomb has a Defusal SIP — the monthly amount to save up 1 month before the due date. The system offers three paths: pause investments first, sell RSU shares first, or create your own custom mix — all using conservative (tax-adjusted, decline-buffered) calculations."
+            impact="Each bomb has a Defusal SIP — the monthly amount to save up 1 month before the due date. The system offers three paths: pause investments first, sell RSU shares first, or create your own custom mix — all using conservative (tax-adjusted, decline-buffered) calculations. You can also withdraw accumulated funds from non-critical investments to directly reduce the bomb balance."
             howItWorks={[
               "Add a bomb with name, total amount, saved so far, and due date",
               "The app calculates monthly SIP needed to defuse it 1 month early",
+              "Wallet Withdrawal: Withdraw accumulated funds from non-critical investments to reduce the bomb balance (lump-sum, directly lowers monthly SIP)",
               "Path 1 (Pause First): Pauses non-priority investments, then sells RSU shares if still short",
               "Path 2 (Sell First): Sells RSU shares at conservative prices, then pauses investments if needed",
-              "Path 3 (Custom Mix): You choose exactly what to pause and how many shares to sell, with live feedback",
+              "Path 3 (Custom Mix): You choose exactly how much to withdraw, what to pause, and how many shares to sell, with live feedback",
               "RSU calculations use net shares after tax and a decline buffer for safety",
               "Green = affordable, Yellow = needs action, Red = can't cover even with all strategies"
             ]}
@@ -754,6 +1062,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
             const strategy = getStrategy(bomb.id);
             const hasRsu = defusal.rsuSources.length > 0;
             const hasPausable = defusal.pausable.length > 0;
+            const hasWithdrawable = defusal.withdrawable.length > 0;
 
             return (
               <motion.div
@@ -844,7 +1153,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
                   ) : (
                     <>
                       {/* Strategy Tabs - only show when there's a shortfall */}
-                      {(hasPausable || hasRsu) && (
+                      {(hasPausable || hasRsu || hasWithdrawable) && (
                         <div className="strategy-tabs">
                           <button
                             className={`strategy-tab ${strategy === "pause" ? "active tab-pause" : ""}`}
@@ -872,14 +1181,14 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
                       {strategy === "sell" && renderSellFirstPanel(bomb, defusal, isOwn)}
                       {strategy === "mix" && renderCustomMixPanel(bomb, defusal, isOwn)}
 
-                      {/* Fallback: no pausable investments and no RSU */}
-                      {!hasPausable && !hasRsu && (
+                      {/* Fallback: no withdrawable, no pausable investments and no RSU */}
+                      {!hasPausable && !hasRsu && !hasWithdrawable && (
                         <div className="strategy-summary">
                           <FaExclamationTriangle size={12} color="#ef4444" />
                           <span>
-                            No non-priority investments to pause and no RSU stocks to sell.
+                            No investment wallets to withdraw from, no non-priority investments to pause, and no RSU stocks to sell.
                             Consider extending the due date, increasing income, or reducing the target amount.
-                            Mark investments as non-priority on the Investments page, or add RSU income on the Income page.
+                            Fund investment wallets, mark investments as non-priority on the Investments page, or add RSU income on the Income page.
                           </span>
                         </div>
                       )}
