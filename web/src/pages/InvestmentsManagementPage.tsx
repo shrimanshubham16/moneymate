@@ -31,6 +31,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
     name: "",
     goal: "",
     monthlyAmount: "",
+    accumulatedFunds: "",
     status: "active" as "active" | "paused",
     isPriority: false
   });
@@ -76,7 +77,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   };
 
   const resetForm = () => {
-    setFormData({ name: "", goal: "", monthlyAmount: "", status: "active", isPriority: false });
+    setFormData({ name: "", goal: "", monthlyAmount: "", accumulatedFunds: "", status: "active", isPriority: false });
     setEditingId(null);
     setShowForm(false);
   };
@@ -84,13 +85,17 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const investmentData = {
+    const parsedAccumulated = formData.accumulatedFunds ? Number(formData.accumulatedFunds) : 0;
+    const investmentData: any = {
       name: formData.name,
       goal: formData.goal,
       monthlyAmount: Number(formData.monthlyAmount),
       status: formData.status,
       isPriority: formData.isPriority
     };
+    if (parsedAccumulated > 0) {
+      investmentData.accumulatedFunds = parsedAccumulated;
+    }
     
     // Optimistic update
     const tempId = `temp-${Date.now()}`;
@@ -98,7 +103,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
       id: editingId || tempId,
       ...investmentData,
       savedAmount: 0,
-      accumulatedFunds: 0,
+      accumulatedFunds: parsedAccumulated,
       paid: false
     };
     
@@ -134,10 +139,12 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
 
   const handleEdit = (investment: any) => {
     setEditingId(investment.id);
+    const accumVal = investment.accumulatedFunds || investment.accumulated_funds || 0;
     setFormData({
       name: investment.name,
       goal: investment.goal,
       monthlyAmount: (investment.monthlyAmount ?? investment.monthly_amount ?? 0).toString(),
+      accumulatedFunds: accumVal > 0 ? Math.round(accumVal).toString() : "",
       status: investment.status,
       isPriority: investment.isPriority || false
     });
@@ -261,6 +268,18 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                       </select>
                     </div>
                   </div>
+
+                  <div className="inv-field">
+                    <label>Current Accumulated Amount (₹) <span className="inv-field-optional">optional</span></label>
+                    <input
+                      type="number"
+                      value={formData.accumulatedFunds}
+                      onChange={(e) => setFormData({ ...formData, accumulatedFunds: e.target.value })}
+                      min="0"
+                      placeholder="0"
+                    />
+                    <span className="inv-field-hint">Already invested? Enter the total amount accumulated so far.</span>
+                  </div>
                 </div>
 
                 {/* ── Critical Investment Toggle ─────── */}
@@ -302,6 +321,36 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
       </AnimatePresence>
 
       <SharedViewBanner />
+
+      {/* ── Summary Strip ─────────────── */}
+      {!loading && investments.length > 0 && (() => {
+        const totalMonthly = investments.reduce((s, inv) => s + (parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0) || 0), 0);
+        const totalAccumulated = investments.reduce((s, inv) => s + (inv.accumulatedFunds || inv.accumulated_funds || 0), 0);
+        const activeCount = investments.filter(inv => inv.status === "active").length;
+        const pausedCount = investments.filter(inv => inv.status !== "active").length;
+        return (
+          <div className="inv-summary-strip">
+            <div className="inv-summary-item">
+              <span className="inv-summary-label">Monthly Total</span>
+              <span className="inv-summary-value">₹{Math.round(totalMonthly).toLocaleString("en-IN")}</span>
+            </div>
+            <div className="inv-summary-item">
+              <span className="inv-summary-label">Total Accumulated</span>
+              <span className="inv-summary-value green">₹{Math.round(totalAccumulated).toLocaleString("en-IN")}</span>
+            </div>
+            <div className="inv-summary-item">
+              <span className="inv-summary-label">Active</span>
+              <span className="inv-summary-value">{activeCount}</span>
+            </div>
+            {pausedCount > 0 && (
+              <div className="inv-summary-item">
+                <span className="inv-summary-label">Paused</span>
+                <span className="inv-summary-value warn">{pausedCount}</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {loading ? (
         <SkeletonLoader type="card" count={3} />

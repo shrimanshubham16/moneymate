@@ -3,12 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoArrowBack, IoSend } from 'react-icons/io5';
 import { HiChatBubbleLeftRight } from 'react-icons/hi2';
+import { VscBug } from 'react-icons/vsc';
+import { HiLightBulb } from 'react-icons/hi';
 import {
   ChatMessage,
+  ChatReaction,
   PresenceUser,
   fetchMessages,
   sendMessage,
   subscribeToNewMessages,
+  fetchReactions,
+  toggleReaction,
+  subscribeToReactions,
   joinPresence,
   leaveChat,
   getUserFromToken,
@@ -22,9 +28,28 @@ interface ChatroomPageProps {
 }
 
 // -------------------------------------------------------------------
-// Helpers
+// Constants
 // -------------------------------------------------------------------
 const MAX_CHARS = 500;
+const EMOJI_PALETTE = ['👍', '❤️', '🔥', '😂', '👀', '🎯'];
+
+// -------------------------------------------------------------------
+// Tag parser
+// -------------------------------------------------------------------
+type TagType = 'bug' | 'feature' | null;
+
+function parseTag(message: string): { tag: TagType; cleanText: string } {
+  const match = message.match(/:(BUG|FEATURE):/i);
+  if (!match) return { tag: null, cleanText: message };
+  const raw = match[1].toUpperCase();
+  const tag: TagType = raw === 'BUG' ? 'bug' : 'feature';
+  const cleanText = message.replace(/:(BUG|FEATURE):\s*/i, '').trim();
+  return { tag, cleanText };
+}
+
+// -------------------------------------------------------------------
+// Helpers
+// -------------------------------------------------------------------
 
 /** Show a time separator between two messages when gap > 5 min */
 function needsTimeSep(prev: ChatMessage | null, curr: ChatMessage): boolean {
@@ -55,6 +80,23 @@ function getBaseUrl(): string {
   return 'https://eklennfapovprkebdsml.supabase.co/functions/v1/api';
 }
 
+/** Aggregate reactions by emoji, preserving who reacted */
+function aggregateReactions(
+  reactions: ChatReaction[],
+): { emoji: string; count: number; userIds: string[] }[] {
+  const map = new Map<string, string[]>();
+  for (const r of reactions) {
+    const arr = map.get(r.emoji) || [];
+    arr.push(r.user_id);
+    map.set(r.emoji, arr);
+  }
+  return Array.from(map.entries()).map(([emoji, userIds]) => ({
+    emoji,
+    count: userIds.length,
+    userIds,
+  }));
+}
+
 // -------------------------------------------------------------------
 // Component
 // -------------------------------------------------------------------
@@ -70,6 +112,11 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
   const [loading, setLoading] = useState(true);
   const [showNewPill, setShowNewPill] = useState(false);
   const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
+
+  // Reactions state: messageId -> ChatReaction[]
+  const [reactions, setReactions] = useState<Record<string, ChatReaction[]>>({});
+  // Which message currently has the emoji bar open
+  const [emojiBarMsgId, setEmojiBarMsgId] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -114,11 +161,20 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     let unsubs: Array<() => void> = [];
 
     (async () => {
+      // Fetch messages
       const history = await fetchMessages();
       setMessages(history);
       setLoading(false);
       requestAnimationFrame(() => scrollToBottom(false));
 
+      // Fetch reactions for all messages
+      if (history.length > 0) {
+        const ids = history.map((m) => m.id);
+        const reactionsMap = await fetchReactions(ids);
+        setReactions(reactionsMap);
+      }
+
+      // Subscribe to new messages
       const unsubMsg = subscribeToNewMessages((msg) => {
         setMessages((prev) => {
           const exists = prev.some((m) => m.id === msg.id);
@@ -146,6 +202,32 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
       });
       unsubs.push(unsubMsg);
 
+      // Subscribe to reactions (realtime)
+      const unsubReactions = subscribeToReactions(
+        // onInsert
+        (reaction) => {
+          setReactions((prev) => {
+            const list = prev[reaction.message_id] || [];
+            // Avoid duplicates
+            if (list.some((r) => r.id === reaction.id)) return prev;
+            return { ...prev, [reaction.message_id]: [...list, reaction] };
+          });
+        },
+        // onDelete
+        (deleted) => {
+          setReactions((prev) => {
+            const msgId = deleted.message_id;
+            if (!msgId || !prev[msgId]) return prev;
+            return {
+              ...prev,
+              [msgId]: prev[msgId].filter((r) => r.id !== deleted.id),
+            };
+          });
+        },
+      );
+      unsubs.push(unsubReactions);
+
+      // Join presence
       const unsubPresence = joinPresence(username, setOnlineUsers);
       unsubs.push(unsubPresence);
     })();
@@ -155,6 +237,14 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
       leaveChat();
     };
   }, [username, scrollToBottom]);
+
+  // ---- Close emoji bar on outside click ----
+  useEffect(() => {
+    if (!emojiBarMsgId) return;
+    const handler = () => setEmojiBarMsgId(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [emojiBarMsgId]);
 
   // ---- Send ----
   const handleSend = async () => {
@@ -188,6 +278,54 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
       setSending(false);
       textareaRef.current?.focus();
     }
+  };
+
+  // ---- Reaction toggle ----
+  const handleReaction = async (messageId: string, emoji: string) => {
+    // Optimistic update
+    const existing = (reactions[messageId] || []).find(
+      (r) => r.user_id === userId && r.emoji === emoji,
+    );
+
+    if (existing) {
+      // Remove optimistically
+      setReactions((prev) => ({
+        ...prev,
+        [messageId]: (prev[messageId] || []).filter((r) => r.id !== existing.id),
+      }));
+    } else {
+      // Add optimistically
+      const optimistic: ChatReaction = {
+        id: `opt-react-${Date.now()}`,
+        message_id: messageId,
+        user_id: userId,
+        emoji,
+        created_at: new Date().toISOString(),
+      };
+      setReactions((prev) => ({
+        ...prev,
+        [messageId]: [...(prev[messageId] || []), optimistic],
+      }));
+    }
+
+    setEmojiBarMsgId(null);
+
+    try {
+      await toggleReaction(messageId, userId, emoji);
+    } catch {
+      // Realtime will reconcile; if it fails we'll show stale data briefly
+    }
+  };
+
+  // ---- Quick-tag buttons ----
+  const prependTag = (tag: string) => {
+    const prefix = `:${tag}: `;
+    if (draft.startsWith(prefix)) return; // already there
+    // Remove any existing tag prefix
+    const cleaned = draft.replace(/^:(BUG|FEATURE):\s*/i, '');
+    const newDraft = prefix + cleaned;
+    if (newDraft.length <= MAX_CHARS) setDraft(newDraft);
+    textareaRef.current?.focus();
   };
 
   // Auto-resize textarea
@@ -232,7 +370,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
 
       {/* Disclaimer */}
       <div className="chat-disclaimer">
-        Messages cleared daily. Be cool, be kind ✌️
+        Messages cleared daily. Use <code>:BUG:</code> or <code>:Feature:</code> tags to report issues or suggest features. Be cool, be kind ✌️
       </div>
 
       {/* Messages */}
@@ -261,7 +399,10 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
             const isOwn = msg.user_id === userId;
             const showTimeSep = needsTimeSep(prev, msg);
             const grouped = isGrouped(prev, msg, showTimeSep);
-            const [g1, g2] = avatarGradient(msg.username);
+            const [g1, g2] = avatarGradient(msg.username || 'A');
+            const { tag, cleanText } = parseTag(msg.message);
+            const msgReactions = reactions[msg.id] || [];
+            const aggregated = aggregateReactions(msgReactions);
 
             // Determine avatar to show
             const avatarSrc = isOwn ? (myAvatarUrl || msg.avatar_url) : msg.avatar_url;
@@ -280,7 +421,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.15 }}
                 >
-                  {/* Avatar — show image if available, otherwise gradient initial */}
+                  {/* Avatar */}
                   {!grouped ? (
                     <div className="chat-avatar-wrap">
                       {avatarSrc ? (
@@ -309,7 +450,6 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
                         <span className="chat-bubble-username" style={{ color: g1 }}>
                           {isOwn ? 'You' : (msg.username || 'Anonymous')}
                         </span>
-                        {/* Only show time in meta when NO time separator is visible above */}
                         {!showTimeSep && (
                           <span className="chat-bubble-time">
                             {relativeTime(msg.created_at)}
@@ -317,9 +457,75 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
                         )}
                       </div>
                     )}
-                    <div className={`chat-bubble ${msg._optimistic ? 'sending' : ''}`}>
-                      {msg.message}
+
+                    {/* Bubble with tag + emoji trigger */}
+                    <div
+                      className={`chat-bubble ${msg._optimistic ? 'sending' : ''}`}
+                      onClick={(e) => {
+                        if (msg._optimistic) return;
+                        e.stopPropagation();
+                        setEmojiBarMsgId((prev) => (prev === msg.id ? null : msg.id));
+                      }}
+                    >
+                      {tag && (
+                        <span className={`chat-tag-badge ${tag}`}>
+                          {tag === 'bug' ? '🐛 BUG' : '💡 Feature'}
+                        </span>
+                      )}
+                      {cleanText}
+
+                      {/* Emoji bar — appears on click */}
+                      <AnimatePresence>
+                        {emojiBarMsgId === msg.id && !msg._optimistic && (
+                          <motion.div
+                            className={`chat-reaction-bar ${isOwn ? 'left' : 'right'}`}
+                            initial={{ opacity: 0, scale: 0.8, y: 4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.8, y: 4 }}
+                            transition={{ duration: 0.15 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {EMOJI_PALETTE.map((em) => (
+                              <button
+                                key={em}
+                                className={`reaction-emoji-btn ${
+                                  msgReactions.some(
+                                    (r) => r.user_id === userId && r.emoji === em,
+                                  )
+                                    ? 'active'
+                                    : ''
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReaction(msg.id, em);
+                                }}
+                              >
+                                {em}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
+
+                    {/* Reaction pills */}
+                    {aggregated.length > 0 && (
+                      <div className="chat-reaction-pills">
+                        {aggregated.map(({ emoji, count, userIds }) => (
+                          <button
+                            key={emoji}
+                            className={`chat-reaction-pill ${
+                              userIds.includes(userId) ? 'mine' : ''
+                            }`}
+                            onClick={() => handleReaction(msg.id, emoji)}
+                            title={`${count} reaction${count > 1 ? 's' : ''}`}
+                          >
+                            <span className="pill-emoji">{emoji}</span>
+                            <span className="pill-count">{count}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               </div>
@@ -360,6 +566,24 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
 
       {/* Input bar */}
       <div className="chat-input-bar">
+        {/* Quick-tag buttons */}
+        <div className="chat-tag-buttons">
+          <button
+            className={`chat-tag-btn bug ${draft.match(/^:BUG:/i) ? 'active' : ''}`}
+            onClick={() => prependTag('BUG')}
+            title="Report a bug"
+          >
+            <VscBug />
+          </button>
+          <button
+            className={`chat-tag-btn feature ${draft.match(/^:FEATURE:/i) ? 'active' : ''}`}
+            onClick={() => prependTag('Feature')}
+            title="Suggest a feature"
+          >
+            <HiLightBulb />
+          </button>
+        </div>
+
         <div className="chat-input-wrap">
           <textarea
             ref={textareaRef}

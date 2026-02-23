@@ -136,6 +136,36 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
 
       <SharedViewBanner />
 
+      {/* ── Summary Strip ─────────────── */}
+      {!loading && investments.length > 0 && (() => {
+        const totalMonthly = investments.reduce((s: number, inv: any) => s + (parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0) || 0), 0);
+        const totalAccumulated = investments.reduce((s: number, inv: any) => s + (inv.accumulatedFunds || inv.accumulated_funds || 0), 0);
+        const activeCount = investments.filter((inv: any) => inv.status === "active").length;
+        const pausedCount = investments.filter((inv: any) => inv.status !== "active").length;
+        return (
+          <div className="inv-summary-strip">
+            <div className="inv-summary-item">
+              <span className="inv-summary-label">Monthly Total</span>
+              <span className="inv-summary-value">₹{Math.round(totalMonthly).toLocaleString("en-IN")}</span>
+            </div>
+            <div className="inv-summary-item">
+              <span className="inv-summary-label">Total Accumulated</span>
+              <span className="inv-summary-value green">₹{Math.round(totalAccumulated).toLocaleString("en-IN")}</span>
+            </div>
+            <div className="inv-summary-item">
+              <span className="inv-summary-label">Active</span>
+              <span className="inv-summary-value">{activeCount}</span>
+            </div>
+            {pausedCount > 0 && (
+              <div className="inv-summary-item">
+                <span className="inv-summary-label">Paused</span>
+                <span className="inv-summary-value warn">{pausedCount}</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {loading ? (
         <SkeletonLoader type="list" count={4} />
       ) : investments.length === 0 ? (

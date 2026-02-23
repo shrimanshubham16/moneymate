@@ -610,9 +610,71 @@
   .inv-card-stats { gap: 14px; }
 }
 
+/* ── Form helpers ───────────────────── */
+.inv-field-optional {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+
+.inv-field-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ── Summary Strip ───────────────────── */
+.inv-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  background: var(--card-bg, rgba(255,255,255,0.04));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+}
+
+.inv-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100px;
+}
+
+.inv-summary-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary, rgba(255,255,255,0.4));
+}
+
+.inv-summary-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.inv-summary-value.green {
+  color: #10b981;
+}
+
+.inv-summary-value.warn {
+  color: #f59e0b;
+}
+
 @media (max-width: 480px) {
   .inv-form-overlay { padding: 10px; }
   .inv-form-card form { padding: 14px 16px 20px; }
   .inv-critical-toggle { padding: 12px; gap: 10px; }
   .inv-critical-icon { width: 34px; height: 34px; }
+  .inv-summary-strip { gap: 8px; padding: 10px 14px; }
+  .inv-summary-item { min-width: 80px; }
+  .inv-summary-value { font-size: 14px; }
 }

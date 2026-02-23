@@ -566,7 +566,7 @@ export async function deleteIncome(token: string, id: string) {
 }
 
 // Investments
-export async function createInvestment(token: string, payload: { name: string; goal: string; monthlyAmount: number; status: string; isPriority?: boolean }, cryptoKey?: CryptoKey) {
+export async function createInvestment(token: string, payload: { name: string; goal: string; monthlyAmount: number; status: string; isPriority?: boolean; accumulatedFunds?: number }, cryptoKey?: CryptoKey) {
   const backendPayload: any = {
     name: payload.name,
     goal: payload.goal,
@@ -574,6 +574,9 @@ export async function createInvestment(token: string, payload: { name: string; g
     status: payload.status,
     is_priority: payload.isPriority || false
   };
+  if (payload.accumulatedFunds !== undefined && payload.accumulatedFunds > 0) {
+    backendPayload.accumulated_funds = payload.accumulatedFunds;
+  }
   const body = await buildBody(backendPayload, cryptoKey);
   return request<{ data: any }>("/planning/investments", { method: "POST", body }, token);
 }

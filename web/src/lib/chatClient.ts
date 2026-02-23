@@ -40,6 +40,14 @@ export interface PresenceUser {
   joinedAt: number;
 }
 
+export interface ChatReaction {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+}
+
 // -------------------------------------------------------------------
 // Rate-limiter (1 msg / sec per client)
 // -------------------------------------------------------------------
@@ -132,6 +140,103 @@ export function subscribeToNewMessages(
 }
 
 // -------------------------------------------------------------------
+// Reaction CRUD (PostgREST — 0 Edge Function calls)
+// -------------------------------------------------------------------
+
+/** Bulk-fetch reactions for a list of message IDs. */
+export async function fetchReactions(
+  messageIds: string[],
+): Promise<Record<string, ChatReaction[]>> {
+  if (!messageIds.length) return {};
+
+  const { data, error } = await supabase
+    .from('chat_reactions')
+    .select('*')
+    .in('message_id', messageIds);
+
+  if (error) {
+    console.error('[CHAT] fetchReactions error:', error);
+    return {};
+  }
+
+  const map: Record<string, ChatReaction[]> = {};
+  for (const r of (data ?? []) as ChatReaction[]) {
+    if (!map[r.message_id]) map[r.message_id] = [];
+    map[r.message_id].push(r);
+  }
+  return map;
+}
+
+/** Toggle a reaction: if the user already reacted with this emoji, remove it; else add it. */
+export async function toggleReaction(
+  messageId: string,
+  userId: string,
+  emoji: string,
+): Promise<{ added: boolean }> {
+  // Check if already exists
+  const { data: existing } = await supabase
+    .from('chat_reactions')
+    .select('id')
+    .eq('message_id', messageId)
+    .eq('user_id', userId)
+    .eq('emoji', emoji)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase.from('chat_reactions').delete().eq('id', existing.id);
+    return { added: false };
+  } else {
+    const { error } = await supabase
+      .from('chat_reactions')
+      .insert({ message_id: messageId, user_id: userId, emoji });
+    if (error) {
+      console.error('[CHAT] toggleReaction insert error:', error);
+      throw new Error(error.message);
+    }
+    return { added: true };
+  }
+}
+
+// -------------------------------------------------------------------
+// Realtime — reaction subscription
+// -------------------------------------------------------------------
+let reactionChannel: RealtimeChannel | null = null;
+
+export function subscribeToReactions(
+  onInsert: (reaction: ChatReaction) => void,
+  onDelete: (reaction: { id: string; message_id: string; user_id: string; emoji: string }) => void,
+): () => void {
+  if (reactionChannel) {
+    supabase.removeChannel(reactionChannel);
+  }
+
+  reactionChannel = supabase
+    .channel('lounge-reactions')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'chat_reactions' },
+      (payload) => {
+        onInsert(payload.new as ChatReaction);
+      },
+    )
+    .on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'chat_reactions' },
+      (payload) => {
+        onDelete(payload.old as any);
+      },
+    )
+    .subscribe();
+
+  return () => {
+    if (reactionChannel) {
+      supabase.removeChannel(reactionChannel);
+      reactionChannel = null;
+    }
+  };
+}
+
+// -------------------------------------------------------------------
 // Realtime Presence — online-user tracking
 // -------------------------------------------------------------------
 let presenceChannel: RealtimeChannel | null = null;
@@ -218,6 +323,10 @@ export function leaveChat(): void {
   if (messageChannel) {
     supabase.removeChannel(messageChannel);
     messageChannel = null;
+  }
+  if (reactionChannel) {
+    supabase.removeChannel(reactionChannel);
+    reactionChannel = null;
   }
   leavePresence();
 }
