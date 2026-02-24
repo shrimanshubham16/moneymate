@@ -201,16 +201,17 @@ export function calculateHealthBreakdown(
   const availableFunds = totalIncome - totalObligations;
   
   // Health score: percentage of income remaining after obligations
+  // Allow negative so "worrisome" is reachable when obligations exceed income
   const healthScore = totalIncome > 0 
-    ? Math.max(0, Math.min(100, (availableFunds / totalIncome) * 100))
-    : 0;
+    ? (availableFunds / totalIncome) * 100
+    : (availableFunds < 0 ? -100 : 0);
   
   // Determine health category using thresholds
   let healthCategory: HealthBreakdown['healthCategory'];
-  if (healthScore >= thresholds.good_min) healthCategory = 'good';
-  else if (healthScore >= thresholds.ok_min && healthScore <= thresholds.ok_max) healthCategory = 'ok';
-  else if (healthScore >= 0 && healthScore <= thresholds.not_well_max) healthCategory = 'not_well';
-  else healthCategory = 'worrisome';
+  if (healthScore < 0) healthCategory = 'worrisome';            // deficit
+  else if (healthScore >= thresholds.good_min) healthCategory = 'good';
+  else if (healthScore >= thresholds.ok_min) healthCategory = 'ok';
+  else healthCategory = 'not_well';
   
   return {
     totalIncome,

@@ -169,14 +169,14 @@ export function ExportPage({ token }: ExportPageProps) {
       
       // Determine health category using PERCENTAGE-BASED thresholds (matching health page)
       const ht = data.healthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
-      const exportHealthScore = recalcTotalIncome > 0
-        ? Math.max(0, Math.min(100, (healthRemaining / recalcTotalIncome) * 100))
-        : 0;
+      const exportHealthPct = recalcTotalIncome > 0
+        ? (healthRemaining / recalcTotalIncome) * 100
+        : (healthRemaining < 0 ? -100 : 0);
       let healthCategory: string;
-      if (exportHealthScore >= ht.good_min) healthCategory = "good";
-      else if (exportHealthScore >= ht.ok_min && exportHealthScore <= ht.ok_max) healthCategory = "ok";
-      else if (exportHealthScore >= 0 && exportHealthScore <= ht.not_well_max) healthCategory = "not_well";
-      else healthCategory = "worrisome";
+      if (exportHealthPct < 0) healthCategory = "worrisome";
+      else if (exportHealthPct >= ht.good_min) healthCategory = "good";
+      else if (exportHealthPct >= ht.ok_min) healthCategory = "ok";
+      else healthCategory = "not_well";
       
       // Update summary with recalculated values
       data.summary = {

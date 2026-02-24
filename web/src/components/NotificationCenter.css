@@ -238,6 +238,81 @@
   color: var(--accent, #00e676);
 }
 
+/* ── Light theme overrides ── */
+.theme-light .notification-dropdown {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.theme-light .notification-header {
+  border-bottom-color: #e2e8f0;
+}
+
+.theme-light .notification-header h3 {
+  color: #1e293b;
+}
+
+.theme-light .notification-actions button {
+  color: #64748b;
+}
+
+.theme-light .notification-actions button:hover {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.theme-light .notification-item {
+  border-bottom-color: #f1f5f9;
+}
+
+.theme-light .notification-item.unread {
+  background: rgba(5, 150, 105, 0.04);
+}
+
+.theme-light .notification-item:hover {
+  background: #f8fafc;
+}
+
+.theme-light .notification-icon {
+  background: #f1f5f9;
+}
+
+.theme-light .notification-title {
+  color: #1e293b;
+}
+
+.theme-light .notification-message {
+  color: #64748b;
+}
+
+.theme-light .notification-time {
+  color: #94a3b8;
+}
+
+.theme-light .notification-empty {
+  color: #94a3b8;
+}
+
+.theme-light .notification-footer {
+  border-top-color: #e2e8f0;
+}
+
+.theme-light .notification-footer .view-all {
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+.theme-light .notification-footer .view-all:hover {
+  border-color: #059669;
+  color: #059669;
+}
+
+.theme-light .unread-indicator {
+  background: #059669;
+  box-shadow: 0 0 8px #059669;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 480px) {
   .notification-dropdown {

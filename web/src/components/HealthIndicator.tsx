@@ -4,7 +4,7 @@ import { FaCheckCircle, FaExclamationCircle, FaExclamationTriangle, FaTimesCircl
 import { AppEmoji } from "./AppEmoji";
 import "./HealthIndicator.css";
 
-type HealthCategory = "good" | "ok" | "not well" | "worrisome" | "unavailable";
+type HealthCategory = "good" | "ok" | "not_well" | "worrisome" | "unavailable";
 
 interface HealthIndicatorProps {
   category: HealthCategory;
@@ -13,7 +13,7 @@ interface HealthIndicatorProps {
   onClick?: () => void;
 }
 
-const healthConfig = {
+const healthConfig: Record<string, { icon: any; color: string; bgGradient: string; message: string }> = {
   good: {
     icon: FaCheckCircle,
     color: "#10b981",
@@ -26,7 +26,7 @@ const healthConfig = {
     bgGradient: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
     message: "Track your spends to stay in the green."
   },
-  "not well": {
+  not_well: {
     icon: FaExclamationTriangle,
     color: "#f97316",
     bgGradient: "linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)",
@@ -36,7 +36,7 @@ const healthConfig = {
     icon: FaTimesCircle,
     color: "#ef4444",
     bgGradient: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
-    message: "You're short. Add notes on any extra spend."
+    message: "You're overspending. Review expenses urgently."
   },
   unavailable: {
     icon: FaLock,
@@ -62,7 +62,7 @@ export function HealthIndicator({ category, remaining, currencySymbol = "₹", o
     switch (category) {
       case "good": return { glow: "#22d3ee", bg: "radial-gradient(circle at 30% 20%, #0ea5e9 0%, #0b1220 70%)", ring: "#22d3ee", text: "#e0faff" };
       case "ok": return { glow: "#f59e0b", bg: "radial-gradient(circle at 30% 20%, #f59e0b 0%, #1f1305 70%)", ring: "#fbbf24", text: "#fff3d4" };
-      case "not well": return { glow: "#f97316", bg: "radial-gradient(circle at 30% 20%, #fb923c 0%, #2a1106 70%)", ring: "#fb923c", text: "#ffe4cc" };
+      case "not_well": return { glow: "#f97316", bg: "radial-gradient(circle at 30% 20%, #fb923c 0%, #2a1106 70%)", ring: "#fb923c", text: "#ffe4cc" };
       case "unavailable": return { glow: "#6b7280", bg: "radial-gradient(circle at 30% 20%, #6b7280 0%, #1f2937 70%)", ring: "#9ca3af", text: "#e5e7eb" };
       default: return { glow: "#ef4444", bg: "radial-gradient(circle at 30% 20%, #ef4444 0%, #2b0c0c 70%)", ring: "#f87171", text: "#ffe0e0" };
     }
@@ -99,7 +99,7 @@ export function HealthIndicator({ category, remaining, currencySymbol = "₹", o
         <div className="hud-center" onClick={(e) => { e.stopPropagation(); toggleHidden(); }}>
           <div className="hud-top-row">
             <HealthIcon size={32} color={theme.ring} />
-            <span className="hud-category">{category.toUpperCase()}</span>
+            <span className="hud-category">{category.replace(/_/g, ' ').toUpperCase()}</span>
             <button className="hud-lock" onClick={(e) => { e.stopPropagation(); toggleHidden(); }}>
               {isHidden ? <FaEyeSlash /> : <FaEye />}
             </button>

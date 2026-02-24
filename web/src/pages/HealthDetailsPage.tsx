@@ -263,14 +263,15 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       
       // Determine category based on configurable thresholds (using health score)
       const t = thresholds;
-      const healthScore = totalIncomeForHealth > 0
-        ? Math.max(0, Math.min(100, (correctRemaining / totalIncomeForHealth) * 100))
-        : 0;
+      // Allow negative percentages so "worrisome" is reachable when outflow > income
+      const healthPct = totalIncomeForHealth > 0
+        ? (correctRemaining / totalIncomeForHealth) * 100
+        : (correctRemaining < 0 ? -100 : 0);
       let correctCategory: string;
-      if (healthScore >= t.good_min) correctCategory = "good";
-      else if (healthScore >= t.ok_min && healthScore <= t.ok_max) correctCategory = "ok";
-      else if (healthScore >= 0 && healthScore <= t.not_well_max) correctCategory = "not_well";
-      else correctCategory = "worrisome";
+      if (healthPct < 0) correctCategory = "worrisome";          // deficit
+      else if (healthPct >= t.good_min) correctCategory = "good";
+      else if (healthPct >= t.ok_min) correctCategory = "ok";
+      else correctCategory = "not_well";
 
       // Determine health description and advice based on CORRECT category
       let description = "";

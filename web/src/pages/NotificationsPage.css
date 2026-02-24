@@ -301,6 +301,109 @@
   font-size: 0.9rem;
 }
 
+/* ── Light theme overrides ── */
+.theme-light .notifications-page .page-header h1 {
+  color: #1e293b;
+}
+
+.theme-light .notifications-page .back-button {
+  color: #64748b;
+}
+.theme-light .notifications-page .back-button:hover {
+  color: #1e293b;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.theme-light .settings-btn {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+.theme-light .settings-btn:hover {
+  border-color: #059669;
+  color: #059669;
+}
+
+.theme-light .filter-tabs {
+  background: #f1f5f9;
+}
+.theme-light .filter-tabs button {
+  color: #64748b;
+}
+.theme-light .filter-tabs button:hover {
+  color: #1e293b;
+}
+.theme-light .filter-tabs button.active {
+  background: #059669;
+  color: #fff;
+}
+
+.theme-light .mark-all-btn {
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+.theme-light .mark-all-btn:hover {
+  border-color: #059669;
+  color: #059669;
+}
+
+.theme-light .notification-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+.theme-light .notification-card:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.theme-light .notification-card.unread {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.04) 0%, #ffffff 50%);
+  border-color: rgba(5, 150, 105, 0.25);
+}
+
+.theme-light .notification-card .notification-icon {
+  background: #f1f5f9;
+}
+
+.theme-light .notification-card .notification-title {
+  color: #1e293b;
+}
+.theme-light .notification-card .notification-time {
+  color: #94a3b8;
+}
+.theme-light .notification-card .notification-message {
+  color: #64748b;
+}
+.theme-light .notification-card .notification-action {
+  color: #059669;
+}
+
+.theme-light .notification-card .action-btn {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+.theme-light .notification-card .action-btn:hover {
+  border-color: #059669;
+  color: #059669;
+}
+.theme-light .notification-card .action-btn.delete:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.theme-light .notification-card .unread-dot {
+  background: #059669;
+  box-shadow: 0 0 8px #059669;
+}
+
+.theme-light .empty-state,
+.theme-light .loading-state {
+  color: #94a3b8;
+}
+.theme-light .empty-state h2 {
+  color: #1e293b;
+}
+
 /* Mobile */
 @media (max-width: 600px) {
   .notifications-page {

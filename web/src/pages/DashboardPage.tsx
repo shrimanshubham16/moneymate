@@ -216,14 +216,15 @@ export function DashboardPage({ token }: DashboardPageProps) {
     // Determine category using PERCENTAGE-BASED configurable thresholds
     // Use thresholds from dashboard response, fallback to defaults
     const ht = data.healthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
-    const healthScore = totalIncome > 0
-      ? Math.max(0, Math.min(100, (remaining / totalIncome) * 100))
-      : 0;
+    // Allow negative percentages so "worrisome" is reachable when outflow > income
+    const healthPct = totalIncome > 0
+      ? (remaining / totalIncome) * 100
+      : (remaining < 0 ? -100 : 0);
     let category: string;
-    if (healthScore >= ht.good_min) category = "good";
-    else if (healthScore >= ht.ok_min && healthScore <= ht.ok_max) category = "ok";
-    else if (healthScore >= 0 && healthScore <= ht.not_well_max) category = "not_well";
-    else category = "worrisome";
+    if (healthPct < 0) category = "worrisome";          // deficit — spending exceeds income
+    else if (healthPct >= ht.good_min) category = "good";
+    else if (healthPct >= ht.ok_min) category = "ok";
+    else category = "not_well";                          // 0 – ok_min
     
     
     // For specific user view without aggregates, show notice
