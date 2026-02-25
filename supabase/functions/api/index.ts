@@ -1592,6 +1592,10 @@ serve(async (req) => {
         category: body.category, 
         is_sip: body.is_sip_flag 
       };
+      // Dates: accept null/empty to store as NULL (ongoing expense)
+      if (body.start_date) insertData.start_date = body.start_date;
+      if (body.end_date) insertData.end_date = body.end_date;
+      if (body.accumulated_funds !== undefined) insertData.accumulated_funds = body.accumulated_funds;
       if (body.name_enc) insertData.name_enc = body.name_enc;
       if (body.name_iv) insertData.name_iv = body.name_iv;
       if (body.amount_enc) insertData.amount_enc = body.amount_enc;
@@ -1624,6 +1628,11 @@ serve(async (req) => {
       if (body.frequency) updates.frequency = body.frequency;
       if (body.category) updates.category = body.category;
       if (body.is_sip_flag !== undefined) updates.is_sip = body.is_sip_flag;
+      // Dates: allow explicit null to clear dates, or string to set them
+      if (body.start_date !== undefined) updates.start_date = body.start_date || null;
+      if (body.end_date !== undefined) updates.end_date = body.end_date || null;
+      // Accumulated funds for SIP expenses
+      if (body.accumulated_funds !== undefined) updates.accumulated_funds = body.accumulated_funds;
       // E2E: Include encrypted fields if provided
       if (body.name_enc) updates.name_enc = body.name_enc;
       if (body.name_iv) updates.name_iv = body.name_iv;
@@ -1632,6 +1641,11 @@ serve(async (req) => {
       
       const { data, error: e } = await supabase.from('fixed_expenses').update(updates).eq('id', id).select().single();
       if (e) return error(e.message, 500);
+      // Log accumulated fund updates
+      if (body.accumulated_funds !== undefined) {
+        await logActivity(userId, 'fixed_expense', 'updated accumulated fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
+      }
+      await invalidateUserCache(userId);
       return json({ data });
     }
     if (path.startsWith('/planning/fixed-expenses/') && method === 'DELETE') {
@@ -1653,7 +1667,8 @@ serve(async (req) => {
         name: body.name || (hasEncryption ? '[encrypted]' : null), 
         planned: body.planned ?? (body.planned_enc ? 0 : null), 
         category: body.category || 'general', 
-        start_date: body.start_date || new Date().toISOString().split('T')[0] 
+        start_date: body.start_date || null,
+        end_date: body.end_date || null
       };
       if (body.name_enc) insertData.name_enc = body.name_enc;
       if (body.name_iv) insertData.name_iv = body.name_iv;
@@ -1675,6 +1690,32 @@ serve(async (req) => {
       });
       await invalidateUserCache(userId);
       return json({ data }, 201);
+    }
+    // VARIABLE EXPENSE PLAN UPDATE
+    if (path.startsWith('/planning/variable-expenses/') && !path.includes('/actuals') && method === 'PUT') {
+      const id = path.split('/').pop();
+      const body = await req.json();
+      const updates: any = {};
+      if (body.name) updates.name = body.name;
+      if (body.planned !== undefined) updates.planned = body.planned;
+      if (body.category) updates.category = body.category;
+      // Dates: allow explicit null to clear, or string to set
+      if (body.start_date !== undefined) updates.start_date = body.start_date || null;
+      if (body.end_date !== undefined) updates.end_date = body.end_date || null;
+      // E2E encrypted fields
+      if (body.name_enc) updates.name_enc = body.name_enc;
+      if (body.name_iv) updates.name_iv = body.name_iv;
+      if (body.planned_enc) updates.planned_enc = body.planned_enc;
+      if (body.planned_iv) updates.planned_iv = body.planned_iv;
+      
+      const { data, error: e } = await supabase.from('variable_expense_plans')
+        .update(updates).eq('id', id).select().single();
+      if (e) return error(e.message, 500);
+      await logActivity(userId, 'variable_expense_plan', 'updated variable expense plan', { 
+        id, name: body.name || data.name, planned: body.planned ?? data.planned 
+      });
+      await invalidateUserCache(userId);
+      return json({ data });
     }
     if (path.match(/\/planning\/variable-expenses\/[^/]+\/actuals$/) && method === 'POST') {
       const planId = path.split('/')[3];

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync, FaUserCircle, FaLock } from "react-icons/fa";
+import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync, FaUserCircle, FaLock, FaWallet } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -9,6 +9,7 @@ import { SkeletonLoader } from "../components/SkeletonLoader";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { Modal } from "../components/Modal";
 import { ClientCache } from "../utils/cache";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
 import { useAppModal } from "../hooks/useAppModal";
@@ -32,13 +33,19 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     amount: "",
     frequency: "monthly",
     category: "General",
-    start_date: new Date().toISOString().split("T")[0],
-    end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+    start_date: "",
+    end_date: "",
     is_sip_flag: false
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);  // Prevent multiple submissions
-  const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
-  const lastViewRef = useRef<string>(""); // Track view changes
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasFetchedRef = useRef(false);
+  const lastViewRef = useRef<string>("");
+
+  // Wallet update modal for SIP expenses
+  const [walletModal, setWalletModal] = useState<{ isOpen: boolean; expenseId: string; expenseName: string; currentFund: number }>({
+    isOpen: false, expenseId: "", expenseName: "", currentFund: 0
+  });
+  const [walletAmount, setWalletAmount] = useState("");
   
   // Shared view support
   const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
@@ -87,46 +94,39 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     if (isSubmitting) return; // Prevent multiple submissions
     setIsSubmitting(true);
     
-    const expenseData = {
+    const expenseData: any = {
       name: formData.name,
       amount: Number(formData.amount),
       frequency: formData.frequency,
       category: formData.category,
-      start_date: formData.start_date,
-      end_date: formData.end_date,
       is_sip_flag: formData.is_sip_flag
     };
+    // Only send dates if the user actually set them; empty string → null on backend
+    if (formData.start_date) expenseData.start_date = formData.start_date;
+    else expenseData.start_date = "";
+    if (formData.end_date) expenseData.end_date = formData.end_date;
+    else expenseData.end_date = "";
     
     // OPTIMISTIC UPDATE: Add/update immediately in UI
     const tempId = `temp-${Date.now()}`;
     const optimisticExpense = {
       id: editingId || tempId,
       ...expenseData,
-      startDate: formData.start_date,
-      endDate: formData.end_date,
+      startDate: formData.start_date || null,
+      endDate: formData.end_date || null,
       paid: false
     };
     
     if (editingId) {
-      // Update existing
-      setExpenses(prev => prev.map(exp => exp.id === editingId ? optimisticExpense : exp));
+      setExpenses(prev => prev.map(exp => exp.id === editingId ? { ...exp, ...optimisticExpense } : exp));
     } else {
-      // Add new
       setExpenses(prev => [optimisticExpense, ...prev]);
     }
     
     // Close form immediately
     setShowForm(false);
     setEditingId(null);
-    setFormData({
-      name: "",
-      amount: "",
-      frequency: "monthly",
-      category: "General",
-      start_date: new Date().toISOString().split("T")[0],
-      end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      is_sip_flag: false
-    });
+    setFormData({ name: "", amount: "", frequency: "monthly", category: "General", start_date: "", end_date: "", is_sip_flag: false });
     setIsSubmitting(false);
     
     try {
@@ -161,11 +161,29 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       amount: expense.amount.toString(),
       frequency: expense.frequency,
       category: expense.category,
-      start_date: expense.startDate || new Date().toISOString().split("T")[0],
-      end_date: expense.endDate || new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      start_date: expense.startDate || expense.start_date || "",
+      end_date: expense.endDate || expense.end_date || "",
       is_sip_flag: expense.is_sip_flag || false
     });
     setShowForm(true);
+  };
+
+  const handleWalletUpdate = async () => {
+    const amount = parseFloat(walletAmount);
+    if (isNaN(amount) || amount < 0) {
+      showAlert("Please enter a valid amount.");
+      return;
+    }
+    try {
+      await api.updateFixedExpense(token, walletModal.expenseId, { accumulated_funds: amount });
+      invalidateDashboardCache();
+      setExpenses(prev => prev.map(e => e.id === walletModal.expenseId ? { ...e, accumulatedFunds: amount, accumulated_funds: amount } : e));
+      setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 });
+      setWalletAmount("");
+      loadExpenses();
+    } catch (e: any) {
+      showAlert("Failed to update: " + e.message);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -222,15 +240,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
         {!isSharedView && (
           <button className="add-button" onClick={() => {
             setEditingId(null);
-            setFormData({
-              name: "",
-              amount: "",
-              frequency: "monthly",
-              category: "General",
-              start_date: new Date().toISOString().split("T")[0],
-              end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-              is_sip_flag: false
-            });
+            setFormData({ name: "", amount: "", frequency: "monthly", category: "General", start_date: "", end_date: "", is_sip_flag: false });
             setShowForm(true);
           }}>
             + Add New Fixed Expense
@@ -311,22 +321,22 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Starting From *</label>
+                  <label>Starting From <span className="optional-hint">(optional)</span></label>
                   <input
                     type="date"
                     value={formData.start_date}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    required
                   />
+                  <span className="field-hint">Leave empty = starts immediately</span>
                 </div>
                 <div className="form-group">
-                  <label>Till *</label>
+                  <label>Till <span className="optional-hint">(optional)</span></label>
                   <input
                     type="date"
                     value={formData.end_date}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    required
                   />
+                  <span className="field-hint">Leave empty = ongoing, no end date</span>
                 </div>
               </div>
               <div className="form-group">
@@ -380,15 +390,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
           actionLabel="Add First Fixed Expense"
           onAction={() => {
             setEditingId(null);
-            setFormData({
-              name: "",
-              amount: "",
-              frequency: "monthly",
-              category: "General",
-              start_date: new Date().toISOString().split("T")[0],
-              end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-              is_sip_flag: false
-            });
+            setFormData({ name: "", amount: "", frequency: "monthly", category: "General", start_date: "", end_date: "", is_sip_flag: false });
             setShowForm(true);
           }}
         />
@@ -434,9 +436,23 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                   </div>
                 </div>
                 <div className="expense-actions">
-                  {/* Only show edit/delete for user's own items */}
                   {isOwn ? (
                     <>
+                      {/* Wallet button for SIP expenses */}
+                      {expense.is_sip_flag && (
+                        <button 
+                          className="wallet-btn"
+                          onClick={() => {
+                            const currentFund = expense.accumulatedFunds || expense.accumulated_funds || 0;
+                            setWalletModal({ isOpen: true, expenseId: expense.id, expenseName: expense.name, currentFund });
+                            setWalletAmount(Math.round(currentFund).toString());
+                          }}
+                          title="Update Accumulated Fund"
+                          aria-label="Update accumulated fund"
+                        >
+                          <FaWallet />
+                        </button>
+                      )}
                       <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">
                         <FaEdit />
                       </button>
@@ -455,6 +471,45 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
           })}
         </div>
       )}
+      {/* Wallet Update Modal for SIP expenses */}
+      {walletModal.isOpen && (
+        <Modal
+          isOpen={walletModal.isOpen}
+          onClose={() => { setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 }); setWalletAmount(""); }}
+          title={`Update Fund — ${walletModal.expenseName}`}
+          size="sm"
+          footer={
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => { setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 }); setWalletAmount(""); }}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "var(--text-primary)", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleWalletUpdate}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--accent-cyan, #22d3ee)", color: "#041019", fontWeight: 700, cursor: "pointer" }}
+              >
+                Update
+              </button>
+            </div>
+          }
+        >
+          <p style={{ margin: "0 0 12px", color: "var(--text-secondary)" }}>
+            Current Accumulated: ₹{Math.round(walletModal.currentFund).toLocaleString("en-IN")}
+          </p>
+          <input
+            type="number"
+            value={walletAmount}
+            onChange={(e) => setWalletAmount(e.target.value)}
+            placeholder="Enter new accumulated amount"
+            min="0"
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "var(--text-primary)", fontSize: 16 }}
+            autoFocus
+          />
+        </Modal>
+      )}
+
       <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );

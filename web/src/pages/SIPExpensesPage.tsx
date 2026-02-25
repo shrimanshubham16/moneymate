@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaLightbulb, FaUserCircle, FaLock, FaPiggyBank, FaLayerGroup } from "react-icons/fa";
+import { FaLightbulb, FaUserCircle, FaLock, FaPiggyBank, FaLayerGroup, FaWallet } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { Modal } from "../components/Modal";
+import { invalidateDashboardCache } from "../utils/cacheInvalidation";
+import { useAppModal } from "../hooks/useAppModal";
+import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./SIPExpensesPage.css";
 
 interface SIPExpensesPageProps {
@@ -16,11 +20,18 @@ interface SIPExpensesPageProps {
 export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { modal, showAlert, closeModal, confirmAndClose } = useAppModal();
   const [sipExpenses, setSipExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currency, setCurrency] = useState("₹");
   const hasFetchedRef = useRef(false);
   const lastViewRef = useRef<string>("");
+
+  // Wallet update modal for SIP expenses
+  const [walletModal, setWalletModal] = useState<{ isOpen: boolean; expenseId: string; expenseName: string; currentFund: number }>({
+    isOpen: false, expenseId: "", expenseName: "", currentFund: 0
+  });
+  const [walletAmount, setWalletAmount] = useState("");
 
   // Shared view support
   const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem } = useSharedView(token);
@@ -47,6 +58,24 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
       console.error("Failed to load SIP expenses:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleWalletUpdate = async () => {
+    const amount = parseFloat(walletAmount);
+    if (isNaN(amount) || amount < 0) {
+      showAlert("Please enter a valid amount.");
+      return;
+    }
+    try {
+      await api.updateFixedExpense(token, walletModal.expenseId, { accumulated_funds: amount });
+      invalidateDashboardCache();
+      setSipExpenses(prev => prev.map(e => e.id === walletModal.expenseId ? { ...e, accumulatedFunds: amount, accumulated_funds: amount } : e));
+      setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 });
+      setWalletAmount("");
+      loadSIPExpenses();
+    } catch (e: any) {
+      showAlert("Failed to update: " + e.message);
     }
   };
 
@@ -136,6 +165,19 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
                       <h3>{sip.name}</h3>
                     </div>
                     <div className="sip-header-right">
+                      {isOwn && (
+                        <button
+                          className="sip-wallet-btn"
+                          onClick={() => {
+                            const currentFund = sip.accumulatedFunds || sip.accumulated_funds || 0;
+                            setWalletModal({ isOpen: true, expenseId: sip.id, expenseName: sip.name, currentFund });
+                            setWalletAmount(Math.round(currentFund).toString());
+                          }}
+                          title="Update Accumulated Fund"
+                        >
+                          <FaWallet size={14} />
+                        </button>
+                      )}
                       {isSharedView && (
                         <span className="sip-owner-badge">
                           {isOwn ? <FaUserCircle size={10} /> : <FaLock size={10} />}
@@ -195,6 +237,46 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
           </div>
         </>
       )}
+      {/* Wallet Update Modal */}
+      {walletModal.isOpen && (
+        <Modal
+          isOpen={walletModal.isOpen}
+          onClose={() => { setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 }); setWalletAmount(""); }}
+          title={`Update Fund — ${walletModal.expenseName}`}
+          size="sm"
+          footer={
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => { setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 }); setWalletAmount(""); }}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "var(--text-primary)", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleWalletUpdate}
+                style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--accent-cyan, #22d3ee)", color: "#041019", fontWeight: 700, cursor: "pointer" }}
+              >
+                Update
+              </button>
+            </div>
+          }
+        >
+          <p style={{ margin: "0 0 12px", color: "var(--text-secondary)" }}>
+            Current Accumulated: {currency}{Math.round(walletModal.currentFund).toLocaleString("en-IN")}
+          </p>
+          <input
+            type="number"
+            value={walletAmount}
+            onChange={(e) => setWalletAmount(e.target.value)}
+            placeholder="Enter new accumulated amount"
+            min="0"
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "var(--text-primary)", fontSize: 16 }}
+            autoFocus
+          />
+        </Modal>
+      )}
+
+      <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );
 }

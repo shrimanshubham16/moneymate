@@ -33,8 +33,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     name: "",
     planned: "",
     category: "General",
-    start_date: new Date().toISOString().split("T")[0],
-    end_date: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+    start_date: "",
+    end_date: ""
   });
   const [actualForm, setActualForm] = useState({
     amount: "",
@@ -100,12 +100,12 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     if (isSubmitting) return;
     setIsSubmitting(true);
     
-    const planData = {
+    const planData: any = {
       name: planForm.name,
       planned: Number(planForm.planned),
       category: planForm.category,
-      start_date: planForm.start_date,
-      end_date: planForm.end_date
+      start_date: planForm.start_date || "",
+      end_date: planForm.end_date || ""
     };
     
     const tempId = `temp-${Date.now()}`;
@@ -288,7 +288,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         </div>
         {!isSharedView && (
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="add-button" onClick={() => { setShowPlanForm(true); setEditingId(null); }}>
+            <button className="add-button" onClick={() => { setPlanForm({ name: "", planned: "", category: "General", start_date: "", end_date: "" }); setShowPlanForm(true); setEditingId(null); }}>
               + Add New Plan
             </button>
           </div>
@@ -353,12 +353,14 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Starting From *</label>
-                  <input type="date" value={planForm.start_date} onChange={(e) => setPlanForm({ ...planForm, start_date: e.target.value })} required />
+                  <label>Starting From <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted, #6b7280)', marginLeft: 4 }}>(optional)</span></label>
+                  <input type="date" value={planForm.start_date} onChange={(e) => setPlanForm({ ...planForm, start_date: e.target.value })} />
+                  <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted, #6b7280)', marginTop: 4, fontStyle: 'italic' }}>Leave empty = starts immediately</span>
                 </div>
                 <div className="form-group">
-                  <label>Till *</label>
-                  <input type="date" value={planForm.end_date} onChange={(e) => setPlanForm({ ...planForm, end_date: e.target.value })} required />
+                  <label>Till <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted, #6b7280)', marginLeft: 4 }}>(optional)</span></label>
+                  <input type="date" value={planForm.end_date} onChange={(e) => setPlanForm({ ...planForm, end_date: e.target.value })} />
+                  <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted, #6b7280)', marginTop: 4, fontStyle: 'italic' }}>Leave empty = ongoing, no end date</span>
                 </div>
               </div>
               <div className="form-actions">
@@ -539,7 +541,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                     <div className="plan-actions">
                       {isOwn ? (
                         <>
-                          <button onClick={() => { setEditingId(plan.id); setPlanForm({ ...planForm, name: plan.name, planned: plan.planned.toString(), category: plan.category }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
+                          <button onClick={() => { setEditingId(plan.id); setPlanForm({ name: plan.name, planned: plan.planned.toString(), category: plan.category, start_date: plan.startDate || plan.start_date || "", end_date: plan.endDate || plan.end_date || "" }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
                           <button className="delete-btn" onClick={() => showConfirm("Delete this variable plan?", () => { api.deleteVariableExpensePlan(token, plan.id).then(() => { invalidateDashboardCache(); loadPlans(true); }); })} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
                         </>
                       ) : (

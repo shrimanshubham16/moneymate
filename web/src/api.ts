@@ -527,7 +527,7 @@ export async function createFixedExpense(token: string, payload: { name: string;
   return request<{ data: any }>("/planning/fixed-expenses", { method: "POST", body }, token);
 }
 
-export async function updateFixedExpense(token: string, id: string, payload: { name?: string; amount?: number; frequency?: string; category?: string; start_date?: string; end_date?: string; is_sip_flag?: boolean }, cryptoKey?: CryptoKey) {
+export async function updateFixedExpense(token: string, id: string, payload: { name?: string; amount?: number; frequency?: string; category?: string; start_date?: string; end_date?: string; is_sip_flag?: boolean; accumulated_funds?: number }, cryptoKey?: CryptoKey) {
   const body = await buildBody(payload, cryptoKey);
   return request<{ data: any }>(`/planning/fixed-expenses/${id}`, { method: "PUT", body }, token);
 }
