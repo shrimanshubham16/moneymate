@@ -34,7 +34,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
   const [walletAmount, setWalletAmount] = useState("");
 
   // Shared view support
-  const { selectedView, isSharedView, getViewParam, isOwnItem } = useSharedView(token);
+  const { selectedView, isSharedView, getViewParam, isOwnItem, getOwnerName } = useSharedView(token);
 
   useEffect(() => {
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
@@ -95,7 +95,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
   // Group shared SIPs by user for aggregate banner
   const sharedByUser = sharedSips.reduce<Record<string, { username: string; monthly: number; accumulated: number; count: number }>>((acc, s) => {
     const uid = s.userId || s.user_id;
-    if (!acc[uid]) acc[uid] = { username: s.ownerUsername || s.owner_username || 'Partner', monthly: 0, accumulated: 0, count: 0 };
+    if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), monthly: 0, accumulated: 0, count: 0 };
     acc[uid].monthly += getMonthly(s);
     acc[uid].accumulated += s.accumulatedFunds || 0;
     acc[uid].count++;

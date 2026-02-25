@@ -28,7 +28,7 @@ export function DuesPage({ token }: DuesPageProps) {
   const lastViewRef = useRef<string>("");
 
   // Shared view support
-  const { selectedView, isSharedView, getViewParam, isOwnItem } = useSharedView(token);
+  const { selectedView, isSharedView, getViewParam, isOwnItem, getOwnerName } = useSharedView(token);
 
   useEffect(() => {
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
@@ -259,7 +259,7 @@ export function DuesPage({ token }: DuesPageProps) {
   // Group shared dues by user for aggregate banner
   const sharedByUser = sharedDues.reduce<Record<string, { username: string; total: number; count: number }>>((acc, d) => {
     const uid = d.userId || d.user_id;
-    if (!acc[uid]) acc[uid] = { username: d.ownerUsername || d.owner_username || 'Partner', total: 0, count: 0 };
+    if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), total: 0, count: 0 };
     acc[uid].total += d.amount || 0;
     acc[uid].count++;
     return acc;

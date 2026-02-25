@@ -22,11 +22,12 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [sharedAggregates, setSharedAggregates] = useState<any[]>([]);
   const hasFetchedRef = useRef(false);
   const lastViewRef = useRef<string>("");
   
   // Shared view support
-  const { selectedView, isSharedView, getViewParam, isOwnItem } = useSharedView(token);
+  const { selectedView, isSharedView, getViewParam, isOwnItem, getOwnerName } = useSharedView(token);
 
   useEffect(() => {
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
@@ -40,6 +41,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
       // Use dashboard endpoint with view param so shared/combined view includes all members' cards
       const dashboardRes = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       setCards(dashboardRes.data.creditCards || []);
+      setSharedAggregates(dashboardRes.data.sharedUserAggregates || []);
     } catch (e) {
       console.error("Failed to load cards:", e);
     } finally {
@@ -66,15 +68,31 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
     : cards;
   const sharedCards = isSharedView ? cards.filter(c => { const uid = c.userId || c.user_id; return uid && !isOwnItem(uid); }) : [];
 
-  // Group shared cards by user for aggregate banner
-  const sharedByUser = sharedCards.reduce<Record<string, { username: string; totalBill: number; totalPaid: number; count: number }>>((acc, c) => {
-    const uid = c.userId || c.user_id;
-    if (!acc[uid]) acc[uid] = { username: c.ownerUsername || c.owner_username || 'Partner', totalBill: 0, totalPaid: 0, count: 0 };
-    acc[uid].totalBill += parseFloat(c.billAmount) || 0;
-    acc[uid].totalPaid += parseFloat(c.paidAmount) || 0;
-    acc[uid].count++;
-    return acc;
-  }, {});
+  // Group shared cards by user — prefer server-side aggregates
+  const sharedByUser = (() => {
+    if (isSharedView && sharedAggregates.length > 0) {
+      const result: Record<string, { username: string; totalBill: number; totalPaid: number; count: number }> = {};
+      for (const agg of sharedAggregates) {
+        const uid = agg.user_id;
+        const totalDues = parseFloat(agg.total_credit_card_dues) || 0;
+        result[uid] = {
+          username: getOwnerName(uid),
+          totalBill: totalDues, // Dues = bill - paid
+          totalPaid: 0,
+          count: sharedCards.filter(c => (c.userId || c.user_id) === uid).length
+        };
+      }
+      return result;
+    }
+    return sharedCards.reduce<Record<string, { username: string; totalBill: number; totalPaid: number; count: number }>>((acc, c) => {
+      const uid = c.userId || c.user_id;
+      if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), totalBill: 0, totalPaid: 0, count: 0 };
+      acc[uid].totalBill += parseFloat(c.billAmount) || 0;
+      acc[uid].totalPaid += parseFloat(c.paidAmount) || 0;
+      acc[uid].count++;
+      return acc;
+    }, {});
+  })();
 
   // Compute summary stats (use ownCards for own totals)
   const totalBill = ownCards.reduce((sum, c) => sum + (parseFloat(c.billAmount) || 0), 0);
@@ -212,21 +230,21 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
               </div>
               <div className="shared-aggregate-stats">
                 <div className="shared-aggregate-stat">
-                  <span className="stat-value">₹{info.totalBill.toLocaleString("en-IN")}</span>
-                  <span className="stat-label">Total Bill</span>
+                  <span className="stat-value">₹{Math.round(info.totalBill).toLocaleString("en-IN")}</span>
+                  <span className="stat-label">{sharedAggregates.length > 0 ? 'Outstanding Dues' : 'Total Bill'}</span>
                 </div>
-                <div className="shared-aggregate-stat">
-                  <span className="stat-value">₹{info.totalPaid.toLocaleString("en-IN")}</span>
-                  <span className="stat-label">Paid</span>
-                </div>
-                <div className="shared-aggregate-stat">
-                  <span className="stat-value">₹{(info.totalBill - info.totalPaid).toLocaleString("en-IN")}</span>
-                  <span className="stat-label">Remaining</span>
-                </div>
-                <div className="shared-aggregate-stat">
-                  <span className="stat-value">{info.count}</span>
-                  <span className="stat-label">Cards</span>
-                </div>
+                {info.totalPaid > 0 && (
+                  <div className="shared-aggregate-stat">
+                    <span className="stat-value">₹{Math.round(info.totalPaid).toLocaleString("en-IN")}</span>
+                    <span className="stat-label">Paid</span>
+                  </div>
+                )}
+                {info.count > 0 && (
+                  <div className="shared-aggregate-stat">
+                    <span className="stat-value">{info.count}</span>
+                    <span className="stat-label">Cards</span>
+                  </div>
+                )}
               </div>
               <p className="shared-aggregate-note">Individual items are encrypted — only totals are visible</p>
             </div>

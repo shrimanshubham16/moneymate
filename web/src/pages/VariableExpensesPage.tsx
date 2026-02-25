@@ -48,6 +48,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const [userSubcategories, setUserSubcategories] = useState<string[]>(["Unspecified"]);
   const [creditCards, setCreditCards] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sharedAggregates, setSharedAggregates] = useState<any[]>([]);
   const hasFetchedRef = useRef(false);
   const lastViewRef = useRef<string>("");
 
@@ -64,6 +65,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     try {
       const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam(), forceRefresh);
       setPlans(res.data.variablePlans || []);
+      setSharedAggregates(res.data.sharedUserAggregates || []);
     } catch (e) {
       console.error("Failed to load plans:", e);
     } finally {
@@ -262,15 +264,30 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     ? plans.filter(p => !isOwnItem(p.userId || p.user_id))
     : [];
 
-  // Group shared plans by user
-  const sharedByUser = sharedPlans.reduce<Record<string, { username: string; planned: number; actual: number; count: number }>>((acc, p) => {
-    const uid = p.userId || p.user_id;
-    if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), planned: 0, actual: 0, count: 0 };
-    acc[uid].planned += (p.planned || 0);
-    acc[uid].actual += (p.actualTotal || 0);
-    acc[uid].count += 1;
-    return acc;
-  }, {});
+  // Group shared plans by user — prefer server-side aggregates
+  const sharedByUser = (() => {
+    if (isSharedView && sharedAggregates.length > 0) {
+      const result: Record<string, { username: string; planned: number; actual: number; count: number }> = {};
+      for (const agg of sharedAggregates) {
+        const uid = agg.user_id;
+        result[uid] = {
+          username: getOwnerName(uid),
+          planned: parseFloat(agg.total_variable_planned) || 0,
+          actual: parseFloat(agg.total_variable_actual) || 0,
+          count: sharedPlans.filter(p => (p.userId || p.user_id) === uid).length
+        };
+      }
+      return result;
+    }
+    return sharedPlans.reduce<Record<string, { username: string; planned: number; actual: number; count: number }>>((acc, p) => {
+      const uid = p.userId || p.user_id;
+      if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), planned: 0, actual: 0, count: 0 };
+      acc[uid].planned += (p.planned || 0);
+      acc[uid].actual += (p.actualTotal || 0);
+      acc[uid].count += 1;
+      return acc;
+    }, {});
+  })();
 
   // Compute summary stats
   const totalPlanned = plans.reduce((sum, p) => sum + (p.planned || 0), 0);

@@ -728,15 +728,22 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const duesTotal = (unpaidFixed || 0) + (unpaidInvestments || 0) + (creditCardDues || 0);
 
   const hasSharedMembers = (sharingMembers?.members || []).length > 0;
-  const viewOptions = [
-    { value: "me", label: "My Finances" },
-    { value: "merged", label: "Combined (Shared)" },
-    ...(sharingMembers?.members || []).map((m: any) => {
+  const viewOptions = (() => {
+    const base = [
+      { value: "me", label: "My Finances" },
+      { value: "merged", label: "Combined (Shared)" },
+    ];
+    // Deduplicate members (same user may appear in multiple shared accounts)
+    const seen = new Set<string>();
+    for (const m of (sharingMembers?.members || [])) {
       const id = m.shared_user_id || m.user_id || m.userId || m.id;
-      const label = m.username || id || "Shared Member";
-      return { value: id, label };
-    })
-  ];
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        base.push({ value: id, label: m.username || id || "Shared Member" });
+      }
+    }
+    return base;
+  })();
 
   return (
     <div className="dashboard-page">

@@ -38,6 +38,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     is_sip_flag: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sharedAggregates, setSharedAggregates] = useState<any[]>([]);
   const hasFetchedRef = useRef(false);
   const lastViewRef = useRef<string>("");
 
@@ -81,6 +82,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       // Fetch fresh data with view parameter
       const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       setExpenses(res.data.fixedExpenses || []);
+      setSharedAggregates(res.data.sharedUserAggregates || []);
       ClientCache.set('dashboard', res.data, userId);
     } catch (e) {
       console.error("Failed to load expenses:", e);
@@ -215,13 +217,28 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     : [];
 
   // Group shared expenses by user for aggregate banner
-  const sharedByUser = sharedExpenses.reduce<Record<string, { username: string; total: number; count: number }>>((acc, e) => {
-    const uid = e.userId || e.user_id;
-    if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), total: 0, count: 0 };
-    acc[uid].total += (e.amount || 0);
-    acc[uid].count += 1;
-    return acc;
-  }, {});
+  // Prefer server-side aggregates (from user_aggregates table) — more reliable than summing encrypted items
+  const sharedByUser = (() => {
+    if (isSharedView && sharedAggregates.length > 0) {
+      const result: Record<string, { username: string; total: number; count: number }> = {};
+      for (const agg of sharedAggregates) {
+        const uid = agg.user_id;
+        result[uid] = {
+          username: getOwnerName(uid),
+          total: parseFloat(agg.total_fixed_monthly) || 0,
+          count: sharedExpenses.filter(e => (e.userId || e.user_id) === uid).length
+        };
+      }
+      return result;
+    }
+    return sharedExpenses.reduce<Record<string, { username: string; total: number; count: number }>>((acc, e) => {
+      const uid = e.userId || e.user_id;
+      if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), total: 0, count: 0 };
+      acc[uid].total += (e.amount || 0);
+      acc[uid].count += 1;
+      return acc;
+    }, {});
+  })();
 
   // Summary calculations (use ownExpenses for accurate own totals, full list for combined)
   const totalCommitted = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);

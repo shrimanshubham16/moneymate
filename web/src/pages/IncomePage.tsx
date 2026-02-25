@@ -60,6 +60,7 @@ export function IncomePage({ token }: IncomePageProps) {
   const [verifiedTicker, setVerifiedTicker] = useState<string>("");
   const [showRsuInfo, setShowRsuInfo] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [sharedAggregates, setSharedAggregates] = useState<any[]>([]);
 
   // Shared view support
   const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
@@ -75,6 +76,7 @@ export function IncomePage({ token }: IncomePageProps) {
     try {
       const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       setIncomes(res.data.incomes || []);
+      setSharedAggregates(res.data.sharedUserAggregates || []);
       // Get user currency from preferences
       if (res.data.preferences?.currency) {
         setUserCurrency(res.data.preferences.currency);
@@ -323,17 +325,31 @@ export function IncomePage({ token }: IncomePageProps) {
     ? incomes.filter(inc => { const uid = inc.userId || inc.user_id; return uid && !isOwnItem(uid); })
     : [];
 
-  // Group shared incomes by user
-  const sharedByUser = sharedIncomes.reduce<Record<string, { username: string; total: number; count: number }>>((acc, inc) => {
-    const uid = inc.userId || inc.user_id;
-    if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), total: 0, count: 0 };
-    const monthly = inc.frequency === "monthly" ? inc.amount :
-                   inc.frequency === "quarterly" ? inc.amount / 3 :
-                   inc.amount / 12;
-    acc[uid].total += monthly;
-    acc[uid].count += 1;
-    return acc;
-  }, {});
+  // Group shared incomes by user — prefer server-side aggregates
+  const sharedByUser = (() => {
+    if (isSharedView && sharedAggregates.length > 0) {
+      const result: Record<string, { username: string; total: number; count: number }> = {};
+      for (const agg of sharedAggregates) {
+        const uid = agg.user_id;
+        result[uid] = {
+          username: getOwnerName(uid),
+          total: parseFloat(agg.total_income_monthly) || 0,
+          count: sharedIncomes.filter(inc => (inc.userId || inc.user_id) === uid).length
+        };
+      }
+      return result;
+    }
+    return sharedIncomes.reduce<Record<string, { username: string; total: number; count: number }>>((acc, inc) => {
+      const uid = inc.userId || inc.user_id;
+      if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), total: 0, count: 0 };
+      const monthly = inc.frequency === "monthly" ? inc.amount :
+                     inc.frequency === "quarterly" ? inc.amount / 3 :
+                     inc.amount / 12;
+      acc[uid].total += monthly;
+      acc[uid].count += 1;
+      return acc;
+    }, {});
+  })();
 
   const totalMonthlyIncome = incomes.reduce((sum, income) => {
     const monthly = income.frequency === "monthly" ? income.amount :

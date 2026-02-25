@@ -34,6 +34,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
     isOpen: false, investmentId: "", investmentName: "", currentFund: 0
   });
   const [walletAmount, setWalletAmount] = useState("");
+  const [sharedAggregates, setSharedAggregates] = useState<any[]>([]);
 
   // Shared view support
   const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem } = useSharedView(token);
@@ -49,6 +50,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
     try {
       const res = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
       setInvestments(res.data.investments || []);
+      setSharedAggregates(res.data.sharedUserAggregates || []);
     } catch (e) {
       console.error("Failed to load investments:", e);
     } finally {
@@ -142,14 +144,29 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
           const uid = inv.userId || inv.user_id;
           return uid && !isOwnItem(uid);
         });
-        const sharedByUser = sharedInvs.reduce<Record<string, { username: string; monthly: number; accumulated: number; count: number }>>((acc, inv) => {
-          const uid = inv.userId || inv.user_id;
-          if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), monthly: 0, accumulated: 0, count: 0 };
-          acc[uid].monthly += (parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0) || 0);
-          acc[uid].accumulated += (inv.accumulatedFunds || inv.accumulated_funds || 0);
-          acc[uid].count += 1;
-          return acc;
-        }, {});
+        // Prefer server-side aggregates
+        let sharedByUser: Record<string, { username: string; monthly: number; accumulated: number; count: number }>;
+        if (sharedAggregates.length > 0) {
+          sharedByUser = {};
+          for (const agg of sharedAggregates) {
+            const uid = agg.user_id;
+            sharedByUser[uid] = {
+              username: getOwnerName(uid),
+              monthly: parseFloat(agg.total_investments_monthly) || 0,
+              accumulated: 0, // Not tracked in aggregates table
+              count: sharedInvs.filter(inv => (inv.userId || inv.user_id) === uid).length
+            };
+          }
+        } else {
+          sharedByUser = sharedInvs.reduce<Record<string, { username: string; monthly: number; accumulated: number; count: number }>>((acc, inv) => {
+            const uid = inv.userId || inv.user_id;
+            if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), monthly: 0, accumulated: 0, count: 0 };
+            acc[uid].monthly += (parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0) || 0);
+            acc[uid].accumulated += (inv.accumulatedFunds || inv.accumulated_funds || 0);
+            acc[uid].count += 1;
+            return acc;
+          }, {});
+        }
         if (Object.keys(sharedByUser).length === 0) return null;
         return (
           <div className="shared-aggregate-section">

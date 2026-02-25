@@ -122,8 +122,10 @@ async function decryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
             })
             .catch((err) => { 
               console.error(`[E2E_DECRYPT_ERROR] Failed to decrypt ${orig}:`, err);
-              // PHASE 2: Use placeholder on decrypt failure, NOT plaintext
-              result[orig] = typeof obj[orig] === 'number' ? 0 : '[Private]';
+              // Preserve plaintext numeric values for shared user items
+              // (backend keeps numerics in plaintext for server-side & aggregate calculations)
+              // Text fields get '[Private]' placeholder
+              result[orig] = typeof obj[orig] === 'number' ? obj[orig] : '[Private]';
             })
         );
       }
