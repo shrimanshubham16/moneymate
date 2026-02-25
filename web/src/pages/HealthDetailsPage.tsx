@@ -584,7 +584,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
 
       {/* Health Summary Card */}
       <motion.div
-        className="health-summary-card"
+        className={`health-summary-card health-cat-${health?.category || "good"}`}
         style={{ borderColor: getHealthColor(health?.category || "good") }}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

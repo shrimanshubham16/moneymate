@@ -375,3 +375,90 @@ textarea {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ============================================
+   SHARED AGGREGATE BANNER (E2E Encryption)
+   Shows aggregated totals for shared users
+   instead of individual encrypted items
+   ============================================ */
+.shared-aggregate-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.shared-aggregate-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.06) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-xl, 16px);
+    padding: 16px 20px;
+}
+
+.shared-aggregate-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #a5b4fc;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.shared-aggregate-name {
+    color: #c4b5fd;
+}
+
+.shared-aggregate-stats {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.shared-aggregate-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.shared-aggregate-stat .stat-value {
+    color: var(--text-primary, #E8ECF8);
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.shared-aggregate-stat .stat-label {
+    color: var(--text-muted, #6b7280);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.shared-aggregate-note {
+    color: var(--text-muted, #6b7280);
+    font-size: 11px;
+    margin: 10px 0 0;
+    font-style: italic;
+}
+
+/* Light theme */
+.theme-light .shared-aggregate-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(139, 92, 246, 0.04) 100%);
+    border-color: rgba(99, 102, 241, 0.15);
+}
+
+.theme-light .shared-aggregate-header {
+    color: #6366f1;
+}
+
+.theme-light .shared-aggregate-name {
+    color: #7c3aed;
+}
+
+.theme-light .shared-aggregate-stat .stat-value {
+    color: #1e293b;
+}
+
+.theme-light .shared-aggregate-note {
+    color: #94a3b8;
+}

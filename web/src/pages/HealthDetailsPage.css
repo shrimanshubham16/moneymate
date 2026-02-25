@@ -43,6 +43,20 @@
   background: radial-gradient(circle, rgba(0, 217, 255, 0.1) 0%, transparent 70%);
 }
 
+/* Category-specific gradients for health-summary-card */
+.health-summary-card.health-cat-good::before {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+}
+.health-summary-card.health-cat-ok::before {
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%);
+}
+.health-summary-card.health-cat-not_well::before {
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.12) 0%, transparent 70%);
+}
+.health-summary-card.health-cat-worrisome::before {
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.18) 0%, transparent 70%);
+}
+
 .health-icon-large {
   font-size: 80px;
   margin-bottom: var(--space-6);

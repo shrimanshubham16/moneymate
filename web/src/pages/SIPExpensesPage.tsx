@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaLightbulb, FaUserCircle, FaLock, FaPiggyBank, FaLayerGroup, FaWallet } from "react-icons/fa";
+import { FaLightbulb, FaUserCircle, FaPiggyBank, FaLayerGroup, FaWallet } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -34,7 +34,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
   const [walletAmount, setWalletAmount] = useState("");
 
   // Shared view support
-  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem } = useSharedView(token);
+  const { selectedView, isSharedView, getViewParam, isOwnItem } = useSharedView(token);
 
   useEffect(() => {
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
@@ -86,10 +86,26 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
     return sip.amount;
   };
 
-  // Aggregates
-  const totalMonthly = sipExpenses.reduce((sum, s) => sum + getMonthly(s), 0);
-  const totalTarget = sipExpenses.reduce((sum, s) => sum + (s.amount || 0), 0);
-  const totalAccumulated = sipExpenses.reduce((sum, s) => sum + (s.accumulatedFunds || 0), 0);
+  // Separate own vs shared SIPs
+  const ownSips = isSharedView
+    ? sipExpenses.filter(s => { const uid = s.userId || s.user_id; return !uid || isOwnItem(uid); })
+    : sipExpenses;
+  const sharedSips = isSharedView ? sipExpenses.filter(s => { const uid = s.userId || s.user_id; return uid && !isOwnItem(uid); }) : [];
+
+  // Group shared SIPs by user for aggregate banner
+  const sharedByUser = sharedSips.reduce<Record<string, { username: string; monthly: number; accumulated: number; count: number }>>((acc, s) => {
+    const uid = s.userId || s.user_id;
+    if (!acc[uid]) acc[uid] = { username: s.ownerUsername || s.owner_username || 'Partner', monthly: 0, accumulated: 0, count: 0 };
+    acc[uid].monthly += getMonthly(s);
+    acc[uid].accumulated += s.accumulatedFunds || 0;
+    acc[uid].count++;
+    return acc;
+  }, {});
+
+  // Aggregates (own only)
+  const totalMonthly = ownSips.reduce((sum, s) => sum + getMonthly(s), 0);
+  const totalTarget = ownSips.reduce((sum, s) => sum + (s.amount || 0), 0);
+  const totalAccumulated = ownSips.reduce((sum, s) => sum + (s.accumulatedFunds || 0), 0);
 
   return (
     <div className="sip-expenses-page">
@@ -112,11 +128,44 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
 
       <SharedViewBanner />
 
-      {loading ? <SkeletonLoader type="card" count={3} /> : sipExpenses.length === 0 ? (
+      {/* Shared user aggregate banners */}
+      {isSharedView && Object.keys(sharedByUser).length > 0 && (
+        <div className="shared-aggregate-section">
+          {Object.entries(sharedByUser).map(([uid, info]) => (
+            <div key={uid} className="shared-aggregate-card">
+              <div className="shared-aggregate-header">
+                <FaUserCircle size={16} />
+                <span className="shared-aggregate-name">{info.username}'s SIP Expenses</span>
+              </div>
+              <div className="shared-aggregate-stats">
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">{currency}{Math.round(info.monthly).toLocaleString("en-IN")}</span>
+                  <span className="stat-label">Monthly SIP</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">{currency}{Math.round(info.accumulated).toLocaleString("en-IN")}</span>
+                  <span className="stat-label">Accumulated</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">{info.count}</span>
+                  <span className="stat-label">SIPs</span>
+                </div>
+              </div>
+              <p className="shared-aggregate-note">Individual items are encrypted — only totals are visible</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loading ? <SkeletonLoader type="card" count={3} /> : ownSips.length === 0 && sharedSips.length === 0 ? (
         <div className="sip-empty-state">
           <FaLayerGroup size={56} color="#f59e0b" />
           <h3>No SIP Expenses</h3>
           <p>When you create a fixed expense with quarterly or annual frequency and enable the SIP flag, it will appear here. SIP smooths irregular payments into manageable monthly savings.</p>
+        </div>
+      ) : ownSips.length === 0 && isSharedView ? (
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+          You have no SIP expenses. Only shared member totals are shown above.
         </div>
       ) : (
         <>
@@ -144,17 +193,15 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
 
           {/* SIP Grid */}
           <div className="sip-grid">
-            {sipExpenses.map((sip, index) => {
+            {ownSips.map((sip, index) => {
               const monthly = getMonthly(sip);
-              const sipUserId = sip.userId || sip.user_id;
-              const isOwn = !sipUserId || isOwnItem(sipUserId);
               const accumulated = sip.accumulatedFunds || 0;
               const progressPct = sip.amount > 0 ? Math.min((accumulated / sip.amount) * 100, 100) : 0;
 
               return (
                 <motion.div
                   key={sip.id}
-                  className={`sip-card ${!isOwn ? "shared-item" : ""}`}
+                  className="sip-card"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -165,25 +212,17 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
                       <h3>{sip.name}</h3>
                     </div>
                     <div className="sip-header-right">
-                      {isOwn && (
-                        <button
-                          className="sip-wallet-btn"
-                          onClick={() => {
-                            const currentFund = sip.accumulatedFunds || sip.accumulated_funds || 0;
-                            setWalletModal({ isOpen: true, expenseId: sip.id, expenseName: sip.name, currentFund });
-                            setWalletAmount(Math.round(currentFund).toString());
-                          }}
-                          title="Update Accumulated Fund"
-                        >
-                          <FaWallet size={14} />
-                        </button>
-                      )}
-                      {isSharedView && (
-                        <span className="sip-owner-badge">
-                          {isOwn ? <FaUserCircle size={10} /> : <FaLock size={10} />}
-                          {getOwnerName(sipUserId)}
-                        </span>
-                      )}
+                      <button
+                        className="sip-wallet-btn"
+                        onClick={() => {
+                          const currentFund = sip.accumulatedFunds || sip.accumulated_funds || 0;
+                          setWalletModal({ isOpen: true, expenseId: sip.id, expenseName: sip.name, currentFund });
+                          setWalletAmount(Math.round(currentFund).toString());
+                        }}
+                        title="Update Accumulated Fund"
+                      >
+                        <FaWallet size={14} />
+                      </button>
                       <span className="sip-freq-badge">{sip.frequency}</span>
                       <span className="sip-badge">SIP</span>
                     </div>

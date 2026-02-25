@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync, FaUserCircle, FaLock, FaWallet } from "react-icons/fa";
+import { FaMoneyBillWave, FaEdit, FaTrashAlt, FaSync, FaUserCircle, FaWallet } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -206,13 +206,30 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     "Education", "Healthcare", "Entertainment", "Shopping", "Personal Care", "Subscriptions"
   ];
 
-  // Summary calculations
+  // Separate own vs shared items
+  const ownExpenses = isSharedView
+    ? expenses.filter(e => isOwnItem(e.userId || e.user_id))
+    : expenses;
+  const sharedExpenses = isSharedView
+    ? expenses.filter(e => !isOwnItem(e.userId || e.user_id))
+    : [];
+
+  // Group shared expenses by user for aggregate banner
+  const sharedByUser = sharedExpenses.reduce<Record<string, { username: string; total: number; count: number }>>((acc, e) => {
+    const uid = e.userId || e.user_id;
+    if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), total: 0, count: 0 };
+    acc[uid].total += (e.amount || 0);
+    acc[uid].count += 1;
+    return acc;
+  }, {});
+
+  // Summary calculations (use ownExpenses for accurate own totals, full list for combined)
   const totalCommitted = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const paidExpenses = expenses.filter(e => e.paid);
-  const unpaidExpenses = expenses.filter(e => !e.paid);
+  const paidExpenses = ownExpenses.filter(e => e.paid);
+  const unpaidExpenses = ownExpenses.filter(e => !e.paid);
   const totalPaid = paidExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const totalUnpaid = unpaidExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const sipCount = expenses.filter(e => e.is_sip_flag).length;
+  const sipCount = ownExpenses.filter(e => e.is_sip_flag).length;
 
   return (
     <div className="fixed-expenses-page">
@@ -227,10 +244,10 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
           <PageInfoButton
             title="Fixed Expenses"
             description="Your non-negotiable monthly commitments — rent, EMIs, subscriptions, insurance, and everything you pay like clockwork. Add them once and FinFlow tracks them every month automatically."
-            impact="Fixed expenses are the backbone of your budget. They're deducted from your income before anything else to show your real available funds. Marking them as paid keeps your health score accurate and lets you see what's still outstanding."
+            impact="Fixed expenses are the backbone of your budget. They're deducted from your income before anything else to show your real available funds. Your health score counts all active fixed expenses whether paid or not — marking them as paid clears them from your Dues page so you know what's still outstanding."
             howItWorks={[
               "Add expenses with amount, frequency (monthly/quarterly/yearly), and category",
-              "Monthly dues appear in the Dues page — mark them paid to update your health score",
+              "Monthly dues appear in the Dues page — mark them paid to clear them from outstanding dues",
               "Expenses with 'Loan' category auto-appear in the Loans widget on your dashboard",
               "Enable the SIP flag on periodic expenses to accumulate savings towards them",
               "Start/end dates let you track time-bound commitments like 12-month subscriptions"
@@ -380,9 +397,34 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
         </motion.div>
       )}
 
+      {/* Shared user aggregate banners */}
+      {isSharedView && Object.keys(sharedByUser).length > 0 && (
+        <div className="shared-aggregate-section">
+          {Object.entries(sharedByUser).map(([uid, info]) => (
+            <div key={uid} className="shared-aggregate-card">
+              <div className="shared-aggregate-header">
+                <FaUserCircle size={16} />
+                <span className="shared-aggregate-name">{info.username}'s Fixed Expenses</span>
+              </div>
+              <div className="shared-aggregate-stats">
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">₹{Math.round(info.total).toLocaleString("en-IN")}</span>
+                  <span className="stat-label">Total Monthly</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">{info.count}</span>
+                  <span className="stat-label">Expenses</span>
+                </div>
+              </div>
+              <p className="shared-aggregate-note">Individual items are encrypted — only totals are visible</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <SkeletonLoader type="list" count={5} />
-      ) : expenses.length === 0 ? (
+      ) : ownExpenses.length === 0 && sharedExpenses.length === 0 ? (
         <EmptyState
           icon={<FaMoneyBillWave size={80} />}
           title="No Fixed Expenses Yet"
@@ -394,18 +436,20 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
             setShowForm(true);
           }}
         />
+      ) : ownExpenses.length === 0 && isSharedView ? (
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+          You have no fixed expenses yet — shared member totals are shown above
+        </div>
       ) : (
         <div className="expenses-list">
-          {expenses.map((expense, index) => {
-            const itemUserId = expense.userId || expense.user_id;
-            const isOwn = isOwnItem(itemUserId);
-            const displayName = isOwn ? expense.name : formatSharedField(expense.name, isOwn);
-            const displayAmount = isOwn ? expense.amount : (expense.amount || 0);
+          {ownExpenses.map((expense, index) => {
+            const displayName = expense.name;
+            const displayAmount = expense.amount;
             
             return (
               <motion.div
                 key={expense.id}
-                className={`expense-card ${isSharedView && !isOwn ? 'shared-item' : ''}`}
+                className="expense-card"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
@@ -413,13 +457,6 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                 <div className="expense-info">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <h3>{displayName}</h3>
-                    {/* Owner badge for shared views */}
-                    {isSharedView && (
-                      <span className={`owner-badge ${isOwn ? 'own' : 'shared'}`}>
-                        <FaUserCircle size={12} style={{ marginRight: 4 }} />
-                        {getOwnerName(itemUserId)}
-                      </span>
-                    )}
                   </div>
                   <div className="expense-details">
                     <span>₹{displayAmount.toLocaleString("en-IN")}</span>
@@ -436,35 +473,27 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                   </div>
                 </div>
                 <div className="expense-actions">
-                  {isOwn ? (
-                    <>
-                      {/* Wallet button for SIP expenses */}
-                      {expense.is_sip_flag && (
-                        <button 
-                          className="wallet-btn"
-                          onClick={() => {
-                            const currentFund = expense.accumulatedFunds || expense.accumulated_funds || 0;
-                            setWalletModal({ isOpen: true, expenseId: expense.id, expenseName: expense.name, currentFund });
-                            setWalletAmount(Math.round(currentFund).toString());
-                          }}
-                          title="Update Accumulated Fund"
-                          aria-label="Update accumulated fund"
-                        >
-                          <FaWallet />
-                        </button>
-                      )}
-                      <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">
-                        <FaEdit />
-                      </button>
-                      <button onClick={() => handleDelete(expense.id)} className="delete-btn" title="Delete" aria-label="Delete expense">
-                        <FaTrashAlt />
-                      </button>
-                    </>
-                  ) : (
-                    <span className="read-only-badge" title="View only - belongs to shared member">
-                      <FaLock size={12} /> View Only
-                    </span>
+                  {/* Wallet button for SIP expenses */}
+                  {expense.is_sip_flag && (
+                    <button 
+                      className="wallet-btn"
+                      onClick={() => {
+                        const currentFund = expense.accumulatedFunds || expense.accumulated_funds || 0;
+                        setWalletModal({ isOpen: true, expenseId: expense.id, expenseName: expense.name, currentFund });
+                        setWalletAmount(Math.round(currentFund).toString());
+                      }}
+                      title="Update Accumulated Fund"
+                      aria-label="Update accumulated fund"
+                    >
+                      <FaWallet />
+                    </button>
                   )}
+                  <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">
+                    <FaEdit />
+                  </button>
+                  <button onClick={() => handleDelete(expense.id)} className="delete-btn" title="Delete" aria-label="Delete expense">
+                    <FaTrashAlt />
+                  </button>
                 </div>
               </motion.div>
             );

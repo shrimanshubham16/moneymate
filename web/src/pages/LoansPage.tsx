@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaUserCircle, FaLock, FaInfoCircle, FaLandmark, FaUniversity } from "react-icons/fa";
+import { FaInfoCircle, FaLandmark, FaUniversity } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -23,7 +23,7 @@ export function LoansPage({ token }: LoansPageProps) {
   const lastViewRef = useRef<string>("");
 
   // Shared view support
-  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
+  const { selectedView, isSharedView, getViewParam } = useSharedView(token);
 
   useEffect(() => {
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
@@ -117,8 +117,6 @@ export function LoansPage({ token }: LoansPageProps) {
           {/* Loans Grid */}
           <div className="loans-grid">
             {loans.map((loan, index) => {
-              const loanUserId = loan.userId || loan.user_id;
-              const isOwn = !loanUserId || isOwnItem(loanUserId);
               const emi = parseFloat(loan.emi) || 0;
               const principal = parseFloat(loan.principal) || 0;
               const tenure = loan.remainingTenureMonths || 0;
@@ -129,7 +127,7 @@ export function LoansPage({ token }: LoansPageProps) {
               return (
                 <motion.div
                   key={loan.id}
-                  className={`loan-card ${!isOwn ? "shared-item" : ""}`}
+                  className="loan-card"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -137,15 +135,7 @@ export function LoansPage({ token }: LoansPageProps) {
                   <div className="loan-header">
                     <div className="loan-header-left">
                       <div className="loan-icon-wrap"><FaLandmark /></div>
-                      <h3>{formatSharedField(loan.name, isOwn)}</h3>
-                    </div>
-                    <div className="loan-header-right">
-                      {isSharedView && (
-                        <span className="loan-owner-badge">
-                          {isOwn ? <FaUserCircle size={10} /> : <FaLock size={10} />}
-                          {getOwnerName(loanUserId)}
-                        </span>
-                      )}
+                      <h3>{loan.name}</h3>
                     </div>
                   </div>
 

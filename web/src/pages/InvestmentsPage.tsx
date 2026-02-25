@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MdTrendingUp } from "react-icons/md";
-import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaShieldAlt } from "react-icons/fa";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaShieldAlt } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -36,7 +36,7 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
   const [walletAmount, setWalletAmount] = useState("");
 
   // Shared view support
-  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
+  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem } = useSharedView(token);
 
   useEffect(() => {
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
@@ -136,12 +136,60 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
 
       <SharedViewBanner />
 
+      {/* Shared user aggregate banners */}
+      {isSharedView && (() => {
+        const sharedInvs = investments.filter(inv => {
+          const uid = inv.userId || inv.user_id;
+          return uid && !isOwnItem(uid);
+        });
+        const sharedByUser = sharedInvs.reduce<Record<string, { username: string; monthly: number; accumulated: number; count: number }>>((acc, inv) => {
+          const uid = inv.userId || inv.user_id;
+          if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), monthly: 0, accumulated: 0, count: 0 };
+          acc[uid].monthly += (parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0) || 0);
+          acc[uid].accumulated += (inv.accumulatedFunds || inv.accumulated_funds || 0);
+          acc[uid].count += 1;
+          return acc;
+        }, {});
+        if (Object.keys(sharedByUser).length === 0) return null;
+        return (
+          <div className="shared-aggregate-section">
+            {Object.entries(sharedByUser).map(([uid, info]) => (
+              <div key={uid} className="shared-aggregate-card">
+                <div className="shared-aggregate-header">
+                  <FaUserCircle size={16} />
+                  <span className="shared-aggregate-name">{info.username}'s Investments</span>
+                </div>
+                <div className="shared-aggregate-stats">
+                  <div className="shared-aggregate-stat">
+                    <span className="stat-value">₹{Math.round(info.monthly).toLocaleString("en-IN")}</span>
+                    <span className="stat-label">Monthly</span>
+                  </div>
+                  <div className="shared-aggregate-stat">
+                    <span className="stat-value">₹{Math.round(info.accumulated).toLocaleString("en-IN")}</span>
+                    <span className="stat-label">Accumulated</span>
+                  </div>
+                  <div className="shared-aggregate-stat">
+                    <span className="stat-value">{info.count}</span>
+                    <span className="stat-label">Investments</span>
+                  </div>
+                </div>
+                <p className="shared-aggregate-note">Individual items are encrypted — only totals are visible</p>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* ── Summary Strip ─────────────── */}
       {!loading && investments.length > 0 && (() => {
-        const totalMonthly = investments.reduce((s: number, inv: any) => s + (parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0) || 0), 0);
-        const totalAccumulated = investments.reduce((s: number, inv: any) => s + (inv.accumulatedFunds || inv.accumulated_funds || 0), 0);
-        const activeCount = investments.filter((inv: any) => inv.status === "active").length;
-        const pausedCount = investments.filter((inv: any) => inv.status !== "active").length;
+        // Use only own investments for the summary
+        const ownInvs = isSharedView
+          ? investments.filter(inv => { const uid = inv.userId || inv.user_id; return !uid || isOwnItem(uid); })
+          : investments;
+        const totalMonthly = ownInvs.reduce((s: number, inv: any) => s + (parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0) || 0), 0);
+        const totalAccumulated = ownInvs.reduce((s: number, inv: any) => s + (inv.accumulatedFunds || inv.accumulated_funds || 0), 0);
+        const activeCount = ownInvs.filter((inv: any) => inv.status === "active").length;
+        const pausedCount = ownInvs.filter((inv: any) => inv.status !== "active").length;
         return (
           <div className="inv-summary-strip">
             <div className="inv-summary-item">
@@ -166,46 +214,48 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
         );
       })()}
 
-      {loading ? (
-        <SkeletonLoader type="list" count={4} />
-      ) : investments.length === 0 ? (
-        <EmptyState
-          icon={<MdTrendingUp size={80} />}
-          title="No Investments Yet"
-          description="Start building wealth by adding your investments like SIPs, mutual funds, stocks, or savings plans"
-          actionLabel={isSharedView ? undefined : "Add First Investment"}
-          onAction={isSharedView ? undefined : () => navigate("/settings/plan-finances/investments")}
-        />
-      ) : (
-        <div className="investments-list">
-          {investments.map((inv, index) => {
-            const invUserId = inv.userId || inv.user_id;
-            const isOwn = !invUserId || isOwnItem(invUserId);
-            return (
+      {(() => {
+        const ownInvs = isSharedView
+          ? investments.filter(inv => { const uid = inv.userId || inv.user_id; return !uid || isOwnItem(uid); })
+          : investments;
+        const hasSharedItems = isSharedView && investments.some(inv => { const uid = inv.userId || inv.user_id; return uid && !isOwnItem(uid); });
+        
+        if (loading) return <SkeletonLoader type="list" count={4} />;
+        if (ownInvs.length === 0 && !hasSharedItems) return (
+          <EmptyState
+            icon={<MdTrendingUp size={80} />}
+            title="No Investments Yet"
+            description="Start building wealth by adding your investments like SIPs, mutual funds, stocks, or savings plans"
+            actionLabel={isSharedView ? undefined : "Add First Investment"}
+            onAction={isSharedView ? undefined : () => navigate("/settings/plan-finances/investments")}
+          />
+        );
+        if (ownInvs.length === 0 && isSharedView) return (
+          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+            You have no investments yet — shared member totals are shown above
+          </div>
+        );
+        return (
+          <div className="investments-list">
+            {ownInvs.map((inv, index) => (
               <motion.div
                 key={inv.id}
-                className={`investment-card ${!isOwn ? "shared-item" : ""} ${inv.isPriority ? "priority" : ""}`}
+                className={`investment-card ${inv.isPriority ? "priority" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
                 <div className="investment-info">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <h3>{formatSharedField(inv.name, isOwn)}</h3>
+                    <h3>{inv.name}</h3>
                     {inv.isPriority && (
                       <span className="priority-badge">
                         <FaShieldAlt size={10} /> Critical
                       </span>
                     )}
-                    {isSharedView && (
-                      <span style={{ fontSize: 11, color: isOwn ? '#10b981' : '#8b5cf6', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {isOwn ? <FaUserCircle size={12} /> : <FaLock size={12} />}
-                        {getOwnerName(invUserId)}
-                      </span>
-                    )}
                   </div>
                   <div className="investment-details">
-                    <span>Goal: {formatSharedField(inv.goal, isOwn)}</span>
+                    <span>Goal: {inv.goal}</span>
                     <span>₹{(inv.monthlyAmount || inv.monthly_amount || 0).toLocaleString("en-IN")}/month</span>
                     <span style={{ color: '#10b981', fontWeight: 600 }}>
                       Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
@@ -219,55 +269,47 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                   </div>
                 </div>
 
-                {isOwn ? (
-                  <div className="investment-actions">
-                    <button 
-                      className="icon-btn wallet-btn" 
-                      onClick={() => {
-                        const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
-                        setWalletModal({ isOpen: true, investmentId: inv.id, investmentName: inv.name, currentFund });
-                        setWalletAmount(Math.round(currentFund).toString());
-                      }}
-                      title="Update Available Fund"
-                    >
-                      <FaWallet />
-                    </button>
-                    <button 
-                      className="icon-btn edit-btn" 
-                      onClick={() => navigate(`/settings/plan-finances/investments?edit=${inv.id}`)}
-                      title="Edit"
-                    >
-                      <FaEdit />
-                    </button>
-                    <button 
-                      className={`icon-btn pause-btn ${inv.isPriority && inv.status === "active" ? "disabled" : ""}`}
-                      onClick={() => handlePauseResume(inv)}
-                      title={inv.isPriority && inv.status === "active" 
-                        ? "Critical — cannot be paused (edit to change)" 
-                        : inv.status === "active" ? "Pause" : "Resume"}
-                    >
-                      {inv.status === "active" ? <FaPause /> : <FaPlay />}
-                    </button>
-                    <button 
-                      className="icon-btn delete-btn" 
-                      onClick={() => handleDelete(inv)}
-                      title="Delete"
-                    >
-                      <FaTrashAlt />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="investment-actions">
-                    <span style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <FaLock size={10} /> View Only
-                    </span>
-                  </div>
-                )}
+                <div className="investment-actions">
+                  <button 
+                    className="icon-btn wallet-btn" 
+                    onClick={() => {
+                      const currentFund = inv.accumulatedFunds || inv.accumulated_funds || 0;
+                      setWalletModal({ isOpen: true, investmentId: inv.id, investmentName: inv.name, currentFund });
+                      setWalletAmount(Math.round(currentFund).toString());
+                    }}
+                    title="Update Available Fund"
+                  >
+                    <FaWallet />
+                  </button>
+                  <button 
+                    className="icon-btn edit-btn" 
+                    onClick={() => navigate(`/settings/plan-finances/investments?edit=${inv.id}`)}
+                    title="Edit"
+                  >
+                    <FaEdit />
+                  </button>
+                  <button 
+                    className={`icon-btn pause-btn ${inv.isPriority && inv.status === "active" ? "disabled" : ""}`}
+                    onClick={() => handlePauseResume(inv)}
+                    title={inv.isPriority && inv.status === "active" 
+                      ? "Critical — cannot be paused (edit to change)" 
+                      : inv.status === "active" ? "Pause" : "Resume"}
+                  >
+                    {inv.status === "active" ? <FaPause /> : <FaPlay />}
+                  </button>
+                  <button 
+                    className="icon-btn delete-btn" 
+                    onClick={() => handleDelete(inv)}
+                    title="Delete"
+                  >
+                    <FaTrashAlt />
+                  </button>
+                </div>
               </motion.div>
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Wallet Update Modal */}
       {walletModal.isOpen && (

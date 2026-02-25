@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaUserCircle, FaLock } from "react-icons/fa";
+import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaUserCircle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -254,11 +254,29 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     "Personal Care", "Healthcare", "Education", "Utilities", "Other"
   ];
 
+  // Separate own vs shared items
+  const ownPlans = isSharedView
+    ? plans.filter(p => isOwnItem(p.userId || p.user_id))
+    : plans;
+  const sharedPlans = isSharedView
+    ? plans.filter(p => !isOwnItem(p.userId || p.user_id))
+    : [];
+
+  // Group shared plans by user
+  const sharedByUser = sharedPlans.reduce<Record<string, { username: string; planned: number; actual: number; count: number }>>((acc, p) => {
+    const uid = p.userId || p.user_id;
+    if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), planned: 0, actual: 0, count: 0 };
+    acc[uid].planned += (p.planned || 0);
+    acc[uid].actual += (p.actualTotal || 0);
+    acc[uid].count += 1;
+    return acc;
+  }, {});
+
   // Compute summary stats
   const totalPlanned = plans.reduce((sum, p) => sum + (p.planned || 0), 0);
   const totalSpent = plans.reduce((sum, p) => sum + (p.actualTotal || 0), 0);
   const totalRemaining = totalPlanned - totalSpent;
-  const overspendCount = plans.filter(p => p.actualTotal > p.planned).length;
+  const overspendCount = ownPlans.filter(p => p.actualTotal > p.planned).length;
 
   const paymentModes = [
     { key: "UPI", label: "UPI", icon: <FaMobileAlt size={18} />, hint: null },
@@ -501,9 +519,38 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         </div>
       )}
 
+      {/* Shared user aggregate banners */}
+      {isSharedView && Object.keys(sharedByUser).length > 0 && (
+        <div className="shared-aggregate-section">
+          {Object.entries(sharedByUser).map(([uid, info]) => (
+            <div key={uid} className="shared-aggregate-card">
+              <div className="shared-aggregate-header">
+                <FaUserCircle size={16} />
+                <span className="shared-aggregate-name">{info.username}'s Variable Expenses</span>
+              </div>
+              <div className="shared-aggregate-stats">
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">₹{Math.round(info.planned).toLocaleString("en-IN")}</span>
+                  <span className="stat-label">Planned</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">₹{Math.round(info.actual).toLocaleString("en-IN")}</span>
+                  <span className="stat-label">Actual</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">{info.count}</span>
+                  <span className="stat-label">Plans</span>
+                </div>
+              </div>
+              <p className="shared-aggregate-note">Individual items are encrypted — only totals are visible</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <SkeletonLoader type="card" count={4} />
-      ) : plans.length === 0 ? (
+      ) : ownPlans.length === 0 && sharedPlans.length === 0 ? (
         <EmptyState
           icon={<FaShoppingCart size={56} />}
           title="No Variable Expense Plans"
@@ -511,18 +558,19 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           actionLabel={isSharedView ? undefined : "Create First Plan"}
           onAction={isSharedView ? undefined : () => setShowPlanForm(true)}
         />
+      ) : ownPlans.length === 0 && isSharedView ? (
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+          You have no variable expense plans yet — shared member totals are shown above
+        </div>
       ) : (
         <div className="plans-list">
-          {plans.map((plan, index) => {
+          {ownPlans.map((plan, index) => {
             const overspend = plan.actualTotal > plan.planned;
-            const itemUserId = plan.userId || plan.user_id;
-            const isOwn = isOwnItem(itemUserId);
-            const displayName = formatSharedField(plan.name, isOwn);
             
             return (
               <motion.div
                 key={plan.id}
-                className={`plan-card ${overspend ? "overspend" : ""} ${isSharedView && !isOwn ? "shared-item" : ""}`}
+                className={`plan-card ${overspend ? "overspend" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
@@ -530,25 +578,11 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                 <div className="plan-header">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <h3>{displayName}</h3>
-                      {isSharedView && (
-                        <span className={`owner-badge ${isOwn ? 'own' : 'shared'}`}>
-                          {isOwn ? <FaUserCircle size={12} style={{ marginRight: 4 }} /> : <FaLock size={12} style={{ marginRight: 4 }} />}
-                          {getOwnerName(itemUserId)}
-                        </span>
-                      )}
+                      <h3>{plan.name}</h3>
                     </div>
                     <div className="plan-actions">
-                      {isOwn ? (
-                        <>
-                          <button onClick={() => { setEditingId(plan.id); setPlanForm({ name: plan.name, planned: plan.planned.toString(), category: plan.category, start_date: plan.startDate || plan.start_date || "", end_date: plan.endDate || plan.end_date || "" }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
-                          <button className="delete-btn" onClick={() => showConfirm("Delete this variable plan?", () => { api.deleteVariableExpensePlan(token, plan.id).then(() => { invalidateDashboardCache(); loadPlans(true); }); })} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
-                        </>
-                      ) : (
-                        <span className="read-only-badge" title="View only - belongs to shared member">
-                          <FaLock size={12} /> View Only
-                        </span>
-                      )}
+                      <button onClick={() => { setEditingId(plan.id); setPlanForm({ name: plan.name, planned: plan.planned.toString(), category: plan.category, start_date: plan.startDate || plan.start_date || "", end_date: plan.endDate || plan.end_date || "" }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
+                      <button className="delete-btn" onClick={() => showConfirm("Delete this variable plan?", () => { api.deleteVariableExpensePlan(token, plan.id).then(() => { invalidateDashboardCache(); loadPlans(true); }); })} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
                     </div>
                   </div>
                 </div>

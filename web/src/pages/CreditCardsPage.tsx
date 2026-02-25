@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaCreditCard, FaUserCircle, FaLock, FaCalendarAlt, FaWallet, FaCheckCircle, FaExclamationTriangle, FaCog } from "react-icons/fa";
+import { FaCreditCard, FaUserCircle, FaCalendarAlt, FaWallet, FaCheckCircle, FaExclamationTriangle, FaCog } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
@@ -26,7 +26,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
   const lastViewRef = useRef<string>("");
   
   // Shared view support
-  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem, formatSharedField } = useSharedView(token);
+  const { selectedView, isSharedView, getViewParam, isOwnItem } = useSharedView(token);
 
   useEffect(() => {
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
@@ -60,12 +60,28 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
     }
   };
 
-  // Compute summary stats
-  const totalBill = cards.reduce((sum, c) => sum + (parseFloat(c.billAmount) || 0), 0);
-  const totalPaid = cards.reduce((sum, c) => sum + (parseFloat(c.paidAmount) || 0), 0);
+  // Separate own vs shared items
+  const ownCards = isSharedView
+    ? cards.filter(c => { const uid = c.userId || c.user_id; return !uid || isOwnItem(uid); })
+    : cards;
+  const sharedCards = isSharedView ? cards.filter(c => { const uid = c.userId || c.user_id; return uid && !isOwnItem(uid); }) : [];
+
+  // Group shared cards by user for aggregate banner
+  const sharedByUser = sharedCards.reduce<Record<string, { username: string; totalBill: number; totalPaid: number; count: number }>>((acc, c) => {
+    const uid = c.userId || c.user_id;
+    if (!acc[uid]) acc[uid] = { username: c.ownerUsername || c.owner_username || 'Partner', totalBill: 0, totalPaid: 0, count: 0 };
+    acc[uid].totalBill += parseFloat(c.billAmount) || 0;
+    acc[uid].totalPaid += parseFloat(c.paidAmount) || 0;
+    acc[uid].count++;
+    return acc;
+  }, {});
+
+  // Compute summary stats (use ownCards for own totals)
+  const totalBill = ownCards.reduce((sum, c) => sum + (parseFloat(c.billAmount) || 0), 0);
+  const totalPaid = ownCards.reduce((sum, c) => sum + (parseFloat(c.paidAmount) || 0), 0);
   const totalRemaining = totalBill - totalPaid;
-  const totalUnbilled = cards.reduce((sum, c) => sum + (parseFloat(c.currentExpenses) || 0), 0);
-  const overdueCount = cards.filter(c => {
+  const totalUnbilled = ownCards.reduce((sum, c) => sum + (parseFloat(c.currentExpenses) || 0), 0);
+  const overdueCount = ownCards.filter(c => {
     const remaining = (parseFloat(c.billAmount) || 0) - (parseFloat(c.paidAmount) || 0);
     return new Date(c.dueDate) < new Date() && remaining > 0;
   }).length;
@@ -185,8 +201,41 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
         )}
       </AnimatePresence>
 
+      {/* Shared user aggregate banners */}
+      {isSharedView && Object.keys(sharedByUser).length > 0 && (
+        <div className="shared-aggregate-section">
+          {Object.entries(sharedByUser).map(([uid, info]) => (
+            <div key={uid} className="shared-aggregate-card">
+              <div className="shared-aggregate-header">
+                <FaUserCircle size={16} />
+                <span className="shared-aggregate-name">{info.username}'s Credit Cards</span>
+              </div>
+              <div className="shared-aggregate-stats">
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">₹{info.totalBill.toLocaleString("en-IN")}</span>
+                  <span className="stat-label">Total Bill</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">₹{info.totalPaid.toLocaleString("en-IN")}</span>
+                  <span className="stat-label">Paid</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">₹{(info.totalBill - info.totalPaid).toLocaleString("en-IN")}</span>
+                  <span className="stat-label">Remaining</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">{info.count}</span>
+                  <span className="stat-label">Cards</span>
+                </div>
+              </div>
+              <p className="shared-aggregate-note">Individual items are encrypted — only totals are visible</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Cards */}
-      {loading ? <SkeletonLoader type="card" count={3} /> : cards.length === 0 ? (
+      {loading ? <SkeletonLoader type="card" count={3} /> : ownCards.length === 0 && sharedCards.length === 0 ? (
         <div className="cc-empty-state">
           <FaCreditCard size={56} color="var(--text-tertiary)" />
           <h3>No Credit Cards Added</h3>
@@ -195,9 +244,13 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
             + Add Your First Card
           </button>
         </div>
+      ) : ownCards.length === 0 && isSharedView ? (
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+          You have no credit cards. Only shared member totals are shown above.
+        </div>
       ) : (
         <div className="cards-grid">
-          {cards.map((card, index) => {
+          {ownCards.map((card, index) => {
             const bill = parseFloat(card.billAmount) || 0;
             const paid = parseFloat(card.paidAmount) || 0;
             const remaining = Math.max(0, bill - paid);
@@ -208,13 +261,11 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
             const isDueSoon = daysUntilDue >= 0 && daysUntilDue <= 5 && remaining > 0;
             const progress = getPaymentProgress(bill, paid);
             const isPaid = remaining <= 0;
-            const cardUserId = card.userId || card.user_id;
-            const isOwn = !cardUserId || isOwnItem(cardUserId);
 
             return (
               <motion.div
                 key={card.id}
-                className={`cc-card ${isOverdue ? "cc-card-overdue" : ""} ${isPaid ? "cc-card-paid" : ""} ${!isOwn ? "cc-card-shared" : ""}`}
+                className={`cc-card ${isOverdue ? "cc-card-overdue" : ""} ${isPaid ? "cc-card-paid" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.06 }}
@@ -223,15 +274,9 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                 <div className="cc-card-top">
                   <div className="cc-card-name">
                     <FaCreditCard style={{ marginRight: 8, opacity: 0.6 }} />
-                    <h3>{formatSharedField(card.name, isOwn)}</h3>
+                    <h3>{card.name}</h3>
                   </div>
                   <div className="cc-card-badges">
-                    {isSharedView && (
-                      <span className="cc-owner-badge">
-                        {isOwn ? <FaUserCircle /> : <FaLock />}
-                        {getOwnerName(cardUserId)}
-                      </span>
-                    )}
                     {isOverdue && <span className="cc-badge cc-badge-overdue"><FaExclamationTriangle style={{ marginRight: 4 }} />OVERDUE</span>}
                     {isDueSoon && !isOverdue && <span className="cc-badge cc-badge-due-soon">Due in {daysUntilDue}d</span>}
                     {isPaid && <span className="cc-badge cc-badge-paid"><FaCheckCircle style={{ marginRight: 4 }} />PAID</span>}
@@ -279,7 +324,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                 </div>
 
                 {/* Action button */}
-                {remaining > 0 && isOwn && (
+                {remaining > 0 && (
                   <button
                     className="cc-pay-btn"
                     onClick={() => { setSelectedCard(card.id); setPaymentAmount(remaining.toString()); setShowPaymentForm(true); }}

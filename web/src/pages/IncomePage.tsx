@@ -315,6 +315,26 @@ export function IncomePage({ token }: IncomePageProps) {
     }
   };
 
+  // Separate own vs shared items
+  const ownIncomes = isSharedView
+    ? incomes.filter(inc => { const uid = inc.userId || inc.user_id; return !uid || isOwnItem(uid); })
+    : incomes;
+  const sharedIncomes = isSharedView
+    ? incomes.filter(inc => { const uid = inc.userId || inc.user_id; return uid && !isOwnItem(uid); })
+    : [];
+
+  // Group shared incomes by user
+  const sharedByUser = sharedIncomes.reduce<Record<string, { username: string; total: number; count: number }>>((acc, inc) => {
+    const uid = inc.userId || inc.user_id;
+    if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), total: 0, count: 0 };
+    const monthly = inc.frequency === "monthly" ? inc.amount :
+                   inc.frequency === "quarterly" ? inc.amount / 3 :
+                   inc.amount / 12;
+    acc[uid].total += monthly;
+    acc[uid].count += 1;
+    return acc;
+  }, {});
+
   const totalMonthlyIncome = incomes.reduce((sum, income) => {
     const monthly = income.frequency === "monthly" ? income.amount :
                    income.frequency === "quarterly" ? income.amount / 3 :
@@ -399,31 +419,58 @@ export function IncomePage({ token }: IncomePageProps) {
         </div>
       </div>
 
+      {/* Shared user aggregate banners */}
+      {isSharedView && Object.keys(sharedByUser).length > 0 && (
+        <div className="shared-aggregate-section">
+          {Object.entries(sharedByUser).map(([uid, info]) => (
+            <div key={uid} className="shared-aggregate-card">
+              <div className="shared-aggregate-header">
+                <FaUserCircle size={16} />
+                <span className="shared-aggregate-name">{info.username}'s Income</span>
+              </div>
+              <div className="shared-aggregate-stats">
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">{formatCurrency(info.total)}</span>
+                  <span className="stat-label">Monthly Total</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">{info.count}</span>
+                  <span className="stat-label">Sources</span>
+                </div>
+              </div>
+              <p className="shared-aggregate-note">Individual items are encrypted — only totals are visible</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <SkeletonLoader type="list" count={5} />
       ) : (
         <>
-          {incomes.length === 0 && !showForm ? (
+          {ownIncomes.length === 0 && !showForm && sharedIncomes.length === 0 ? (
             <div className="empty-state-container">
               <div className="empty-state">
                 <FaMoneyBillWave size={64} color="#8b5cf6" style={{ marginBottom: 16 }} />
                 <p>No income sources yet. Add your first one!</p>
               </div>
             </div>
+          ) : ownIncomes.length === 0 && !showForm && isSharedView ? (
+            <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+              You have no income sources yet — shared member totals are shown above
+            </div>
           ) : (
             <div className="income-list">
-              {incomes.map((income) => {
-                const itemUserId = income.userId || income.user_id;
-                const isOwn = !itemUserId || isOwnItem(itemUserId);
+              {ownIncomes.map((income) => {
                 const isRsu = income.incomeType === 'rsu';
                 const excludedFromHealth = income.includeInHealth === false;
                 const taxRate = income.rsuTaxRate ?? 33;
                 const netShares = isRsu ? Math.round((income.rsuGrantCount || 0) * (1 - taxRate / 100)) : 0;
                 return (
-                  <div key={income.id} className={`income-card ${!isOwn ? "shared-item" : ""} ${excludedFromHealth ? "excluded-from-health" : ""}`}>
+                  <div key={income.id} className={`income-card ${excludedFromHealth ? "excluded-from-health" : ""}`}>
                     <div className="income-header">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <h3>{formatSharedField(income.source, isOwn)}</h3>
+                        <h3>{income.source}</h3>
                         {isRsu && (
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: 4,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaLock, FaUserCircle, FaCheckCircle, FaFileInvoiceDollar, FaCreditCard, FaChartLine, FaCalendarCheck, FaCheck } from "react-icons/fa";
+import { FaUserCircle, FaCheckCircle, FaFileInvoiceDollar, FaCreditCard, FaChartLine, FaCalendarCheck, FaCheck } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -28,7 +28,7 @@ export function DuesPage({ token }: DuesPageProps) {
   const lastViewRef = useRef<string>("");
 
   // Shared view support
-  const { selectedView, isSharedView, getViewParam, getOwnerName, isOwnItem } = useSharedView(token);
+  const { selectedView, isSharedView, getViewParam, isOwnItem } = useSharedView(token);
 
   useEffect(() => {
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
@@ -250,15 +250,30 @@ export function DuesPage({ token }: DuesPageProps) {
     }
   };
 
-  // Group dues by type for sectioned display
+  // Separate own vs shared dues
+  const ownDues = isSharedView
+    ? dues.filter(d => { const uid = d.userId || d.user_id; return !uid || isOwnItem(uid); })
+    : dues;
+  const sharedDues = isSharedView ? dues.filter(d => { const uid = d.userId || d.user_id; return uid && !isOwnItem(uid); }) : [];
+
+  // Group shared dues by user for aggregate banner
+  const sharedByUser = sharedDues.reduce<Record<string, { username: string; total: number; count: number }>>((acc, d) => {
+    const uid = d.userId || d.user_id;
+    if (!acc[uid]) acc[uid] = { username: d.ownerUsername || d.owner_username || 'Partner', total: 0, count: 0 };
+    acc[uid].total += d.amount || 0;
+    acc[uid].count++;
+    return acc;
+  }, {});
+
+  // Group own dues by type for sectioned display
   const grouped = {
-    fixed: dues.filter(d => d.type === "Fixed Expense"),
-    sip: dues.filter(d => d.type === "SIP Expense"),
-    investment: dues.filter(d => d.type === "Investment"),
-    creditCard: dues.filter(d => d.type === "Credit Card"),
+    fixed: ownDues.filter(d => d.type === "Fixed Expense"),
+    sip: ownDues.filter(d => d.type === "SIP Expense"),
+    investment: ownDues.filter(d => d.type === "Investment"),
+    creditCard: ownDues.filter(d => d.type === "Credit Card"),
   };
 
-  const pendingCount = dues.filter(d => !d.paid).length;
+  const pendingCount = ownDues.filter(d => !d.paid).length;
 
   const getBadgeClass = (type: string) => {
     if (type === "Credit Card") return "badge-credit";
@@ -268,19 +283,17 @@ export function DuesPage({ token }: DuesPageProps) {
   };
 
   const renderDueCard = (due: any, index: number) => {
-    const dueUserId = due.userId || due.user_id;
-    const isOwn = !dueUserId || isOwnItem(dueUserId);
     return (
       <motion.div
         key={due.id}
-        className={`due-card ${!isOwn ? "shared-item" : ""} ${due.paid ? "due-paid" : ""}`}
+        className={`due-card ${due.paid ? "due-paid" : ""}`}
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.04 }}
       >
         <div className="due-header">
           <div className="due-header-left">
-            {due.itemType !== "credit_card" && isOwn && (
+            {due.itemType !== "credit_card" && (
               <button
                 className={`due-toggle ${due.paid ? "checked" : ""}`}
                 onClick={() => handleTogglePaid(due)}
@@ -292,18 +305,7 @@ export function DuesPage({ token }: DuesPageProps) {
             <h3>{due.name}</h3>
           </div>
           <div className="due-header-right">
-            {isSharedView && (
-              <span className="due-owner-badge">
-                {isOwn ? <FaUserCircle size={10} /> : <FaLock size={10} />}
-                {getOwnerName(dueUserId)}
-              </span>
-            )}
             <span className={`due-type-badge ${getBadgeClass(due.type)}`}>{due.type}</span>
-            {!isOwn && (
-              <span className="due-view-only">
-                <FaLock size={9} /> View Only
-              </span>
-            )}
           </div>
         </div>
         <div className="due-details">
@@ -357,12 +359,12 @@ export function DuesPage({ token }: DuesPageProps) {
         <h1><FaFileInvoiceDollar style={{ marginRight: 10, verticalAlign: 'middle' }} />Current Month Dues</h1>
         <PageInfoButton
           title="Current Month Dues"
-          description="Your monthly checklist — everything you owe this month in one place. Fixed expenses, investment contributions, and credit card bills all show up here. Tick them off as you pay and watch your health score improve in real time."
-          impact="Every unpaid item here drags your health score down. As you mark dues paid, your available funds adjust instantly. It's the fastest way to see your real financial standing for the month."
+          description="Your monthly checklist — everything you owe this month in one place. Fixed expenses, investment contributions, and credit card bills all show up here. Tick them off as you pay to track what's been settled and what's still outstanding."
+          impact="Your health score counts all active commitments whether paid or not — what matters is that the obligation exists. This page helps you stay organised by showing exactly what you've cleared and what's left to pay."
           howItWorks={[
             "Fixed expenses, active investments, and credit card bills automatically appear here each month",
-            "Tap the checkbox to mark an item as paid — your health score updates immediately",
-            "Unpaid items reduce your available funds; paid items free them up",
+            "Tap the checkbox to mark an item as paid — it clears from your pending dues",
+            "All commitments count toward your health score regardless of payment status",
             "Halfway through the month with unpaid dues? You'll get a smart notification reminder",
             "Credit card payments are managed separately on the Credit Cards page"
           ]}
@@ -378,19 +380,44 @@ export function DuesPage({ token }: DuesPageProps) {
         type="success"
       />
       
+      {/* Shared user aggregate banners */}
+      {isSharedView && Object.keys(sharedByUser).length > 0 && (
+        <div className="shared-aggregate-section">
+          {Object.entries(sharedByUser).map(([uid, info]) => (
+            <div key={uid} className="shared-aggregate-card">
+              <div className="shared-aggregate-header">
+                <FaUserCircle size={16} />
+                <span className="shared-aggregate-name">{info.username}'s Dues</span>
+              </div>
+              <div className="shared-aggregate-stats">
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">₹{info.total.toLocaleString("en-IN")}</span>
+                  <span className="stat-label">Total Outstanding</span>
+                </div>
+                <div className="shared-aggregate-stat">
+                  <span className="stat-value">{info.count}</span>
+                  <span className="stat-label">Items</span>
+                </div>
+              </div>
+              <p className="shared-aggregate-note">Individual items are encrypted — only totals are visible</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading ? <SkeletonLoader type="card" count={4} /> : (
         <>
           {/* Summary Hero */}
-          {dues.length > 0 && (
+          {ownDues.length > 0 && (
             <div className="dues-summary-hero">
               <div className="dues-hero-main">
                 <div className="dues-hero-label">Total Outstanding</div>
-                <div className="dues-hero-amount">₹{totalDues.toLocaleString("en-IN")}</div>
+                <div className="dues-hero-amount">₹{ownDues.reduce((s, d) => s + d.amount, 0).toLocaleString("en-IN")}</div>
               </div>
               <div className="dues-hero-stats">
                 <div className="dues-hero-stat">
                   <span className="dues-stat-label">Items</span>
-                  <span className="dues-stat-value stat-items">{dues.length}</span>
+                  <span className="dues-stat-value stat-items">{ownDues.length}</span>
                 </div>
                 <div className="dues-hero-stat">
                   <span className="dues-stat-label">Pending</span>
@@ -400,11 +427,15 @@ export function DuesPage({ token }: DuesPageProps) {
             </div>
           )}
 
-          {dues.length === 0 ? (
+          {ownDues.length === 0 && sharedDues.length === 0 ? (
             <div className="dues-empty-state">
               <FaCheckCircle size={56} color="#10b981" />
               <h3>All Clear!</h3>
               <p>No dues for the current month. You&apos;re on top of your finances — keep it up!</p>
+            </div>
+          ) : ownDues.length === 0 && isSharedView ? (
+            <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+              You have no pending dues. Only shared member totals are shown above.
             </div>
           ) : (
             <>

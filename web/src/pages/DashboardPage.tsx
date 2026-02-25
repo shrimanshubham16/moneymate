@@ -717,6 +717,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   const duesTotal = (unpaidFixed || 0) + (unpaidInvestments || 0) + (creditCardDues || 0);
 
+  const hasSharedMembers = (sharingMembers?.members || []).length > 0;
   const viewOptions = [
     { value: "me", label: "My Finances" },
     { value: "merged", label: "Combined (Shared)" },
@@ -726,6 +727,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
       return { value: id, label };
     })
   ];
+
+  // Reset to "me" if sharing was revoked and no shared members remain
+  useEffect(() => {
+    if (!hasSharedMembers && selectedView !== 'me') {
+      setSelectedView('me');
+      localStorage.setItem('finflow_selected_view', 'me');
+    }
+  }, [hasSharedMembers, selectedView]);
 
   return (
     <div className="dashboard-page">
@@ -779,23 +788,25 @@ export function DashboardPage({ token }: DashboardPageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-          <div className="view-selector">
-            <label style={{ fontSize: 12, color: '#6b7280' }}>Shared View</label>
-            <select
-              value={selectedView}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedView(val);
-                loadData(true, val);
-              }}
-            >
-              {viewOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+        {hasSharedMembers && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <div className="view-selector">
+              <label style={{ fontSize: 12, color: '#6b7280' }}>Shared View</label>
+              <select
+                value={selectedView}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedView(val);
+                  loadData(true, val);
+                }}
+              >
+                {viewOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
         <HealthIndicator
           category={correctHealth.category as any}
           remaining={correctHealth.remaining ?? 0}
