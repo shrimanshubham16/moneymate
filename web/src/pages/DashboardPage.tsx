@@ -438,6 +438,16 @@ export function DashboardPage({ token }: DashboardPageProps) {
     return unsub;
   }, []);
 
+  // Reset to "me" if sharing was revoked and no shared members remain
+  // IMPORTANT: This hook MUST be before any early returns to follow React hooks rules
+  const hasSharedMembersHook = (sharingMembers?.members || []).length > 0;
+  useEffect(() => {
+    if (!hasSharedMembersHook && selectedView !== 'me') {
+      setSelectedView('me');
+      localStorage.setItem('finflow_selected_view', 'me');
+    }
+  }, [hasSharedMembersHook, selectedView]);
+
   const loadData = async (forceRefresh = false, viewOverride?: string) => {
     try {
       setLoadProgress(0);
@@ -727,14 +737,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
       return { value: id, label };
     })
   ];
-
-  // Reset to "me" if sharing was revoked and no shared members remain
-  useEffect(() => {
-    if (!hasSharedMembers && selectedView !== 'me') {
-      setSelectedView('me');
-      localStorage.setItem('finflow_selected_view', 'me');
-    }
-  }, [hasSharedMembers, selectedView]);
 
   return (
     <div className="dashboard-page">
