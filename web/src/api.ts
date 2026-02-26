@@ -630,6 +630,14 @@ export async function markAsUnpaid(token: string, itemId: string, itemType: 'fix
   return request<{ data: any }>("/payments/mark-unpaid", { method: "POST", body: JSON.stringify({ itemId, itemType }) }, token);
 }
 
+export async function skipSIP(token: string, itemId: string) {
+  return request<{ data: any }>("/payments/mark-paid", { method: "POST", body: JSON.stringify({ itemId, itemType: 'fixed_expense', isSkip: true }) }, token);
+}
+
+export async function undoSkipSIP(token: string, itemId: string) {
+  return request<{ data: any }>("/payments/undo-skip", { method: "POST", body: JSON.stringify({ itemId }) }, token);
+}
+
 export async function getPaymentStatus(token: string, month?: string) {
   const query = month ? `?month=${month}` : '';
   return request<{ data: Record<string, boolean> }>(`/payments/status${query}`, {}, token);

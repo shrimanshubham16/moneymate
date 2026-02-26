@@ -700,6 +700,29 @@
   font-style: italic;
 }
 
+/* ── Skipped SIP styles ── */
+.item-skipped {
+  opacity: 0.6;
+}
+
+.amount-skipped {
+  color: var(--text-muted) !important;
+}
+
+.skip-badge-inline {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  vertical-align: middle;
+}
+
 @media (max-width: 768px) {
   .health-details-page {
     padding: var(--space-8) var(--space-4);

@@ -645,6 +645,26 @@ serve(async (req) => {
       const { data: creditCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
       const { data: loans } = await supabase.from('loans').select('*').eq('user_id', userId);
       
+      // Fetch payments to detect skipped SIPs
+      const { data: healthPrefs } = await supabase.from('user_preferences')
+        .select('month_start_day').eq('user_id', userId).single();
+      const healthMsd = healthPrefs?.month_start_day || 1;
+      const healthToday = new Date();
+      let healthBillingStart: Date;
+      if (healthToday.getDate() >= healthMsd) {
+        healthBillingStart = new Date(healthToday.getFullYear(), healthToday.getMonth(), healthMsd);
+      } else {
+        healthBillingStart = new Date(healthToday.getFullYear(), healthToday.getMonth() - 1, healthMsd);
+      }
+      const healthBillingMonth = `${healthBillingStart.getFullYear()}-${String(healthBillingStart.getMonth() + 1).padStart(2, '0')}`;
+      const { data: healthPayments } = await supabase.from('payments')
+        .select('entity_type, entity_id, is_skip')
+        .eq('user_id', userId).eq('month', healthBillingMonth);
+      const healthSkipSet = new Set<string>();
+      (healthPayments || []).forEach((p: any) => {
+        if (p.is_skip) healthSkipSet.add(`${p.entity_type}:${p.entity_id}`);
+      });
+      
       // Fetch user's health thresholds
       const { data: userThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).single();
       const ht = userThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
@@ -661,13 +681,16 @@ serve(async (req) => {
       }));
       const totalIncome = incomeItems.reduce((sum: number, i: any) => sum + i.monthlyEquivalent, 0);
       
-      // Fixed expenses — count ALL (commitment exists whether paid or not)
+      // Fixed expenses — count ALL except skipped periodic SIPs (user opted out this month)
       const fixedExpenseItems = (fixedExpenses || []).map((e: any) => ({
         ...e,
         monthlyEquivalent: e.frequency === 'monthly' ? e.amount :
-          e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12
+          e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12,
+        isSkipped: healthSkipSet.has(`fixed_expense:${e.id}`)
       }));
-      const totalFixedExpenses = fixedExpenseItems.reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
+      const totalFixedExpenses = fixedExpenseItems
+        .filter((e: any) => !e.isSkipped)
+        .reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
       
       // Variable expenses — exclude ExtraCash & CreditCard payment modes from actual totals
       const variablePlanItems = (variablePlans || []).map((p: any) => {
@@ -1136,10 +1159,14 @@ serve(async (req) => {
       const calcTotalIncome = incomeItems.reduce((sum: number, i: any) => sum + i.monthlyEquivalent, 0);
       
       const fixedItems = (directFixedExpenses || []).map((e: any) => ({
+        id: e.id,
         monthlyEquivalent: e.frequency === 'monthly' ? e.amount :
-          e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12
+          e.frequency === 'quarterly' ? e.amount / 3 : e.amount / 12,
+        isSkipped: skipStatus[`fixed_expense:${e.id}`] || false
       }));
-      const calcTotalFixed = fixedItems.reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
+      // Exclude skipped periodic SIPs from health obligation
+      const calcTotalFixed = fixedItems.filter((e: any) => !e.isSkipped)
+        .reduce((sum: number, e: any) => sum + e.monthlyEquivalent, 0);
       
       const calcTotalVariablePlanned = (directVariablePlans || []).reduce((sum: number, p: any) => sum + (p.planned || 0), 0);
       // Exclude ExtraCash and CreditCard payment modes from actual totals (they don't reduce available funds)
@@ -1222,15 +1249,17 @@ serve(async (req) => {
       
       const { data: payments } = await supabase
         .from('payments')
-        .select('entity_type, entity_id')
+        .select('entity_type, entity_id, is_skip')
         .eq('user_id', userId)
         .eq('month', billingMonth);
       timings.payments = Date.now() - t3;
       
-      // Create payment status map
+      // Create payment status map (paid or skipped)
       const paymentStatus: Record<string, boolean> = {};
+      const skipStatus: Record<string, boolean> = {};
       (payments || []).forEach((p: any) => {
         paymentStatus[`${p.entity_type}:${p.entity_id}`] = true;
+        if (p.is_skip) skipStatus[`${p.entity_type}:${p.entity_id}`] = true;
       });
       
       // Format response using DIRECT QUERIES (bypassing broken RPC function)
@@ -1281,7 +1310,8 @@ serve(async (req) => {
         accumulated_funds: e.accumulated_funds || 0,
         accumulated_funds_enc: e.accumulated_funds_enc,
         accumulated_funds_iv: e.accumulated_funds_iv,
-        paid: paymentStatus[`fixed_expense:${e.id}`] || false
+        paid: paymentStatus[`fixed_expense:${e.id}`] || false,
+        isSkipped: skipStatus[`fixed_expense:${e.id}`] || false
       }));
       
       // Map variable plans with actuals
@@ -3137,8 +3167,21 @@ serve(async (req) => {
     // PAYMENTS
     if (path === '/payments/mark-paid' && method === 'POST') {
       const body = await req.json();
-      if (!body.itemId || !body.itemType || !body.amount) return error('itemId, itemType, and amount required');
+      const isSkip = body.isSkip === true;
+      if (!body.itemId || !body.itemType) return error('itemId and itemType required');
+      if (!isSkip && !body.amount) return error('amount required when not skipping');
       if (!['fixed_expense', 'investment', 'loan'].includes(body.itemType)) return error('Invalid itemType');
+      
+      // Validate skip is only for periodic SIPs
+      if (isSkip) {
+        if (body.itemType !== 'fixed_expense') return error('Skip is only available for periodic SIP expenses');
+        const { data: expCheck } = await supabase.from('fixed_expenses')
+          .select('is_sip, frequency')
+          .eq('id', body.itemId).eq('user_id', userId).single();
+        if (!expCheck?.is_sip || expCheck.frequency === 'monthly') {
+          return error('Skip is only available for periodic (non-monthly) SIP expenses');
+        }
+      }
       
       // Fetch the item name for activity logging
       let itemName = 'Unknown';
@@ -3168,7 +3211,8 @@ serve(async (req) => {
       
       const billingMonthStr = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
       
-      console.log(`[MARK_PAID] Marking ${body.itemType} ${body.itemId} as paid for user ${userId}, month: ${billingMonthStr}, amount: ${body.amount}`);
+      const paymentAmount = isSkip ? 0 : body.amount;
+      console.log(`[MARK_PAID] Marking ${body.itemType} ${body.itemId} as ${isSkip ? 'SKIPPED' : 'paid'} for user ${userId}, month: ${billingMonthStr}, amount: ${paymentAmount}`);
       
       const { data: existing } = await supabase
         .from('payments')
@@ -3183,7 +3227,7 @@ serve(async (req) => {
       if (existing) {
         const { data: updated } = await supabase
           .from('payments')
-          .update({ amount: body.amount, paid_at: new Date().toISOString() })
+          .update({ amount: paymentAmount, is_skip: isSkip, paid_at: new Date().toISOString() })
           .eq('id', existing.id)
           .select()
           .single();
@@ -3191,71 +3235,72 @@ serve(async (req) => {
       } else {
         const { data: created } = await supabase
           .from('payments')
-          .insert({ user_id: userId, entity_type: body.itemType, entity_id: body.itemId, month: billingMonthStr, amount: body.amount })
+          .insert({ user_id: userId, entity_type: body.itemType, entity_id: body.itemId, month: billingMonthStr, amount: paymentAmount, is_skip: isSkip })
           .select()
           .single();
         payment = created;
       }
       
-      // P0 FIX: Update accumulated_funds when marked as paid
-      // INVESTMENTS: Add paid amount to accumulated_funds (savings increase)
-      // PERIODIC SIPs: Deduct paid amount from accumulated_funds (savings decrease)
-      if (body.itemType === 'investment') {
-        console.log(`[MARK_PAID] Adding paid amount to accumulated_funds for investment ${body.itemId}, amount: ${body.amount}`);
-        // Get current accumulated_funds
-        const { data: inv } = await supabase.from('investments')
-          .select('accumulated_funds')
-          .eq('id', body.itemId)
-          .eq('user_id', userId)
-          .single();
-        const currentAccumulated = inv?.accumulated_funds || 0;
-        const newAccumulated = currentAccumulated + body.amount;
-        const { error: updateErr } = await supabase
-          .from('investments')
-          .update({ accumulated_funds: newAccumulated })
-          .eq('id', body.itemId)
-          .eq('user_id', userId);
-        if (updateErr) {
-          console.error('[MARK_PAID] Failed to update accumulated_funds for investment:', updateErr);
-        } else {
-          console.log(`[MARK_PAID] Updated investment accumulated_funds from ${currentAccumulated} to ${newAccumulated}`);
-        }
-      } else if (body.itemType === 'fixed_expense') {
-        // Check if it's a periodic SIP (is_sip = true and frequency != monthly)
-        const { data: expense } = await supabase.from('fixed_expenses')
-          .select('is_sip, frequency, accumulated_funds')
-          .eq('id', body.itemId)
-          .eq('user_id', userId)
-          .single();
-        
-        if (expense?.is_sip && expense.frequency !== 'monthly') {
-          // Periodic SIP: Deduct paid amount from accumulated_funds
-          console.log(`[MARK_PAID] Deducting paid amount from accumulated_funds for periodic SIP ${body.itemId}, amount: ${body.amount}`);
-          const currentAccumulated = expense.accumulated_funds || 0;
-          const newAccumulated = Math.max(0, currentAccumulated - body.amount); // Don't go negative
+      // Skip: Don't touch accumulated_funds at all — freeze them
+      if (!isSkip) {
+        // P0 FIX: Update accumulated_funds when marked as paid
+        // INVESTMENTS: Add paid amount to accumulated_funds (savings increase)
+        // PERIODIC SIPs: Deduct paid amount from accumulated_funds (savings decrease)
+        if (body.itemType === 'investment') {
+          console.log(`[MARK_PAID] Adding paid amount to accumulated_funds for investment ${body.itemId}, amount: ${body.amount}`);
+          const { data: inv } = await supabase.from('investments')
+            .select('accumulated_funds')
+            .eq('id', body.itemId)
+            .eq('user_id', userId)
+            .single();
+          const currentAccumulated = inv?.accumulated_funds || 0;
+          const newAccumulated = currentAccumulated + body.amount;
           const { error: updateErr } = await supabase
-            .from('fixed_expenses')
+            .from('investments')
             .update({ accumulated_funds: newAccumulated })
             .eq('id', body.itemId)
             .eq('user_id', userId);
           if (updateErr) {
-            console.error('[MARK_PAID] Failed to update accumulated_funds for periodic SIP:', updateErr);
+            console.error('[MARK_PAID] Failed to update accumulated_funds for investment:', updateErr);
           } else {
-            console.log(`[MARK_PAID] Updated periodic SIP accumulated_funds from ${currentAccumulated} to ${newAccumulated}`);
+            console.log(`[MARK_PAID] Updated investment accumulated_funds from ${currentAccumulated} to ${newAccumulated}`);
           }
-        } else {
-          // Regular monthly fixed expense: Reset to 0 (no accumulation needed)
-          console.log(`[MARK_PAID] Resetting accumulated_funds for regular fixed expense ${body.itemId}`);
-          const { error: resetErr } = await supabase
-            .from('fixed_expenses')
-            .update({ accumulated_funds: 0 })
+        } else if (body.itemType === 'fixed_expense') {
+          const { data: expense } = await supabase.from('fixed_expenses')
+            .select('is_sip, frequency, accumulated_funds')
             .eq('id', body.itemId)
-            .eq('user_id', userId);
-          if (resetErr) console.error('[MARK_PAID] Failed to reset accumulated funds:', resetErr);
+            .eq('user_id', userId)
+            .single();
+          
+          if (expense?.is_sip && expense.frequency !== 'monthly') {
+            console.log(`[MARK_PAID] Deducting paid amount from accumulated_funds for periodic SIP ${body.itemId}, amount: ${body.amount}`);
+            const currentAccumulated = expense.accumulated_funds || 0;
+            const newAccumulated = Math.max(0, currentAccumulated - body.amount);
+            const { error: updateErr } = await supabase
+              .from('fixed_expenses')
+              .update({ accumulated_funds: newAccumulated })
+              .eq('id', body.itemId)
+              .eq('user_id', userId);
+            if (updateErr) {
+              console.error('[MARK_PAID] Failed to update accumulated_funds for periodic SIP:', updateErr);
+            } else {
+              console.log(`[MARK_PAID] Updated periodic SIP accumulated_funds from ${currentAccumulated} to ${newAccumulated}`);
+            }
+          } else {
+            console.log(`[MARK_PAID] Resetting accumulated_funds for regular fixed expense ${body.itemId}`);
+            const { error: resetErr } = await supabase
+              .from('fixed_expenses')
+              .update({ accumulated_funds: 0 })
+              .eq('id', body.itemId)
+              .eq('user_id', userId);
+            if (resetErr) console.error('[MARK_PAID] Failed to reset accumulated funds:', resetErr);
+          }
         }
+      } else {
+        console.log(`[MARK_PAID] Skip mode — accumulated_funds untouched for ${body.itemId}`);
       }
       
-      await logActivity(userId, body.itemType, 'paid', { id: body.itemId, name: itemName, amount: body.amount });
+      await logActivity(userId, body.itemType, isSkip ? 'skipped' : 'paid', { id: body.itemId, name: itemName, amount: paymentAmount });
       await invalidateUserCache(userId);
       return json({ data: payment });
     }
@@ -3288,6 +3333,42 @@ serve(async (req) => {
       
       if (e) return error(e.message, 500);
       await logActivity(userId, body.itemType, 'unpaid', { id: body.itemId, name: itemName });
+      await invalidateUserCache(userId);
+      return json({ data: { success: true } });
+    }
+    // UNDO SKIP — removes a skip payment record so the SIP becomes unpaid again
+    if (path === '/payments/undo-skip' && method === 'POST') {
+      const body = await req.json();
+      if (!body.itemId) return error('itemId required');
+      
+      // Fetch item name
+      const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).single();
+      const itemName = expense?.name || 'Unknown Expense';
+      
+      // Get user's billing period
+      const { data: prefs } = await supabase.from('user_preferences')
+        .select('month_start_day').eq('user_id', userId).single();
+      const msd = prefs?.month_start_day || 1;
+      const td = new Date();
+      let bms: Date;
+      if (td.getDate() >= msd) {
+        bms = new Date(td.getFullYear(), td.getMonth(), msd);
+      } else {
+        bms = new Date(td.getFullYear(), td.getMonth() - 1, msd);
+      }
+      const bm = `${bms.getFullYear()}-${String(bms.getMonth() + 1).padStart(2, '0')}`;
+      
+      const { error: delErr } = await supabase
+        .from('payments')
+        .delete()
+        .eq('user_id', userId)
+        .eq('entity_id', body.itemId)
+        .eq('entity_type', 'fixed_expense')
+        .eq('month', bm)
+        .eq('is_skip', true);
+      
+      if (delErr) return error(delErr.message, 500);
+      await logActivity(userId, 'fixed_expense', 'undo_skip', { id: body.itemId, name: itemName });
       await invalidateUserCache(userId);
       return json({ data: { success: true } });
     }

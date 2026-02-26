@@ -20,6 +20,7 @@ export interface FixedExpense {
   frequency: 'monthly' | 'quarterly' | 'yearly';
   paid?: boolean;
   is_sip_flag?: boolean;
+  isSkipped?: boolean;
   accumulated_funds?: number;
 }
 
@@ -117,11 +118,14 @@ export function calculateTotalIncome(incomes: Income[]): number {
 
 /**
  * Calculate total fixed expenses (ALL, not just unpaid)
+ * Excludes skipped periodic SIPs — user opted out this month, obligation removed
  */
 export function calculateTotalFixed(expenses: FixedExpense[]): number {
-  return expenses.reduce((sum, exp) => {
-    return sum + toMonthlyAmount(exp.amount, exp.frequency);
-  }, 0);
+  return expenses
+    .filter(exp => !exp.isSkipped)
+    .reduce((sum, exp) => {
+      return sum + toMonthlyAmount(exp.amount, exp.frequency);
+    }, 0);
 }
 
 /**

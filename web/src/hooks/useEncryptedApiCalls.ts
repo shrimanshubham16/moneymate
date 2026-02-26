@@ -106,6 +106,10 @@ export function useEncryptedApiCalls() {
       baseApi.markAsPaid(token, itemId, itemType, amount),
     markAsUnpaid: (token: string, itemId: string, itemType: string) => 
       baseApi.markAsUnpaid(token, itemId, itemType),
+    skipSIP: (token: string, itemId: string) =>
+      baseApi.skipSIP(token, itemId),
+    undoSkipSIP: (token: string, itemId: string) =>
+      baseApi.undoSkipSIP(token, itemId),
     getPaymentStatus: (token: string, entityType: string, id: string) => 
       baseApi.getPaymentStatus(token, entityType, id),
     getPaymentsSummary: (token: string) => 

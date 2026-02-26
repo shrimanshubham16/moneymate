@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaLightbulb, FaUserCircle, FaPiggyBank, FaLayerGroup, FaWallet } from "react-icons/fa";
+import { FaLightbulb, FaUserCircle, FaPiggyBank, FaLayerGroup, FaWallet, FaExclamationTriangle, FaForward } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -84,6 +84,28 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
     if (sip.frequency === "quarterly") return sip.amount / 3;
     if (sip.frequency === "yearly" || sip.frequency === "annual") return sip.amount / 12;
     return sip.amount;
+  };
+
+  // Calculate behind-schedule info for a SIP
+  const getBehindSchedule = (sip: any) => {
+    const startDate = sip.startDate || sip.start_date;
+    if (!startDate) return null;
+    
+    const start = new Date(startDate);
+    const now = new Date();
+    const monthsSinceStart = Math.max(0,
+      (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth())
+    );
+    
+    const monthly = getMonthly(sip);
+    const expectedAccumulated = monthly * monthsSinceStart;
+    const actual = sip.accumulatedFunds || sip.accumulated_funds || 0;
+    const deficit = expectedAccumulated - actual;
+    
+    if (deficit <= 0) return null;
+    
+    const monthsBehind = monthly > 0 ? Math.round(deficit / monthly) : 0;
+    return { deficit: Math.round(deficit), monthsBehind };
   };
 
   // Separate own vs shared SIPs
@@ -197,11 +219,13 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
               const monthly = getMonthly(sip);
               const accumulated = sip.accumulatedFunds || 0;
               const progressPct = sip.amount > 0 ? Math.min((accumulated / sip.amount) * 100, 100) : 0;
+              const behindInfo = getBehindSchedule(sip);
+              const isSkipped = sip.isSkipped === true;
 
               return (
                 <motion.div
                   key={sip.id}
-                  className="sip-card"
+                  className={`sip-card ${behindInfo ? "sip-behind" : ""} ${isSkipped ? "sip-skipped-card" : ""}`}
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -223,10 +247,22 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
                       >
                         <FaWallet size={14} />
                       </button>
+                      {isSkipped && <span className="sip-skipped-badge"><FaForward size={10} /> Skipped</span>}
                       <span className="sip-freq-badge">{sip.frequency}</span>
                       <span className="sip-badge">SIP</span>
                     </div>
                   </div>
+
+                  {/* Behind Schedule Warning */}
+                  {behindInfo && (
+                    <div className="sip-behind-alert">
+                      <FaExclamationTriangle size={13} />
+                      <span>
+                        Behind by {behindInfo.monthsBehind} month{behindInfo.monthsBehind !== 1 ? "s" : ""} — 
+                        catch-up needed: {currency}{behindInfo.deficit.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="sip-details-grid">
                     <div className="sip-detail-item">
@@ -256,7 +292,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
                       </div>
                       <div className="sip-progress-bar">
                         <motion.div
-                          className="sip-progress-fill"
+                          className={`sip-progress-fill ${behindInfo ? "sip-progress-behind" : ""}`}
                           initial={{ width: 0 }}
                           animate={{ width: `${progressPct}%` }}
                           transition={{ duration: 1, delay: index * 0.1 }}
@@ -268,7 +304,10 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
                   {/* Tip */}
                   <div className="sip-tip">
                     <FaLightbulb size={14} />
-                    <span>Funds accumulate monthly towards the next due date — no financial shocks when it&apos;s time to pay.</span>
+                    <span>{isSkipped 
+                      ? "This SIP is skipped for the current month. No funds will accumulate and the obligation is removed from your health score."
+                      : "Funds accumulate monthly towards the next due date — no financial shocks when it's time to pay."
+                    }</span>
                   </div>
                 </motion.div>
               );

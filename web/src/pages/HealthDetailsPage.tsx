@@ -657,7 +657,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             <span className="amount negative">-₹{Math.round(breakdown.expenses?.fixed?.total || 0).toLocaleString("en-IN")}</span>
           </div>
           <div className="sub-note">
-            <small>All fixed expenses — commitment exists whether paid or not</small>
+            <small>All fixed expenses — commitment exists whether paid or not. Skipped SIPs are excluded from this total.</small>
           </div>
           <div className="items-list">
             {(!breakdown.expenses?.fixed?.items || breakdown.expenses.fixed.items.length === 0) && !breakdown.expenses?.fixed?.sharedTotal ? (
@@ -669,10 +669,16 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
                   const monthly = exp.frequency === "monthly" ? amount :
                     exp.frequency === "quarterly" ? amount / 3 :
                       amount / 12;
+                  const isSkipped = exp.isSkipped === true;
                   return (
-                    <div key={exp.id} className="item-row">
-                      <span>{exp.name} {exp.is_sip_flag && <span className="sip-badge">SIP</span>}</span>
-                      <span>-₹{Math.round(monthly || 0).toLocaleString("en-IN")}</span>
+                    <div key={exp.id} className={`item-row ${isSkipped ? "item-skipped" : ""}`}>
+                      <span>
+                        {exp.name} {exp.is_sip_flag && <span className="sip-badge">SIP</span>}
+                        {isSkipped && <span className="skip-badge-inline">Skipped</span>}
+                      </span>
+                      <span className={isSkipped ? "amount-skipped" : ""}>
+                        {isSkipped ? <s>-₹{Math.round(monthly || 0).toLocaleString("en-IN")}</s> : `-₹${Math.round(monthly || 0).toLocaleString("en-IN")}`}
+                      </span>
                     </div>
                   );
                 })}
@@ -957,7 +963,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
                 <p><strong>How Overspend Risk Works</strong></p>
                 <p>Each time you exceed a planned variable expense budget, your risk score increases by <strong>+5</strong>. If you carry unpaid dues (fixed expenses or credit card bills) into the next billing cycle, you get a <strong>+10</strong> penalty. The score uses <strong>gradual cooldown</strong> — it takes multiple clean months to recover.</p>
                 <ul>
-                  <li><strong style={{ color: '#10b981' }}>Low Risk (0–39):</strong> You're staying within budget — great job!</li>
+                  <li><strong style={{ color: '#10b981' }}>Low Risk (0–39):</strong> You&apos;re staying within budget — great job!</li>
                   <li><strong style={{ color: '#f59e0b' }}>Medium Risk (40–69):</strong> Some overspending detected, stay cautious</li>
                   <li><strong style={{ color: '#ef4444' }}>High Risk (70–100):</strong> Frequent overspending, review your budget</li>
                 </ul>
@@ -965,6 +971,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
                 <ul>
                   <li>Variable overspend: <strong>+5 per plan</strong> exceeded</li>
                   <li>Unpaid dues at cycle end: <strong>+10 penalty</strong></li>
+                  <li>Deliberately skipped SIPs: <strong>no penalty</strong> — the obligation is removed from your health score for the month</li>
                   <li>If you still have recent overspends on record: <strong>slow decay (−3/month)</strong></li>
                   <li>Once overspend history clears: <strong>faster recovery (−7/month)</strong></li>
                   <li>Overspend count reduces by 1 per clean month (not instant reset)</li>

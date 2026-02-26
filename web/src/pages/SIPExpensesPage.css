@@ -364,6 +364,50 @@
   margin: 0;
 }
 
+/* ── Behind Schedule ── */
+.sip-card.sip-behind {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.sip-behind-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin: 0 16px 8px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sip-progress-behind {
+  background: linear-gradient(90deg, #f59e0b, #ef4444) !important;
+}
+
+/* ── Skipped Card ── */
+.sip-card.sip-skipped-card {
+  border-color: rgba(245, 158, 11, 0.25);
+  opacity: 0.85;
+}
+
+.sip-skipped-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .sip-expenses-page {
