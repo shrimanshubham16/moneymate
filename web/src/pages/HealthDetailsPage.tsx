@@ -955,14 +955,16 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
               </div>
               <div className="constraint-explanation">
                 <p><strong>How Overspend Risk Works</strong></p>
-                <p>Each time you exceed a planned variable expense budget, your risk score increases by +5. The score uses <strong>gradual cooldown</strong> — it takes multiple clean months to recover from a bad streak, reflecting your true planning habits.</p>
+                <p>Each time you exceed a planned variable expense budget, your risk score increases by <strong>+5</strong>. If you carry unpaid dues (fixed expenses or credit card bills) into the next billing cycle, you get a <strong>+10</strong> penalty. The score uses <strong>gradual cooldown</strong> — it takes multiple clean months to recover.</p>
                 <ul>
                   <li><strong style={{ color: '#10b981' }}>Low Risk (0–39):</strong> You're staying within budget — great job!</li>
                   <li><strong style={{ color: '#f59e0b' }}>Medium Risk (40–69):</strong> Some overspending detected, stay cautious</li>
                   <li><strong style={{ color: '#ef4444' }}>High Risk (70–100):</strong> Frequent overspending, review your budget</li>
                 </ul>
-                <p><strong>Cooldown Mechanics:</strong></p>
+                <p><strong>Penalty &amp; Cooldown Mechanics:</strong></p>
                 <ul>
+                  <li>Variable overspend: <strong>+5 per plan</strong> exceeded</li>
+                  <li>Unpaid dues at cycle end: <strong>+10 penalty</strong></li>
                   <li>If you still have recent overspends on record: <strong>slow decay (−3/month)</strong></li>
                   <li>Once overspend history clears: <strong>faster recovery (−7/month)</strong></li>
                   <li>Overspend count reduces by 1 per clean month (not instant reset)</li>

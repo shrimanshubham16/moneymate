@@ -302,6 +302,62 @@ serve(async (req) => {
       
       console.log(`[MONTHLY_RESET] Resetting for user ${userId}, previous: ${previousMonthStr}, current: ${currentMonthStr}, lastReset: ${lastResetPeriod || 'never'}`);
       
+      // ── Unpaid Dues Penalty ──
+      // Check for unpaid dues BEFORE deleting payments, add 10pt overspend penalty
+      try {
+        // Get all active fixed expenses for this user
+        const { data: activeExpenses } = await supabase.from('fixed_expenses')
+          .select('id')
+          .eq('user_id', userId);
+        // Get payments made for the previous billing period
+        const { data: prevPayments } = await supabase.from('payments')
+          .select('expense_id')
+          .eq('user_id', userId)
+          .eq('month', previousMonthStr);
+        
+        const paidExpenseIds = new Set((prevPayments || []).map((p: any) => p.expense_id));
+        const unpaidCount = (activeExpenses || []).filter((e: any) => !paidExpenseIds.has(e.id)).length;
+        
+        // Also check credit cards with unpaid balance
+        const { data: creditCards } = await supabase.from('credit_cards')
+          .select('id, bill_amount, paid_amount')
+          .eq('user_id', userId);
+        const unpaidCards = (creditCards || []).filter((c: any) => 
+          (parseFloat(c.bill_amount) || 0) > (parseFloat(c.paid_amount) || 0)
+        ).length;
+        
+        const totalUnpaidDues = unpaidCount + unpaidCards;
+        
+        if (totalUnpaidDues > 0) {
+          const { data: constraint } = await supabase.from('constraint_scores')
+            .select('*').eq('user_id', userId).single();
+          
+          const penalty = 10; // 10pt penalty for having any unpaid dues
+          if (constraint) {
+            const newScore = Math.min(100, (constraint.score || 0) + penalty);
+            const newTier = newScore >= 70 ? 'red' : newScore >= 40 ? 'amber' : 'green';
+            await supabase.from('constraint_scores')
+              .update({ score: newScore, tier: newTier, updated_at: new Date().toISOString() })
+              .eq('user_id', userId);
+            console.log(`[UNPAID_DUES_PENALTY] ${totalUnpaidDues} unpaid dues (${unpaidCount} expenses, ${unpaidCards} cards). Score: ${constraint.score} → ${newScore}`);
+          } else {
+            await supabase.from('constraint_scores').insert({
+              user_id: userId, score: penalty, tier: 'green', recent_overspends: 0
+            });
+            console.log(`[UNPAID_DUES_PENALTY] Created constraint with penalty ${penalty} for ${totalUnpaidDues} unpaid dues`);
+          }
+          
+          await logActivity(userId, 'system', 'unpaid_dues_penalty', {
+            unpaidExpenses: unpaidCount,
+            unpaidCards: unpaidCards,
+            penalty,
+            billingPeriod: previousMonthStr
+          });
+        }
+      } catch (e) {
+        console.error('[UNPAID_DUES_PENALTY_ERROR]', e);
+      }
+      
       // Delete all payments from previous month (resets payment status for fixed expenses, investments, SIPs)
       const { error: deleteErr } = await supabase.from('payments')
         .delete()

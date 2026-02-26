@@ -31,8 +31,33 @@
   max-width: 520px;
   width: 100%;
   max-height: 85vh;
-  overflow-y: auto;
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 217, 255, 0.05);
+}
+
+.inv-form-card form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.inv-form-card .inv-form-fields-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 20px 28px 8px;
+}
+
+.inv-form-card .inv-form-actions-sticky {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(184, 193, 236, 0.08);
+  background: var(--bg-elevated, #0f1729);
+  padding: 16px 28px 20px;
 }
 
 .inv-form-header {
@@ -70,9 +95,7 @@
   color: #ff006e;
 }
 
-.inv-form-card form {
-  padding: 20px 28px 28px;
-}
+/* padding handled by scroll container and actions */
 
 /* ── Form Fields ────────────────────── */
 .inv-form-grid {
@@ -598,7 +621,8 @@
   .inv-mgmt-page { padding: var(--space-8) var(--space-4); }
   .inv-form-card { max-width: 100%; border-radius: 16px; }
   .inv-form-header { padding: 20px 20px 0; }
-  .inv-form-card form { padding: 16px 20px 24px; }
+  .inv-form-card .inv-form-fields-scroll { padding: 16px 20px 8px; }
+  .inv-form-card .inv-form-actions-sticky { padding: 12px 20px 16px; }
   .inv-field-row { grid-template-columns: 1fr; }
   .inv-card {
     flex-direction: column;
@@ -671,7 +695,8 @@
 
 @media (max-width: 480px) {
   .inv-form-overlay { padding: 10px; }
-  .inv-form-card form { padding: 14px 16px 20px; }
+  .inv-form-card .inv-form-fields-scroll { padding: 14px 16px 6px; }
+  .inv-form-card .inv-form-actions-sticky { padding: 10px 16px 14px; }
   .inv-critical-toggle { padding: 12px; gap: 10px; }
   .inv-critical-icon { width: 34px; height: 34px; }
   .inv-summary-strip { gap: 8px; padding: 10px 14px; }

@@ -398,7 +398,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                   <button className="modal-close" onClick={() => setShowForm(false)}>✕</button>
                 </div>
                 <div className="modal-body">
-                <form onSubmit={handleSubmit}>
+                <form id="cc-add-form" onSubmit={handleSubmit}>
                   <div className="form-group">
                     <label>Card Name *</label>
                     <input
@@ -465,15 +465,15 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       </small>
                     </div>
                   </div>
-                  <div className="form-actions" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-                    <button type="button" onClick={() => setShowForm(false)}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="primary">
-                      Add Card
-                    </button>
-                  </div>
                 </form>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" onClick={() => setShowForm(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" form="cc-add-form" className="primary">
+                    Add Card
+                  </button>
                 </div>
               </motion.div>
             </motion.div>

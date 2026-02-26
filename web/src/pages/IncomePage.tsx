@@ -482,6 +482,8 @@ export function IncomePage({ token }: IncomePageProps) {
                 const excludedFromHealth = income.includeInHealth === false;
                 const taxRate = income.rsuTaxRate ?? 33;
                 const netShares = isRsu ? Math.round((income.rsuGrantCount || 0) * (1 - taxRate / 100)) : 0;
+                const itemUserId = income.userId || income.user_id;
+                const isOwn = !itemUserId || isOwnItem(itemUserId);
                 return (
                   <div key={income.id} className={`income-card ${excludedFromHealth ? "excluded-from-health" : ""}`}>
                     <div className="income-header">

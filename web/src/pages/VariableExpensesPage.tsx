@@ -370,32 +370,34 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
             <h2>{editingId ? "Update" : "Add"} Variable Expense Plan</h2>
             <form onSubmit={handlePlanSubmit}>
-              <div className="form-group">
-                <label>Name *</label>
-                <input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} required placeholder="e.g. Groceries, Dining Out" />
-              </div>
-              <div className="form-row">
+              <div className="form-fields-scroll">
                 <div className="form-group">
-                  <label>Planned Amount (₹) *</label>
-                  <input type="number" value={planForm.planned} onChange={(e) => setPlanForm({ ...planForm, planned: e.target.value })} required min="1" placeholder="5000" />
+                  <label>Name *</label>
+                  <input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} required placeholder="e.g. Groceries, Dining Out" />
                 </div>
-                <div className="form-group">
-                  <label>Category *</label>
-                  <select value={planForm.category} onChange={(e) => setPlanForm({ ...planForm, category: e.target.value })}>
-                    {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Planned Amount (₹) *</label>
+                    <input type="number" value={planForm.planned} onChange={(e) => setPlanForm({ ...planForm, planned: e.target.value })} required min="1" placeholder="5000" />
+                  </div>
+                  <div className="form-group">
+                    <label>Category *</label>
+                    <select value={planForm.category} onChange={(e) => setPlanForm({ ...planForm, category: e.target.value })}>
+                      {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
                 </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Starting From <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted, #6b7280)', marginLeft: 4 }}>(optional)</span></label>
-                  <input type="date" value={planForm.start_date} onChange={(e) => setPlanForm({ ...planForm, start_date: e.target.value })} />
-                  <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted, #6b7280)', marginTop: 4, fontStyle: 'italic' }}>Leave empty = starts immediately</span>
-                </div>
-                <div className="form-group">
-                  <label>Till <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted, #6b7280)', marginLeft: 4 }}>(optional)</span></label>
-                  <input type="date" value={planForm.end_date} onChange={(e) => setPlanForm({ ...planForm, end_date: e.target.value })} />
-                  <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted, #6b7280)', marginTop: 4, fontStyle: 'italic' }}>Leave empty = ongoing, no end date</span>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Starting From <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted, #6b7280)', marginLeft: 4 }}>(optional)</span></label>
+                    <input type="date" value={planForm.start_date} onChange={(e) => setPlanForm({ ...planForm, start_date: e.target.value })} />
+                    <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted, #6b7280)', marginTop: 4, fontStyle: 'italic' }}>Leave empty = starts immediately</span>
+                  </div>
+                  <div className="form-group">
+                    <label>Till <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted, #6b7280)', marginLeft: 4 }}>(optional)</span></label>
+                    <input type="date" value={planForm.end_date} onChange={(e) => setPlanForm({ ...planForm, end_date: e.target.value })} />
+                    <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-muted, #6b7280)', marginTop: 4, fontStyle: 'italic' }}>Leave empty = ongoing, no end date</span>
+                  </div>
                 </div>
               </div>
               <div className="form-actions">
@@ -414,109 +416,111 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
             <h2>Add an Expense</h2>
             <form onSubmit={handleActualSubmit}>
-              <div className="form-group">
-                <label>Select Plan *</label>
-                <select value={selectedPlanId || ""} onChange={(e) => setSelectedPlanId(e.target.value)} required>
-                  <option value="">Select plan</option>
-                  {plans.filter(p => isOwnItem(p.userId || p.user_id)).map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} (planned ₹{(p.planned || 0).toLocaleString("en-IN")})
-                    </option>
-                  ))}
-                </select>
-                {plans.filter(p => isOwnItem(p.userId || p.user_id)).length === 0 && (
-                  <small style={{ color: '#ef4444', display: 'block', marginTop: '4px' }}>
-                    No expense plans available. Create a plan first before adding actual expenses.
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label>Amount (₹) *</label>
-                <input type="number" value={actualForm.amount} onChange={(e) => setActualForm({ ...actualForm, amount: e.target.value })} required min="0" step="0.01" placeholder="0" />
-              </div>
-
-              {/* Subcategory Selection */}
-              <div className="form-group">
-                <label>Subcategory</label>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <select
-                    value={actualForm.subcategory}
-                    onChange={(e) => {
-                      if (e.target.value === "__NEW__") {
-                        setActualForm({ ...actualForm, showNewSubcategory: true, subcategory: "" });
-                      } else {
-                        setActualForm({ ...actualForm, subcategory: e.target.value, showNewSubcategory: false });
-                      }
-                    }}
-                    style={{ flex: 1 }}
-                  >
-                    {userSubcategories.map(sub => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                    <option value="__NEW__">+ Add New Subcategory</option>
-                  </select>
-                  {actualForm.showNewSubcategory && (
-                    <input
-                      type="text"
-                      placeholder="Enter new subcategory"
-                      value={actualForm.newSubcategory}
-                      onChange={(e) => setActualForm({ ...actualForm, newSubcategory: e.target.value })}
-                      onBlur={handleAddSubcategory}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); handleAddSubcategory(); }
-                      }}
-                      style={{ flex: 1 }}
-                      autoFocus
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Payment Mode Selection - now CSS-driven */}
-              <div className="form-group">
-                <label>Payment Mode *</label>
-                <div className="payment-mode-grid">
-                  {paymentModes.map(mode => (
-                    <div
-                      key={mode.key}
-                      className={`payment-mode-option ${actualForm.paymentMode === mode.key ? 'selected' : ''}`}
-                      onClick={() => setActualForm({ ...actualForm, paymentMode: mode.key as any, creditCardId: mode.key !== "CreditCard" ? "" : actualForm.creditCardId })}
-                    >
-                      {mode.icon}
-                      <span>{mode.label}</span>
-                      {mode.hint && <small>{mode.hint}</small>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Credit Card Selection (conditional) */}
-              {actualForm.paymentMode === "CreditCard" && (
+              <div className="form-fields-scroll">
                 <div className="form-group">
-                  <label>Select Credit Card *</label>
-                  <select
-                    value={actualForm.creditCardId}
-                    onChange={(e) => setActualForm({ ...actualForm, creditCardId: e.target.value })}
-                    required
-                  >
-                    <option value="">Select credit card</option>
-                    {creditCards.map(card => (
-                      <option key={card.id} value={card.id}>
-                        {card.name} {card.currentExpenses ? `(Current: ₹${card.currentExpenses.toLocaleString("en-IN")})` : ''}
+                  <label>Select Plan *</label>
+                  <select value={selectedPlanId || ""} onChange={(e) => setSelectedPlanId(e.target.value)} required>
+                    <option value="">Select plan</option>
+                    {plans.filter(p => isOwnItem(p.userId || p.user_id)).map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (planned ₹{(p.planned || 0).toLocaleString("en-IN")})
                       </option>
                     ))}
                   </select>
-                  {creditCards.length === 0 && (
+                  {plans.filter(p => isOwnItem(p.userId || p.user_id)).length === 0 && (
                     <small style={{ color: '#ef4444', display: 'block', marginTop: '4px' }}>
-                      No credit cards available. Add a credit card in Settings → Credit Cards first.
+                      No expense plans available. Create a plan first before adding actual expenses.
                     </small>
                   )}
                 </div>
-              )}
+                <div className="form-group">
+                  <label>Amount (₹) *</label>
+                  <input type="number" value={actualForm.amount} onChange={(e) => setActualForm({ ...actualForm, amount: e.target.value })} required min="0" step="0.01" placeholder="0" />
+                </div>
 
-              <div className="form-group">
-                <label>Justification (if overspend)</label>
-                <textarea value={actualForm.justification} onChange={(e) => setActualForm({ ...actualForm, justification: e.target.value })} rows={3} placeholder="Why did you overspend?" />
+                {/* Subcategory Selection */}
+                <div className="form-group">
+                  <label>Subcategory</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <select
+                      value={actualForm.subcategory}
+                      onChange={(e) => {
+                        if (e.target.value === "__NEW__") {
+                          setActualForm({ ...actualForm, showNewSubcategory: true, subcategory: "" });
+                        } else {
+                          setActualForm({ ...actualForm, subcategory: e.target.value, showNewSubcategory: false });
+                        }
+                      }}
+                      style={{ flex: 1 }}
+                    >
+                      {userSubcategories.map(sub => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                      <option value="__NEW__">+ Add New Subcategory</option>
+                    </select>
+                    {actualForm.showNewSubcategory && (
+                      <input
+                        type="text"
+                        placeholder="Enter new subcategory"
+                        value={actualForm.newSubcategory}
+                        onChange={(e) => setActualForm({ ...actualForm, newSubcategory: e.target.value })}
+                        onBlur={handleAddSubcategory}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); handleAddSubcategory(); }
+                        }}
+                        style={{ flex: 1 }}
+                        autoFocus
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Payment Mode Selection - now CSS-driven */}
+                <div className="form-group">
+                  <label>Payment Mode *</label>
+                  <div className="payment-mode-grid">
+                    {paymentModes.map(mode => (
+                      <div
+                        key={mode.key}
+                        className={`payment-mode-option ${actualForm.paymentMode === mode.key ? 'selected' : ''}`}
+                        onClick={() => setActualForm({ ...actualForm, paymentMode: mode.key as any, creditCardId: mode.key !== "CreditCard" ? "" : actualForm.creditCardId })}
+                      >
+                        {mode.icon}
+                        <span>{mode.label}</span>
+                        {mode.hint && <small>{mode.hint}</small>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Credit Card Selection (conditional) */}
+                {actualForm.paymentMode === "CreditCard" && (
+                  <div className="form-group">
+                    <label>Select Credit Card *</label>
+                    <select
+                      value={actualForm.creditCardId}
+                      onChange={(e) => setActualForm({ ...actualForm, creditCardId: e.target.value })}
+                      required
+                    >
+                      <option value="">Select credit card</option>
+                      {creditCards.map(card => (
+                        <option key={card.id} value={card.id}>
+                          {card.name} {card.currentExpenses ? `(Current: ₹${card.currentExpenses.toLocaleString("en-IN")})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {creditCards.length === 0 && (
+                      <small style={{ color: '#ef4444', display: 'block', marginTop: '4px' }}>
+                        No credit cards available. Add a credit card in Settings → Credit Cards first.
+                      </small>
+                    )}
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>Justification (if overspend)</label>
+                  <textarea value={actualForm.justification} onChange={(e) => setActualForm({ ...actualForm, justification: e.target.value })} rows={3} placeholder="Why did you overspend?" />
+                </div>
               </div>
               <div className="form-actions">
                 <button type="button" onClick={() => setShowActualForm(false)} disabled={isSubmitting}>Cancel</button>
@@ -594,8 +598,18 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
               >
                 <div className="plan-header">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <h3>{plan.name}</h3>
+                      {(plan.startDate || plan.start_date) && (
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                          From {new Date(plan.startDate || plan.start_date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                      {(plan.endDate || plan.end_date) && (
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                          Till {new Date(plan.endDate || plan.end_date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
                     </div>
                     <div className="plan-actions">
                       <button onClick={() => { setEditingId(plan.id); setPlanForm({ name: plan.name, planned: plan.planned.toString(), category: plan.category, start_date: plan.startDate || plan.start_date || "", end_date: plan.endDate || plan.end_date || "" }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>

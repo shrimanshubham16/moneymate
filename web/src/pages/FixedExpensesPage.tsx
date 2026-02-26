@@ -320,89 +320,91 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
           <div className="expense-form">
             <h2>{editingId ? "Update" : "Add"} Fixed Expense</h2>
             <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Name *</label>
-                <input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-row">
+              <div className="form-fields-scroll">
                 <div className="form-group">
-                  <label>Amount *</label>
+                  <label>Name *</label>
                   <input
-                    type="number"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
                 </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Amount *</label>
+                    <input
+                      type="number"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Frequency *</label>
+                    <select
+                      value={formData.frequency}
+                      onChange={(e) => {
+                        const freq = e.target.value;
+                        setFormData(prev => ({ ...prev, frequency: freq }));
+                      }}
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="quarterly">Quarterly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Starting From <span className="optional-hint">(optional)</span></label>
+                    <input
+                      type="date"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    />
+                    <span className="field-hint">Leave empty = starts immediately</span>
+                  </div>
+                  <div className="form-group">
+                    <label>Till <span className="optional-hint">(optional)</span></label>
+                    <input
+                      type="date"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    />
+                    <span className="field-hint">Leave empty = ongoing, no end date</span>
+                  </div>
+                </div>
                 <div className="form-group">
-                  <label>Frequency *</label>
+                  <label>Category *</label>
                   <select
-                    value={formData.frequency}
-                    onChange={(e) => {
-                      const freq = e.target.value;
-                      setFormData(prev => ({ ...prev, frequency: freq }));
-                    }}
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    required
                   >
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="yearly">Yearly</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                 </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Starting From <span className="optional-hint">(optional)</span></label>
-                  <input
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  />
-                  <span className="field-hint">Leave empty = starts immediately</span>
-                </div>
-                <div className="form-group">
-                  <label>Till <span className="optional-hint">(optional)</span></label>
-                  <input
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                  />
-                  <span className="field-hint">Leave empty = ongoing, no end date</span>
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Category *</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  required
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-              {formData.frequency !== "monthly" && (
-                <div className="form-group sip-toggle-group">
-                  <div className="sip-info">
-                    <label className="sip-label">Enable SIP for this periodic expense</label>
-                    <p className="sip-description">Accumulate funds monthly with potential growth instead of lump-sum payment</p>
+                {formData.frequency !== "monthly" && (
+                  <div className="form-group sip-toggle-group">
+                    <div className="sip-info">
+                      <label className="sip-label">Enable SIP for this periodic expense</label>
+                      <p className="sip-description">Accumulate funds monthly with potential growth instead of lump-sum payment</p>
+                    </div>
+                    <button
+                      type="button"
+                      className={`toggle-button ${formData.is_sip_flag ? "active" : ""}`}
+                      onClick={() => {
+                        const newValue = !formData.is_sip_flag;
+                        setFormData({ ...formData, is_sip_flag: newValue });
+                      }}
+                    >
+                      <span className="toggle-slider"></span>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className={`toggle-button ${formData.is_sip_flag ? "active" : ""}`}
-                    onClick={() => {
-                      const newValue = !formData.is_sip_flag;
-                      setFormData({ ...formData, is_sip_flag: newValue });
-                    }}
-                  >
-                    <span className="toggle-slider"></span>
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
               <div className="form-actions">
                 <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={isSubmitting}>
                   Cancel
@@ -481,6 +483,17 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                     <span>{expense.category}</span>
                     {expense.is_sip_flag && <StatusBadge status="active" size="small" label="SIP" icon={<FaSync size={12} />} />}
                     {expense.paid && <StatusBadge status="paid" size="small" />}
+                    {/* Show dates if set */}
+                    {(expense.startDate || expense.start_date) && (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        From {new Date(expense.startDate || expense.start_date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {(expense.endDate || expense.end_date) && (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        Till {new Date(expense.endDate || expense.end_date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
                     {/* Show accumulated funds for SIPs */}
                     {expense.is_sip_flag && (expense.accumulatedFunds || expense.accumulated_funds || 0) > 0 && (
                       <span style={{ color: '#10b981', fontWeight: 600 }}>

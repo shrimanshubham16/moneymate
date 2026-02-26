@@ -240,95 +240,99 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
               </div>
 
               <form onSubmit={handleSubmit}>
-                <div className="inv-form-grid">
-                  <div className="inv-field">
-                    <label>Investment Name</label>
-                    <input
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                      placeholder="e.g. SIP Mutual Fund, PPF, NPS"
-                    />
-                  </div>
-
-                  <div className="inv-field">
-                    <label>Goal</label>
-                    <input
-                      value={formData.goal}
-                      onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
-                      required
-                      placeholder="e.g. Retirement, Education, House"
-                    />
-                  </div>
-
-                  <div className="inv-field-row">
+                <div className="inv-form-fields-scroll">
+                  <div className="inv-form-grid">
                     <div className="inv-field">
-                      <label>Monthly Amount (₹)</label>
+                      <label>Investment Name</label>
                       <input
-                        type="number"
-                        value={formData.monthlyAmount}
-                        onChange={(e) => setFormData({ ...formData, monthlyAmount: e.target.value })}
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         required
-                        min="1"
-                        placeholder="10000"
+                        placeholder="e.g. SIP Mutual Fund, PPF, NPS"
                       />
                     </div>
+
                     <div className="inv-field">
-                      <label>Status</label>
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "paused" })}
-                      >
-                        <option value="active">Active</option>
-                        <option value="paused">Paused</option>
-                      </select>
+                      <label>Goal</label>
+                      <input
+                        value={formData.goal}
+                        onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
+                        required
+                        placeholder="e.g. Retirement, Education, House"
+                      />
+                    </div>
+
+                    <div className="inv-field-row">
+                      <div className="inv-field">
+                        <label>Monthly Amount (₹)</label>
+                        <input
+                          type="number"
+                          value={formData.monthlyAmount}
+                          onChange={(e) => setFormData({ ...formData, monthlyAmount: e.target.value })}
+                          required
+                          min="1"
+                          placeholder="10000"
+                        />
+                      </div>
+                      <div className="inv-field">
+                        <label>Status</label>
+                        <select
+                          value={formData.status}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "paused" })}
+                        >
+                          <option value="active">Active</option>
+                          <option value="paused">Paused</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="inv-field">
+                      <label>Current Accumulated Amount (₹) <span className="inv-field-optional">optional</span></label>
+                      <input
+                        type="number"
+                        value={formData.accumulatedFunds}
+                        onChange={(e) => setFormData({ ...formData, accumulatedFunds: e.target.value })}
+                        min="0"
+                        placeholder="0"
+                      />
+                      <span className="inv-field-hint">Already invested? Enter the total amount accumulated so far.</span>
                     </div>
                   </div>
 
-                  <div className="inv-field">
-                    <label>Current Accumulated Amount (₹) <span className="inv-field-optional">optional</span></label>
-                    <input
-                      type="number"
-                      value={formData.accumulatedFunds}
-                      onChange={(e) => setFormData({ ...formData, accumulatedFunds: e.target.value })}
-                      min="0"
-                      placeholder="0"
-                    />
-                    <span className="inv-field-hint">Already invested? Enter the total amount accumulated so far.</span>
+                  {/* ── Critical Investment Toggle ─────── */}
+                  <div 
+                    className={`inv-critical-toggle ${formData.isPriority ? "active" : ""}`}
+                    onClick={() => setFormData({ ...formData, isPriority: !formData.isPriority })}
+                  >
+                    <div className="inv-critical-left">
+                      <div className={`inv-critical-icon ${formData.isPriority ? "active" : ""}`}>
+                        <FaShieldAlt size={16} />
+                      </div>
+                      <div className="inv-critical-text">
+                        <span className="inv-critical-label">Critical Investment</span>
+                        <span className="inv-critical-desc">
+                          {formData.isPriority 
+                            ? "This investment is protected — it will never be suggested for pausing."
+                            : "Enable to protect this investment from being suggested for pausing in Future Bombs."
+                          }
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`inv-critical-switch ${formData.isPriority ? "on" : ""}`}>
+                      <div className="inv-critical-knob" />
+                    </div>
                   </div>
                 </div>
 
-                {/* ── Critical Investment Toggle ─────── */}
-                <div 
-                  className={`inv-critical-toggle ${formData.isPriority ? "active" : ""}`}
-                  onClick={() => setFormData({ ...formData, isPriority: !formData.isPriority })}
-                >
-                  <div className="inv-critical-left">
-                    <div className={`inv-critical-icon ${formData.isPriority ? "active" : ""}`}>
-                      <FaShieldAlt size={16} />
-                    </div>
-                    <div className="inv-critical-text">
-                      <span className="inv-critical-label">Critical Investment</span>
-                      <span className="inv-critical-desc">
-                        {formData.isPriority 
-                          ? "This investment is protected — it will never be suggested for pausing."
-                          : "Enable to protect this investment from being suggested for pausing in Future Bombs."
-                        }
-                      </span>
-                    </div>
+                <div className="inv-form-actions-sticky">
+                  <div className="inv-form-actions">
+                    <button type="button" className="inv-btn-cancel" onClick={resetForm}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="inv-btn-submit">
+                      {editingId ? "Update" : "Add"} Investment
+                    </button>
                   </div>
-                  <div className={`inv-critical-switch ${formData.isPriority ? "on" : ""}`}>
-                    <div className="inv-critical-knob" />
-                  </div>
-                </div>
-
-                <div className="inv-form-actions">
-                  <button type="button" className="inv-btn-cancel" onClick={resetForm}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="inv-btn-submit">
-                    {editingId ? "Update" : "Add"} Investment
-                  </button>
                 </div>
               </form>
             </motion.div>
