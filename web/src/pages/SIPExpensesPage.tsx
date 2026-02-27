@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaLightbulb, FaUserCircle, FaPiggyBank, FaLayerGroup, FaWallet, FaExclamationTriangle, FaForward } from "react-icons/fa";
+import { FaLightbulb, FaUserCircle, FaPiggyBank, FaLayerGroup, FaWallet, FaExclamationTriangle, FaForward, FaUndo } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -76,6 +76,41 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
       loadSIPExpenses();
     } catch (e: any) {
       showAlert("Failed to update: " + e.message);
+    }
+  };
+
+  const handleSkipSIP = (sip: any) => {
+    const isPeriodicSip = sip.frequency && sip.frequency !== 'monthly';
+    if (!isPeriodicSip) {
+      showAlert("Skip is only available for periodic (non-monthly) SIPs.");
+      return;
+    }
+    showAlert(
+      `Skip saving for "${sip.name}" this month? This removes the obligation from your health score and no funds will accumulate. You can undo this anytime.`,
+      "confirm",
+      async () => {
+        try {
+          setSipExpenses(prev => prev.map(s => s.id === sip.id ? { ...s, isSkipped: true } : s));
+          await api.skipSIP(token, sip.id);
+          invalidateDashboardCache();
+          loadSIPExpenses();
+        } catch (e: any) {
+          loadSIPExpenses();
+          showAlert("Failed to skip: " + e.message);
+        }
+      }
+    );
+  };
+
+  const handleUndoSkipSIP = async (sip: any) => {
+    try {
+      setSipExpenses(prev => prev.map(s => s.id === sip.id ? { ...s, isSkipped: false } : s));
+      await api.undoSkipSIP(token, sip.id);
+      invalidateDashboardCache();
+      loadSIPExpenses();
+    } catch (e: any) {
+      loadSIPExpenses();
+      showAlert("Failed to undo skip: " + e.message);
     }
   };
 
@@ -309,6 +344,21 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
                       : "Funds accumulate monthly towards the next due date — no financial shocks when it's time to pay."
                     }</span>
                   </div>
+
+                  {/* Skip / Undo Skip action for periodic SIPs */}
+                  {sip.frequency !== 'monthly' && !isSharedView && (
+                    <div className="sip-skip-actions">
+                      {isSkipped ? (
+                        <button className="sip-action-btn sip-undo-skip-btn" onClick={() => handleUndoSkipSIP(sip)}>
+                          <FaUndo size={12} /> Undo Skip
+                        </button>
+                      ) : !sip.paid ? (
+                        <button className="sip-action-btn sip-skip-btn" onClick={() => handleSkipSIP(sip)}>
+                          <FaForward size={12} /> Skip This Month
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
                 </motion.div>
               );
             })}

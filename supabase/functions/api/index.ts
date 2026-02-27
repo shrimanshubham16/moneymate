@@ -1724,9 +1724,17 @@ serve(async (req) => {
       if (body.name_iv) updates.name_iv = body.name_iv;
       if (body.amount_enc) updates.amount_enc = body.amount_enc;
       if (body.amount_iv) updates.amount_iv = body.amount_iv;
+      if (body.accumulated_funds_enc) updates.accumulated_funds_enc = body.accumulated_funds_enc;
+      if (body.accumulated_funds_iv) updates.accumulated_funds_iv = body.accumulated_funds_iv;
       
-      const { data, error: e } = await supabase.from('fixed_expenses').update(updates).eq('id', id).select().single();
+      const { data, error: e } = await supabase.from('fixed_expenses')
+        .update(updates)
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select()
+        .maybeSingle();
       if (e) return error(e.message, 500);
+      if (!data) return error('Fixed expense not found', 404);
       // Log accumulated fund updates
       if (body.accumulated_funds !== undefined) {
         await logActivity(userId, 'fixed_expense', 'updated accumulated fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
@@ -2068,13 +2076,15 @@ serve(async (req) => {
       if (body.goal_iv) updateData.goal_iv = body.goal_iv;
       if (body.monthly_amount_enc) updateData.monthly_amount_enc = body.monthly_amount_enc;
       if (body.monthly_amount_iv) updateData.monthly_amount_iv = body.monthly_amount_iv;
+      if (body.accumulated_funds_enc) updateData.accumulated_funds_enc = body.accumulated_funds_enc;
+      if (body.accumulated_funds_iv) updateData.accumulated_funds_iv = body.accumulated_funds_iv;
       
       const { data, error: e } = await supabase.from('investments')
         .update(updateData)
         .eq('id', id)
         .eq('user_id', userId)
         .select()
-        .single();
+        .maybeSingle();
       if (e) {
         return error(e.message, 500);
       }
@@ -3177,7 +3187,7 @@ serve(async (req) => {
         if (body.itemType !== 'fixed_expense') return error('Skip is only available for periodic SIP expenses');
         const { data: expCheck } = await supabase.from('fixed_expenses')
           .select('is_sip, frequency')
-          .eq('id', body.itemId).eq('user_id', userId).single();
+          .eq('id', body.itemId).eq('user_id', userId).maybeSingle();
         if (!expCheck?.is_sip || expCheck.frequency === 'monthly') {
           return error('Skip is only available for periodic (non-monthly) SIP expenses');
         }
@@ -3186,13 +3196,13 @@ serve(async (req) => {
       // Fetch the item name for activity logging
       let itemName = 'Unknown';
       if (body.itemType === 'fixed_expense') {
-        const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).single();
+        const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).maybeSingle();
         itemName = expense?.name || 'Unknown Expense';
       } else if (body.itemType === 'investment') {
-        const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).single();
+        const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).maybeSingle();
         itemName = investment?.name || 'Unknown Investment';
       } else if (body.itemType === 'loan') {
-        const { data: loan } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).eq('category', 'loan').single();
+        const { data: loan } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).eq('category', 'loan').maybeSingle();
         itemName = loan?.name || 'Unknown Loan';
       }
       
@@ -3221,7 +3231,7 @@ serve(async (req) => {
         .eq('entity_id', body.itemId)
         .eq('entity_type', body.itemType)
         .eq('month', billingMonthStr)
-        .single();
+        .maybeSingle();
       
       let payment;
       if (existing) {
@@ -3230,14 +3240,14 @@ serve(async (req) => {
           .update({ amount: paymentAmount, is_skip: isSkip, paid_at: new Date().toISOString() })
           .eq('id', existing.id)
           .select()
-          .single();
+          .maybeSingle();
         payment = updated;
       } else {
         const { data: created } = await supabase
           .from('payments')
           .insert({ user_id: userId, entity_type: body.itemType, entity_id: body.itemId, month: billingMonthStr, amount: paymentAmount, is_skip: isSkip })
           .select()
-          .single();
+          .maybeSingle();
         payment = created;
       }
       
@@ -3252,7 +3262,7 @@ serve(async (req) => {
             .select('accumulated_funds')
             .eq('id', body.itemId)
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
           const currentAccumulated = inv?.accumulated_funds || 0;
           const newAccumulated = currentAccumulated + body.amount;
           const { error: updateErr } = await supabase
@@ -3270,7 +3280,7 @@ serve(async (req) => {
             .select('is_sip, frequency, accumulated_funds')
             .eq('id', body.itemId)
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
           
           if (expense?.is_sip && expense.frequency !== 'monthly') {
             console.log(`[MARK_PAID] Deducting paid amount from accumulated_funds for periodic SIP ${body.itemId}, amount: ${body.amount}`);
@@ -3312,13 +3322,13 @@ serve(async (req) => {
       // Fetch the item name for activity logging
       let itemName = 'Unknown';
       if (body.itemType === 'fixed_expense') {
-        const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).single();
+        const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).maybeSingle();
         itemName = expense?.name || 'Unknown Expense';
       } else if (body.itemType === 'investment') {
-        const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).single();
+        const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).maybeSingle();
         itemName = investment?.name || 'Unknown Investment';
       } else if (body.itemType === 'loan') {
-        const { data: loan } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).eq('category', 'loan').single();
+        const { data: loan } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).eq('category', 'loan').maybeSingle();
         itemName = loan?.name || 'Unknown Loan';
       }
       
@@ -3342,12 +3352,12 @@ serve(async (req) => {
       if (!body.itemId) return error('itemId required');
       
       // Fetch item name
-      const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).single();
+      const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).maybeSingle();
       const itemName = expense?.name || 'Unknown Expense';
       
       // Get user's billing period
       const { data: prefs } = await supabase.from('user_preferences')
-        .select('month_start_day').eq('user_id', userId).single();
+        .select('month_start_day').eq('user_id', userId).maybeSingle();
       const msd = prefs?.month_start_day || 1;
       const td = new Date();
       let bms: Date;
