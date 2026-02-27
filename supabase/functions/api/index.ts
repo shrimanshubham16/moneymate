@@ -258,6 +258,8 @@ serve(async (req) => {
   // Invalidate all dashboard-related caches for a user
   async function invalidateUserCache(userId: string): Promise<void> {
     await Promise.all([
+      redisInvalidate(`dashboard:${userId}:me`),
+      redisInvalidate(`dashboard:${userId}:merged`),
       redisInvalidate(`dashboard:${userId}`),
       redisInvalidate(`health:${userId}`)
     ]);
@@ -635,6 +637,7 @@ serve(async (req) => {
 
     // HEALTH DETAILS - Full health calculation with breakdown
     if (path === '/health/details' && method === 'GET') {
+     try {
       // Direct queries to bypass potentially broken RPC
       const { data: incomes } = await supabase.from('incomes').select('*').eq('user_id', userId);
       const { data: fixedExpenses } = await supabase.from('fixed_expenses').select('*').eq('user_id', userId);
@@ -658,7 +661,7 @@ serve(async (req) => {
       }
       const healthBillingMonth = `${healthBillingStart.getFullYear()}-${String(healthBillingStart.getMonth() + 1).padStart(2, '0')}`;
       const { data: healthPayments } = await supabase.from('payments')
-        .select('entity_type, entity_id, is_skip')
+        .select('*')
         .eq('user_id', userId).eq('month', healthBillingMonth);
       const healthSkipSet = new Set<string>();
       (healthPayments || []).forEach((p: any) => {
@@ -820,6 +823,10 @@ serve(async (req) => {
       };
 
       return json({ data: healthData });
+     } catch (healthErr: any) {
+      console.error('[HEALTH_DETAILS_CRASH]', healthErr?.message || healthErr, healthErr?.stack);
+      return error('Health details error: ' + (healthErr?.message || String(healthErr)), 500);
+     }
     }
     
     // ========================================================================
@@ -994,6 +1001,7 @@ serve(async (req) => {
 
     // DASHBOARD
     if (path === '/dashboard' && method === 'GET') {
+     try {
       // P0 FIX: Check and reset monthly payments if new month has started
       await checkAndResetMonthlyPayments(userId);
       
@@ -1085,11 +1093,8 @@ serve(async (req) => {
       
       const timings: any = {};
       
-      // Query 1: Dashboard data
       const t0 = Date.now();
-      const { data, error: rpcError } = await supabase.rpc('get_dashboard_data', { p_user_id: userId, p_billing_period_id: null });
-      
-      // WORKAROUND: Direct queries to bypass broken RPC function
+      // Direct queries (the get_dashboard_data RPC is unused and was removed)
       // For merged/specific user view: Fetch target users' items for widget display
       // Shared users' encrypted items will show as [Private] on frontend
       // FIX: Use targetUserIds for both merged AND specific user views (not just merged)
@@ -1158,11 +1163,12 @@ serve(async (req) => {
       
       const billingMonth = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
       
-      const { data: payments } = await supabase
+      const { data: payments, error: paymentsErr } = await supabase
         .from('payments')
-        .select('entity_type, entity_id, is_skip')
+        .select('*')
         .eq('user_id', userId)
         .eq('month', billingMonth);
+      if (paymentsErr) console.error('[DASHBOARD_PAYMENTS_ERR]', paymentsErr.message);
       timings.payments = Date.now() - t3;
       
       const paymentStatus: Record<string, boolean> = {};
@@ -1570,6 +1576,10 @@ serve(async (req) => {
       console.log('[EDGE_PERF_H3_H7] Dashboard endpoint timing', { totalTime, timings, userId, cached: false });
 
       return json({ data: responseData });
+     } catch (dashErr: any) {
+      console.error('[DASHBOARD_CRASH]', dashErr?.message || dashErr, dashErr?.stack);
+      return error('Dashboard error: ' + (dashErr?.message || String(dashErr)), 500);
+     }
     }
 
     // INCOMES
@@ -1857,7 +1867,7 @@ serve(async (req) => {
       if (plan?.planned) {
         // Get user's billing period
         const { data: prefs } = await supabase.from('user_preferences')
-          .select('month_start_day').eq('user_id', userId).single();
+          .select('month_start_day').eq('user_id', userId).maybeSingle();
         const monthStartDay = prefs?.month_start_day || 1;
         
         // Calculate billing period dates
@@ -1905,7 +1915,7 @@ serve(async (req) => {
             
             // Get current constraint score
             const { data: constraint } = await supabase.from('constraint_scores')
-              .select('*').eq('user_id', userId).single();
+              .select('*').eq('user_id', userId).maybeSingle();
             
             if (constraint) {
               const currentScore = constraint.score || 0;
@@ -2275,7 +2285,7 @@ serve(async (req) => {
 
     // PREFERENCES
     if (path === '/preferences' && method === 'GET') {
-      const { data } = await supabase.from('user_preferences').select('*').eq('user_id', userId).single();
+      const { data } = await supabase.from('user_preferences').select('*').eq('user_id', userId).maybeSingle();
       const prefs = data || { month_start_day: 1, currency: 'INR', timezone: 'Asia/Kolkata' };
       return json({ data: {
         monthStartDay: prefs.month_start_day ?? 1,
@@ -2294,7 +2304,7 @@ serve(async (req) => {
       // If month_start_day changed, clear last_reset_billing_period so the new cycle triggers a fresh reset
       if (newMonthStartDay !== undefined) {
         const { data: currentPrefs } = await supabase.from('user_preferences')
-          .select('month_start_day').eq('user_id', userId).single();
+          .select('month_start_day').eq('user_id', userId).maybeSingle();
         if (currentPrefs && currentPrefs.month_start_day !== newMonthStartDay) {
           updates.last_reset_billing_period = null;
           console.log(`[PREFS_UPDATE] month_start_day changed from ${currentPrefs.month_start_day} to ${newMonthStartDay}, clearing last_reset_billing_period`);
@@ -2324,7 +2334,7 @@ serve(async (req) => {
       .from('health_thresholds')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     const thresholds = data || {
       good_min: 20,
       ok_min: 10,
@@ -3204,7 +3214,7 @@ serve(async (req) => {
       
       // Get user's billing period month (same logic as dashboard)
       const { data: prefs } = await supabase.from('user_preferences')
-        .select('month_start_day').eq('user_id', userId).single();
+        .select('month_start_day').eq('user_id', userId).maybeSingle();
       const monthStartDay = prefs?.month_start_day || 1;
       
       const today = new Date();
