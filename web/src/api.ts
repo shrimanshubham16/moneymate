@@ -179,6 +179,9 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
       console.error('[API_ERROR] Failed to parse error response:', e);
       body = {};
     }
+    // #region agent log
+    if (res.status >= 500) { fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'96dc3f'},body:JSON.stringify({sessionId:'96dc3f',location:'api.ts:request',message:'500 error from backend',data:{path,status:res.status,body,details:body?.details},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{}); }
+    // #endregion
     
     // Provide more helpful error message for 401 on auth endpoints
     if (res.status === 401 && (path.includes('/auth/') || path.includes('/signup'))) {

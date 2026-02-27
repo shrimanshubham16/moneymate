@@ -1141,9 +1141,39 @@ serve(async (req) => {
       // Query 2.5: Credit cards (needed for health calc) — use queryUserIds for shared/merged view
       const { data: directCreditCards } = await supabase.from('credit_cards').select('*').in('user_id', queryUserIds);
       
-      // Query 3: Health calculation - INLINE to match /health/details exactly
-      const t2 = Date.now();
+      // Query 3: Payment status — moved BEFORE health calc (skipStatus needed by health calc)
       const today = new Date();
+      const t3 = Date.now();
+      
+      const { data: prefs } = await supabase.from('user_preferences')
+        .select('month_start_day').eq('user_id', userId).maybeSingle();
+      const monthStartDay = prefs?.month_start_day || 1;
+      
+      let billingMonthStart: Date;
+      if (today.getDate() >= monthStartDay) {
+        billingMonthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+      } else {
+        billingMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+      }
+      
+      const billingMonth = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
+      
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('entity_type, entity_id, is_skip')
+        .eq('user_id', userId)
+        .eq('month', billingMonth);
+      timings.payments = Date.now() - t3;
+      
+      const paymentStatus: Record<string, boolean> = {};
+      const skipStatus: Record<string, boolean> = {};
+      (payments || []).forEach((p: any) => {
+        paymentStatus[`${p.entity_type}:${p.entity_id}`] = true;
+        if (p.is_skip) skipStatus[`${p.entity_type}:${p.entity_id}`] = true;
+      });
+      
+      // Query 4: Health calculation - INLINE to match /health/details exactly
+      const t2 = Date.now();
       
       // Fetch user's configurable health thresholds
       const { data: userHealthThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).single();
@@ -1227,40 +1257,6 @@ serve(async (req) => {
         }
       };
       timings.healthCalc = Date.now() - t2;
-      
-      // Query 4: Payment status - P0 FIX: Use billing period month, not calendar month
-      const t3 = Date.now();
-      
-      // Get user's billing period month (same logic as monthly reset)
-      const { data: prefs } = await supabase.from('user_preferences')
-        .select('month_start_day').eq('user_id', userId).single();
-      const monthStartDay = prefs?.month_start_day || 1;
-      
-      // Note: 'today' already defined above for health calc
-      let billingMonthStart: Date;
-      if (today.getDate() >= monthStartDay) {
-        billingMonthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
-      } else {
-        billingMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
-      }
-      
-      // Format as YYYY-MM for payments table lookup
-      const billingMonth = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
-      
-      const { data: payments } = await supabase
-        .from('payments')
-        .select('entity_type, entity_id, is_skip')
-        .eq('user_id', userId)
-        .eq('month', billingMonth);
-      timings.payments = Date.now() - t3;
-      
-      // Create payment status map (paid or skipped)
-      const paymentStatus: Record<string, boolean> = {};
-      const skipStatus: Record<string, boolean> = {};
-      (payments || []).forEach((p: any) => {
-        paymentStatus[`${p.entity_type}:${p.entity_id}`] = true;
-        if (p.is_skip) skipStatus[`${p.entity_type}:${p.entity_id}`] = true;
-      });
       
       // Format response using DIRECT QUERIES (bypassing broken RPC function)
       
