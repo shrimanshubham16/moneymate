@@ -21,7 +21,7 @@ export function PlanFinancesPage({ token }: PlanFinancesPageProps) {
 
   const loadData = async () => {
     try {
-      const res = await api.fetchDashboard(token, "2025-01-15T00:00:00Z");
+      const res = await api.fetchDashboard(token, new Date().toISOString());
       setData(res.data);
     } catch (e) {
       console.error("Failed to load data:", e);

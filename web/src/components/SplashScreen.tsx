@@ -28,6 +28,8 @@ export function SplashScreen({ isLoading, progress }: SplashScreenProps) {
         return "Loading your data...";
       case "ready":
         return "Almost there...";
+      default:
+        return "Loading...";
     }
   };
 
