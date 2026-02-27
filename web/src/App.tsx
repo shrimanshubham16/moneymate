@@ -104,13 +104,7 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
         return; // Don't complete auth yet - wait for modal close
       } else {
         try {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'96dc3f'},body:JSON.stringify({sessionId:'96dc3f',location:'App.tsx:login-start',message:'Login attempt starting',data:{username,mode},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           const res = await login(username, password);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'96dc3f'},body:JSON.stringify({sessionId:'96dc3f',location:'App.tsx:login-success',message:'Login API returned',data:{hasToken:!!res.access_token,hasSalt:!!res.encryption_salt},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           encryptionSalt = res.encryption_salt;
           if (!encryptionSalt) {
             const saltRes = await fetchSalt(username);
@@ -123,9 +117,6 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
           await cryptoCtx.setKey(key, encryptionSalt);
           onAuth(res.access_token);
         } catch (loginErr: any) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'96dc3f'},body:JSON.stringify({sessionId:'96dc3f',location:'App.tsx:login-error',message:'Login failed',data:{error:loginErr?.message,stack:loginErr?.stack?.substring(0,300)},timestamp:Date.now(),hypothesisId:'D,E'})}).catch(()=>{});
-          // #endregion
           console.error('[LOGIN_ERROR]', loginErr);
           throw loginErr; // Re-throw to be caught by outer catch
         }
