@@ -2,30 +2,35 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { execSync } from "child_process";
 
-// Get commit ID from git or environment variable
+function gitExec(cmd: string): string {
+  try {
+    try {
+      return execSync(cmd, { encoding: 'utf-8', cwd: process.cwd() }).trim();
+    } catch {
+      return execSync(cmd, { encoding: 'utf-8', cwd: process.cwd() + '/..' }).trim();
+    }
+  } catch {
+    return '';
+  }
+}
+
 function getCommitId(): string {
-  // Vercel provides this automatically
   if (process.env.VERCEL_GIT_COMMIT_SHA) {
     return process.env.VERCEL_GIT_COMMIT_SHA.substring(0, 7);
   }
-  // For local builds or CI, try to get from git
-  // Try from current directory first, then parent (for Vercel builds)
-  try {
-    try {
-      return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', cwd: process.cwd() }).trim();
-    } catch {
-      // Try from parent directory (Vercel builds from repo root)
-      return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', cwd: process.cwd() + '/..' }).trim();
-    }
-  } catch {
-    return 'dev';
-  }
+  return gitExec('git rev-parse --short HEAD') || 'dev';
+}
+
+function getPatchVersion(): number {
+  const count = gitExec('git rev-list --count HEAD');
+  return count ? parseInt(count, 10) : 0;
 }
 
 export default defineConfig({
   plugins: [react()],
   define: {
     __COMMIT_ID__: JSON.stringify(getCommitId()),
+    __PATCH_VERSION__: getPatchVersion(),
   },
   build: {
     // Ensure service worker and manifest are included in build
@@ -34,11 +39,15 @@ export default defineConfig({
         main: './index.html',
       },
       output: {
-        // Ensure proper MIME types for module scripts
         format: 'es',
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-recharts': ['recharts'],
+        }
       }
     },
   },

@@ -1092,43 +1092,53 @@ serve(async (req) => {
       }
       
       const timings: any = {};
-      
-      const t0 = Date.now();
-      // Direct queries (the get_dashboard_data RPC is unused and was removed)
-      // For merged/specific user view: Fetch target users' items for widget display
-      // Shared users' encrypted items will show as [Private] on frontend
-      // FIX: Use targetUserIds for both merged AND specific user views (not just merged)
+      const today = new Date();
       const queryUserIds = viewParam === 'me' ? [userId] : targetUserIds;
-      
-      const { data: directIncomes } = await supabase.from('incomes').select('*').in('user_id', queryUserIds);
-      const { data: directFixedExpenses } = await supabase.from('fixed_expenses').select('*').in('user_id', queryUserIds);
-      const { data: directVariablePlans } = await supabase.from('variable_expense_plans').select('*').in('user_id', queryUserIds);
-      const { data: directVariableActuals } = await supabase.from('variable_expense_actuals').select('*').in('user_id', queryUserIds);
-      const { data: directInvestments } = await supabase.from('investments').select('*').in('user_id', queryUserIds);
-      const { data: directFutureBombs } = await supabase.from('future_bombs').select('*').in('user_id', queryUserIds);
-      
-      // Fetch shared users' aggregates for accurate health calculation
-      // (Individual encrypted items can't be summed, but aggregates are plaintext)
-      // - For merged view: fetch aggregates for OTHER users
-      // - For specific user view: fetch aggregate for THAT specific user (we can't decrypt their items)
-      let sharedUserAggregates: any[] = [];
       const isSpecificUserView = viewParam && viewParam !== 'merged' && viewParam !== userId;
-      
-      if (viewParam === 'merged' && targetUserIds.length > 1) {
-        // Merged view: fetch aggregates for all shared users (not self)
-        const sharedUserIds = targetUserIds.filter(id => id !== userId);
-        const { data: aggregates } = await supabase.from('user_aggregates')
-          .select('*')
-          .in('user_id', sharedUserIds);
-        sharedUserAggregates = aggregates || [];
-      } else if (isSpecificUserView) {
-        // Specific user view: fetch aggregate for THAT specific user
-        const { data: aggregates } = await supabase.from('user_aggregates')
-          .select('*')
-          .eq('user_id', viewParam);
-        sharedUserAggregates = aggregates || [];
-      }
-      
+
+      // ── Parallel Batch 1: All independent data queries ──
+      const t0 = Date.now();
+      const sharedAggPromise = (viewParam === 'merged' && targetUserIds.length > 1)
+        ? supabase.from('user_aggregates').select('*').in('user_id', targetUserIds.filter(id => id !== userId))
+        : isSpecificUserView
+          ? supabase.from('user_aggregates').select('*').eq('user_id', viewParam)
+          : Promise.resolve({ data: [] });
+
+      const [
+        { data: directIncomes },
+        { data: directFixedExpenses },
+        { data: directVariablePlans },
+        { data: directVariableActuals },
+        { data: directInvestments },
+        { data: directFutureBombs },
+        { data: constraint },
+        { data: directCreditCards },
+        { data: userPrefs },
+        { data: userHealthThresholds },
+        { data: directLoans },
+        { data: directActivities },
+        { data: sharedAggResult },
+      ] = await Promise.all([
+        supabase.from('incomes').select('*').in('user_id', queryUserIds),
+        supabase.from('fixed_expenses').select('*').in('user_id', queryUserIds),
+        supabase.from('variable_expense_plans').select('*').in('user_id', queryUserIds),
+        supabase.from('variable_expense_actuals').select('*').in('user_id', queryUserIds),
+        supabase.from('investments').select('*').in('user_id', queryUserIds),
+        supabase.from('future_bombs').select('*').in('user_id', queryUserIds),
+        supabase.from('constraint_scores').select('*').eq('user_id', userId).maybeSingle(),
+        supabase.from('credit_cards').select('*').in('user_id', queryUserIds),
+        supabase.from('user_preferences').select('*').eq('user_id', userId).maybeSingle(),
+        supabase.from('health_thresholds').select('*').eq('user_id', userId).maybeSingle(),
+        supabase.from('loans').select('*').in('user_id', targetUserIds),
+        supabase.from('activities').select('*').in('actor_id', targetUserIds).order('created_at', { ascending: false }).limit(100),
+        sharedAggPromise,
+      ]);
+      timings.parallelBatch = Date.now() - t0;
+
+      const sharedUserAggregates: any[] = sharedAggResult || [];
+      const ht = userHealthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
+      const monthStartDay = userPrefs?.month_start_day || 1;
+
       // Normalize variable plans with actuals/actualTotal
       const variablePlans = (directVariablePlans || []).map((plan: any) => {
         const actuals = (directVariableActuals || []).filter((a: any) => a.plan_id === plan.id || a.planId === plan.id);
@@ -1136,33 +1146,16 @@ serve(async (req) => {
         return { ...plan, actuals, actualTotal };
       });
 
-      timings.dashboardData = Date.now() - t0;
-      
-      // Query 2: Constraint score
-      const t1 = Date.now();
-      const { data: constraint } = await supabase.from('constraint_scores').select('*').eq('user_id', userId).maybeSingle();
-      timings.constraintScore = Date.now() - t1;
-      
-      // Query 2.5: Credit cards (needed for health calc) — use queryUserIds for shared/merged view
-      const { data: directCreditCards } = await supabase.from('credit_cards').select('*').in('user_id', queryUserIds);
-      
-      // Query 3: Payment status — moved BEFORE health calc (skipStatus needed by health calc)
-      const today = new Date();
+      // ── Batch 2: Payments (depends on monthStartDay from prefs) ──
       const t3 = Date.now();
-      
-      const { data: prefs } = await supabase.from('user_preferences')
-        .select('month_start_day').eq('user_id', userId).maybeSingle();
-      const monthStartDay = prefs?.month_start_day || 1;
-      
       let billingMonthStart: Date;
       if (today.getDate() >= monthStartDay) {
         billingMonthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
       } else {
         billingMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
       }
-      
       const billingMonth = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
-      
+
       const { data: payments, error: paymentsErr } = await supabase
         .from('payments')
         .select('*')
@@ -1170,20 +1163,16 @@ serve(async (req) => {
         .eq('month', billingMonth);
       if (paymentsErr) console.error('[DASHBOARD_PAYMENTS_ERR]', paymentsErr.message);
       timings.payments = Date.now() - t3;
-      
+
       const paymentStatus: Record<string, boolean> = {};
       const skipStatus: Record<string, boolean> = {};
       (payments || []).forEach((p: any) => {
         paymentStatus[`${p.entity_type}:${p.entity_id}`] = true;
         if (p.is_skip) skipStatus[`${p.entity_type}:${p.entity_id}`] = true;
       });
-      
-      // Query 4: Health calculation - INLINE to match /health/details exactly
+
+      // ── Health calculation ──
       const t2 = Date.now();
-      
-      // Fetch user's configurable health thresholds
-      const { data: userHealthThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).maybeSingle();
-      const ht = userHealthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
       
       // Calculate health using same logic as /health/details endpoint
       // Filter out incomes where include_in_health is explicitly false
@@ -1431,18 +1420,6 @@ serve(async (req) => {
         needsBillUpdate: c.needs_bill_update,
         createdAt: c.created_at
       }));
-
-      // Fetch loans for this user set
-      const { data: directLoans } = await supabase.from('loans').select('*').in('user_id', targetUserIds);
-
-      // Fetch activities
-      const { data: directActivities } = await supabase.from('activities')
-        .select('*').in('actor_id', targetUserIds)
-        .order('created_at', { ascending: false }).limit(100);
-
-      // Fetch preferences
-      const { data: userPrefs } = await supabase.from('user_preferences')
-        .select('*').eq('user_id', userId).maybeSingle();
 
       const responseData = {
         incomes: finalIncomes,

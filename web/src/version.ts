@@ -6,36 +6,33 @@
  * 
  * - MAJOR: Breaking changes, major feature releases
  * - MINOR: New features, non-breaking changes
- * - PATCH: Bug fixes, minor improvements
+ * - PATCH: Auto-incremented from git commit count on each build
  * 
- * Build number is the Git commit ID (short SHA)
+ * Build ID is the Git commit short SHA, injected at build time.
  */
 
-// Get commit ID injected at build time
 declare const __COMMIT_ID__: string;
+declare const __PATCH_VERSION__: number;
 const commitId = typeof __COMMIT_ID__ !== 'undefined' ? __COMMIT_ID__ : 'dev';
+const patchFromBuild = typeof __PATCH_VERSION__ !== 'undefined' ? __PATCH_VERSION__ : 0;
 
 export const VERSION = {
   major: 2,
   minor: 7,
-  patch: 0,
-  build: commitId, // Git commit ID (short SHA)
+  patch: patchFromBuild,
+  build: commitId,
   
-  // Formatted version string
   get full(): string {
     return `${this.major}.${this.minor}.${this.patch}`;
   },
   
-  // Full version with build
   get fullWithBuild(): string {
-    return `${this.major}.${this.minor}.${this.patch} (Build ${this.build})`;
+    return `${this.major}.${this.minor}.${this.patch}+${this.build}`;
   },
   
-  // Code name for this release
-  codeName: "Profile & Avatar",
+  codeName: "Performance & Polish",
 
-  // Release date
-  releaseDate: "Feb 18, 2026",
+  releaseDate: "Feb 27, 2026",
   
   // Release notes
   releaseNotes: [
@@ -47,7 +44,7 @@ export const VERSION = {
     "Overspend Risk Tracking — Gradual cooldown with adaptive decay",
     "Premium Credit Cards Page — Usage bars, billing cycle details",
     "Enhanced Activities Log — Expandable details & entity filters",
-    "Multi-Step Onboarding — Guided setup for new users",
+    "Skip Monthly SIP — Skip periodic SIP payments with health score relief",
     "Unified App Modals — Consistent popups replacing browser dialogs",
     "Dashboard Cache Invalidation — Instant data refresh after changes",
     "PWA Support — Install as a native app on your device",
@@ -63,7 +60,9 @@ export const VERSION = {
     "Bill Start Date Reset — Properly resets billing cycle when start day changes",
     "Account Page Redesign — Premium dark theme with profile hero & detail sections",
     "Avatar Upload — Upload your profile picture via Supabase Storage",
-    "Tooltip & Modal Fixes — Forced dark context for text visibility across all themes"
+    "Tooltip & Modal Fixes — Forced dark context for text visibility across all themes",
+    "Auto Versioning — Patch version auto-increments with each build from git history",
+    "Performance Boost — Parallelized backend queries, code-split routes, memoized computations"
   ]
 };
 

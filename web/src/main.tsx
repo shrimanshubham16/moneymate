@@ -8,8 +8,8 @@ import { EncryptedApiProvider } from "./contexts/EncryptedApiContext";
 import "./design-system.css";
 import "./styles.css";
 
-// App version - bump this to force cache cleanup
-const APP_VERSION = 'v1.5.0';
+import { VERSION } from './version';
+const APP_VERSION = `v${VERSION.full}`;
 
 // Clear all caches and service workers (one-time cleanup per version)
 async function cleanupOldCaches(): Promise<boolean> {

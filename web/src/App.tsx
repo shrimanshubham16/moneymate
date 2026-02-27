@@ -1,42 +1,42 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { login, signup, fetchSalt } from "./api";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DashboardPage } from "./pages/DashboardPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { PlanFinancesPage } from "./pages/PlanFinancesPage";
-import { FixedExpensesPage } from "./pages/FixedExpensesPage";
-import { VariableExpensesPage } from "./pages/VariableExpensesPage";
-import { InvestmentsPage } from "./pages/InvestmentsPage";
-import { InvestmentsManagementPage } from "./pages/InvestmentsManagementPage";
-import { CreditCardsPage } from "./pages/CreditCardsPage";
-import { CreditCardsManagementPage } from "./pages/CreditCardsManagementPage";
-import { LoansPage } from "./pages/LoansPage";
-import { FutureBombsPage } from "./pages/FutureBombsPage";
-import { ActivitiesPage } from "./pages/ActivitiesPage";
-
-import { DuesPage } from "./pages/DuesPage";
-import { CurrentMonthExpensesPage } from "./pages/CurrentMonthExpensesPage";
-import { SIPExpensesPage } from "./pages/SIPExpensesPage";
-import { AccountPage } from "./pages/AccountPage";
-import { AboutPage } from "./pages/AboutPage";
-import { SharingPage } from "./pages/SharingPage";
-import { SupportPage } from "./pages/SupportPage";
-import { ExportPage } from "./pages/ExportPage";
-import { IncomePage } from "./pages/IncomePage";
-import { PreferencesPage } from "./pages/PreferencesPage";
-import { HealthDetailsPage } from "./pages/HealthDetailsPage";
-import { PrivacyPage } from "./pages/PrivacyPage";
-import { NotificationSettingsPage } from "./pages/NotificationSettingsPage";
-import { NotificationsPage } from "./pages/NotificationsPage";
-import { ThemeSettingsPage } from "./pages/ThemeSettingsPage";
-import { LandingPage } from "./pages/LandingPage";
-import { RecoveryPage } from "./pages/RecoveryPage";
-import { ChatroomPage } from "./pages/ChatroomPage";
 import { Header } from "./components/Header";
 import { MaintenanceNotice } from "./components/MaintenanceNotice";
 import { RecoveryKeyModal } from "./components/RecoveryKeyModal";
+
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const PlanFinancesPage = lazy(() => import("./pages/PlanFinancesPage").then(m => ({ default: m.PlanFinancesPage })));
+const FixedExpensesPage = lazy(() => import("./pages/FixedExpensesPage").then(m => ({ default: m.FixedExpensesPage })));
+const VariableExpensesPage = lazy(() => import("./pages/VariableExpensesPage").then(m => ({ default: m.VariableExpensesPage })));
+const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage").then(m => ({ default: m.InvestmentsPage })));
+const InvestmentsManagementPage = lazy(() => import("./pages/InvestmentsManagementPage").then(m => ({ default: m.InvestmentsManagementPage })));
+const CreditCardsPage = lazy(() => import("./pages/CreditCardsPage").then(m => ({ default: m.CreditCardsPage })));
+const CreditCardsManagementPage = lazy(() => import("./pages/CreditCardsManagementPage").then(m => ({ default: m.CreditCardsManagementPage })));
+const LoansPage = lazy(() => import("./pages/LoansPage").then(m => ({ default: m.LoansPage })));
+const FutureBombsPage = lazy(() => import("./pages/FutureBombsPage").then(m => ({ default: m.FutureBombsPage })));
+const ActivitiesPage = lazy(() => import("./pages/ActivitiesPage").then(m => ({ default: m.ActivitiesPage })));
+const DuesPage = lazy(() => import("./pages/DuesPage").then(m => ({ default: m.DuesPage })));
+const CurrentMonthExpensesPage = lazy(() => import("./pages/CurrentMonthExpensesPage").then(m => ({ default: m.CurrentMonthExpensesPage })));
+const SIPExpensesPage = lazy(() => import("./pages/SIPExpensesPage").then(m => ({ default: m.SIPExpensesPage })));
+const AccountPage = lazy(() => import("./pages/AccountPage").then(m => ({ default: m.AccountPage })));
+const AboutPage = lazy(() => import("./pages/AboutPage").then(m => ({ default: m.AboutPage })));
+const SharingPage = lazy(() => import("./pages/SharingPage").then(m => ({ default: m.SharingPage })));
+const SupportPage = lazy(() => import("./pages/SupportPage").then(m => ({ default: m.SupportPage })));
+const ExportPage = lazy(() => import("./pages/ExportPage").then(m => ({ default: m.ExportPage })));
+const IncomePage = lazy(() => import("./pages/IncomePage").then(m => ({ default: m.IncomePage })));
+const PreferencesPage = lazy(() => import("./pages/PreferencesPage").then(m => ({ default: m.PreferencesPage })));
+const HealthDetailsPage = lazy(() => import("./pages/HealthDetailsPage").then(m => ({ default: m.HealthDetailsPage })));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage").then(m => ({ default: m.PrivacyPage })));
+const NotificationSettingsPage = lazy(() => import("./pages/NotificationSettingsPage").then(m => ({ default: m.NotificationSettingsPage })));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
+const ThemeSettingsPage = lazy(() => import("./pages/ThemeSettingsPage").then(m => ({ default: m.ThemeSettingsPage })));
+const LandingPage = lazy(() => import("./pages/LandingPage").then(m => ({ default: m.LandingPage })));
+const RecoveryPage = lazy(() => import("./pages/RecoveryPage").then(m => ({ default: m.RecoveryPage })));
+const ChatroomPage = lazy(() => import("./pages/ChatroomPage").then(m => ({ default: m.ChatroomPage })));
 import { useCrypto } from "./contexts/CryptoContext";
 import { deriveKey, generateRecoveryKey, generateSalt, hashRecoveryKey, saltFromBase64 } from "./lib/crypto";
 import "./App.css";
@@ -289,6 +289,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
     <>
       <Header token={token} />
       <div className="app-content">
+        <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /></div>}>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage token={token} />} />
           <Route path="/health" element={<HealthDetailsPage token={token} />} />
@@ -324,7 +325,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
           <Route path="/community" element={<ChatroomPage token={token} />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-
+        </Suspense>
     </div>
     </>
   );
@@ -362,6 +363,7 @@ export default function App() {
   return (
     <BrowserRouter>
       {MAINTENANCE_MODE && <MaintenanceNotice />}
+      <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /></div>}>
       <AnimatePresence mode="wait" initial={false}>
         {token ? (
           <motion.div
@@ -409,6 +411,7 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      </Suspense>
     </BrowserRouter>
   );
 }

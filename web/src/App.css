@@ -268,3 +268,19 @@ body {
   color: #64748b;
   font-size: 11px;
 }
+
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+.page-loading .loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(184, 193, 236, 0.1);
+  border-top-color: var(--accent-cyan, #22d3ee);
+  border-radius: 50%;
+  animation: page-spin 0.8s linear infinite;
+}
+@keyframes page-spin { to { transform: rotate(360deg); } }

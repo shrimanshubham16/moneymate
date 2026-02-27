@@ -19,8 +19,6 @@ import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { ClientCache } from "../utils/cache";
-import { isFeatureEnabled } from "../features";
-import { OnboardingFlow } from "../components/OnboardingFlow";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import { subscribePresenceCount } from "../lib/chatClient";
@@ -41,7 +39,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [loans, setLoans] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
-  const [showOnboarding, setShowOnboarding] = useState(false);
   // Persist selectedView in localStorage so it survives navigation
   const [selectedView, setSelectedView] = useState<string>(() => {
     const saved = localStorage.getItem('finflow_selected_view');
@@ -624,116 +621,71 @@ export function DashboardPage({ token }: DashboardPageProps) {
   if (hasNoFinances) {
     return (
       <div className="dashboard-page">
-        {isFeatureEnabled("onboarding_flow") ? (
-          <>
-            <EmptyState
-              icon={<FaChartLine size={80} />}
-              title="No Financial Data Yet"
-              description="Let's set things up together. A 2-minute guided flow to add the basics."
-              actionLabel="Get Started Now"
-              onAction={() => setShowOnboarding(true)}
-            />
-            {showOnboarding && (
-              <OnboardingFlow
-                token={token}
-                onClose={() => setShowOnboarding(false)}
-                onComplete={() => {
-                  setShowOnboarding(false);
-                  loadData(true); // Force-refresh to bypass stale cache
-                }}
-              />
-            )}
-          </>
-        ) : (
-          <EmptyState
-            icon={<FaChartLine size={80} />}
-            title="No Financial Data Yet"
-            description="Add your income and expenses to see your financial health and insights"
-            actionLabel="Add Income"
-            onAction={() => navigate("/settings/plan-finances/income")}
-            secondaryActionLabel="Add Expenses"
-            onSecondaryAction={() => navigate("/settings/plan-finances/fixed")}
-          />
-        )}
+        <EmptyState
+          icon={<FaChartLine size={80} />}
+          title="No Financial Data Yet"
+          description="Add your income, expenses, and investments to see your financial health and insights."
+          actionLabel="Plan Your Finances"
+          onAction={() => navigate("/settings/plan-finances")}
+          secondaryActionLabel="How to Get Started"
+          onSecondaryAction={() => navigate("/settings/about")}
+        />
       </div>
     );
   }
 
-  // Currency symbol from preferences
-  const currSym = (() => {
+  const {
+    currSym, variableTotal, fixedTotal, investmentsTotal, incomeTotal,
+    totalSpentThisMonth, futureBombsCount, notifCount,
+    duesTotal, hasSharedMembers, viewOptions
+  } = useMemo(() => {
     const pref = data?.preferences;
-    if (!pref?.currency) return "₹";
     const sym: Record<string, string> = { INR: "₹", USD: "$", EUR: "€", GBP: "£" };
-    return sym[pref.currency] || pref.currency;
-  })();
+    const _currSym = pref?.currency ? (sym[pref.currency] || pref.currency) : "₹";
 
-  const variableTotal = data.variablePlans?.reduce((sum: number, p: any) => sum + (p.actualTotal || 0), 0) || 0;
-  const fixedTotal = data.fixedExpenses?.reduce((sum: number, f: any) => {
-    const monthly = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
-    return sum + monthly;
-  }, 0) || 0;
-  const investmentsTotal = data.investments?.reduce((sum: number, i: any) => sum + i.monthlyAmount, 0) || 0;
-  const incomeTotal = (data.incomes || [])
-    .filter((inc: any) => inc.includeInHealth !== false)
-    .reduce((sum: number, inc: any) => {
-      const amount = parseFloat(inc.amount) || 0;
-      return sum + (inc.frequency === 'monthly' ? amount : inc.frequency === 'quarterly' ? amount / 3 : amount / 12);
-    }, 0);
-  const totalSpentThisMonth = variableTotal + (data.fixedExpenses || [])
-    .filter((f: any) => f.paid)
-    .reduce((sum: number, f: any) => {
-      const monthly = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
-      return sum + monthly;
-    }, 0);
-  const futureBombsCount = data.futureBombs?.length || 0;
-  const notifCount = data._notificationCount || 0;
+    const _variableTotal = data.variablePlans?.reduce((s: number, p: any) => s + (p.actualTotal || 0), 0) || 0;
+    const _fixedTotal = data.fixedExpenses?.reduce((s: number, f: any) => {
+      const m = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
+      return s + m;
+    }, 0) || 0;
+    const _investmentsTotal = data.investments?.reduce((s: number, i: any) => s + i.monthlyAmount, 0) || 0;
+    const _incomeTotal = (data.incomes || [])
+      .filter((inc: any) => inc.includeInHealth !== false)
+      .reduce((s: number, inc: any) => {
+        const amt = parseFloat(inc.amount) || 0;
+        return s + (inc.frequency === 'monthly' ? amt : inc.frequency === 'quarterly' ? amt / 3 : amt / 12);
+      }, 0);
+    const _totalSpent = _variableTotal + (data.fixedExpenses || [])
+      .filter((f: any) => f.paid)
+      .reduce((s: number, f: any) => {
+        const m = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
+        return s + m;
+      }, 0);
 
-  // Calculate unpaid dues only
-  // P0 FIX: For periodic expenses, only include if actually due this billing period
-  const unpaidFixed = data.fixedExpenses?.filter((f: any) => {
-    if (f.paid) return false;
-    // Monthly expenses are always due
-    if (f.frequency === 'monthly') return true;
-    // For periodic expenses, check if actually due (would need user preferences, simplified for now)
-    // TODO: Add proper due date check using user's month_start_day
-    return true; // Simplified - will be fixed with proper due date calculation
-  }).reduce((sum: number, f: any) => {
-    const monthly = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
-    return sum + (monthly || 0);
-  }, 0) || 0;
-  // P0 FIX: Only include active (not paused) investments in dues
-  const unpaidInvestments = data.investments?.filter((i: any) => !i.paid && (i.status === 'active' || !i.status)).reduce((sum: number, i: any) => sum + (i.monthlyAmount || 0), 0) || 0;
-  // Loans are excluded from dues as they're auto-tracked from fixed expenses and not separately markable
-  // const unpaidLoans = loans.filter((l: any) => !l.paid).reduce((sum, l) => sum + (l.emi || 0), 0);
-  
-  // P0 FIX: Credit card dues should only include current month's bills (matching DuesPage logic)
-  const creditCardDues = (creditCards || []).reduce((sum: number, c: any) => {
-    const billAmount = parseFloat(c.billAmount || 0);
-    const paidAmount = parseFloat(c.paidAmount || 0);
-    const remaining = billAmount - paidAmount;
-    
-    // Only include if there's a remaining balance AND it's due this month
-    if (remaining > 0) {
-      const dueDate = new Date(c.dueDate);
-      const isCurrentMonth = dueDate.getMonth() === new Date().getMonth() && 
-                            dueDate.getFullYear() === new Date().getFullYear();
-      
-      if (isCurrentMonth) {
-        return sum + remaining;
+    const unpaidFixed = data.fixedExpenses?.filter((f: any) => {
+      if (f.paid) return false;
+      if (f.frequency === 'monthly') return true;
+      return true;
+    }).reduce((s: number, f: any) => {
+      const m = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
+      return s + (m || 0);
+    }, 0) || 0;
+    const unpaidInvestments = data.investments?.filter((i: any) => !i.paid && (i.status === 'active' || !i.status))
+      .reduce((s: number, i: any) => s + (i.monthlyAmount || 0), 0) || 0;
+    const creditCardDues = (creditCards || []).reduce((s: number, c: any) => {
+      const remaining = parseFloat(c.billAmount || 0) - parseFloat(c.paidAmount || 0);
+      if (remaining > 0) {
+        const d = new Date(c.dueDate);
+        const now = new Date();
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) return s + remaining;
       }
-    }
-    return sum;
-  }, 0);
+      return s;
+    }, 0);
 
-  const duesTotal = (unpaidFixed || 0) + (unpaidInvestments || 0) + (creditCardDues || 0);
-
-  const hasSharedMembers = (sharingMembers?.members || []).length > 0;
-  const viewOptions = (() => {
-    const base = [
+    const base: { value: string; label: string }[] = [
       { value: "me", label: "My Finances" },
       { value: "merged", label: "Combined (Shared)" },
     ];
-    // Deduplicate members (same user may appear in multiple shared accounts)
     const seen = new Set<string>();
     for (const m of (sharingMembers?.members || [])) {
       const id = m.shared_user_id || m.user_id || m.userId || m.id;
@@ -742,8 +694,21 @@ export function DashboardPage({ token }: DashboardPageProps) {
         base.push({ value: id, label: m.username || id || "Shared Member" });
       }
     }
-    return base;
-  })();
+
+    return {
+      currSym: _currSym,
+      variableTotal: _variableTotal,
+      fixedTotal: _fixedTotal,
+      investmentsTotal: _investmentsTotal,
+      incomeTotal: _incomeTotal,
+      totalSpentThisMonth: _totalSpent,
+      futureBombsCount: data.futureBombs?.length || 0,
+      notifCount: data._notificationCount || 0,
+      duesTotal: (unpaidFixed || 0) + (unpaidInvestments || 0) + (creditCardDues || 0),
+      hasSharedMembers: (sharingMembers?.members || []).length > 0,
+      viewOptions: base,
+    };
+  }, [data, creditCards, sharingMembers]);
 
   return (
     <div className="dashboard-page">
