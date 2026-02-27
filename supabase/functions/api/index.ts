@@ -270,7 +270,7 @@ serve(async (req) => {
     try {
       // Get user preferences for month start day and last reset period
       const { data: prefs } = await supabase.from('user_preferences')
-        .select('month_start_day, last_reset_billing_period').eq('user_id', userId).single();
+        .select('month_start_day, last_reset_billing_period').eq('user_id', userId).maybeSingle();
       const monthStartDay = prefs?.month_start_day || 1;
       const lastResetPeriod = prefs?.last_reset_billing_period;
       
@@ -311,11 +311,11 @@ serve(async (req) => {
           .eq('user_id', userId);
         // Get payments made for the previous billing period
         const { data: prevPayments } = await supabase.from('payments')
-          .select('expense_id')
+          .select('entity_id')
           .eq('user_id', userId)
           .eq('month', previousMonthStr);
         
-        const paidExpenseIds = new Set((prevPayments || []).map((p: any) => p.expense_id));
+        const paidExpenseIds = new Set((prevPayments || []).map((p: any) => p.entity_id));
         const unpaidCount = (activeExpenses || []).filter((e: any) => !paidExpenseIds.has(e.id)).length;
         
         // Also check credit cards with unpaid balance
@@ -330,7 +330,7 @@ serve(async (req) => {
         
         if (totalUnpaidDues > 0) {
           const { data: constraint } = await supabase.from('constraint_scores')
-            .select('*').eq('user_id', userId).single();
+            .select('*').eq('user_id', userId).maybeSingle();
           
           const penalty = 10; // 10pt penalty for having any unpaid dues
           if (constraint) {
@@ -386,7 +386,7 @@ serve(async (req) => {
       let constraintDecayed = false;
       try {
         const { data: constraint } = await supabase.from('constraint_scores')
-          .select('*').eq('user_id', userId).single();
+          .select('*').eq('user_id', userId).maybeSingle();
         if (constraint && constraint.score > 0) {
           const currentOverspends = constraint.recent_overspends || 0;
           // Adaptive decay: slow if recent overspends exist, fast if clean streak
@@ -647,7 +647,7 @@ serve(async (req) => {
       
       // Fetch payments to detect skipped SIPs
       const { data: healthPrefs } = await supabase.from('user_preferences')
-        .select('month_start_day').eq('user_id', userId).single();
+        .select('month_start_day').eq('user_id', userId).maybeSingle();
       const healthMsd = healthPrefs?.month_start_day || 1;
       const healthToday = new Date();
       let healthBillingStart: Date;
@@ -666,7 +666,7 @@ serve(async (req) => {
       });
       
       // Fetch user's health thresholds
-      const { data: userThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).single();
+      const { data: userThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).maybeSingle();
       const ht = userThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
       
       // Fetch future bombs for defusal SIP calculation
@@ -1135,7 +1135,7 @@ serve(async (req) => {
       
       // Query 2: Constraint score
       const t1 = Date.now();
-      const { data: constraint } = await supabase.from('constraint_scores').select('*').eq('user_id', userId).single();
+      const { data: constraint } = await supabase.from('constraint_scores').select('*').eq('user_id', userId).maybeSingle();
       timings.constraintScore = Date.now() - t1;
       
       // Query 2.5: Credit cards (needed for health calc) — use queryUserIds for shared/merged view
@@ -1176,7 +1176,7 @@ serve(async (req) => {
       const t2 = Date.now();
       
       // Fetch user's configurable health thresholds
-      const { data: userHealthThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).single();
+      const { data: userHealthThresholds } = await supabase.from('health_thresholds').select('*').eq('user_id', userId).maybeSingle();
       const ht = userHealthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
       
       // Calculate health using same logic as /health/details endpoint
@@ -1436,7 +1436,7 @@ serve(async (req) => {
 
       // Fetch preferences
       const { data: userPrefs } = await supabase.from('user_preferences')
-        .select('*').eq('user_id', userId).single();
+        .select('*').eq('user_id', userId).maybeSingle();
 
       const responseData = {
         incomes: finalIncomes,

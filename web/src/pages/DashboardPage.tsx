@@ -350,6 +350,9 @@ export function DashboardPage({ token }: DashboardPageProps) {
         api.fetchSharingMembers(token)
       ]);
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'96dc3f'},body:JSON.stringify({sessionId:'96dc3f',location:'DashboardPage.tsx:revalidate-data',message:'Fresh dashboard data shape',data:{hasData:!!dashboardRes.data,fixedCount:dashboardRes.data?.fixedExpenses?.length,incomeCount:dashboardRes.data?.incomes?.length,investCount:dashboardRes.data?.investments?.length,varCount:dashboardRes.data?.variablePlans?.length,hasHealthThresholds:!!dashboardRes.data?.healthThresholds,sampleFixed:dashboardRes.data?.fixedExpenses?.[0] ? Object.keys(dashboardRes.data.fixedExpenses[0]).join(',') : 'none'},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       // Update state with fresh data (seamless refresh)
       setData(dashboardRes.data);
       setCreditCards(cardsRes.data);
@@ -744,6 +747,27 @@ export function DashboardPage({ token }: DashboardPageProps) {
     }
     return base;
   })();
+
+  // #region agent log
+  try {
+    const debugFields: Record<string, string> = {};
+    const checkVal = (name: string, val: any) => { debugFields[name] = typeof val === 'object' && val !== null && !Array.isArray(val) && !(val instanceof Date) ? `OBJECT:${JSON.stringify(val).substring(0,100)}` : typeof val; };
+    checkVal('correctHealth.remaining', correctHealth.remaining);
+    checkVal('correctHealth.category', correctHealth.category);
+    checkVal('variableTotal', variableTotal);
+    checkVal('fixedTotal', fixedTotal);
+    checkVal('investmentsTotal', investmentsTotal);
+    checkVal('incomeTotal', incomeTotal);
+    checkVal('duesTotal', duesTotal);
+    checkVal('futureBombsCount', futureBombsCount);
+    checkVal('notifCount', notifCount);
+    checkVal('loungeOnline', loungeOnline);
+    checkVal('currSym', currSym);
+    if (data?.fixedExpenses) checkVal('fixedExpenses[0]', data.fixedExpenses[0]);
+    if (data?.incomes) checkVal('incomes[0]', data.incomes[0]);
+    fetch('http://127.0.0.1:7242/ingest/620c30bd-a4ac-4892-8325-a941881cbeee',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'96dc3f'},body:JSON.stringify({sessionId:'96dc3f',location:'DashboardPage.tsx:pre-render',message:'Dashboard render check',data:debugFields,timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+  } catch(e) {}
+  // #endregion
 
   return (
     <div className="dashboard-page">

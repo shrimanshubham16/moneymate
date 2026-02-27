@@ -38,7 +38,28 @@ export class ErrorBoundary extends Component<Props, State> {
 
     handleReset = () => {
         this.setState({ hasError: false, error: null });
-        // Navigate to dashboard
+        window.location.href = '/dashboard';
+    };
+
+    handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('finflow_selected_view');
+        this.setState({ hasError: false, error: null });
+        window.location.href = '/';
+    };
+
+    handleClearCache = () => {
+        try {
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('finflow_') || key.startsWith('cache_'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+        } catch (e) { /* ignore */ }
+        this.setState({ hasError: false, error: null });
         window.location.href = '/dashboard';
     };
 
@@ -72,22 +93,39 @@ export class ErrorBoundary extends Component<Props, State> {
                         }}>
                             Don't worry, your data is safe. This might happen after using the browser's back button.
                         </p>
-                        <button
-                            onClick={this.handleReset}
-                            style={{
-                                background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
-                                color: 'var(--bg-primary)',
-                                border: 'none',
-                                borderRadius: 'var(--radius-lg)',
-                                padding: '1rem 2rem',
-                                fontSize: '1rem',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                boxShadow: 'var(--glow-cyan)'
-                            }}
-                        >
-                            Return to Dashboard
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+                            <button
+                                onClick={this.handleClearCache}
+                                style={{
+                                    background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-purple))',
+                                    color: 'var(--bg-primary)',
+                                    border: 'none',
+                                    borderRadius: 'var(--radius-lg)',
+                                    padding: '1rem 2rem',
+                                    fontSize: '1rem',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    boxShadow: 'var(--glow-cyan)'
+                                }}
+                            >
+                                Clear Cache & Retry
+                            </button>
+                            <button
+                                onClick={this.handleLogout}
+                                style={{
+                                    background: 'transparent',
+                                    color: '#ef4444',
+                                    border: '1px solid #ef4444',
+                                    borderRadius: 'var(--radius-lg)',
+                                    padding: '0.75rem 2rem',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Logout & Re-login
+                            </button>
+                        </div>
                         {this.state.error && (
                             <details style={{
                                 marginTop: '2rem',
