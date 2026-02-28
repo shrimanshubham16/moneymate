@@ -7,7 +7,7 @@ interface CacheEntry<T> {
   userId: string;
 }
 
-const CACHE_TTL_MS = 30000; // 30 seconds
+const CACHE_TTL_MS = 60000; // 60 seconds - aligned with server Redis TTL
 const CACHE_PREFIX = 'finflow_cache_';
 
 export class ClientCache {

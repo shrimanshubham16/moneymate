@@ -97,8 +97,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
         // For specific user view, we'll use aggregates instead (can't decrypt their items)
         return [];
       }
-      // Filter to current user's items only (for "me" or "merged" views)
-      return items.filter((item: any) => item.userId === currentUserId || item.user_id === currentUserId);
+      // Filter to current user's items only (for "me" or "merged" views) — backend returns userId
+      return items.filter((item: any) => item.userId === currentUserId);
     };
     
     // Filter items based on view type (prevents double-counting with aggregates in merged view)
@@ -111,36 +111,36 @@ export function DashboardPage({ token }: DashboardPageProps) {
     // This allows combined health calculation even with E2E encryption!
     const sharedAggregates = data.sharedUserAggregates || [];
     
-    // For specific user view, find THAT user's aggregate from the list
+    // For specific user view, find THAT user's aggregate from the list (backend returns camelCase)
     const specificUserAggregate = isSpecificUserView 
-      ? sharedAggregates.find((agg: any) => agg.user_id === selectedView) 
+      ? sharedAggregates.find((agg: any) => agg.userId === selectedView) 
       : null;
     
-    // Calculate shared totals - for specific user view, use only their aggregate
+    // Calculate shared totals - for specific user view, use only their aggregate (camelCase from API)
     const sharedIncomeTotal = isSpecificUserView 
-      ? (parseFloat(specificUserAggregate?.total_income_monthly) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_income_monthly) || 0), 0);
+      ? (parseFloat(specificUserAggregate?.totalIncomeMonthly) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalIncomeMonthly) || 0), 0);
     const sharedFixedTotal = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.total_fixed_monthly) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_fixed_monthly) || 0), 0);
+      ? (parseFloat(specificUserAggregate?.totalFixedMonthly) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalFixedMonthly) || 0), 0);
     const sharedInvestmentsTotal = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.total_investments_monthly) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_investments_monthly) || 0), 0);
+      ? (parseFloat(specificUserAggregate?.totalInvestmentsMonthly) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalInvestmentsMonthly) || 0), 0);
     const sharedVariablePlanned = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.total_variable_planned) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_variable_planned) || 0), 0);
+      ? (parseFloat(specificUserAggregate?.totalVariablePlanned) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalVariablePlanned) || 0), 0);
     const sharedVariableActual = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.total_variable_actual) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_variable_actual) || 0), 0);
+      ? (parseFloat(specificUserAggregate?.totalVariableActual) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalVariableActual) || 0), 0);
     const sharedCreditCardDues = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.total_credit_card_dues) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
+      ? (parseFloat(specificUserAggregate?.totalCreditCardDues) || 0)
+      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalCreditCardDues) || 0), 0);
     
     
-    // Calculate credit card dues (ALL outstanding balances — matches /health and export)
+    // Calculate credit card dues (ALL outstanding balances — matches /health and export; backend returns camelCase)
     const ownCcDues = (creditCards || []).reduce((sum: number, c: any) => {
-      const billAmount = parseFloat(c.billAmount || c.bill_amount || 0);
-      const paidAmount = parseFloat(c.paidAmount || c.paid_amount || 0);
+      const billAmount = parseFloat(c.billAmount ?? 0);
+      const paidAmount = parseFloat(c.paidAmount ?? 0);
       const remaining = Math.max(0, billAmount - paidAmount);
       return sum + remaining;
     }, 0);
@@ -197,14 +197,13 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const variableTotal = ownVariableTotal + sharedVariableEffective;
     
     // Future Bomb Defusal SIP — monthly amount needed to defuse bombs 1 month before due
-    const today2 = new Date();
     const bombSipTotal = ((data.futureBombs || []) as any[]).reduce((sum: number, bomb: any) => {
-      const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount || bomb.total_amount) || 0) - (parseFloat(bomb.savedAmount || bomb.saved_amount) || 0));
+      const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount ?? 0) || 0) - (parseFloat(bomb.savedAmount ?? 0) || 0));
       if (bombRemaining <= 0) return sum;
-      const dueDate = new Date(bomb.dueDate || bomb.due_date);
+      const dueDate = new Date(bomb.dueDate);
       const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
       const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
-      const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today2.getTime()) / msPerMonth));
+      const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today.getTime()) / msPerMonth));
       return sum + (bombRemaining / monthsLeft);
     }, 0);
     
@@ -881,8 +880,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
         />
         <DashboardWidget
           title="Periodic SIPs"
-          value={data.fixedExpenses?.filter((f: any) => f.is_sip_flag).length || 0}
-          subtitle={`${currSym}${Math.round((data.fixedExpenses || []).filter((f: any) => f.is_sip_flag).reduce((s: number, f: any) => s + (f.amount || 0), 0)).toLocaleString("en-IN")}/cycle`}
+          value={data.fixedExpenses?.filter((f: any) => f.isSipFlag).length || 0}
+          subtitle={`${currSym}${Math.round((data.fixedExpenses || []).filter((f: any) => f.isSipFlag).reduce((s: number, f: any) => s + (f.amount || 0), 0)).toLocaleString("en-IN")}/cycle`}
           icon={<FaExchangeAlt />}
           onClick={() => navigate("/sip-expenses")}
           color="#f59e0b"

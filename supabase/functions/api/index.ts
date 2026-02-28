@@ -268,7 +268,9 @@ serve(async (req) => {
     }
   }
   
-  // Invalidate all dashboard-related caches for a user
+  // Invalidate all dashboard-related caches for a user.
+  // Covers main Redis keys: dashboard:userId:me, :merged, bare dashboard:userId, health:userId.
+  // Upstash del is exact-key only; no pattern delete. All dashboard cache keys use these patterns.
   async function invalidateUserCache(userId: string): Promise<void> {
     await Promise.all([
       redisInvalidate(`dashboard:${userId}:me`),
@@ -1440,6 +1442,24 @@ serve(async (req) => {
         createdAt: c.created_at
       }));
 
+      // Map loans with camelCase for consistency
+      const finalLoans = (directLoans || []).map((l: any) => ({
+        ...l,
+        userId: l.user_id
+      }));
+
+      // Map shared user aggregates with camelCase for frontend consistency
+      const finalSharedUserAggregates = sharedUserAggregates.map((agg: any) => ({
+        ...agg,
+        userId: agg.user_id,
+        totalIncomeMonthly: agg.total_income_monthly,
+        totalFixedMonthly: agg.total_fixed_monthly,
+        totalInvestmentsMonthly: agg.total_investments_monthly,
+        totalVariablePlanned: agg.total_variable_planned,
+        totalVariableActual: agg.total_variable_actual,
+        totalCreditCardDues: agg.total_credit_card_dues
+      }));
+
       const responseData = {
         incomes: finalIncomes,
         fixedExpenses: finalFixedExpenses,
@@ -1447,7 +1467,7 @@ serve(async (req) => {
         investments: finalInvestments,
         futureBombs: finalFutureBombs,
         creditCards: finalCreditCards,
-        loans: directLoans || [],
+        loans: finalLoans,
         activities: (directActivities || []).map((a: any) => ({
           id: a.id,
           actorId: a.actor_id,
@@ -1470,8 +1490,8 @@ serve(async (req) => {
           updatedAt: constraint.updated_at
         } : { score: 0, tier: 'green', recentOverspends: 0 },
         alerts: [],
-        // Include shared users' aggregates for combined health calculation
-        sharedUserAggregates: sharedUserAggregates.length > 0 ? sharedUserAggregates : undefined
+        // Include shared users' aggregates for combined health calculation (camelCase normalized)
+        sharedUserAggregates: finalSharedUserAggregates.length > 0 ? finalSharedUserAggregates : undefined
       };
 
       // ================================================================
