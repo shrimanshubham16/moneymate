@@ -14,8 +14,8 @@
 
 /* Bomb Card */
 .bomb-card {
-  background: var(--card-bg, rgba(255,255,255,0.04));
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 24px;
   transition: all 0.3s ease;
@@ -33,14 +33,22 @@
   border-radius: 16px 16px 0 0;
 }
 
-.bomb-card.critical::before { background: linear-gradient(90deg, #ef4444, #f87171); }
-.bomb-card.warn::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-.bomb-card.ok::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.bomb-card.critical::before {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.bomb-card.warn::before {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.bomb-card.ok::before {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
 
 .bomb-card:hover {
-  border-color: rgba(255,255,255,0.15);
+  border-color: rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 /* Bomb Header */
@@ -109,7 +117,7 @@
 
 .detail-item .label {
   font-size: 11px;
-  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -128,7 +136,7 @@
 
 .meter-label {
   font-size: 11px;
-  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
   font-weight: 600;
   margin-bottom: 8px;
   text-transform: uppercase;
@@ -137,7 +145,7 @@
 
 .meter-bar {
   height: 8px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 6px;
@@ -159,9 +167,9 @@
 .defusal-panel {
   margin-top: 16px;
   padding: 16px;
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .defusal-panel-header {
@@ -175,7 +183,7 @@
   margin: 0;
   font-size: 13px;
   font-weight: 700;
-  color: var(--text-secondary, rgba(255,255,255,0.7));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -186,9 +194,17 @@
   margin-bottom: 10px;
 }
 
-.defusal-sip-amount.affordable { color: #10b981; }
-.defusal-sip-amount.needs-action { color: #f59e0b; }
-.defusal-sip-amount.unaffordable { color: #ef4444; }
+.defusal-sip-amount.affordable {
+  color: #10b981;
+}
+
+.defusal-sip-amount.needs-action {
+  color: #f59e0b;
+}
+
+.defusal-sip-amount.unaffordable {
+  color: #ef4444;
+}
 
 .defusal-ok-msg {
   display: flex;
@@ -208,7 +224,7 @@
   display: flex;
   gap: 4px;
   margin-bottom: 12px;
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
   border-radius: 10px;
   padding: 3px;
 }
@@ -219,7 +235,7 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -229,13 +245,13 @@
 }
 
 .strategy-tab:hover {
-  color: var(--text-secondary, rgba(255,255,255,0.7));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
 }
 
 .strategy-tab.active {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary, #f1f5f9);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .strategy-tab.active.tab-pause {
@@ -259,13 +275,20 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .strategy-summary {
   font-size: 12px;
-  color: var(--text-secondary, rgba(255,255,255,0.6));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
   margin-bottom: 12px;
   line-height: 1.5;
   display: flex;
@@ -324,9 +347,17 @@
   font-size: 12px;
 }
 
-.strategy-step.pause-step .step-value { color: #f59e0b; }
-.strategy-step.sell-step .step-value { color: #a78bfa; }
-.strategy-step.withdraw-step .step-value { color: #10b981; }
+.strategy-step.pause-step .step-value {
+  color: #f59e0b;
+}
+
+.strategy-step.sell-step .step-value {
+  color: #a78bfa;
+}
+
+.strategy-step.withdraw-step .step-value {
+  color: #10b981;
+}
 
 /* Remaining shortfall pill */
 .shortfall-pill {
@@ -374,33 +405,52 @@
   gap: 6px;
 }
 
-.strategy-action-btn:hover { transform: translateY(-1px); }
-.strategy-action-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.strategy-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.strategy-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
 
 .strategy-action-btn.pause-btn {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   color: #000;
 }
-.strategy-action-btn.pause-btn:hover:not(:disabled) { box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
+
+.strategy-action-btn.pause-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
 
 .strategy-action-btn.sell-btn {
   background: linear-gradient(135deg, #8b5cf6, #7c3aed);
   color: #fff;
 }
-.strategy-action-btn.sell-btn:hover:not(:disabled) { box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+
+.strategy-action-btn.sell-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
 
 .strategy-action-btn.mix-btn {
   background: linear-gradient(135deg, #22d3ee, #0891b2);
   color: #000;
 }
-.strategy-action-btn.mix-btn:hover:not(:disabled) { box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3); }
+
+.strategy-action-btn.mix-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
+}
 
 .strategy-action-btn.withdraw-btn {
   background: linear-gradient(135deg, #10b981, #059669);
   color: #fff;
   margin-top: 8px;
 }
-.strategy-action-btn.withdraw-btn:hover:not(:disabled) { box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+
+.strategy-action-btn.withdraw-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
 
 /* ===== Withdrawal Section ===== */
 .withdrawal-section {
@@ -429,7 +479,7 @@
 
 .withdrawal-header-note {
   font-size: 10px;
-  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
   font-weight: 500;
 }
 
@@ -438,7 +488,7 @@
   align-items: flex-start;
   gap: 6px;
   font-size: 12px;
-  color: var(--text-secondary, rgba(255,255,255,0.6));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
   padding: 8px 10px;
   background: rgba(16, 185, 129, 0.06);
   border-radius: 8px;
@@ -470,7 +520,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
   padding: 8px 0 4px;
   display: flex;
   align-items: center;
@@ -481,11 +531,13 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ===== Custom Mix Controls ===== */
-.custom-mix-section { margin-bottom: 12px; }
+.custom-mix-section {
+  margin-bottom: 12px;
+}
 
 .custom-mix-section h5 {
   margin: 0 0 8px 0;
@@ -493,7 +545,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
 }
 
 /* Mix Withdrawal Controls */
@@ -562,8 +614,8 @@
 }
 
 .mix-section-tag.monthly {
-  background: rgba(255,255,255,0.06);
-  color: var(--text-tertiary, rgba(255,255,255,0.45));
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.45));
 }
 
 .mix-action-buttons {
@@ -579,13 +631,15 @@
   gap: 10px;
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: 6px;
   transition: all 0.2s;
 }
 
-.mix-investment-row:hover { background: rgba(255,255,255,0.05); }
+.mix-investment-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
 
 .mix-investment-row input[type="checkbox"] {
   width: 16px;
@@ -626,7 +680,7 @@
 .mix-shares-control .shares-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, rgba(255,255,255,0.7));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
   flex-shrink: 0;
   min-width: 60px;
 }
@@ -648,7 +702,7 @@
 
 .mix-shares-preview {
   font-size: 11px;
-  color: var(--text-tertiary, rgba(255,255,255,0.5));
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.5));
   margin-top: 4px;
   padding-left: 12px;
 }
@@ -658,8 +712,8 @@
   margin-top: 12px;
   padding: 12px;
   border-radius: 10px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .mix-feedback-row {
@@ -670,26 +724,66 @@
   padding: 4px 0;
 }
 
-.mix-feedback-row .fb-label { color: var(--text-secondary, rgba(255,255,255,0.6)); }
-.mix-feedback-row .fb-value { font-weight: 700; color: var(--text-primary, #f1f5f9); }
-.mix-feedback-row .fb-value.positive { color: #34d399; }
-.mix-feedback-row .fb-value.negative { color: #f87171; }
-.mix-feedback-row .fb-value.warning { color: #fbbf24; }
+.mix-feedback-row .fb-label {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+.mix-feedback-row .fb-value {
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.mix-feedback-row .fb-value.positive {
+  color: #34d399;
+}
+
+.mix-feedback-row .fb-value.negative {
+  color: #f87171;
+}
+
+.mix-feedback-row .fb-value.warning {
+  color: #fbbf24;
+}
 
 .mix-feedback-divider {
   height: 1px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
   margin: 6px 0;
+}
+
+/* Withdrawal hint — subtle callout nudging users to Custom Mix */
+.withdrawal-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.55));
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px dashed rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.withdrawal-hint svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: #34d399;
+}
+
+.withdrawal-hint strong {
+  color: #22d3ee;
 }
 
 /* No RSU info box */
 .no-rsu-info {
   font-size: 12px;
-  color: var(--text-tertiary, rgba(255,255,255,0.5));
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.5));
   padding: 8px 12px;
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
-  border: 1px dashed rgba(255,255,255,0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -701,16 +795,16 @@
   gap: 8px;
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .bomb-actions button {
   flex: 1;
   padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.04);
-  color: var(--text-secondary, rgba(255,255,255,0.7));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -722,7 +816,7 @@
 }
 
 .bomb-actions button:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary, #f1f5f9);
 }
 
@@ -731,25 +825,32 @@
   border-color: rgba(239, 68, 68, 0.2);
 }
 
-.bomb-actions button.delete-action:hover { background: rgba(239, 68, 68, 0.1); }
+.bomb-actions button.delete-action:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
 
 /* Empty State */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: var(--text-secondary, rgba(255,255,255,0.6));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
 }
 
-.empty-state p { margin: 0; font-size: 15px; }
+.empty-state p {
+  margin: 0;
+  font-size: 15px;
+}
 
 /* Form styling in Modal */
-.bomb-form .form-group { margin-bottom: 16px; }
+.bomb-form .form-group {
+  margin-bottom: 16px;
+}
 
 .bomb-form .form-group label {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, rgba(255,255,255,0.7));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
   margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -759,8 +860,8 @@
   width: 100%;
   padding: 10px 14px;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary, #f1f5f9);
   font-size: 15px;
   outline: none;
@@ -768,14 +869,37 @@
   box-sizing: border-box;
 }
 
-.bomb-form .form-group input:focus { border-color: var(--accent-cyan, #22d3ee); }
+.bomb-form .form-group input:focus {
+  border-color: var(--accent-cyan, #22d3ee);
+}
 
 /* Responsive */
 @media (max-width: 768px) {
-  .bombs-list { grid-template-columns: 1fr; }
-  .bomb-details { grid-template-columns: 1fr 1fr; }
-  .future-bombs-page { padding: 16px; }
-  .strategy-tab { font-size: 10px; padding: 7px 4px; }
-  .mix-withdraw-control { flex-direction: column; align-items: flex-start; gap: 2px; }
-  .withdrawal-header { flex-direction: column; gap: 2px; }
+  .bombs-list {
+    grid-template-columns: 1fr;
+  }
+
+  .bomb-details {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .future-bombs-page {
+    padding: 16px;
+  }
+
+  .strategy-tab {
+    font-size: 10px;
+    padding: 7px 4px;
+  }
+
+  .mix-withdraw-control {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .withdrawal-header {
+    flex-direction: column;
+    gap: 2px;
+  }
 }
