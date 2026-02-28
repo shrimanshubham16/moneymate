@@ -49,6 +49,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
   const [creditCards, setCreditCards] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sharedAggregates, setSharedAggregates] = useState<any[]>([]);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
   const hasFetchedRef = useRef(false);
   const lastViewRef = useRef<string>("");
 
@@ -301,6 +302,27 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     { key: "ExtraCash", label: "Extra Cash", icon: <FaWallet size={18} />, hint: "Doesn't affect funds" },
     { key: "CreditCard", label: "Credit Card", icon: <FaCreditCard size={18} />, hint: "Billed later" }
   ];
+
+  // Compute budget suggestion for a plan: avg spend vs planned, show if diff > 20%
+  const getBudgetSuggestion = (plan: any) => {
+    const planned = plan.planned || 0;
+    if (planned <= 0) return null;
+    // Use actuals to compute average over available months (up to 3)
+    const actuals = plan.actuals || [];
+    const monthlyTotals: Record<string, number> = {};
+    actuals.forEach((a: any) => {
+      const d = new Date(a.incurredAt || a.incurred_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      monthlyTotals[key] = (monthlyTotals[key] || 0) + (parseFloat(a.amount) || 0);
+    });
+    const months = Object.keys(monthlyTotals);
+    if (months.length === 0) return null;
+    const totalSpent = Object.values(monthlyTotals).reduce((s, v) => s + v, 0);
+    const avgSpend = totalSpent / months.length;
+    const diffPct = Math.abs(avgSpend - planned) / planned;
+    if (diffPct <= 0.2) return null;
+    return { avgSpend, planned };
+  };
 
   return (
     <div className="variable-expenses-page">
@@ -587,6 +609,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         <div className="plans-list">
           {ownPlans.map((plan, index) => {
             const overspend = plan.actualTotal > plan.planned;
+            const suggestion = !dismissedSuggestions.has(plan.id) ? getBudgetSuggestion(plan) : null;
             
             return (
               <motion.div
@@ -596,6 +619,13 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
+                {suggestion && (
+                  <div className="budget-suggestion">
+                    <span className="suggestion-icon">💡</span>
+                    <span>You typically spend ₹{Math.round(suggestion.avgSpend).toLocaleString("en-IN")} on {plan.name} — your plan is ₹{Math.round(suggestion.planned).toLocaleString("en-IN")}. {suggestion.avgSpend > suggestion.planned ? "Consider increasing your budget." : "Great job staying under budget!"}</span>
+                    <button onClick={() => setDismissedSuggestions(prev => new Set([...prev, plan.id]))} type="button" aria-label="Dismiss suggestion">×</button>
+                  </div>
+                )}
                 <div className="plan-header">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

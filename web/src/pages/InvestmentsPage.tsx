@@ -277,6 +277,24 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
                     <span style={{ color: '#10b981', fontWeight: 600 }}>
                       Saved: ₹{Math.round(inv.accumulatedFunds || inv.accumulated_funds || 0).toLocaleString("en-IN")}
                     </span>
+                    {inv.status === "active" && (() => {
+                      const monthly = parseFloat(inv.monthlyAmount ?? inv.monthly_amount ?? 0) || 0;
+                      const accumulated = inv.accumulatedFunds || inv.accumulated_funds || 0;
+                      const monthsContributing = monthly > 0 ? Math.floor(accumulated / monthly) : 0;
+                      const milestoneAmount = monthly * 12;
+                      const progressPct = milestoneAmount > 0 ? Math.min(100, (accumulated / milestoneAmount) * 100) : 0;
+                      return (
+                        <div className="goal-progress">
+                          <div className="goal-progress-bar">
+                            <div className="goal-progress-fill" style={{ width: `${progressPct}%` }} />
+                          </div>
+                          <div className="goal-progress-info">
+                            <span>₹{Math.round(accumulated).toLocaleString("en-IN")} saved</span>
+                            <span>{monthsContributing}mo contributing</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <StatusBadge 
                       status={inv.status === "active" ? "active" : "paused"} 
                       size="small" 

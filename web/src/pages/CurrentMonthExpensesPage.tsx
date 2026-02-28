@@ -18,6 +18,7 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const hasFetchedRef = useRef(false);
@@ -177,12 +178,36 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
       });
 
       setExpenses(displayData);
+      setPlans(res.data.variablePlans || []);
     } catch (e) {
       console.error("Failed to load expenses:", e);
     } finally {
       setLoading(false);
     }
   };
+
+  // Spending insights from variable plans (filtered by viewed month)
+  const insights = useMemo(() => {
+    if (!plans || plans.length === 0) return null;
+    const monthStart = new Date(viewMonth.year, viewMonth.month, 1);
+    const monthEnd = new Date(viewMonth.year, viewMonth.month + 1, 0, 23, 59, 59, 999);
+    const categoryTotals = plans.map((p: any) => {
+      const filteredActuals = (p.actuals || []).filter((a: any) => {
+        const d = new Date(a.incurredAt);
+        return d >= monthStart && d <= monthEnd;
+      });
+      const actual = filteredActuals.reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+      return {
+        name: p.name,
+        planned: parseFloat(p.planned) || 0,
+        actual
+      };
+    });
+    const totalPlanned = categoryTotals.reduce((s, c) => s + c.planned, 0);
+    const totalActual = categoryTotals.reduce((s, c) => s + c.actual, 0);
+    const sorted = [...categoryTotals].sort((a, b) => b.actual - a.actual);
+    return { categoryTotals: sorted, totalPlanned, totalActual };
+  }, [plans, viewMonth]);
 
   const getPaymentModeInfo = (mode: string) => {
     switch (mode) {
@@ -305,6 +330,37 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
         </div>
       ) : (
         <>
+          {insights && (
+            <div className="spending-insights">
+              <h3>Spending Insights</h3>
+              <div className="insight-summary">
+                <span>Spent {currency}{Math.round(insights.totalActual).toLocaleString("en-IN")} of {currency}{Math.round(insights.totalPlanned).toLocaleString("en-IN")} planned</span>
+                <div className="insight-bar-bg">
+                  <div
+                    className="insight-bar-fill"
+                    style={{ width: `${Math.min(100, insights.totalPlanned > 0 ? (insights.totalActual / insights.totalPlanned) * 100 : 0)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="insight-categories">
+                {insights.categoryTotals.slice(0, 5).map((cat: { name: string; planned: number; actual: number }) => (
+                  <div key={cat.name} className="insight-category">
+                    <div className="insight-cat-header">
+                      <span>{cat.name}</span>
+                      <span>{currency}{Math.round(cat.actual).toLocaleString("en-IN")} / {currency}{Math.round(cat.planned).toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="insight-bar-bg">
+                      <div
+                        className={`insight-bar-fill ${cat.actual > cat.planned ? 'overspent' : ''}`}
+                        style={{ width: `${Math.min(100, cat.planned > 0 ? (cat.actual / cat.planned) * 100 : 0)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Summary Hero */}
           <div className="cme-summary-hero">
             <div className="cme-hero-main">

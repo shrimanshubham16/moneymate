@@ -701,3 +701,75 @@
   border-color: var(--success, #10b981);
   color: white;
 }
+
+/* ── Monthly Report Card ── */
+.monthly-report-card {
+  background: var(--card-bg, var(--bg-elevated));
+  border: 1px solid var(--border, rgba(184,193,236,0.12));
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+.monthly-report-card:hover {
+  border-color: rgba(184,193,236,0.2);
+}
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.report-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.report-rating {
+  font-size: 16px;
+  font-weight: 700;
+}
+.report-rating:has(+ .report-toggle) {
+  margin-right: 4px;
+}
+.report-rating.report-rating-good {
+  color: var(--success, #10b981);
+}
+.report-rating.report-rating-tight {
+  color: var(--warning, #f59e0b);
+}
+.report-rating.report-rating-negative {
+  color: var(--error, #ef4444);
+}
+.report-toggle {
+  color: var(--text-muted, var(--text-tertiary));
+  font-size: 12px;
+}
+.report-body {
+  margin-top: 12px;
+}
+.report-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.report-row .positive {
+  color: var(--success, #10b981);
+}
+.report-row .negative {
+  color: var(--error, #ef4444);
+}
+.report-divider {
+  border: none;
+  border-top: 1px solid var(--border, rgba(184,193,236,0.12));
+  margin: 8px 0;
+}
+.report-net {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}

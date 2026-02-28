@@ -430,6 +430,20 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                         <span className="inv-stat-value green">₹{accumVal.toLocaleString("en-IN")}</span>
                       </div>
                     )}
+                    {inv.status === "active" && monthlyVal > 0 && (
+                      <div className="goal-progress" style={{ flexBasis: "100%", marginTop: 8 }}>
+                        <div className="goal-progress-bar">
+                          <div
+                            className="goal-progress-fill"
+                            style={{ width: `${Math.min(100, (accumVal / (monthlyVal * 12)) * 100)}%` }}
+                          />
+                        </div>
+                        <div className="goal-progress-info">
+                          <span>₹{accumVal.toLocaleString("en-IN")} saved</span>
+                          <span>{Math.floor(accumVal / monthlyVal)}mo contributing</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="inv-stat">
                       <span className="inv-stat-label">Status</span>
                       <span className={`inv-status-pill ${inv.status}`}>

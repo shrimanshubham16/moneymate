@@ -79,6 +79,52 @@
   letter-spacing: 0.06em;
 }
 
+/* ── Spending Insights ── */
+.spending-insights {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle, rgba(184,193,236,0.08));
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.spending-insights h3 {
+  font-size: 15px;
+  margin: 0 0 12px 0;
+  color: var(--text-primary);
+}
+.insight-summary {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.insight-bar-bg {
+  height: 6px;
+  background: rgba(184,193,236,0.12);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.insight-bar-fill {
+  height: 100%;
+  background: var(--accent, #3b82f6);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.insight-bar-fill.overspent {
+  background: var(--error, #ef4444);
+}
+.insight-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.insight-cat-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 /* ── Summary Hero ── */
 .cme-summary-hero {
   display: flex;

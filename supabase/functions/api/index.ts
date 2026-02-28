@@ -1574,6 +1574,26 @@ serve(async (req) => {
             }).catch((err) => console.warn('[BACKGROUND] Notification creation failed:', err));
           }
         }
+
+        // 5. Bill reminders — notify 3 days before credit card due dates
+        const threeDaysFromNow = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
+        for (const card of (directCreditCards || [])) {
+          if (card.user_id !== userId) continue;
+          const dueDate = new Date(card.due_date);
+          const remaining = (card.bill_amount || 0) - (card.paid_amount || 0);
+          if (remaining > 0 && dueDate >= today && dueDate <= threeDaysFromNow) {
+            await createNotification(supabase, {
+              userId,
+              type: 'payment_reminder',
+              title: 'Credit Card Bill Due Soon',
+              message: `${card.name || 'Credit Card'} bill of ₹${Math.round(remaining)} is due on ${dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
+              entityType: 'credit_card',
+              entityId: card.id,
+              actionUrl: '/credit-cards',
+              groupKey: `cc_reminder:${card.id}:${billingMonth}`
+            }).catch(err => console.warn('[BACKGROUND] Bill reminder failed:', err));
+          }
+        }
       }
 
       // Also fetch unread notification count to include in dashboard response
@@ -1979,6 +1999,30 @@ serve(async (req) => {
               });
             }
           }
+        }
+
+        // Notify shared companions about overspend (gentle nudge)
+        if (totalActual > plannedAmount) {
+          try {
+            const billingMonth = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+            const { data: myMemberships } = await supabase.from('shared_members')
+              .select('shared_account_id').eq('user_id', userId);
+            if (myMemberships?.length) {
+              const accountIds = myMemberships.map((m: any) => m.shared_account_id);
+              const { data: companions } = await supabase.from('shared_members')
+                .select('user_id').in('shared_account_id', accountIds).neq('user_id', userId);
+              const { data: me } = await supabase.from('users').select('username').eq('id', userId).single();
+              for (const c of (companions || [])) {
+                await createNotification(supabase, {
+                  userId: c.user_id,
+                  type: 'budget_alert',
+                  title: 'Companion Budget Alert',
+                  message: `${me?.username || 'Your companion'} exceeded their ${plan.name} budget this month`,
+                  groupKey: `companion_overspend:${userId}:${plan.id}:${billingMonth}`
+                }).catch(err => console.warn('[BACKGROUND] Companion notification failed:', err));
+              }
+            }
+          } catch (e) { console.warn('[COMPANION_NUDGE]', e); }
         }
       }
       

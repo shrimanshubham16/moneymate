@@ -56,6 +56,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [newQuickSub, setNewQuickSub] = useState<string>("");
   const [showQuickNewSub, setShowQuickNewSub] = useState(false);
   const [loungeOnline, setLoungeOnline] = useState(0);
+  const [showReport, setShowReport] = useState(false);
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const keepAliveIntervalRef = useRef<number | null>(null);
@@ -661,6 +662,38 @@ export function DashboardPage({ token }: DashboardPageProps) {
     };
   }, [data, creditCards, sharingMembers]);
 
+  // Monthly Report totals (for selectedView === 'me')
+  const reportTotals = useMemo(() => {
+    if (!data || selectedView !== 'me') return null;
+    const totalIncome = (data.incomes || [])
+      .filter((inc: any) => inc.includeInHealth !== false)
+      .reduce((s: number, inc: any) => {
+        const amt = parseFloat(inc.amount) || 0;
+        return s + (inc.frequency === 'monthly' ? amt : inc.frequency === 'quarterly' ? amt / 3 : amt / 12);
+      }, 0);
+    const totalFixed = (data.fixedExpenses || []).reduce((s: number, f: any) => {
+      const amt = parseFloat(f.amount) || 0;
+      return s + (f.frequency === 'monthly' ? amt : f.frequency === 'quarterly' ? amt / 3 : amt / 12);
+    }, 0);
+    const totalVariable = (data.variablePlans || []).reduce((s: number, p: any) =>
+      s + (p.actuals || []).reduce((sa: number, a: any) => sa + (parseFloat(a.amount) || 0), 0), 0);
+    const totalInvestments = (data.investments || [])
+      .filter((i: any) => i.status === 'active')
+      .reduce((s: number, i: any) => s + (parseFloat(i.monthlyAmount) || 0), 0);
+    const totalCC = (creditCards || []).reduce((s: number, c: any) => {
+      const bill = parseFloat(c.billAmount ?? 0);
+      const paid = parseFloat(c.paidAmount ?? 0);
+      return s + Math.max(0, bill - paid);
+    }, 0);
+    const net = totalIncome - totalFixed - totalVariable - totalInvestments - totalCC;
+    const ht = data.healthThresholds || { good_min: 20, ok_min: 10 };
+    const pct = totalIncome > 0 ? (net / totalIncome) * 100 : (net < 0 ? -100 : 0);
+    let rating: 'good' | 'tight' | 'negative' = 'negative';
+    if (net >= 0 && pct >= ht.good_min) rating = 'good';
+    else if (net >= 0 && pct >= ht.ok_min) rating = 'tight';
+    return { totalIncome, totalFixed, totalVariable, totalInvestments, totalCC, net, rating };
+  }, [data, creditCards, selectedView]);
+
   if (loading) {
     return (
       <div className="dashboard-page loader-shell">
@@ -798,6 +831,31 @@ export function DashboardPage({ token }: DashboardPageProps) {
           onClick={() => navigate("/health")}
         />
       </motion.div>
+
+      {data && selectedView === 'me' && reportTotals && (
+        <div className="monthly-report-card" onClick={() => setShowReport(!showReport)}>
+          <div className="report-header">
+            <span>Monthly Report</span>
+            <span className="report-header-right">
+              <span className={`report-rating report-rating-${reportTotals.rating}`} title={reportTotals.rating === 'good' ? 'Healthy surplus' : reportTotals.rating === 'tight' ? 'Tight budget' : 'Deficit'}>
+                {reportTotals.rating === 'good' ? '✓' : reportTotals.rating === 'tight' ? '⚠' : '✕'}
+              </span>
+              <span className="report-toggle">{showReport ? '▲' : '▼'}</span>
+            </span>
+          </div>
+          {showReport && (
+            <div className="report-body">
+              <div className="report-row"><span>Income</span><span className="positive">{currSym}{Math.round(reportTotals.totalIncome).toLocaleString("en-IN")}</span></div>
+              <div className="report-row"><span>Fixed Expenses</span><span className="negative">-{currSym}{Math.round(reportTotals.totalFixed).toLocaleString("en-IN")}</span></div>
+              <div className="report-row"><span>Variable Spending</span><span className="negative">-{currSym}{Math.round(reportTotals.totalVariable).toLocaleString("en-IN")}</span></div>
+              <div className="report-row"><span>Investments</span><span className="negative">-{currSym}{Math.round(reportTotals.totalInvestments).toLocaleString("en-IN")}</span></div>
+              <div className="report-row"><span>Credit Cards</span><span className="negative">-{currSym}{Math.round(reportTotals.totalCC).toLocaleString("en-IN")}</span></div>
+              <hr className="report-divider" />
+              <div className="report-row report-net"><span>Net Position</span><span className={reportTotals.net >= 0 ? 'positive' : 'negative'}>{currSym}{Math.round(reportTotals.net).toLocaleString("en-IN")}</span></div>
+            </div>
+          )}
+        </div>
+      )}
 
       {selectedView === 'me' && (() => {
         const hasIncome = (data.incomes?.length ?? 0) > 0;

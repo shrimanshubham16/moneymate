@@ -230,6 +230,35 @@
   box-shadow: 0 4px 12px rgba(0, 217, 255, 0.1);
 }
 
+/* ─── Budget Suggestion Banner ─── */
+.budget-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--accent, #3b82f6);
+  border-left: 3px solid var(--accent, #3b82f6);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.budget-suggestion .suggestion-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.budget-suggestion button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 /* ─── Plan Cards ─── */
 .plans-list {
   display: grid;
