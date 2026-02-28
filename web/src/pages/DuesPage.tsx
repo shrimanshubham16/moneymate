@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaUserCircle, FaCheckCircle, FaFileInvoiceDollar, FaCreditCard, FaChartLine, FaCalendarCheck, FaCheck, FaForward, FaUndo } from "react-icons/fa";
+import { FaUserCircle, FaCheckCircle, FaFileInvoiceDollar, FaCreditCard, FaChartLine, FaCalendarCheck, FaCheck, FaForward } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -80,13 +80,13 @@ export function DuesPage({ token }: DuesPageProps) {
 
   const handleSkipSIP = async (due: any) => {
     showConfirm(
-      `Skip saving for "${due.name}" this month? This removes the obligation from your health score and no funds will accumulate. You can undo this anytime.`,
+      `Skip saving for "${due.name}" this month? This removes the obligation from your health score and no funds will accumulate. You can undo from the SIP Expenses page.`,
       async () => {
         try {
-          setDues(prev => prev.map(d => d.id === due.id ? { ...d, isSkipped: true, paid: true } : d));
+          setDues(prev => prev.filter(d => d.id !== due.id));
           setTotalDues(prev => prev - due.amount);
           await api.skipSIP(token, due.id);
-          setToast({ show: true, message: `${due.name} skipped for this month` });
+          setToast({ show: true, message: `${due.name} skipped — removed from dues` });
           loadDues().catch(console.error);
         } catch (e: any) {
           await loadDues();
@@ -95,20 +95,6 @@ export function DuesPage({ token }: DuesPageProps) {
       },
       "Skip This Month?"
     );
-  };
-
-  const handleUndoSkip = async (due: any) => {
-    try {
-      // Optimistic: restore to unpaid
-      setDues(prev => prev.map(d => d.id === due.id ? { ...d, isSkipped: false, paid: false } : d));
-      setTotalDues(prev => prev + due.amount);
-      await api.undoSkipSIP(token, due.id);
-      setToast({ show: true, message: `${due.name} skip undone — obligation restored` });
-      loadDues().catch(console.error);
-    } catch (e: any) {
-      await loadDues();
-      showAlert("Failed to undo skip: " + e.message);
-    }
   };
 
   // Helper function to calculate next due date for periodic expenses
@@ -214,13 +200,14 @@ export function DuesPage({ token }: DuesPageProps) {
         }
       });
 
-      // Fixed expenses due this month (including skipped SIPs for display)
+      // Fixed expenses due this month (skip already-skipped SIPs entirely)
       dashboardRes.data.fixedExpenses?.forEach((exp: any) => {
         const startDate = exp.startDate || exp.start_date;
         const isSkipped = exp.isSkipped === true;
         
-        // Show if unpaid OR skipped (skipped items should appear with badge)
-        if (!exp.paid || isSkipped) {
+        if (isSkipped) return;
+        
+        if (!exp.paid) {
           const isSip = exp.is_sip_flag || exp.isSipFlag;
           if (exp.frequency !== 'monthly' && !isSip) {
             const isDue = isPeriodicExpenseDue(startDate, exp.frequency, monthStartDay, today);
@@ -244,18 +231,14 @@ export function DuesPage({ token }: DuesPageProps) {
             itemType: "fixed_expense",
             amount: Math.round(monthly),
             dueDate: nextDue.toISOString().split("T")[0],
-            paid: isSkipped ? true : (exp.paid || false),
-            isSkipped: isSkipped,
+            paid: exp.paid || false,
             total: Math.round(monthly),
             accumulatedFunds: accumulatedFunds,
             isSip: isSip,
             frequency: exp.frequency,
             userId: exp.userId || exp.user_id
           });
-          // Skipped items don't count toward total (obligation removed)
-          if (!isSkipped) {
-            total += Math.round(monthly);
-          }
+          total += Math.round(monthly);
         }
       });
 
@@ -307,15 +290,13 @@ export function DuesPage({ token }: DuesPageProps) {
 
   // Group own dues by type for sectioned display
   const grouped = {
-    fixed: ownDues.filter(d => d.type === "Fixed Expense" && !d.isSkipped),
-    sip: ownDues.filter(d => d.type === "SIP Expense" && !d.isSkipped),
-    skippedSip: ownDues.filter(d => d.isSkipped),
+    fixed: ownDues.filter(d => d.type === "Fixed Expense"),
+    sip: ownDues.filter(d => d.type === "SIP Expense"),
     investment: ownDues.filter(d => d.type === "Investment"),
     creditCard: ownDues.filter(d => d.type === "Credit Card"),
   };
 
-  const pendingCount = ownDues.filter(d => !d.paid && !d.isSkipped).length;
-  const skippedCount = ownDues.filter(d => d.isSkipped).length;
+  const pendingCount = ownDues.filter(d => !d.paid).length;
 
   const getBadgeClass = (type: string) => {
     if (type === "Credit Card") return "badge-credit";
@@ -325,20 +306,19 @@ export function DuesPage({ token }: DuesPageProps) {
   };
 
   const renderDueCard = (due: any, index: number) => {
-    const isSkipped = due.isSkipped === true;
     const isPeriodicSip = due.isSip && due.frequency !== 'monthly';
     
     return (
       <motion.div
         key={due.id}
-        className={`due-card ${due.paid && !isSkipped ? "due-paid" : ""} ${isSkipped ? "due-skipped" : ""}`}
+        className={`due-card ${due.paid ? "due-paid" : ""}`}
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.04 }}
       >
         <div className="due-header">
           <div className="due-header-left">
-            {due.itemType !== "credit_card" && !isSkipped && (
+            {due.itemType !== "credit_card" && (
               <button
                 className={`due-toggle ${due.paid ? "checked" : ""}`}
                 onClick={() => handleTogglePaid(due)}
@@ -347,22 +327,16 @@ export function DuesPage({ token }: DuesPageProps) {
                 {due.paid && <FaCheck size={11} />}
               </button>
             )}
-            {isSkipped && (
-              <span className="due-skip-icon" title="Skipped this month">
-                <FaForward size={14} />
-              </span>
-            )}
-            <h3 className={isSkipped ? "skipped-name" : ""}>{due.name}</h3>
+            <h3>{due.name}</h3>
           </div>
           <div className="due-header-right">
-            {isSkipped && <span className="due-skip-badge">Skipped</span>}
             <span className={`due-type-badge ${getBadgeClass(due.type)}`}>{due.type}</span>
           </div>
         </div>
         <div className="due-details">
           <div className="due-detail-item">
             <span className="due-detail-label">Amount</span>
-            <span className={`due-detail-value val-amount ${isSkipped ? "skipped-amount" : ""}`}>
+            <span className="due-detail-value val-amount">
               ₹{due.amount.toLocaleString("en-IN")}
             </span>
           </div>
@@ -383,23 +357,12 @@ export function DuesPage({ token }: DuesPageProps) {
             </div>
           )}
         </div>
-        {/* Skip / Undo Skip actions for periodic SIPs */}
-        {isPeriodicSip && !isSharedView && (
+        {/* Skip action for unpaid periodic SIPs */}
+        {isPeriodicSip && !isSharedView && !due.paid && (
           <div className="due-actions">
-            {isSkipped ? (
-              <button className="due-action-btn undo-skip-btn" onClick={() => handleUndoSkip(due)}>
-                <FaUndo size={12} /> Undo Skip
-              </button>
-            ) : !due.paid ? (
-              <button className="due-action-btn skip-btn" onClick={() => handleSkipSIP(due)}>
-                <FaForward size={12} /> Skip This Month
-              </button>
-            ) : null}
-          </div>
-        )}
-        {isSkipped && (
-          <div className="due-skip-note">
-            Obligation removed from health score this month. Funds frozen — no accumulation.
+            <button className="due-action-btn skip-btn" onClick={() => handleSkipSIP(due)}>
+              <FaForward size={12} /> Skip This Month
+            </button>
           </div>
         )}
       </motion.div>
@@ -437,8 +400,8 @@ export function DuesPage({ token }: DuesPageProps) {
             "Fixed expenses, active investments, and credit card bills automatically appear here each month",
             "Tap the checkbox to mark an item as paid — it clears from your pending dues",
             "All commitments count toward your health score regardless of payment status",
-            "Periodic SIP expenses (quarterly/yearly) have a 'Skip This Month' option — skipping removes the obligation from health, giving you relief. No funds accumulate and no penalty is applied",
-            "Skipped SIPs appear in a 'Skipped This Month' section — you can undo anytime to restore the obligation",
+            "Periodic SIP expenses (quarterly/yearly) have a 'Skip This Month' option — skipping removes the item from dues entirely, relieving the obligation from health. No funds accumulate and no penalty is applied",
+            "To undo a skip, visit the SIP Expenses page where skipped items are shown with an Undo option",
             "Credit card payments are managed separately on the Credit Cards page"
           ]}
         />
@@ -496,12 +459,6 @@ export function DuesPage({ token }: DuesPageProps) {
                   <span className="dues-stat-label">Pending</span>
                   <span className="dues-stat-value stat-pending">{pendingCount}</span>
                 </div>
-                {skippedCount > 0 && (
-                  <div className="dues-hero-stat">
-                    <span className="dues-stat-label">Skipped</span>
-                    <span className="dues-stat-value stat-skipped">{skippedCount}</span>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -522,7 +479,6 @@ export function DuesPage({ token }: DuesPageProps) {
               {renderSection("SIP Expenses", <FaChartLine size={16} />, "sip", grouped.sip)}
               {renderSection("Investments", <FaChartLine size={16} />, "investment", grouped.investment)}
               {renderSection("Credit Cards", <FaCreditCard size={16} />, "credit", grouped.creditCard)}
-              {grouped.skippedSip.length > 0 && renderSection("Skipped This Month", <FaForward size={16} />, "skipped", grouped.skippedSip)}
             </>
           )}
         </>
