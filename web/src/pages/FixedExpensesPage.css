@@ -59,10 +59,21 @@
   color: var(--text-primary);
 }
 
-.fe-summary-value.fe-total { color: var(--accent-cyan, #22d3ee); }
-.fe-summary-value.fe-paid { color: #10b981; }
-.fe-summary-value.fe-unpaid { color: #f59e0b; }
-.fe-summary-value.fe-sip { color: var(--accent-purple, #a78bfa); }
+.fe-summary-value.fe-total {
+  color: var(--accent-cyan, #22d3ee);
+}
+
+.fe-summary-value.fe-paid {
+  color: #10b981;
+}
+
+.fe-summary-value.fe-unpaid {
+  color: #f59e0b;
+}
+
+.fe-summary-value.fe-sip {
+  color: var(--accent-purple, #a78bfa);
+}
 
 .fe-summary-divider {
   width: 1px;
@@ -71,25 +82,8 @@
   flex-shrink: 0;
 }
 
-/* ─── Add Button ─── */
-.fixed-expenses-page .add-button {
-  background: linear-gradient(135deg, var(--accent-cyan, #22d3ee) 0%, var(--accent-purple, #a78bfa) 100%);
-  color: #041019;
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--text-base);
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-left: auto;
-  white-space: nowrap;
-}
 
-.fixed-expenses-page .add-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 217, 255, 0.3);
-}
+
 
 /* ─── Form Modal (Dark) ─── */
 .expense-form-modal {
@@ -148,7 +142,7 @@
   background: var(--bg-elevated);
 }
 
-.expense-form > h2 {
+.expense-form>h2 {
   margin: 0;
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
@@ -509,6 +503,7 @@
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
 }
+
 .expense-actions .wallet-btn:hover {
   background: rgba(16, 185, 129, 0.3);
   transform: scale(1.08);
@@ -521,6 +516,7 @@
   color: var(--text-muted, #6b7280);
   margin-left: 4px;
 }
+
 .field-hint {
   display: block;
   font-size: 0.72rem;

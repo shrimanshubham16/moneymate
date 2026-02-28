@@ -25,23 +25,8 @@
   gap: 8px;
 }
 
-.sharing-page .add-button {
-  background: linear-gradient(135deg, var(--accent-cyan, #22d3ee) 0%, var(--accent-purple, #a78bfa) 100%);
-  color: #041019;
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--text-base);
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
 
-.sharing-page .add-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 217, 255, 0.3);
-}
+
 
 /* ─── Section Containers ─── */
 .sharing-sections {
@@ -293,7 +278,8 @@
 }
 
 .member-role-text {
-  display: none; /* Hide redundant role text — shown via badge */
+  display: none;
+  /* Hide redundant role text — shown via badge */
 }
 
 /* ─── Invite Modal (Dark) ─── */
@@ -466,8 +452,15 @@
 }
 
 @keyframes skeleton-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 0.3; }
+
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* ─── Responsive ─── */

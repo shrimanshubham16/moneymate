@@ -9,6 +9,8 @@
   min-height: calc(100vh - 72px);
 }
 
+
+
 .investments-list {
   display: flex;
   flex-direction: column;
@@ -100,6 +102,7 @@
   color: var(--accent-green);
   border-color: rgba(16, 185, 129, 0.3);
 }
+
 .investment-actions .wallet-btn:hover {
   background: rgba(16, 185, 129, 0.2);
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
@@ -111,6 +114,7 @@
   color: var(--accent-cyan);
   border-color: rgba(0, 217, 255, 0.3);
 }
+
 .investment-actions .edit-btn:hover {
   background: rgba(0, 217, 255, 0.2);
   box-shadow: var(--glow-cyan);
@@ -122,6 +126,7 @@
   color: var(--accent-yellow);
   border-color: rgba(255, 184, 0, 0.3);
 }
+
 .investment-actions .pause-btn:hover {
   background: rgba(255, 184, 0, 0.2);
   box-shadow: 0 0 20px rgba(255, 184, 0, 0.3);
@@ -133,6 +138,7 @@
   color: var(--accent-pink);
   border-color: rgba(255, 0, 110, 0.3);
 }
+
 .investment-actions .delete-btn:hover {
   background: rgba(255, 0, 110, 0.2);
   box-shadow: var(--glow-pink);
@@ -144,6 +150,7 @@
   border-color: rgba(245, 158, 11, 0.2);
   box-shadow: var(--shadow-md), 0 0 16px rgba(245, 158, 11, 0.08);
 }
+
 .investment-card.priority:hover {
   border-color: rgba(245, 158, 11, 0.35);
   box-shadow: var(--shadow-lg), 0 0 24px rgba(245, 158, 11, 0.15);
@@ -178,6 +185,7 @@
   background: rgba(245, 158, 11, 0.1);
   border-color: rgba(217, 119, 6, 0.25);
 }
+
 .theme-light .investment-card.priority {
   border-color: rgba(217, 119, 6, 0.2);
 }
@@ -207,8 +215,8 @@
   gap: 12px;
   padding: 14px 18px;
   margin-top: 16px;
-  background: var(--card-bg, rgba(255,255,255,0.04));
-  border: 1px solid rgba(255,255,255,0.08);
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
 }
 
@@ -224,7 +232,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--text-tertiary, rgba(255,255,255,0.4));
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.4));
 }
 
 .inv-summary-value {
@@ -247,18 +255,21 @@
   width: 100%;
   flex-basis: 100%;
 }
+
 .goal-progress-bar {
   height: 6px;
   background: var(--border, rgba(255, 255, 255, 0.1));
   border-radius: 3px;
   overflow: hidden;
 }
+
 .goal-progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--accent, #3b82f6), #10b981);
   border-radius: 3px;
   transition: width 0.5s ease;
 }
+
 .goal-progress-info {
   display: flex;
   justify-content: space-between;
