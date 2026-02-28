@@ -191,13 +191,15 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         }, 0);
       const totalIncomeForHealth = ownIncomeTotal + sharedIncomeTotal;
       
-      // Fixed expenses — count ALL (commitment exists whether paid or not)
-      const ownFixedTotal = ownFixedExpenses.reduce((sum: number, exp: any) => {
-        const amount = parseFloat(exp.amount) || 0;
-        const monthly = exp.frequency === 'monthly' ? amount :
-          exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
-        return sum + monthly;
-      }, 0);
+      // Fixed expenses — exclude skipped SIPs (user opted out this month, obligation removed)
+      const ownFixedTotal = ownFixedExpenses
+        .filter((exp: any) => !exp.isSkipped)
+        .reduce((sum: number, exp: any) => {
+          const amount = parseFloat(exp.amount) || 0;
+          const monthly = exp.frequency === 'monthly' ? amount :
+            exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
+          return sum + monthly;
+        }, 0);
       const fixedTotalForHealth = ownFixedTotal + sharedFixedTotal;
       
       // Investments — count ALL active (commitment exists whether paid or not)
@@ -319,8 +321,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         },
         expenses: {
           fixed: {
-            total: fixedTotalForHealth,  // ALL fixed (commitment always exists)
-            items: ownFixedExpenses,     // Show all items regardless of paid status
+            total: fixedTotalForHealth,
+            items: ownFixedExpenses,
             sharedTotal: isShowingSharedData ? sharedFixedTotal : 0
           },
           variable: {
