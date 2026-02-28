@@ -581,6 +581,61 @@ export function DashboardPage({ token }: DashboardPageProps) {
     }
   };
 
+  const computed = useMemo(() => {
+    if (!data) return null;
+    const pref = data.preferences;
+    const sym: Record<string, string> = { INR: "₹", USD: "$", EUR: "€", GBP: "£" };
+    const _currSym = pref?.currency ? (sym[pref.currency] || pref.currency) : "₹";
+    const _variableTotal = data.variablePlans?.reduce((s: number, p: any) => s + (p.actualTotal || 0), 0) || 0;
+    const _fixedTotal = data.fixedExpenses?.reduce((s: number, f: any) => {
+      const m = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
+      return s + m;
+    }, 0) || 0;
+    const _investmentsTotal = data.investments?.reduce((s: number, i: any) => s + i.monthlyAmount, 0) || 0;
+    const _incomeTotal = (data.incomes || [])
+      .filter((inc: any) => inc.includeInHealth !== false)
+      .reduce((s: number, inc: any) => {
+        const amt = parseFloat(inc.amount) || 0;
+        return s + (inc.frequency === 'monthly' ? amt : inc.frequency === 'quarterly' ? amt / 3 : amt / 12);
+      }, 0);
+    const _totalSpent = _variableTotal + (data.fixedExpenses || [])
+      .filter((f: any) => f.paid)
+      .reduce((s: number, f: any) => {
+        const m = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
+        return s + m;
+      }, 0);
+    const unpaidFixed = data.fixedExpenses?.filter((f: any) => !f.paid).reduce((s: number, f: any) => {
+      const m = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
+      return s + (m || 0);
+    }, 0) || 0;
+    const unpaidInv = data.investments?.filter((i: any) => !i.paid && (i.status === 'active' || !i.status))
+      .reduce((s: number, i: any) => s + (i.monthlyAmount || 0), 0) || 0;
+    const ccDues = (creditCards || []).reduce((s: number, c: any) => {
+      const remaining = parseFloat(c.billAmount || 0) - parseFloat(c.paidAmount || 0);
+      if (remaining > 0) {
+        const d = new Date(c.dueDate); const now = new Date();
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) return s + remaining;
+      }
+      return s;
+    }, 0);
+    const base: { value: string; label: string }[] = [
+      { value: "me", label: "My Finances" },
+      { value: "merged", label: "Combined (Shared)" },
+    ];
+    const seen = new Set<string>();
+    for (const m of (sharingMembers?.members || [])) {
+      const id = m.shared_user_id || m.user_id || m.userId || m.id;
+      if (id && !seen.has(id)) { seen.add(id); base.push({ value: id, label: m.username || id || "Shared Member" }); }
+    }
+    return {
+      currSym: _currSym, variableTotal: _variableTotal, fixedTotal: _fixedTotal,
+      investmentsTotal: _investmentsTotal, incomeTotal: _incomeTotal, totalSpentThisMonth: _totalSpent,
+      futureBombsCount: data.futureBombs?.length || 0, notifCount: data._notificationCount || 0,
+      duesTotal: (unpaidFixed || 0) + (unpaidInv || 0) + (ccDues || 0),
+      hasSharedMembers: (sharingMembers?.members || []).length > 0, viewOptions: base,
+    };
+  }, [data, creditCards, sharingMembers]);
+
   if (loading) {
     return (
       <div className="dashboard-page loader-shell">
@@ -599,7 +654,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     );
   }
 
-  if (!data) {
+  if (!data || !computed) {
     return (
       <div className="dashboard-page">
         <EmptyState
@@ -638,77 +693,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     currSym, variableTotal, fixedTotal, investmentsTotal, incomeTotal,
     totalSpentThisMonth, futureBombsCount, notifCount,
     duesTotal, hasSharedMembers, viewOptions
-  } = useMemo(() => {
-    const pref = data?.preferences;
-    const sym: Record<string, string> = { INR: "₹", USD: "$", EUR: "€", GBP: "£" };
-    const _currSym = pref?.currency ? (sym[pref.currency] || pref.currency) : "₹";
-
-    const _variableTotal = data.variablePlans?.reduce((s: number, p: any) => s + (p.actualTotal || 0), 0) || 0;
-    const _fixedTotal = data.fixedExpenses?.reduce((s: number, f: any) => {
-      const m = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
-      return s + m;
-    }, 0) || 0;
-    const _investmentsTotal = data.investments?.reduce((s: number, i: any) => s + i.monthlyAmount, 0) || 0;
-    const _incomeTotal = (data.incomes || [])
-      .filter((inc: any) => inc.includeInHealth !== false)
-      .reduce((s: number, inc: any) => {
-        const amt = parseFloat(inc.amount) || 0;
-        return s + (inc.frequency === 'monthly' ? amt : inc.frequency === 'quarterly' ? amt / 3 : amt / 12);
-      }, 0);
-    const _totalSpent = _variableTotal + (data.fixedExpenses || [])
-      .filter((f: any) => f.paid)
-      .reduce((s: number, f: any) => {
-        const m = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
-        return s + m;
-      }, 0);
-
-    const unpaidFixed = data.fixedExpenses?.filter((f: any) => {
-      if (f.paid) return false;
-      if (f.frequency === 'monthly') return true;
-      return true;
-    }).reduce((s: number, f: any) => {
-      const m = f.frequency === "monthly" ? f.amount : f.frequency === "quarterly" ? f.amount / 3 : f.amount / 12;
-      return s + (m || 0);
-    }, 0) || 0;
-    const unpaidInvestments = data.investments?.filter((i: any) => !i.paid && (i.status === 'active' || !i.status))
-      .reduce((s: number, i: any) => s + (i.monthlyAmount || 0), 0) || 0;
-    const creditCardDues = (creditCards || []).reduce((s: number, c: any) => {
-      const remaining = parseFloat(c.billAmount || 0) - parseFloat(c.paidAmount || 0);
-      if (remaining > 0) {
-        const d = new Date(c.dueDate);
-        const now = new Date();
-        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) return s + remaining;
-      }
-      return s;
-    }, 0);
-
-    const base: { value: string; label: string }[] = [
-      { value: "me", label: "My Finances" },
-      { value: "merged", label: "Combined (Shared)" },
-    ];
-    const seen = new Set<string>();
-    for (const m of (sharingMembers?.members || [])) {
-      const id = m.shared_user_id || m.user_id || m.userId || m.id;
-      if (id && !seen.has(id)) {
-        seen.add(id);
-        base.push({ value: id, label: m.username || id || "Shared Member" });
-      }
-    }
-
-    return {
-      currSym: _currSym,
-      variableTotal: _variableTotal,
-      fixedTotal: _fixedTotal,
-      investmentsTotal: _investmentsTotal,
-      incomeTotal: _incomeTotal,
-      totalSpentThisMonth: _totalSpent,
-      futureBombsCount: data.futureBombs?.length || 0,
-      notifCount: data._notificationCount || 0,
-      duesTotal: (unpaidFixed || 0) + (unpaidInvestments || 0) + (creditCardDues || 0),
-      hasSharedMembers: (sharingMembers?.members || []).length > 0,
-      viewOptions: base,
-    };
-  }, [data, creditCards, sharingMembers]);
+  } = computed;
 
   return (
     <div className="dashboard-page">
