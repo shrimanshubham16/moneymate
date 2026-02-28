@@ -1,4 +1,5 @@
 import { encryptString, decryptString } from "./lib/crypto";
+import type { DashboardData } from "./types/entities";
 
 export type LoginResponse = { 
   access_token: string; 
@@ -340,13 +341,13 @@ export async function updateUserPassword(
   }, token);
 }
 
-export async function fetchDashboard(token: string, asOf?: string, view?: string, cryptoKey?: CryptoKey, nocache?: boolean) {
+export async function fetchDashboard(token: string, asOf?: string, view?: string, cryptoKey?: CryptoKey, nocache?: boolean): Promise<{ data: DashboardData }> {
   const params = new URLSearchParams();
   if (asOf) params.set("today", asOf);
   if (view) params.set("view", view);
   if (nocache) params.set("nocache", "true");
   const query = params.toString() ? `?${params.toString()}` : "";
-  return request<{ data: any }>(`/dashboard${query}`, { method: "GET" }, token, cryptoKey);
+  return request<{ data: DashboardData }>(`/dashboard${query}`, { method: "GET" }, token, cryptoKey);
 }
 
 export async function createIncome(token: string, payload: { 
