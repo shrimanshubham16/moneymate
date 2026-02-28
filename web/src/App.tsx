@@ -5,6 +5,7 @@ import { login, signup, fetchSalt } from "./api";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DashboardPage } from "./pages/DashboardPage";
 import { Header } from "./components/Header";
+import { OfflineIndicator } from "./components/OfflineIndicator";
 import { MaintenanceNotice } from "./components/MaintenanceNotice";
 import { RecoveryKeyModal } from "./components/RecoveryKeyModal";
 
@@ -287,6 +288,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
 
   return (
     <>
+      <OfflineIndicator />
       <Header token={token} />
       <div className="app-content">
         <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /></div>}>

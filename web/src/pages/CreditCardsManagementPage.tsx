@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory, FaInfoCircle } from "react-icons/fa";
+import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory, FaInfoCircle, FaUserCircle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { PageInfoButton } from "../components/PageInfoButton";
@@ -20,8 +20,9 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
   const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
-  const { isSharedView } = useSharedView(token);
+  const { isSharedView, getViewParam, getOwnerName } = useSharedView(token);
   const [cards, setCards] = useState<any[]>([]);
+  const [sharedAggregates, setSharedAggregates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -41,8 +42,16 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
 
   useEffect(() => {
     // Load all data in parallel for faster initial load
-    Promise.all([loadCards(), loadBillingAlerts(), loadPlans()]);
-  }, []);
+    const promises: Promise<void>[] = [loadCards(), loadBillingAlerts(), loadPlans()];
+    if (isSharedView) {
+      promises.push(
+        api.fetchDashboard(token, new Date().toISOString(), getViewParam())
+          .then((res) => setSharedAggregates(res.data.sharedUserAggregates || []))
+          .catch((e) => console.error("Failed to load shared aggregates:", e))
+      );
+    }
+    Promise.all(promises);
+  }, [isSharedView]);
 
   // v1.2: Load variable expense plans
   const loadPlans = async () => {
@@ -271,7 +280,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         </div>
       )}
 
-      {isSharedView && (
+      {isSharedView && sharedAggregates.length === 0 && (
         <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', color: '#a78bfa' }}>
           <FaInfoCircle size={14} />
           <span>Credit card management shows only your own cards. Shared members&apos; cards are private.</span>
@@ -385,6 +394,32 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {isSharedView && sharedAggregates.length > 0 && (
+            <div className="shared-cards-section">
+              <h3 className="shared-cards-section-title">
+                <FaUserCircle style={{ marginRight: 8, opacity: 0.8 }} />
+                Shared Members&apos; Cards
+              </h3>
+              <p className="shared-cards-privacy-note">
+                Individual card names are private due to E2E encryption. Only aggregate totals are visible.
+              </p>
+              <div className="shared-cards-grid">
+                {sharedAggregates.map((agg) => {
+                  const uid = agg.userId ?? agg.user_id;
+                  const dues = parseFloat(agg.totalCreditCardDues ?? agg.total_credit_card_dues ?? 0) || 0;
+                  return (
+                    <div key={uid} className="shared-card-aggregate">
+                      <span className="shared-card-username">{getOwnerName(uid)}</span>
+                      <span className="shared-card-outstanding">
+                        Outstanding: ₹{dues.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

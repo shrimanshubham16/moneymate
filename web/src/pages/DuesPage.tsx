@@ -10,6 +10,7 @@ import { Toast } from "../components/Toast";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
+import { hapticSuccess, hapticMedium } from "../utils/haptics";
 import "./DuesPage.css";
 
 interface DuesPageProps {
@@ -66,6 +67,7 @@ export function DuesPage({ token }: DuesPageProps) {
       } else {
         // Correct order: (token, itemId, itemType, amount)
         await api.markAsPaid(token, due.id, due.itemType, due.amount);
+        hapticSuccess();
         setToast({ show: true, message: `Hurray!! ${dueName} Due paid` });
       }
       
@@ -83,6 +85,7 @@ export function DuesPage({ token }: DuesPageProps) {
       `Skip saving for "${due.name}" this month? This removes the obligation from your health score and no funds will accumulate. You can undo from the SIP Expenses page.`,
       async () => {
         try {
+          hapticMedium();
           setDues(prev => prev.filter(d => d.id !== due.id));
           setTotalDues(prev => prev - due.amount);
           await api.skipSIP(token, due.id);

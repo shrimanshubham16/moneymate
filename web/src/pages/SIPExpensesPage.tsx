@@ -11,6 +11,7 @@ import { Modal } from "../components/Modal";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
+import { hapticSuccess } from "../utils/haptics";
 import "./SIPExpensesPage.css";
 
 interface SIPExpensesPageProps {
@@ -73,6 +74,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
       setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 });
       setWalletAmount("");
       await api.updateFixedExpense(token, walletModal.expenseId, { accumulated_funds: amount });
+      hapticSuccess();
       invalidateDashboardCache();
       loadSIPExpenses().catch(console.error);
     } catch (e: any) {

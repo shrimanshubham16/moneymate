@@ -64,6 +64,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const lastViewRef = useRef<string>(""); // Track view changes to allow refetch
   const lastAggPushRef = useRef<number>(0); // Debounce aggregate pushes
   const rsuRefreshDoneRef = useRef(false); // Track RSU price refresh
+  const quickAddAmountRef = useRef<HTMLInputElement | null>(null);
+
+  // Auto-focus amount input when Quick Add modal opens
+  useEffect(() => {
+    if (showQuickAdd) {
+      requestAnimationFrame(() => quickAddAmountRef.current?.focus());
+    }
+  }, [showQuickAdd]);
 
   // Persist selectedView when it changes and reload data
   useEffect(() => {
@@ -591,6 +599,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setQuickAddJustification("");
       setQuickAddSubcategory("");
       setQuickAddCardId("");
+      showAlert("Expense added successfully!", "Success");
       await loadData(true);
     } catch (e: any) {
       showAlert(e.message || "Failed to add expense");
@@ -790,6 +799,34 @@ export function DashboardPage({ token }: DashboardPageProps) {
         />
       </motion.div>
 
+      {selectedView === 'me' && (() => {
+        const hasIncome = (data.incomes?.length ?? 0) > 0;
+        const hasFixed = (data.fixedExpenses?.length ?? 0) > 0;
+        const hasVariable = (data.variablePlans?.length ?? 0) > 0;
+        const allComplete = hasIncome && hasFixed && hasVariable;
+        if (allComplete) return null;
+        const items = [
+          { done: hasIncome, label: 'Add at least 1 income source', path: '/settings/plan-finances/income' },
+          { done: hasFixed, label: 'Add at least 1 fixed expense', path: '/fixed-expenses' },
+          { done: hasVariable, label: 'Add at least 1 variable plan', path: '/variable-expenses' },
+        ];
+        return (
+          <div className="onboarding-checklist">
+            <h3>Get started</h3>
+            {items.map((item) => (
+              <div
+                key={item.path}
+                className={`checklist-item ${item.done ? 'done' : ''}`}
+                onClick={() => navigate(item.path)}
+              >
+                <div className="checklist-check">{item.done ? '✓' : '○'}</div>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       <div className="widgets-grid">
         {/* ─── Action-First: what you interact with most ─── */}
         <DashboardWidget
@@ -968,6 +1005,18 @@ export function DashboardPage({ token }: DashboardPageProps) {
           />
         )}
       </div>
+      {/* Quick Add FAB - fixed bottom-right */}
+      {selectedView === 'me' && (data?.variablePlans?.length ?? 0) > 0 && (
+        <button
+          className="quick-add-fab"
+          onClick={() => setShowQuickAdd(true)}
+          title="Quick Add Expense"
+          aria-label="Quick Add Expense"
+        >
+          <FaPlus />
+        </button>
+      )}
+
       <AnimatePresence>
         {showQuickAdd && (
           <motion.div
@@ -997,6 +1046,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
               <div className="form-row">
                 <label>Amount</label>
                 <input
+                  ref={quickAddAmountRef}
                   type="number"
                   value={quickAddAmount}
                   onChange={(e) => setQuickAddAmount(e.target.value)}

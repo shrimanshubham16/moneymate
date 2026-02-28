@@ -14,6 +14,7 @@ import { ClientCache } from "../utils/cache";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
+import { hapticError } from "../utils/haptics";
 import "./FixedExpensesPage.css";
 
 interface FixedExpensesPageProps {
@@ -195,6 +196,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       setExpenses(prev => prev.filter(e => e.id !== id)); // optimistic removal
       try {
         await api.deleteFixedExpense(token, id);
+        hapticError();
         invalidateDashboardCache();
         loadExpenses(); // background refresh
       } catch (e: any) {

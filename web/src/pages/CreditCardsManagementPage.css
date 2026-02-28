@@ -247,11 +247,72 @@
   color: var(--text-primary);
 }
 
+/* Shared Members' Cards Section */
+.shared-cards-section {
+  margin-top: var(--space-8);
+  padding: var(--space-6);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.06) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-2xl);
+}
+
+.shared-cards-section-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+
+.shared-cards-privacy-note {
+  margin: 0 0 var(--space-4);
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.shared-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.shared-card-aggregate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.08));
+  border-radius: var(--radius-lg);
+  transition: all 0.2s;
+}
+
+.shared-card-aggregate:hover {
+  border-color: rgba(139, 92, 246, 0.25);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+}
+
+.shared-card-username {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.shared-card-outstanding {
+  font-weight: 700;
+  color: #f87171;
+  font-size: var(--text-base);
+}
+
 @media (max-width: 768px) {
   .credit-cards-management-page {
     padding: var(--space-8) var(--space-4);
   }
   .cards-list {
+    grid-template-columns: 1fr;
+  }
+  .shared-cards-grid {
     grid-template-columns: 1fr;
   }
 }
