@@ -31,4 +31,7 @@ CREATE POLICY "reactions_delete" ON public.chat_reactions
   FOR DELETE USING (true);
 
 -- Enable realtime for live reaction updates
-ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_reactions;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_reactions;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

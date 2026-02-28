@@ -18,7 +18,7 @@ interface DuesPageProps {
 
 export function DuesPage({ token }: DuesPageProps) {
   const navigate = useNavigate();
-  const { modal, showAlert, closeModal, confirmAndClose } = useAppModal();
+  const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const api = useEncryptedApiCalls();
   const [dues, setDues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,12 +79,10 @@ export function DuesPage({ token }: DuesPageProps) {
   };
 
   const handleSkipSIP = async (due: any) => {
-    showAlert(
+    showConfirm(
       `Skip saving for "${due.name}" this month? This removes the obligation from your health score and no funds will accumulate. You can undo this anytime.`,
-      "confirm",
       async () => {
         try {
-          // Optimistic: mark as skipped
           setDues(prev => prev.map(d => d.id === due.id ? { ...d, isSkipped: true, paid: true } : d));
           setTotalDues(prev => prev - due.amount);
           await api.skipSIP(token, due.id);
@@ -94,7 +92,8 @@ export function DuesPage({ token }: DuesPageProps) {
           await loadDues();
           showAlert("Failed to skip: " + e.message);
         }
-      }
+      },
+      "Skip This Month?"
     );
   };
 

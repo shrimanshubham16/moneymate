@@ -1283,6 +1283,10 @@ serve(async (req) => {
       }));
       
       // Map fixed expenses
+      // Note: accumulated_funds_enc/_iv are NOT sent in the dashboard response.
+      // accumulated_funds is computed server-side by auto_accumulate_funds, so the
+      // server plaintext is always authoritative. Sending stale _enc/_iv would cause
+      // the frontend E2E decryption to overwrite the correct value with an old one.
       const finalFixedExpenses = (directFixedExpenses || []).map((e: any) => ({
         id: e.id,
         userId: e.user_id,
@@ -1299,8 +1303,7 @@ serve(async (req) => {
         is_sip_flag: e.is_sip || e.is_sip_flag || false,
         isSipFlag: e.is_sip || e.is_sip_flag || false,
         accumulated_funds: e.accumulated_funds || 0,
-        accumulated_funds_enc: e.accumulated_funds_enc,
-        accumulated_funds_iv: e.accumulated_funds_iv,
+        accumulatedFunds: e.accumulated_funds || 0,
         paid: paymentStatus[`fixed_expense:${e.id}`] || false,
         isSkipped: skipStatus[`fixed_expense:${e.id}`] || false
       }));
@@ -1340,7 +1343,7 @@ serve(async (req) => {
         };
       });
       
-      // Map investments
+      // Map investments (same: no _enc/_iv for accumulated_funds — server-computed)
       const finalInvestments = (directInvestments || []).map((i: any) => ({
         id: i.id,
         userId: i.user_id,
@@ -1357,8 +1360,6 @@ serve(async (req) => {
         isPriority: i.is_priority || false,
         accumulatedFunds: i.accumulated_funds || 0,
         accumulated_funds: i.accumulated_funds || 0,
-        accumulated_funds_enc: i.accumulated_funds_enc,
-        accumulated_funds_iv: i.accumulated_funds_iv,
         startDate: i.start_date,
         paid: paymentStatus[`investment:${i.id}`] || false
       }));
@@ -3250,7 +3251,7 @@ serve(async (req) => {
           const newAccumulated = currentAccumulated + body.amount;
           const { error: updateErr } = await supabase
             .from('investments')
-            .update({ accumulated_funds: newAccumulated })
+            .update({ accumulated_funds: newAccumulated, accumulated_funds_enc: null, accumulated_funds_iv: null })
             .eq('id', body.itemId)
             .eq('user_id', userId);
           if (updateErr) {
@@ -3271,7 +3272,7 @@ serve(async (req) => {
             const newAccumulated = Math.max(0, currentAccumulated - body.amount);
             const { error: updateErr } = await supabase
               .from('fixed_expenses')
-              .update({ accumulated_funds: newAccumulated })
+              .update({ accumulated_funds: newAccumulated, accumulated_funds_enc: null, accumulated_funds_iv: null })
               .eq('id', body.itemId)
               .eq('user_id', userId);
             if (updateErr) {
@@ -3283,14 +3284,58 @@ serve(async (req) => {
             console.log(`[MARK_PAID] Resetting accumulated_funds for regular fixed expense ${body.itemId}`);
             const { error: resetErr } = await supabase
               .from('fixed_expenses')
-              .update({ accumulated_funds: 0 })
+              .update({ accumulated_funds: 0, accumulated_funds_enc: null, accumulated_funds_iv: null })
               .eq('id', body.itemId)
               .eq('user_id', userId);
             if (resetErr) console.error('[MARK_PAID] Failed to reset accumulated funds:', resetErr);
           }
         }
+      } else if (body.itemType === 'fixed_expense') {
+        // SKIP: Reverse auto-accumulated funds if auto_accumulate already ran this billing period
+        const { data: skipExpense } = await supabase.from('fixed_expenses')
+          .select('is_sip, frequency, amount, accumulated_funds')
+          .eq('id', body.itemId)
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        if (skipExpense?.is_sip && skipExpense.frequency !== 'monthly') {
+          const { data: skipPrefs } = await supabase.from('user_preferences')
+            .select('last_accumulation_date, month_start_day')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          const skipMsd = skipPrefs?.month_start_day || 1;
+          const skipToday = new Date();
+          let skipBillingStart: Date;
+          if (skipToday.getDate() >= skipMsd) {
+            skipBillingStart = new Date(skipToday.getFullYear(), skipToday.getMonth(), skipMsd);
+          } else {
+            skipBillingStart = new Date(skipToday.getFullYear(), skipToday.getMonth() - 1, skipMsd);
+          }
+
+          const lastAcc = skipPrefs?.last_accumulation_date ? new Date(skipPrefs.last_accumulation_date) : null;
+          const autoAccRanThisPeriod = lastAcc && lastAcc >= skipBillingStart;
+          
+          if (autoAccRanThisPeriod) {
+            const monthlyEquiv = skipExpense.frequency === 'quarterly' ? skipExpense.amount / 3 :
+              (skipExpense.frequency === 'yearly' || skipExpense.frequency === 'annual') ? skipExpense.amount / 12 : skipExpense.amount;
+            const curAcc = skipExpense.accumulated_funds || 0;
+            const newAcc = Math.max(0, curAcc - monthlyEquiv);
+            const { error: revErr } = await supabase.from('fixed_expenses')
+              .update({ accumulated_funds: newAcc, accumulated_funds_enc: null, accumulated_funds_iv: null })
+              .eq('id', body.itemId)
+              .eq('user_id', userId);
+            if (revErr) {
+              console.error('[SKIP] Failed to reverse accumulated_funds:', revErr);
+            } else {
+              console.log(`[SKIP] Reversed auto-accumulated funds for SIP ${body.itemId}: ${curAcc} -> ${newAcc}`);
+            }
+          } else {
+            console.log(`[SKIP] Auto-accumulate not yet run this period — no reversal needed for ${body.itemId}`);
+          }
+        }
       } else {
-        console.log(`[MARK_PAID] Skip mode — accumulated_funds untouched for ${body.itemId}`);
+        console.log(`[MARK_PAID] Skip mode — no accumulated_funds adjustment for ${body.itemType} ${body.itemId}`);
       }
       
       await logActivity(userId, body.itemType, isSkip ? 'skipped' : 'paid', { id: body.itemId, name: itemName, amount: paymentAmount });
@@ -3361,6 +3406,27 @@ serve(async (req) => {
         .eq('is_skip', true);
       
       if (delErr) return error(delErr.message, 500);
+
+      // Re-add accumulated funds that were reversed when the skip was created
+      const { data: undoExp } = await supabase.from('fixed_expenses')
+        .select('is_sip, frequency, amount, accumulated_funds')
+        .eq('id', body.itemId).eq('user_id', userId).maybeSingle();
+      
+      if (undoExp?.is_sip && undoExp.frequency !== 'monthly') {
+        const { data: undoPrefs } = await supabase.from('user_preferences')
+          .select('last_accumulation_date').eq('user_id', userId).maybeSingle();
+        const lastAcc = undoPrefs?.last_accumulation_date ? new Date(undoPrefs.last_accumulation_date) : null;
+        if (lastAcc && lastAcc >= bms) {
+          const monthlyEquiv = undoExp.frequency === 'quarterly' ? undoExp.amount / 3 :
+            (undoExp.frequency === 'yearly' || undoExp.frequency === 'annual') ? undoExp.amount / 12 : undoExp.amount;
+          const curAcc = undoExp.accumulated_funds || 0;
+          await supabase.from('fixed_expenses')
+            .update({ accumulated_funds: curAcc + monthlyEquiv, accumulated_funds_enc: null, accumulated_funds_iv: null })
+            .eq('id', body.itemId).eq('user_id', userId);
+          console.log(`[UNDO_SKIP] Re-added accumulated funds for SIP ${body.itemId}: ${curAcc} -> ${curAcc + monthlyEquiv}`);
+        }
+      }
+
       await logActivity(userId, 'fixed_expense', 'undo_skip', { id: body.itemId, name: itemName });
       await invalidateUserCache(userId);
       return json({ data: { success: true } });

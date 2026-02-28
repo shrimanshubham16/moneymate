@@ -207,10 +207,15 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     }
     
     if (data.data.fixedExpenses && Array.isArray(data.data.fixedExpenses)) {
-      data.data.fixedExpenses = data.data.fixedExpenses.map((exp: any) => ({
-        ...exp,
-        amount: parseFloat(exp.amount) || 0
-      }));
+      data.data.fixedExpenses = data.data.fixedExpenses.map((exp: any) => {
+        const accFunds = parseFloat(exp.accumulated_funds) || parseFloat(exp.accumulatedFunds) || 0;
+        return {
+          ...exp,
+          amount: parseFloat(exp.amount) || 0,
+          accumulated_funds: accFunds,
+          accumulatedFunds: accFunds,
+        };
+      });
     }
     
     if (data.data.incomes && Array.isArray(data.data.incomes)) {

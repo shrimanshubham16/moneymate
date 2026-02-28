@@ -20,7 +20,7 @@ interface SIPExpensesPageProps {
 export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
-  const { modal, showAlert, closeModal, confirmAndClose } = useAppModal();
+  const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const [sipExpenses, setSipExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currency, setCurrency] = useState("₹");
@@ -68,13 +68,15 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
       return;
     }
     try {
-      await api.updateFixedExpense(token, walletModal.expenseId, { accumulated_funds: amount });
-      invalidateDashboardCache();
+      // Optimistic update first — immediate UI feedback
       setSipExpenses(prev => prev.map(e => e.id === walletModal.expenseId ? { ...e, accumulatedFunds: amount, accumulated_funds: amount } : e));
       setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 });
       setWalletAmount("");
-      loadSIPExpenses();
+      await api.updateFixedExpense(token, walletModal.expenseId, { accumulated_funds: amount });
+      invalidateDashboardCache();
+      loadSIPExpenses().catch(console.error);
     } catch (e: any) {
+      loadSIPExpenses().catch(console.error);
       showAlert("Failed to update: " + e.message);
     }
   };
@@ -85,9 +87,8 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
       showAlert("Skip is only available for periodic (non-monthly) SIPs.");
       return;
     }
-    showAlert(
+    showConfirm(
       `Skip saving for "${sip.name}" this month? This removes the obligation from your health score and no funds will accumulate. You can undo this anytime.`,
-      "confirm",
       async () => {
         try {
           setSipExpenses(prev => prev.map(s => s.id === sip.id ? { ...s, isSkipped: true } : s));
@@ -98,7 +99,8 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
           loadSIPExpenses();
           showAlert("Failed to skip: " + e.message);
         }
-      }
+      },
+      "Skip This Month?"
     );
   };
 

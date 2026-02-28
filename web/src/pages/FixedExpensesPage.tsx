@@ -177,13 +177,14 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       return;
     }
     try {
-      await api.updateFixedExpense(token, walletModal.expenseId, { accumulated_funds: amount });
-      invalidateDashboardCache();
       setExpenses(prev => prev.map(e => e.id === walletModal.expenseId ? { ...e, accumulatedFunds: amount, accumulated_funds: amount } : e));
       setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 });
       setWalletAmount("");
-      loadExpenses();
+      await api.updateFixedExpense(token, walletModal.expenseId, { accumulated_funds: amount });
+      invalidateDashboardCache();
+      loadExpenses().catch(console.error);
     } catch (e: any) {
+      loadExpenses().catch(console.error);
       showAlert("Failed to update: " + e.message);
     }
   };
