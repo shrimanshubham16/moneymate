@@ -71,8 +71,8 @@
   flex-shrink: 0;
 }
 
-/* ─── Modal Overlay ─── */
-.modal-overlay {
+/* ─── Modal Overlay (ve- prefix to avoid collision with shared Modal.css) ─── */
+.ve-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -86,7 +86,7 @@
   z-index: 1000;
 }
 
-.modal-content {
+.ve-modal-content {
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.1));
   border-radius: var(--radius-2xl);
@@ -101,7 +101,7 @@
   box-shadow: var(--shadow-xl);
 }
 
-.modal-content h2 {
+.ve-modal-content h2 {
   margin: 0;
   padding: var(--space-6) var(--space-8) var(--space-4);
   font-size: var(--text-xl);
@@ -110,7 +110,7 @@
   flex-shrink: 0;
 }
 
-.modal-content form {
+.ve-modal-content form {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -118,14 +118,14 @@
   min-height: 0;
 }
 
-.modal-content .form-fields-scroll {
+.ve-modal-content .form-fields-scroll {
   flex: 1;
   overflow-y: auto;
   padding: 0 var(--space-8) var(--space-4);
   min-height: 0;
 }
 
-.modal-content .form-actions {
+.ve-modal-content .form-actions {
   flex-shrink: 0;
   padding: var(--space-4) var(--space-8) var(--space-6);
   border-top: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.1));

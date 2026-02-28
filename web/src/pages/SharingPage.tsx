@@ -24,6 +24,7 @@ export function SharingPage({ token }: SharingPageProps) {
 
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData uses stable api/token; including it would cause unnecessary re-fetches
   }, []);
 
   const loadData = async () => {

@@ -135,6 +135,30 @@ export async function getUserById(userId: string): Promise<User | null> {
   };
 }
 
+export async function getUsersByIds(userIds: string[]): Promise<Map<string, User>> {
+  if (userIds.length === 0) return new Map();
+  const unique = [...new Set(userIds)];
+  const placeholders = unique.map((_, i) => `$${i + 1}`).join(',');
+  const rows = await query<any>(
+    `SELECT * FROM users WHERE id IN (${placeholders})`,
+    unique
+  );
+  const map = new Map<string, User>();
+  for (const r of rows) {
+    map.set(r.id, {
+      id: r.id,
+      username: r.username,
+      passwordHash: r.password_hash,
+      encryptionSalt: r.encryption_salt,
+      recoveryKeyHash: r.recovery_key_hash,
+      createdAt: r.created_at,
+      failedLoginAttempts: r.failed_login_attempts,
+      accountLockedUntil: r.account_locked_until
+    });
+  }
+  return map;
+}
+
 export async function updateUser(userId: string, updates: Partial<{ passwordHash?: string; failedLoginAttempts?: number; accountLockedUntil?: string | null; encryptionSalt?: string | null; recoveryKeyHash?: string | null }>): Promise<boolean> {
   const setClauses: string[] = [];
   const values: any[] = [];

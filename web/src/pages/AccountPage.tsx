@@ -106,7 +106,10 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
     }
   };
 
-  useEffect(() => { fetchUser(); }, [token]);
+  useEffect(() => {
+    fetchUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchUser uses token (in deps); including fetchUser would cause unnecessary re-fetches
+  }, [token]);
 
   // ── Avatar upload (via Edge Function — bypasses Storage RLS) ──
   const handleAvatarClick = () => {

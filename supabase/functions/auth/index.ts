@@ -12,8 +12,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// JWT secret - must match what frontend expects
-const JWT_SECRET = Deno.env.get('JWT_SECRET') || 'your-super-secret-jwt-key-change-in-production';
+// JWT secret — no fallback; fail fast if env var is missing
+const JWT_SECRET = Deno.env.get('JWT_SECRET');
+if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set');
 
 // Create JWT key
 async function getJwtKey() {

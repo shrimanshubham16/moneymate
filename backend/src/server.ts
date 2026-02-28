@@ -783,13 +783,11 @@ app.get("/activity", requireAuth, async (req, res) => {
   const userId = (req as any).user.userId;
   const all = await store.listActivities(userId);
 
-  // Get usernames for activities
-  const userActivities = await Promise.all(all.map(async (activity) => {
-    const actor = await db.getUserById(activity.actorId);
-    return {
-      ...activity,
-      username: actor?.username || 'Unknown User'
-    };
+  const actorIds = [...new Set(all.map(a => a.actorId))];
+  const userMap = await db.getUsersByIds(actorIds);
+  const userActivities = all.map(activity => ({
+    ...activity,
+    username: userMap.get(activity.actorId)?.username || 'Unknown User'
   }));
 
   res.json({ data: userActivities });

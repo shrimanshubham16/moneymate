@@ -25,6 +25,7 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
 
   useEffect(() => {
     loadPreferences();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPreferences uses stable api/token; including it would cause unnecessary re-fetches
   }, []);
 
   const loadPreferences = async () => {

@@ -44,12 +44,10 @@ export function CurrentMonthExpensesPage({ token }: CurrentMonthExpensesPageProp
   const { selectedView, getViewParam } = useSharedView(token);
 
   useEffect(() => {
-    if (hasFetchedRef.current && lastViewRef.current === selectedView) {
-      // Only refetch if view changed; month changes are handled separately
-    }
     hasFetchedRef.current = true;
     lastViewRef.current = selectedView;
     loadExpenses();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- loadExpenses uses stable api/token; refetch on selectedView/viewMonth change
   }, [selectedView, viewMonth]);
 
   const goToPrevMonth = () => {

@@ -191,9 +191,17 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         }, 0);
       const totalIncomeForHealth = ownIncomeTotal + sharedIncomeTotal;
       
-      // Fixed expenses — exclude skipped SIPs (user opted out this month, obligation removed)
+      // Fixed expenses — exclude skipped SIPs and expired/not-yet-started items
+      const now = new Date();
       const ownFixedTotal = ownFixedExpenses
-        .filter((exp: any) => !exp.isSkipped)
+        .filter((exp: any) => {
+          if (exp.isSkipped) return false;
+          const endDate = exp.endDate || exp.end_date;
+          const startDate = exp.startDate || exp.start_date;
+          if (endDate && new Date(endDate) < now) return false;
+          if (startDate && new Date(startDate) > now) return false;
+          return true;
+        })
         .reduce((sum: number, exp: any) => {
           const amount = parseFloat(exp.amount) || 0;
           const monthly = exp.frequency === 'monthly' ? amount :

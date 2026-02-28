@@ -3,6 +3,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
 
 // ============================================================================
 // (Email service removed - recovery is via recovery key only)
@@ -92,8 +93,11 @@ async function createNotification(supabase: any, params: CreateNotificationParam
 }
 
 
-// SHA256 hashing (matches Railway backend)
 async function hashPassword(password: string): Promise<string> {
+  return await bcrypt.hash(password);
+}
+
+async function hashPasswordSHA256(password: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -101,8 +105,16 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return hashPassword(password).then(h => h === hash);
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  if (hash.startsWith('$2')) {
+    return await bcrypt.compare(password, hash);
+  }
+  const sha = await hashPasswordSHA256(password);
+  return sha === hash;
+}
+
+function isLegacySHA256Hash(hash: string): boolean {
+  return !hash.startsWith('$2');
 }
 
 const corsHeaders = {
@@ -111,8 +123,9 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
 };
 
-// JWT handling
-const JWT_SECRET = Deno.env.get('JWT_SECRET') || 'finflow-jwt-secret-2024';
+// JWT handling — no fallback; fail fast if env var is missing
+const JWT_SECRET = Deno.env.get('JWT_SECRET');
+if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is not set');
 
 function base64UrlDecode(str: string): string {
   str = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -566,7 +579,6 @@ serve(async (req) => {
           return error('Account locked. Try again later.', 423);
         }
 
-        // Verify password (SHA256)
         const valid = await verifyPassword(password, user.password_hash);
         
         if (!valid) {
@@ -576,6 +588,12 @@ serve(async (req) => {
             account_locked_until: attempts >= 5 ? new Date(Date.now() + 600000).toISOString() : null
           }).eq('id', user.id);
           return error('Invalid credentials', 401);
+        }
+
+        // Migrate legacy SHA-256 hash to bcrypt on successful login
+        if (isLegacySHA256Hash(user.password_hash)) {
+          const bcryptHash = await hashPassword(password);
+          await supabase.from('users').update({ password_hash: bcryptHash }).eq('id', user.id);
         }
 
         // Clear lockout
@@ -1483,7 +1501,7 @@ serve(async (req) => {
               message: `You still haven't paid: ${allUnpaid.join(', ')}${allUnpaid.length >= 5 ? '…' : ''}. Mark them as paid to improve your health score.`,
               actionUrl: '/dues',
               groupKey: `unpaid_dues_${monthKey}`
-            }).catch(() => {});
+            }).catch((err) => console.warn('[BACKGROUND] Notification creation failed:', err));
           }
         }
 
@@ -1502,7 +1520,7 @@ serve(async (req) => {
               entityId: plan.id,
               actionUrl: '/variable-expenses',
               groupKey: `overspend_${plan.id}_${monthKey}`
-            }).catch(() => {});
+            }).catch((err) => console.warn('[BACKGROUND] Notification creation failed:', err));
           }
         }
 
@@ -1516,7 +1534,7 @@ serve(async (req) => {
             message: `Your financial health is ${label.toLowerCase()}. You're spending more than you earn. Review your expenses and dues.`,
             actionUrl: '/health',
             groupKey: `health_drop_${calcCategory}_${monthKey}`
-          }).catch(() => {});
+          }).catch((err) => console.warn('[BACKGROUND] Notification creation failed:', err));
         }
 
         // 4. Credit card billing day — today matches a card's billing_date
@@ -1533,7 +1551,7 @@ serve(async (req) => {
               entityId: card.id,
               actionUrl: '/credit-cards',
               groupKey: `cc_billing_${card.id}_${monthKey}_${dayOfMonth}`
-            }).catch(() => {});
+            }).catch((err) => console.warn('[BACKGROUND] Notification creation failed:', err));
           }
         }
       }
@@ -1877,12 +1895,13 @@ serve(async (req) => {
           console.log(`[OVERSPEND_CHECK] Plan: ${plan.name}, Planned: ${plannedAmount}, Actual: ${totalActual}, Overspend: ${totalActual - plannedAmount}`);
           
           // Check if we've already recorded an overspend for THIS PLAN this billing period
+          // Use plan.id instead of plan.name to avoid LIKE injection and ensure exact match
           const { data: existingOverspend } = await supabase.from('activities')
             .select('id')
             .eq('actor_id', userId)
             .eq('entity', 'variable_expense')
             .eq('action', 'overspend_detected')
-            .like('payload', `%"planName":"${plan.name}"%`)
+            .contains('payload', { planId: plan.id })
             .gte('created_at', monthStart.toISOString())
             .lt('created_at', monthEnd.toISOString())
             .limit(1);
@@ -1912,8 +1931,8 @@ serve(async (req) => {
                 })
                 .eq('user_id', userId);
               
-              // Log overspend activity
               await logActivity(userId, 'variable_expense', 'overspend_detected', {
+                planId: plan.id,
                 planName: plan.name,
                 planned: plannedAmount,
                 actual: totalActual,
@@ -1923,7 +1942,6 @@ serve(async (req) => {
               
               console.log(`[CONSTRAINT_UPDATE] Score: ${currentScore} → ${newScore}, Overspends: ${currentOverspends} → ${currentOverspends + 1}`);
             } else {
-              // Create constraint score if it doesn't exist
               await supabase.from('constraint_scores').insert({
                 user_id: userId,
                 score: 5,
@@ -1932,6 +1950,7 @@ serve(async (req) => {
               });
               
               await logActivity(userId, 'variable_expense', 'overspend_detected', {
+                planId: plan.id,
                 planName: plan.name,
                 planned: plannedAmount,
                 actual: totalActual,
@@ -3151,8 +3170,8 @@ serve(async (req) => {
           sharedAccountId 
         });
         // Invalidate cache for each affected user
-        await redisDel(`dashboard:${member.user_id}:me`);
-        await redisDel(`dashboard:${member.user_id}:merged`);
+        await redisInvalidate(`dashboard:${member.user_id}:me`);
+        await redisInvalidate(`dashboard:${member.user_id}:merged`);
       }
       
       return json({ data: { success: true } });

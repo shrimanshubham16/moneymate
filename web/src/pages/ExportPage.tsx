@@ -43,6 +43,7 @@ export function ExportPage({ token }: ExportPageProps) {
     if (isSharedView) {
       loadSharingMembers();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only load when in shared view; isSharedView/loadSharingMembers intentionally excluded to avoid re-runs
   }, []);
 
   const loadSharingMembers = async () => {
@@ -189,7 +190,7 @@ export function ExportPage({ token }: ExportPageProps) {
         bombDefusalSip: Math.round(bombSipTotal),
         remainingBalance: Math.round(recalcRemaining),
         healthRemaining: Math.round(healthRemaining),
-        healthPercentage: Math.round(exportHealthScore * 100) / 100,
+        healthPercentage: Math.round(exportHealthPct * 100) / 100,
         healthCategory: healthCategory,
       };
       

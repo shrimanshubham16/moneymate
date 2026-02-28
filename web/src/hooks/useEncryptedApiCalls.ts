@@ -69,11 +69,11 @@ export function useEncryptedApiCalls() {
     resumeInvestment: (token: string, id: string) => 
       baseApi.resumeInvestment(token, id),
     
-    // Future Bombs
+    // Future Bombs (E2E encrypted)
     createFutureBomb: (token: string, data: any) =>
-      baseApi.createFutureBomb(token, data),
+      baseApi.createFutureBomb(token, data, key || undefined),
     updateFutureBomb: (token: string, id: string, data: any) =>
-      baseApi.updateFutureBomb(token, id, data),
+      baseApi.updateFutureBomb(token, id, data, key || undefined),
     deleteFutureBomb: (token: string, id: string) =>
       baseApi.deleteFutureBomb(token, id),
     
@@ -110,8 +110,8 @@ export function useEncryptedApiCalls() {
       baseApi.skipSIP(token, itemId),
     undoSkipSIP: (token: string, itemId: string) =>
       baseApi.undoSkipSIP(token, itemId),
-    getPaymentStatus: (token: string, entityType: string, id: string) => 
-      baseApi.getPaymentStatus(token, entityType, id),
+    getPaymentStatus: (token: string, entityType?: string, entityId?: string, month?: string) => 
+      baseApi.getPaymentStatus(token, entityType, entityId, month),
     getPaymentsSummary: (token: string) => 
       baseApi.getPaymentsSummary(token),
     

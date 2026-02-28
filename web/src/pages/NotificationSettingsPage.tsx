@@ -50,6 +50,7 @@ export function NotificationSettingsPage({ token }: NotificationSettingsPageProp
     };
 
     fetchPreferences();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- api is stable; token in deps ensures refetch on auth change
   }, [token]);
 
   // Save preferences

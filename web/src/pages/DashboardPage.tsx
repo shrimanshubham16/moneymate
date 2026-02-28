@@ -59,6 +59,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const { showIntro, closeIntro } = useIntroModal("dashboard");
   const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
   const keepAliveIntervalRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
   const hasFetchedRef = useRef(false); // Prevent double fetch in React Strict Mode
   const lastViewRef = useRef<string>(""); // Track view changes to allow refetch
   const lastAggPushRef = useRef<number>(0); // Debounce aggregate pushes
@@ -348,6 +349,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       ]);
       
       // Update state with fresh data (seamless refresh)
+      if (!mountedRef.current) return;
       setData(dashboardRes.data);
       setCreditCards(cardsRes.data);
       setLoans(loansRes.data);
@@ -384,16 +386,21 @@ export function DashboardPage({ token }: DashboardPageProps) {
     
     loadData();
     import("../data/funFacts").then((m) => {
+      if (!mountedRef.current) return;
       const facts = m.funFacts || [];
       if (facts.length) {
         setFunFact(facts[Math.floor(Math.random() * facts.length)]);
       }
     });
     api.getUserSubcategories(token).then(res => {
+      if (!mountedRef.current) return;
       const subs = res.data || [];
       setUserSubcategories(subs.length ? subs : ["Unspecified"]);
       if (!quickAddSubcategory && subs.length) setQuickAddSubcategory(subs[0]);
-    }).catch(() => setUserSubcategories(["Unspecified"]));
+    }).catch(() => {
+      if (!mountedRef.current) return;
+      setUserSubcategories(["Unspecified"]);
+    });
     
     // KEEP-ALIVE: Ping Edge Function every 4 minutes to prevent cold starts
     // Only runs while dashboard is mounted (user is active)
@@ -422,6 +429,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     }, 4 * 60 * 1000);
     
     return () => {
+      mountedRef.current = false;
       clearTimeout(timeoutId);
       if (keepAliveIntervalRef.current) {
         clearInterval(keepAliveIntervalRef.current);
@@ -447,6 +455,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   const loadData = async (forceRefresh = false, viewOverride?: string) => {
     try {
+      if (!mountedRef.current) return;
       setLoadProgress(0);
       
       console.log('[PERF] Dashboard loadData started', { forceRefresh });
@@ -471,12 +480,19 @@ export function DashboardPage({ token }: DashboardPageProps) {
         const cachedActivities = ClientCache.get<any[]>('activities', userId) || [];
         
         // Show cached data immediately (even if stale)
+        if (!mountedRef.current) return;
         setData(cachedDashboard);
         setCreditCards(cachedCards);
         setLoans(cachedLoans);
         setActivities(cachedActivities);
         // Don't hardcode empty - fetch sharing members fresh (needed for combined view)
-        api.fetchSharingMembers(token).then(res => setSharingMembers(res.data)).catch(() => setSharingMembers({ members: [] }));
+        api.fetchSharingMembers(token).then(res => {
+          if (!mountedRef.current) return;
+          setSharingMembers(res.data);
+        }).catch(() => {
+          if (!mountedRef.current) return;
+          setSharingMembers({ members: [] });
+        });
         setLoading(false);
         setLoadProgress(100);
         setIsStale(isDataStale);
@@ -501,6 +517,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       }
       
       console.log('[CACHE_MISS_CLIENT] No cached data, fetching from API');
+      if (!mountedRef.current) return;
       setIsStale(false);
       setLoadProgress(10); // Starting fetch
       setLoadProgress(30); // Connecting to server
@@ -517,8 +534,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
       ]);
       
       setLoadProgress(80); // Data received
-      
-      
+      if (!mountedRef.current) return;
+
       // Set state
       setData(dashboardRes.data);
       setCreditCards(cardsRes.data);
@@ -545,9 +562,9 @@ export function DashboardPage({ token }: DashboardPageProps) {
       }
     } catch (e: any) {
       console.error("Failed to load dashboard:", e);
-      setLoadProgress(100); // Complete even on error
+      if (mountedRef.current) setLoadProgress(100); // Complete even on error
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   };
 
@@ -955,14 +972,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
       <AnimatePresence>
         {showQuickAdd && (
           <motion.div
-            className="modal-overlay"
+            className="dashboard-modal-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowQuickAdd(false)}
           >
             <motion.div
-              className="modal-card"
+              className="dashboard-modal-card"
               initial={{ scale: 0.95, y: 10 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 10 }}
@@ -1049,7 +1066,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
                 <label>Note (optional)</label>
                 <textarea value={quickAddJustification} onChange={(e) => setQuickAddJustification(e.target.value)} />
               </div>
-              <div className="modal-actions">
+              <div className="dashboard-modal-actions">
                 <button onClick={() => setShowQuickAdd(false)} className="secondary-btn">Cancel</button>
                 <button onClick={handleQuickAddSubmit} className="primary-btn">Add Expense</button>
               </div>

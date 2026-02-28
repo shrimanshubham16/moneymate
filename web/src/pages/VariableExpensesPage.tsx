@@ -365,8 +365,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
 
       {/* Plan Form Modal */}
       {showPlanForm && !isSharedView && (
-        <motion.div className="modal-overlay" onClick={() => setShowPlanForm(false)}>
-          <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}
+        <motion.div className="ve-modal-overlay" onClick={() => setShowPlanForm(false)}>
+          <motion.div className="ve-modal-content" onClick={(e) => e.stopPropagation()}
             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
             <h2>{editingId ? "Update" : "Add"} Variable Expense Plan</h2>
             <form onSubmit={handlePlanSubmit}>
@@ -411,8 +411,8 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
 
       {/* Actual Expense Form Modal */}
       {showActualForm && !isSharedView && (
-        <motion.div className="modal-overlay" onClick={() => setShowActualForm(false)}>
-          <motion.div className="modal-content" onClick={(e) => e.stopPropagation()}
+        <motion.div className="ve-modal-overlay" onClick={() => setShowActualForm(false)}>
+          <motion.div className="ve-modal-content" onClick={(e) => e.stopPropagation()}
             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
             <h2>Add an Expense</h2>
             <form onSubmit={handleActualSubmit}>

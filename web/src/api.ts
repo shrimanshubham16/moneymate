@@ -613,12 +613,14 @@ export async function resumeInvestment(token: string, id: string) {
 }
 
 // Future Bombs
-export async function createFutureBomb(token: string, payload: { name: string; due_date: string; total_amount: number; saved_amount: number }) {
-  return request<{ data: any }>("/future-bombs", { method: "POST", body: JSON.stringify(payload) }, token);
+export async function createFutureBomb(token: string, payload: { name: string; due_date: string; total_amount: number; saved_amount: number }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>("/future-bombs", { method: "POST", body }, token);
 }
 
-export async function updateFutureBomb(token: string, id: string, payload: { name?: string; due_date?: string; total_amount?: number; saved_amount?: number }) {
-  return request<{ data: any }>(`/future-bombs/${id}`, { method: "PUT", body: JSON.stringify(payload) }, token);
+export async function updateFutureBomb(token: string, id: string, payload: { name?: string; due_date?: string; total_amount?: number; saved_amount?: number }, cryptoKey?: CryptoKey) {
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>(`/future-bombs/${id}`, { method: "PUT", body }, token);
 }
 
 export async function deleteFutureBomb(token: string, id: string) {
@@ -642,8 +644,12 @@ export async function undoSkipSIP(token: string, itemId: string) {
   return request<{ data: any }>("/payments/undo-skip", { method: "POST", body: JSON.stringify({ itemId }) }, token);
 }
 
-export async function getPaymentStatus(token: string, month?: string) {
-  const query = month ? `?month=${month}` : '';
+export async function getPaymentStatus(token: string, entityType?: string, entityId?: string, month?: string) {
+  const params = new URLSearchParams();
+  if (entityType) params.append('entityType', entityType);
+  if (entityId) params.append('entityId', entityId);
+  if (month) params.append('month', month);
+  const query = params.toString() ? `?${params}` : '';
   return request<{ data: Record<string, boolean> }>(`/payments/status${query}`, {}, token);
 }
 

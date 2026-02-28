@@ -200,12 +200,17 @@ export function DuesPage({ token }: DuesPageProps) {
         }
       });
 
-      // Fixed expenses due this month (skip already-skipped SIPs entirely)
+      // Fixed expenses due this month (skip skipped SIPs and expired items)
       dashboardRes.data.fixedExpenses?.forEach((exp: any) => {
         const startDate = exp.startDate || exp.start_date;
+        const endDate = exp.endDate || exp.end_date;
         const isSkipped = exp.isSkipped === true;
         
         if (isSkipped) return;
+        
+        // Skip expired items (end_date in the past) and not-yet-started items
+        if (endDate && new Date(endDate) < today) return;
+        if (startDate && new Date(startDate) > today) return;
         
         if (!exp.paid) {
           const isSip = exp.is_sip_flag || exp.isSipFlag;
