@@ -377,45 +377,27 @@ export default function App() {
               <AppRoutes token={token} onLogout={handleLogout} />
             </motion.div>
           ) : (
-            <Routes>
-              <Route path="/what-is-finflow" element={
-                <motion.div
-                  key="landing"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <LandingPage />
-                </motion.div>
-              } />
-              <Route path="/recover" element={
-                <motion.div
-                  key="recovery"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
+            <motion.div
+              key="unauth"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Routes>
+                <Route path="/what-is-finflow" element={<LandingPage />} />
+                <Route path="/recover" element={
                   <RecoveryPage onBack={() => window.location.href = '/'} />
-                </motion.div>
-              } />
-              <Route path="*" element={
-                <motion.div
-                  key="auth"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
+                } />
+                <Route path="*" element={
                   <AuthForm
                     onAuth={handleAuth}
                     onShowLanding={() => { }}
                     onRecovery={() => window.location.href = '/recover'}
                   />
-                </motion.div>
-              } />
-            </Routes>
+                } />
+              </Routes>
+            </motion.div>
           )}
         </AnimatePresence>
       </Suspense>
