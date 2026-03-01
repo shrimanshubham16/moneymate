@@ -403,6 +403,27 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Usage Guide Callout */}
+      <section className="guide-callout-section">
+        <motion.div
+          className="guide-callout-card"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <div className="guide-callout-icon">📖</div>
+          <div className="guide-callout-text">
+            <h3>Want the full playbook?</h3>
+            <p>
+              After you sign up, head to <strong>Settings → About FinFlow</strong> for a comprehensive step-by-step usage guide —
+              covering everything from RSU tax calculations to SIP accumulation strategies,
+              credit card billing cycles, bomb defusal tactics, and much more.
+              Think of it as your financial operations manual.
+            </p>
+          </div>
+        </motion.div>
+      </section>
+
       {/* CTA Section */}
       <section className="cta-section">
         <motion.div

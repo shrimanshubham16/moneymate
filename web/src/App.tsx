@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { login, signup, fetchSalt } from "./api";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -47,6 +47,7 @@ import { applyTheme, getCurrentTheme } from "./theme";
 const MAINTENANCE_MODE = false;
 
 function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: string) => void; onShowLanding: () => void; onRecovery: () => void }) {
+  const authNavigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -87,7 +88,7 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
           setLoading(false);
           return;
         }
-        
+
         const { b64: saltB64 } = generateSalt();
         encryptionSalt = saltB64;
         const newRecoveryKey = generateRecoveryKey();
@@ -96,7 +97,7 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
         const key = await deriveKey(password, saltFromBase64(encryptionSalt));
         await cryptoCtx.setKey(key, encryptionSalt);
         console.log('[AUTH] Encryption key set for new user');
-        
+
         // Show recovery key modal before completing auth
         setRecoveryKey(newRecoveryKey);
         setPendingToken(res.access_token);
@@ -129,11 +130,11 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
       setLoading(false);
     }
   };
-  
+
   const handleRecoveryModalClose = () => {
     setShowRecoveryModal(false);
     setRecoveryKey(null);
-    
+
     // Complete auth directly after recovery key is saved
     if (pendingToken) {
       onAuth(pendingToken);
@@ -154,19 +155,19 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
           <p>Your Financial Companion</p>
           <small className="free-tagline">Free forever. Privacy-first.</small>
         </div>
-        
+
         {/* E2E Encryption Badge */}
         <div className="privacy-badge">
           <svg className="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
           <div className="badge-content">
             <strong>End-to-End Encrypted</strong>
             <small>Your data encrypted on YOUR device. Only you can read it.</small>
           </div>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label>Username</label>
@@ -186,7 +187,7 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
               <small className="help-text">3-20 characters, letters, numbers, underscores only. Username is permanent.</small>
             )}
           </div>
-          
+
           <div className="form-group">
             <label>Password</label>
             <input
@@ -219,7 +220,7 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
                 required
                 minLength={8}
                 placeholder="••••••••"
-              autoComplete="new-password"
+                autoComplete="new-password"
               />
             </div>
           )}
@@ -240,7 +241,7 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
               </span>
             ) : mode === "login" ? "Login" : "Sign Up"}
           </button>
-          
+
           {mode === "login" && (
             <button
               type="button"
@@ -250,7 +251,7 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
               Forgot password? Recover with recovery key
             </button>
           )}
-          
+
           <button
             type="button"
             onClick={() => { setMode(mode === "login" ? "signup" : "login"); setPasswordStrength([]); }}
@@ -258,17 +259,17 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
           >
             {mode === "login" ? "Don't have an account? Sign Up" : "Already have an account? Login"}
           </button>
-          
+
           <button
             type="button"
-            onClick={onShowLanding}
+            onClick={() => authNavigate('/what-is-finflow')}
             className="auth-landing-link"
           >
             What is FinFlow?
           </button>
         </form>
       </motion.div>
-      
+
       {/* Recovery Key Modal - shown after signup */}
       {showRecoveryModal && recoveryKey && pendingToken && (
         <RecoveryKeyModal
@@ -292,43 +293,43 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
       <Header token={token} />
       <div className="app-content">
         <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /></div>}>
-        <Routes>
-          <Route path="/dashboard" element={<DashboardPage token={token} />} />
-          <Route path="/health" element={<HealthDetailsPage token={token} />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/plan-finances" element={<PlanFinancesPage token={token} />} />
-          <Route path="/settings/plan-finances/fixed" element={<FixedExpensesPage token={token} />} />
-          <Route path="/settings/plan-finances/variable" element={<VariableExpensesPage token={token} />} />
-          <Route path="/settings/plan-finances/investments" element={<InvestmentsManagementPage token={token} />} />
-          <Route path="/settings/plan-finances/income" element={<IncomePage token={token} />} />
-          <Route path="/settings/account" element={<AccountPage token={token} onLogout={onLogout} />} />
-          <Route path="/settings/about" element={<AboutPage />} />
-          <Route path="/settings/privacy" element={<PrivacyPage />} />
-          <Route path="/settings/sharing" element={<SharingPage token={token} />} />
-          <Route path="/settings/support" element={<SupportPage />} />
-          <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />
-          <Route path="/settings/notifications" element={<NotificationSettingsPage token={token} />} />
-          <Route path="/settings/theme" element={<ThemeSettingsPage />} />
-          <Route path="/notifications" element={<NotificationsPage token={token} />} />
-          <Route path="/settings/credit-cards" element={<CreditCardsManagementPage token={token} />} />
-          <Route path="/settings/manage-debts/credit-cards" element={<CreditCardsManagementPage token={token} />} />
-          <Route path="/investments" element={<InvestmentsPage token={token} />} />
-          <Route path="/alerts" element={<Navigate to="/notifications" replace />} />
-          <Route path="/credit-cards" element={<CreditCardsManagementPage token={token} />} />
-          <Route path="/loans" element={<LoansPage token={token} />} />
-          <Route path="/future-bombs" element={<FutureBombsPage token={token} />} />
-          <Route path="/activities" element={<ActivitiesPage token={token} />} />
-          <Route path="/dues" element={<DuesPage token={token} />} />
-          <Route path="/current-month-expenses" element={<CurrentMonthExpensesPage token={token} />} />
-          <Route path="/sip-expenses" element={<SIPExpensesPage token={token} />} />
-          <Route path="/export" element={<ExportPage token={token} />} />
-          <Route path="/fixed-expenses" element={<FixedExpensesPage token={token} />} />
-          <Route path="/variable-expenses" element={<VariableExpensesPage token={token} />} />
-          <Route path="/community" element={<ChatroomPage token={token} />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+          <Routes>
+            <Route path="/dashboard" element={<DashboardPage token={token} />} />
+            <Route path="/health" element={<HealthDetailsPage token={token} />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/settings/plan-finances" element={<PlanFinancesPage token={token} />} />
+            <Route path="/settings/plan-finances/fixed" element={<FixedExpensesPage token={token} />} />
+            <Route path="/settings/plan-finances/variable" element={<VariableExpensesPage token={token} />} />
+            <Route path="/settings/plan-finances/investments" element={<InvestmentsManagementPage token={token} />} />
+            <Route path="/settings/plan-finances/income" element={<IncomePage token={token} />} />
+            <Route path="/settings/account" element={<AccountPage token={token} onLogout={onLogout} />} />
+            <Route path="/settings/about" element={<AboutPage />} />
+            <Route path="/settings/privacy" element={<PrivacyPage />} />
+            <Route path="/settings/sharing" element={<SharingPage token={token} />} />
+            <Route path="/settings/support" element={<SupportPage />} />
+            <Route path="/settings/preferences" element={<PreferencesPage token={token} />} />
+            <Route path="/settings/notifications" element={<NotificationSettingsPage token={token} />} />
+            <Route path="/settings/theme" element={<ThemeSettingsPage />} />
+            <Route path="/notifications" element={<NotificationsPage token={token} />} />
+            <Route path="/settings/credit-cards" element={<CreditCardsManagementPage token={token} />} />
+            <Route path="/settings/manage-debts/credit-cards" element={<CreditCardsManagementPage token={token} />} />
+            <Route path="/investments" element={<InvestmentsPage token={token} />} />
+            <Route path="/alerts" element={<Navigate to="/notifications" replace />} />
+            <Route path="/credit-cards" element={<CreditCardsManagementPage token={token} />} />
+            <Route path="/loans" element={<LoansPage token={token} />} />
+            <Route path="/future-bombs" element={<FutureBombsPage token={token} />} />
+            <Route path="/activities" element={<ActivitiesPage token={token} />} />
+            <Route path="/dues" element={<DuesPage token={token} />} />
+            <Route path="/current-month-expenses" element={<CurrentMonthExpensesPage token={token} />} />
+            <Route path="/sip-expenses" element={<SIPExpensesPage token={token} />} />
+            <Route path="/export" element={<ExportPage token={token} />} />
+            <Route path="/fixed-expenses" element={<FixedExpensesPage token={token} />} />
+            <Route path="/variable-expenses" element={<VariableExpensesPage token={token} />} />
+            <Route path="/community" element={<ChatroomPage token={token} />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </Suspense>
-    </div>
+      </div>
     </>
   );
 }
@@ -336,9 +337,7 @@ function AppRoutes({ token, onLogout }: { token: string; onLogout: () => void })
 export default function App() {
   const cryptoCtx = useCrypto();
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
-  const [showLanding, setShowLanding] = useState(false);
-  const [showRecovery, setShowRecovery] = useState(false);
-  
+
   // Check if we have a token but no encryption key (browser was closed)
   // With localStorage persistence for keys, this should rarely happen
   const needsReauth = token && !cryptoCtx.key && !cryptoCtx.isRestoring;
@@ -353,7 +352,7 @@ export default function App() {
     cryptoCtx.clearKey();
     setToken(null);
   };
-  
+
   // Force re-login if token exists but key is missing
   useEffect(() => {
     if (needsReauth) {
@@ -366,53 +365,59 @@ export default function App() {
     <BrowserRouter>
       {MAINTENANCE_MODE && <MaintenanceNotice />}
       <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /></div>}>
-      <AnimatePresence mode="wait" initial={false}>
-        {token ? (
-          <motion.div
-            key="app"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <AppRoutes token={token} onLogout={handleLogout} />
-          </motion.div>
-        ) : showLanding ? (
-          <motion.div
-            key="landing"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <LandingPage />
-          </motion.div>
-        ) : showRecovery ? (
-          <motion.div
-            key="recovery"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <RecoveryPage onBack={() => setShowRecovery(false)} />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="auth"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <AuthForm 
-              onAuth={handleAuth} 
-              onShowLanding={() => setShowLanding(true)}
-              onRecovery={() => setShowRecovery(true)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <AnimatePresence mode="wait" initial={false}>
+          {token ? (
+            <motion.div
+              key="app"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <AppRoutes token={token} onLogout={handleLogout} />
+            </motion.div>
+          ) : (
+            <Routes>
+              <Route path="/what-is-finflow" element={
+                <motion.div
+                  key="landing"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <LandingPage />
+                </motion.div>
+              } />
+              <Route path="/recover" element={
+                <motion.div
+                  key="recovery"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <RecoveryPage onBack={() => window.location.href = '/'} />
+                </motion.div>
+              } />
+              <Route path="*" element={
+                <motion.div
+                  key="auth"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <AuthForm
+                    onAuth={handleAuth}
+                    onShowLanding={() => { }}
+                    onRecovery={() => window.location.href = '/recover'}
+                  />
+                </motion.div>
+              } />
+            </Routes>
+          )}
+        </AnimatePresence>
       </Suspense>
     </BrowserRouter>
   );
