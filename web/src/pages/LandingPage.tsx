@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes, FaComments, FaBomb, FaStar, FaSlidersH } from "react-icons/fa";
+import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes, FaComments, FaBomb, FaStar, FaSlidersH, FaFileExport, FaGlobe, FaAdjust, FaPiggyBank } from "react-icons/fa";
+import VERSION from "../version";
 import "./LandingPage.css";
 
 export function LandingPage() {
@@ -22,8 +23,9 @@ export function LandingPage() {
           <h1>Your Finances,<br /><span className="gradient-text">Truly Private</span></h1>
           <p className="hero-subtitle">
             The only personal finance app where <strong>even we can't see your data</strong>.
-            Plan expenses, track investments with live stock prices, defuse future bombs with three strategies,
-            and stay financially healthy — all encrypted on your device, forever free.
+            Track income (including live RSU stock prices), plan expenses with SIP accumulation,
+            defuse future bombs with three strategies, share finances with family,
+            export to Excel — all encrypted on your device, forever free.
           </p>
           <div className="hero-actions">
             <button className="cta-primary" onClick={() => window.location.href = "/"}>
@@ -34,7 +36,7 @@ export function LandingPage() {
             </button>
           </div>
         </motion.div>
-        
+
         <motion.div
           className="hero-visual"
           initial={{ opacity: 0, scale: 0.9 }}
@@ -170,7 +172,7 @@ export function LandingPage() {
               <FaBomb />
             </div>
             <h3>3-Path Bomb Defusal</h3>
-            <p>Big expense incoming? Choose to pause investments, sell RSU shares (at conservative prices), or build your own custom mix — with real-time feedback.</p>
+            <p>Big expense incoming? Pause investments, sell RSU shares at conservative prices, or build a custom mix with optional wallet withdrawals — live feedback shows the gap closing.</p>
           </motion.div>
 
           <motion.div
@@ -183,8 +185,22 @@ export function LandingPage() {
             <div className="feature-icon sharing">
               <FaUsers />
             </div>
-            <h3>Secure Sharing</h3>
-            <p>Share finances with partners. Owner, editor, and viewer roles.</p>
+            <h3>Secure Family Sharing</h3>
+            <p>Invite your partner by username. Get a combined household view with merged income, expenses, and health — while individual items stay private.</p>
+          </motion.div>
+
+          <motion.div
+            className="feature-card"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+          >
+            <div className="feature-icon">
+              <FaGlobe />
+            </div>
+            <h3>Multi-Currency & Live Forex</h3>
+            <p>Set your home currency (INR, USD, EUR, GBP…). RSU stock prices auto-convert using live forex rates from market data.</p>
           </motion.div>
 
           <motion.div
@@ -198,7 +214,7 @@ export function LandingPage() {
               <FaShieldAlt />
             </div>
             <h3>AES-256 Encryption</h3>
-            <p>Military-grade encryption. Your data is encrypted before it leaves your device.</p>
+            <p>Military-grade encryption. Your data is encrypted before it leaves your device. 24-word recovery key as your safety net.</p>
           </motion.div>
 
           <motion.div
@@ -212,7 +228,7 @@ export function LandingPage() {
               <FaComments />
             </div>
             <h3>Community Lounge</h3>
-            <p>Real-time chatroom to share planning tips, guide others, and make new friends. Cleaned daily for a fresh start.</p>
+            <p>Real-time chatroom to share planning tips, celebrate milestones, and shape the app's future with :BUG: and :FEATURE: tags.</p>
           </motion.div>
 
           <motion.div
@@ -226,7 +242,7 @@ export function LandingPage() {
               <FaBell />
             </div>
             <h3>Smart Notifications</h3>
-            <p>Auto-alerts for unpaid dues, overspends, health drops, and CC billing days. Never miss a beat.</p>
+            <p>Auto-alerts for unpaid dues, overspends, health drops, CC billing days, and bomb deadlines — fully configurable.</p>
           </motion.div>
 
           <motion.div
@@ -237,10 +253,52 @@ export function LandingPage() {
             transition={{ delay: 0.8 }}
           >
             <div className="feature-icon">
+              <FaPiggyBank />
+            </div>
+            <h3>SIP Accumulation</h3>
+            <p>Turn yearly or quarterly bills into painless monthly installments. Track wallet progress, skip months when tight, and top up anytime.</p>
+          </motion.div>
+
+          <motion.div
+            className="feature-card"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.9 }}
+          >
+            <div className="feature-icon">
+              <FaFileExport />
+            </div>
+            <h3>Excel & CSV Export</h3>
+            <p>Download your complete financial report as a spreadsheet anytime. Your data is always yours to take.</p>
+          </motion.div>
+
+          <motion.div
+            className="feature-card"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 1.0 }}
+          >
+            <div className="feature-icon">
+              <FaAdjust />
+            </div>
+            <h3>Dark & Light Themes</h3>
+            <p>Full theme customization with smooth transitions. Choose the look that feels right for your eyes.</p>
+          </motion.div>
+
+          <motion.div
+            className="feature-card"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 1.1 }}
+          >
+            <div className="feature-icon">
               <FaStar />
             </div>
-            <h3>Overspend Risk Intelligence</h3>
-            <p>Tracks your spending habits with adaptive cooldown. Build a clean streak to earn faster score recovery.</p>
+            <h3>Overspend Risk Tracking</h3>
+            <p>Adaptive spending intelligence. Overspend raises your constraint score; staying disciplined lets it decay. A mirror, not a punishment.</p>
           </motion.div>
         </div>
       </section>
@@ -364,7 +422,7 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="landing-footer">
-        <p>Built with privacy in mind • v2.6 • © 2026 FinFlow</p>
+        <p>Built with privacy in mind • v{VERSION.full} • © 2026 FinFlow</p>
       </footer>
     </div>
   );
