@@ -484,9 +484,10 @@
 }
 
 .guide-callout-icon {
-  font-size: 32px;
+  font-size: 28px;
   flex-shrink: 0;
   margin-top: 2px;
+  color: #a78bfa;
 }
 
 .guide-callout-text h3 {

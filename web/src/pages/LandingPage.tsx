@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes, FaComments, FaBomb, FaStar, FaSlidersH, FaFileExport, FaGlobe, FaAdjust, FaPiggyBank } from "react-icons/fa";
+import { FaShieldAlt, FaLock, FaChartLine, FaWallet, FaBell, FaUsers, FaArrowRight, FaCheckCircle, FaTimes, FaComments, FaBomb, FaStar, FaSlidersH, FaFileExport, FaGlobe, FaAdjust, FaPiggyBank, FaBookOpen } from "react-icons/fa";
 import VERSION from "../version";
 import "./LandingPage.css";
 
@@ -411,7 +411,7 @@ export function LandingPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <div className="guide-callout-icon">📖</div>
+          <div className="guide-callout-icon"><FaBookOpen /></div>
           <div className="guide-callout-text">
             <h3>Want the full playbook?</h3>
             <p>
