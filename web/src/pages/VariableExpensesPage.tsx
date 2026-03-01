@@ -102,15 +102,15 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
-    
+
     const planData: any = {
       name: planForm.name,
       planned: Number(planForm.planned),
       category: planForm.category,
-      start_date: planForm.start_date || "",
-      end_date: planForm.end_date || ""
+      start_date: planForm.start_date || new Date().toISOString().split("T")[0],
+      end_date: planForm.end_date || null
     };
-    
+
     const tempId = `temp-${Date.now()}`;
     const optimisticPlan = {
       id: editingId || tempId,
@@ -118,17 +118,17 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       actuals: [],
       actualTotal: 0
     };
-    
+
     if (editingId) {
       setPlans(prev => prev.map(p => p.id === editingId ? { ...p, ...optimisticPlan } : p));
     } else {
       setPlans(prev => [optimisticPlan, ...prev]);
     }
-    
+
     setShowPlanForm(false);
     setEditingId(null);
     setIsSubmitting(false);
-    
+
     try {
       let response: any;
       if (editingId) {
@@ -156,11 +156,11 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       try {
         const res = await api.addUserSubcategory(token, actualForm.newSubcategory.trim());
         setUserSubcategories(res.data.subcategories);
-        setActualForm({ 
-          ...actualForm, 
-          subcategory: actualForm.newSubcategory.trim(), 
+        setActualForm({
+          ...actualForm,
+          subcategory: actualForm.newSubcategory.trim(),
           showNewSubcategory: false,
-          newSubcategory: "" 
+          newSubcategory: ""
         });
       } catch (e: any) {
         showAlert(e.message);
@@ -172,7 +172,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     e.preventDefault();
     if (!selectedPlanId) return;
     if (isSubmitting) return;
-    
+
     const planStillExists = plans.find(p => p.id === selectedPlanId);
     if (!planStillExists) {
       showAlert("This plan no longer exists. Refreshing plans...");
@@ -181,12 +181,12 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       setSelectedPlanId(null);
       return;
     }
-    
+
     if (actualForm.paymentMode === "CreditCard" && !actualForm.creditCardId) {
       showAlert("Please select a credit card");
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
       const tempActual = {
@@ -198,7 +198,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         paymentMode: actualForm.paymentMode,
         creditCardId: actualForm.paymentMode === "CreditCard" ? actualForm.creditCardId : undefined
       };
-      
+
       setPlans(plans => plans.map(p => {
         if (p.id === selectedPlanId) {
           return {
@@ -209,18 +209,18 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         }
         return p;
       }));
-      
+
       if (actualForm.paymentMode === "CreditCard" && actualForm.creditCardId) {
-        setCreditCards(cards => cards.map(c => 
-          c.id === actualForm.creditCardId 
+        setCreditCards(cards => cards.map(c =>
+          c.id === actualForm.creditCardId
             ? { ...c, currentExpenses: (c.currentExpenses || 0) + tempActual.amount }
             : c
         ));
       }
-      
+
       setShowActualForm(false);
-      setActualForm({ 
-        amount: "", 
+      setActualForm({
+        amount: "",
         justification: "",
         subcategory: "Unspecified",
         paymentMode: "Cash",
@@ -229,7 +229,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         newSubcategory: ""
       });
       setSelectedPlanId(null);
-      
+
       await api.addVariableActual(token, selectedPlanId, {
         amount: Number(tempActual.amount),
         incurred_at: tempActual.incurredAt,
@@ -238,7 +238,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         payment_mode: tempActual.paymentMode,
         credit_card_id: tempActual.creditCardId
       });
-      
+
       invalidateDashboardCache();
       // Background refresh — fire-and-forget
       Promise.all([loadPlans(true), loadCreditCards()]);
@@ -610,7 +610,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           {ownPlans.map((plan, index) => {
             const overspend = plan.actualTotal > plan.planned;
             const suggestion = !dismissedSuggestions.has(plan.id) ? getBudgetSuggestion(plan) : null;
-            
+
             return (
               <motion.div
                 key={plan.id}
@@ -676,10 +676,10 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                     <h4>Recent Expenses</h4>
                     {plan.actuals.map((actual: any) => {
                       const paymentInfo = actual.paymentMode === "UPI" ? { icon: <FaMobileAlt size={12} />, label: "UPI", color: "#3b82f6" } :
-                                        actual.paymentMode === "Cash" ? { icon: <FaMoneyBillWave size={12} />, label: "Cash", color: "#10b981" } :
-                                        actual.paymentMode === "ExtraCash" ? { icon: <FaWallet size={12} />, label: "Extra Cash", color: "#8b5cf6" } :
-                                        actual.paymentMode === "CreditCard" ? { icon: <FaCreditCard size={12} />, label: "Credit Card", color: "#f59e0b" } :
-                                        { icon: <FaMoneyBillWave size={12} />, label: actual.paymentMode || "Cash", color: "var(--text-tertiary)" };
+                        actual.paymentMode === "Cash" ? { icon: <FaMoneyBillWave size={12} />, label: "Cash", color: "#10b981" } :
+                          actual.paymentMode === "ExtraCash" ? { icon: <FaWallet size={12} />, label: "Extra Cash", color: "#8b5cf6" } :
+                            actual.paymentMode === "CreditCard" ? { icon: <FaCreditCard size={12} />, label: "Credit Card", color: "#f59e0b" } :
+                              { icon: <FaMoneyBillWave size={12} />, label: actual.paymentMode || "Cash", color: "var(--text-tertiary)" };
                       return (
                         <div key={actual.id} className="actual-item">
                           <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>₹{(actual.amount || 0).toLocaleString("en-IN")}</span>
