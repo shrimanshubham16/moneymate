@@ -394,6 +394,10 @@ export async function addVariableActual(
   return request<{ data: any }>(`/planning/variable-expenses/${id}/actuals`, { method: "POST", body }, token);
 }
 
+export async function deleteVariableActual(token: string, planId: string, actualId: string) {
+  return request<{ data: { deleted: boolean } }>(`/planning/variable-expenses/${planId}/actuals/${actualId}`, { method: "DELETE" }, token);
+}
+
 // v1.2: Subcategory management
 export async function getUserSubcategories(token: string) {
   return request<{ data: string[] }>("/user/subcategories", { method: "GET" }, token);

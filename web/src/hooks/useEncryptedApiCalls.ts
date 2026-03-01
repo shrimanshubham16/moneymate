@@ -56,6 +56,8 @@ export function useEncryptedApiCalls() {
     // Variable Expense Actuals
     addVariableActual: (token: string, planId: string, data: any) => 
       baseApi.addVariableActual(token, planId, data, key || undefined),
+    deleteVariableActual: (token: string, planId: string, actualId: string) =>
+      baseApi.deleteVariableActual(token, planId, actualId),
     
     // Investments
     createInvestment: (token: string, data: any) => 

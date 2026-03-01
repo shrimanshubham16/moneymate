@@ -74,7 +74,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
       setWalletModal({ isOpen: false, expenseId: "", expenseName: "", currentFund: 0 });
       setWalletAmount("");
       await api.updateFixedExpense(token, walletModal.expenseId, { accumulated_funds: amount });
-      hapticSuccess();
+      hapticSuccess(null);
       invalidateDashboardCache();
       loadSIPExpenses().catch(console.error);
     } catch (e: any) {

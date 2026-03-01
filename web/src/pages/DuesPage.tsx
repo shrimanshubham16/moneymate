@@ -38,7 +38,7 @@ export function DuesPage({ token }: DuesPageProps) {
     loadDues();
   }, [selectedView]);
 
-  const handleTogglePaid = async (due: any) => {
+  const handleTogglePaid = async (due: any, e?: React.MouseEvent<HTMLButtonElement>) => {
     try {
       if (due.itemType === "credit_card") {
         showAlert("Credit cards must be paid through the Credit Cards page");
@@ -67,7 +67,7 @@ export function DuesPage({ token }: DuesPageProps) {
       } else {
         // Correct order: (token, itemId, itemType, amount)
         await api.markAsPaid(token, due.id, due.itemType, due.amount);
-        hapticSuccess();
+        hapticSuccess(e?.currentTarget ?? null);
         setToast({ show: true, message: `Hurray!! ${dueName} Due paid` });
       }
       
@@ -80,12 +80,12 @@ export function DuesPage({ token }: DuesPageProps) {
     }
   };
 
-  const handleSkipSIP = async (due: any) => {
+  const handleSkipSIP = async (due: any, element?: HTMLElement | null) => {
     showConfirm(
       `Skip saving for "${due.name}" this month? This removes the obligation from your health score and no funds will accumulate. You can undo from the SIP Expenses page.`,
       async () => {
         try {
-          hapticMedium();
+          hapticMedium(element);
           setDues(prev => prev.filter(d => d.id !== due.id));
           setTotalDues(prev => prev - due.amount);
           await api.skipSIP(token, due.id);
@@ -329,7 +329,7 @@ export function DuesPage({ token }: DuesPageProps) {
             {due.itemType !== "credit_card" && (
               <button
                 className={`due-toggle ${due.paid ? "checked" : ""}`}
-                onClick={() => handleTogglePaid(due)}
+                onClick={(e) => handleTogglePaid(due, e)}
                 title={due.paid ? "Mark as unpaid" : "Mark as paid"}
               >
                 {due.paid && <FaCheck size={11} />}
@@ -368,7 +368,7 @@ export function DuesPage({ token }: DuesPageProps) {
         {/* Skip action for unpaid periodic SIPs */}
         {isPeriodicSip && !isSharedView && !due.paid && (
           <div className="due-actions">
-            <button className="due-action-btn skip-btn" onClick={() => handleSkipSIP(due)}>
+            <button className="due-action-btn skip-btn" onClick={(e) => handleSkipSIP(due, e.currentTarget)}>
               <FaForward size={12} /> Skip This Month
             </button>
           </div>

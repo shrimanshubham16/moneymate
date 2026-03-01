@@ -692,6 +692,31 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                             {paymentInfo.label}
                           </span>
                           {actual.justification && <span className="justification">{actual.justification}</span>}
+                          {isOwnItem(plan) && (
+                            <button
+                              className="actual-delete-btn"
+                              title="Delete expense"
+                              onClick={() => showConfirm(
+                                `Delete ₹${(actual.amount || 0).toLocaleString("en-IN")} expense?`,
+                                async () => {
+                                  setPlans(prev => prev.map(p => p.id === plan.id
+                                    ? { ...p, actuals: (p.actuals || []).filter((a: any) => a.id !== actual.id) }
+                                    : p
+                                  ));
+                                  try {
+                                    await api.deleteVariableActual(token, plan.id, actual.id);
+                                    invalidateDashboardCache();
+                                  } catch (err) {
+                                    console.error('Delete actual failed:', err);
+                                    loadPlans(true);
+                                  }
+                                },
+                                "Delete Expense?"
+                              )}
+                            >
+                              <FaTrash size={11} />
+                            </button>
+                          )}
                         </div>
                       );
                     })}

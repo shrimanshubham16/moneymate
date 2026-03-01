@@ -190,13 +190,13 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, element?: HTMLElement | null) => {
     showConfirm("Delete this expense?", async () => {
       const prevExpenses = expenses;
       setExpenses(prev => prev.filter(e => e.id !== id)); // optimistic removal
       try {
         await api.deleteFixedExpense(token, id);
-        hapticError();
+        hapticError(element);
         invalidateDashboardCache();
         loadExpenses(); // background refresh
       } catch (e: any) {
@@ -524,7 +524,7 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
                   <button onClick={() => handleEdit(expense)} title="Edit" aria-label="Edit expense">
                     <FaEdit />
                   </button>
-                  <button onClick={() => handleDelete(expense.id)} className="delete-btn" title="Delete" aria-label="Delete expense">
+                  <button onClick={(e) => handleDelete(expense.id, e.currentTarget)} className="delete-btn" title="Delete" aria-label="Delete expense">
                     <FaTrashAlt />
                   </button>
                 </div>

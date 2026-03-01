@@ -2053,6 +2053,62 @@ serve(async (req) => {
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
+    // Delete a variable expense actual
+    if (path.match(/^\/planning\/variable-expenses\/[^/]+\/actuals\/[^/]+$/) && method === 'DELETE') {
+      const parts = path.split('/');
+      const planId = parts[3];
+      const actualId = parts[5];
+
+      // Verify the actual belongs to this user
+      const { data: actual, error: actualErr } = await supabase
+        .from('variable_expense_actuals')
+        .select('*, variable_expense_plans!inner(user_id)')
+        .eq('id', actualId)
+        .eq('plan_id', planId)
+        .single();
+
+      if (actualErr || !actual) return error('Actual expense not found', 404);
+      const planUser = (actual as any).variable_expense_plans;
+      if (!planUser || planUser.user_id !== userId) return error('Not authorized', 403);
+
+      // If payment was via CreditCard, decrement the card's current_expenses
+      if (actual.payment_mode === 'CreditCard' && actual.credit_card_id) {
+        const { data: card } = await supabase
+          .from('credit_cards')
+          .select('current_expenses')
+          .eq('id', actual.credit_card_id)
+          .single();
+
+        if (card) {
+          const newExpenses = Math.max(0, (card.current_expenses || 0) - (actual.amount || 0));
+          await supabase
+            .from('credit_cards')
+            .update({ current_expenses: newExpenses })
+            .eq('id', actual.credit_card_id);
+        }
+      }
+
+      // Delete the actual
+      const { error: deleteErr } = await supabase
+        .from('variable_expense_actuals')
+        .delete()
+        .eq('id', actualId);
+
+      if (deleteErr) return error('Failed to delete: ' + deleteErr.message, 500);
+
+      // Log activity
+      await logActivity(userId, 'variable_expense', 'deleted_actual', {
+        planId,
+        actualId,
+        amount: actual.amount,
+        subcategory: actual.subcategory
+      });
+
+      // Invalidate cache
+      await invalidateUserCache(userId);
+
+      return json({ data: { deleted: true } });
+    }
     if (path.startsWith('/planning/variable-expenses/') && method === 'DELETE') {
       const id = path.split('/').pop();
       const { data: deleted } = await supabase.from('variable_expense_plans').select('name').eq('id', id).single();

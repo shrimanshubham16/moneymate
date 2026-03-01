@@ -262,7 +262,7 @@
 /* ─── Plan Cards ─── */
 .plans-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: var(--space-6);
 }
 
@@ -452,6 +452,24 @@
 .actual-item .justification {
   color: var(--text-tertiary);
   font-style: italic;
+}
+
+.actual-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #666);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  margin-left: auto;
+  opacity: 0.5;
+  transition: opacity 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+}
+.actual-delete-btn:hover {
+  opacity: 1;
+  color: var(--error, #ef4444);
 }
 
 /* ─── Payment Mode Grid (Dark) ─── */
