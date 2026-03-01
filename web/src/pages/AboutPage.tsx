@@ -6,7 +6,7 @@ import {
   FaClipboardList, FaPalette, FaTheaterMasks, FaCodeBranch, FaHeart,
   FaShieldAlt, FaSun, FaCloudSunRain, FaCloudRain, FaBolt, FaArrowLeft,
   FaHandHoldingUsd, FaMoneyBillWave, FaChartBar, FaCreditCard, FaBomb,
-  FaUsers, FaChevronDown
+  FaUsers, FaChevronDown, FaFileExport, FaAdjust, FaGlobe, FaBell
 } from "react-icons/fa";
 import { MdTrendingUp } from "react-icons/md";
 import { HiChatBubbleLeftRight } from "react-icons/hi2";
@@ -40,8 +40,9 @@ export function AboutPage() {
     { title: "Add Your Income", desc: "Salary, freelance, RSU grants — add every source with its frequency. For RSUs, verify the ticker with live market prices and set your tax rate.", tip: "Toggle 'Include in Health' per source to control what counts" },
     { title: "Plan Fixed & Variable", desc: "Fixed: rent, EMIs, subscriptions. Variable: groceries, entertainment. Enable SIP on periodic bills to accumulate monthly instead of paying a lump sum.", tip: "Use categories — 'Loan' expenses auto-appear in the Loans widget" },
     { title: "Track Investments", desc: "Set monthly goals and mark critical ones as Priority — they're protected from pause suggestions during bomb defusal.", tip: "Pause non-critical investments temporarily when cash is tight" },
-    { title: "Defuse Future Bombs", desc: "Big expense ahead? Pick Pause First, Sell RSU First, or build a Custom Mix with live feedback on the gap closing.", tip: "Start early — even 12 months out, a small monthly SIP is painless" },
+    { title: "Defuse Future Bombs", desc: "Big expense ahead? Pick Pause First, Sell RSU First, or build a Custom Mix with live feedback. Optionally use wallet funds in Custom Mix.", tip: "Start early — even 12 months out, a small monthly SIP is painless" },
     { title: "Monitor Health Daily", desc: "Your health score = income minus all obligations. Check it daily — it takes 5 seconds and keeps you on track.", tip: "Customize thresholds for Good / OK / Not Well / Worrisome" },
+    { title: "Make It Yours", desc: "Switch between dark and light themes, set your preferred currency (INR, USD, EUR, GBP…), and fine-tune notification preferences.", tip: "Export your data anytime as Excel or CSV — your data is always yours" },
     { title: "Join the Community", desc: "Share finances with a companion for a combined view. Drop into the Lounge to share tips, ask questions, and help others.", tip: "Tag :BUG: or :FEATURE: in the Lounge to shape the app's future" },
   ];
 
@@ -197,9 +198,9 @@ export function AboutPage() {
           <h5>3 Defusal Strategies</h5>
           <p>When a bomb needs faster defusal (or immediate funds), FinFlow offers three paths:</p>
           <ul>
-            <li><strong>Pause First</strong> — Withdraw from investment wallets first. If still short, pause non-priority investments to free monthly cash. If still not enough, sell RSU shares as a last resort.</li>
-            <li><strong>Sell First</strong> — Withdraw from investment wallets + sell vested RSU shares at conservative tax-adjusted prices. Only pause investments if selling isn't enough.</li>
-            <li><strong>Custom Mix</strong> — You handpick: which investments to pause, how many RSU shares to sell from each source, and how much to withdraw from each wallet. Live feedback shows the remaining gap closing in real time.</li>
+            <li><strong>Pause First</strong> — Pauses non-priority investments to free up monthly cash flow. If still short, sells RSU shares as a last resort.</li>
+            <li><strong>Sell First</strong> — Sells vested RSU shares at conservative, tax-adjusted prices first. Only pauses investments if selling isn't enough.</li>
+            <li><strong>Custom Mix</strong> — Full control. Choose which investments to pause, how many RSU shares to sell, and <strong>optionally withdraw accumulated funds</strong> from investment wallets (one-time lump-sum that directly reduces the bomb balance). Live feedback shows the gap closing in real time.</li>
           </ul>
           <h5>RSU in Defusal</h5>
           <p>All RSU calculations in bomb defusal use <strong>conservative numbers</strong>: net shares after tax withholding, at the current stock price minus your decline buffer. No rosy assumptions.</p>
@@ -328,20 +329,28 @@ export function AboutPage() {
       >
         {/* ── Purpose ── */}
         <section className="about-section">
-          <h2><FaBullseye style={{ marginRight: 8, color: '#3b82f6' }} /> Purpose</h2>
+          <h2><FaBullseye style={{ marginRight: 8, color: '#3b82f6' }} /> What is FinFlow?</h2>
           <p>
-            FinFlow is your personal financial companion designed to help you plan, track, and optimize your finances.
-            Whether you're managing monthly expenses, planning investments, or preparing for future liabilities,
-            FinFlow provides intelligent insights and tools to keep your finances healthy.
+            FinFlow is a <strong>privacy-first financial companion</strong> built around one idea: <em>know where you stand in 5 seconds.</em>
           </p>
-          <div className="about-note">
-            <strong>Known OK caveats (free + privacy-first):</strong>
-            <ul>
-              <li>No server-side analytics; troubleshooting uses client logs only when you share them.</li>
-              <li>E2E encryption can mean occasional re-entering credentials on new devices.</li>
-              <li>Some heavy calculations happen client-side to keep data private; load times may vary.</li>
-              <li>Notifications are best-effort; ensure in-app preferences are enabled.</li>
-            </ul>
+          <p>
+            Open the app, glance at your health score, and you instantly know if your income covers your obligations this month — or if action is needed. No guesswork, no spreadsheets, no bank linking required.
+          </p>
+          <p>
+            Behind that single number, FinFlow manages your income (including RSU stocks with live pricing), fixed and variable expenses, investments, credit card cycles, upcoming large expenses ("Future Bombs"), and shared family finances — all end-to-end encrypted so not even we can see your data.
+          </p>
+        </section>
+
+        {/* ── Why FinFlow? ── */}
+        <section className="about-section">
+          <h2><FaHeart style={{ marginRight: 8, color: '#ef4444' }} /> Why FinFlow?</h2>
+          <div className="why-finflow-grid">
+            <div className="why-item"><FaShieldAlt className="why-icon" style={{ color: '#00e676' }} /><div><strong>Zero-Knowledge Privacy</strong><p>End-to-end encrypted. Your data is encrypted on your device before it ever leaves — not even FinFlow can read it.</p></div></div>
+            <div className="why-item"><FaBell className="why-icon" style={{ color: '#f59e0b' }} /><div><strong>No Bank Linking Required</strong><p>You control what goes in. No screen-scraping, no third-party aggregators, no financial data leaving your device unencrypted.</p></div></div>
+            <div className="why-item"><FaCheckCircle className="why-icon" style={{ color: '#10b981' }} /><div><strong>Free Forever, No Ads</strong><p>No paywalls, no premium tiers, no upsells. Every feature is available to everyone, always.</p></div></div>
+            <div className="why-item"><FaUsers className="why-icon" style={{ color: '#8b5cf6' }} /><div><strong>Built for Families</strong><p>Share finances with your partner for a combined household view — merged income, expenses, and health — while keeping individual items private.</p></div></div>
+            <div className="why-item"><FaBomb className="why-icon" style={{ color: '#f87171' }} /><div><strong>Future-Proof Planning</strong><p>"Future Bombs" let you prepare for large upcoming expenses with intelligent defusal strategies — pause investments, sell RSU shares, or build your own custom mix.</p></div></div>
+            <div className="why-item"><FaGlobe className="why-icon" style={{ color: '#22d3ee' }} /><div><strong>Multi-Currency & Live Forex</strong><p>Set your home currency (INR, USD, EUR, GBP…). RSU stock prices auto-convert using live forex rates from market data.</p></div></div>
           </div>
         </section>
 
@@ -349,25 +358,41 @@ export function AboutPage() {
         <section className="about-section">
           <h2><FaClipboardList style={{ marginRight: 8, color: '#3b82f6' }} /> Key Features</h2>
           <ul>
-            <li><strong>Health-Based Insights:</strong> Visual indicators showing your financial health (Good, OK, Not Well, Worrisome) — updates live as you mark payments</li>
-            <li><strong>Smart Planning:</strong> Plan fixed expenses, variable expenses, and investments with ease</li>
-            <li><strong>SIP for Periodic Expenses:</strong> Accumulate funds with potential growth for non-monthly expenses</li>
+            <li><strong>Daily Health Score:</strong> Income minus all obligations = one number that tells you where you stand. Four levels: Good, OK, Not Well, Worrisome — with customizable thresholds</li>
+            <li><strong>Smart Planning:</strong> Plan fixed expenses, variable expenses, and investments — each with categories, frequencies, and start/end dates</li>
+            <li><strong>SIP for Periodic Expenses:</strong> Turn yearly or quarterly bills into painless monthly accumulations. Skip a month if cash is tight — the obligation pauses, not your progress</li>
             <li><strong>Smart Future Bomb Defusal — 3 Strategies:</strong> Large expense looming? Pick from three defusal paths:
               <ul style={{ marginTop: 4, paddingLeft: 20 }}>
-                <li><strong>Pause First:</strong> Pauses non-priority investments, then sells RSU shares if still short</li>
-                <li><strong>Sell First:</strong> Sells vested RSU shares at conservative (tax-adjusted, decline-buffered) prices</li>
-                <li><strong>Custom Mix:</strong> You choose exactly what to pause and how many shares to sell, with live feedback</li>
+                <li><strong>Pause First:</strong> Pauses non-priority investments to free monthly cash, then sells RSU shares if still short</li>
+                <li><strong>Sell First:</strong> Sells vested RSU shares at conservative (tax-adjusted, decline-buffered) prices first</li>
+                <li><strong>Custom Mix:</strong> Full control — choose what to pause, how many shares to sell, and optionally withdraw accumulated investment wallet funds (one-time lump-sum)</li>
               </ul>
             </li>
-            <li><strong>Investment Priority:</strong> Mark key investments as priority — they're never suggested for pausing during bomb defusal</li>
-            <li><strong>RSU Income with Live Pricing:</strong> Enter stock ticker, verify with real-time price from market data. Tax withholding, expected decline buffer, and currency conversion are all built in.</li>
-            <li><strong>Income Health Toggle:</strong> Choose which income sources count toward your health score — exclude volatile RSU income if you prefer</li>
-            <li><strong>Credit Card & Loan Management:</strong> Keep track of bills, EMIs, and payment deadlines</li>
-            <li><strong>Sharing & Collaboration:</strong> Share finances with partners for a combined financial picture</li>
-            <li><strong>Activity Log:</strong> Pin important activities, comment in real-time — great for shared accounts</li>
-            <li><strong>Smart Notifications:</strong> Auto-alerts for unpaid dues, overspends, health drops, and CC billing days</li>
-            <li><strong>Community Lounge:</strong> Real-time chatroom to share financial tips, guide others, and make friends</li>
+            <li><strong>Investment Priority:</strong> Mark key investments as Critical — they're never suggested for pausing during bomb defusal</li>
+            <li><strong>RSU Income with Live Pricing:</strong> Enter stock ticker, verify with real-time Yahoo Finance prices. Tax withholding, expected decline buffer, and auto forex conversion are all built in</li>
+            <li><strong>Income Health Toggle:</strong> Choose which income sources count toward your health score — exclude volatile RSU income if you prefer conservative planning</li>
+            <li><strong>Credit Card & Loan Management:</strong> Track billing cycles, dues, and payment deadlines. Expenses categorized as "Loan" auto-populate the Loans dashboard widget</li>
+            <li><strong>Dues Dashboard:</strong> One place for all upcoming obligations — CC bills, SIP dues, and loan EMIs with due dates and payment status</li>
+            <li><strong>Current Month Expenses:</strong> Real-time spending tracker showing this month's actuals vs. plans, broken down by category and payment mode</li>
+            <li><strong>SIP Accumulation Tracker:</strong> See progress for every periodic SIP — how much you've accumulated, how much is left, and when it's due</li>
+            <li><strong>Sharing & Collaboration:</strong> Invite a companion by username. Both get a Combined View with merged income, expenses, investments, and health — while individual items stay private</li>
+            <li><strong>Activity Log:</strong> Every financial action timestamped. Pin milestones, comment on shared activities in real-time — your spending journal</li>
+            <li><strong>Smart Notifications:</strong> Auto-alerts for unpaid dues, overspends, health drops, CC billing days, and bomb deadlines — fully configurable from notification settings</li>
+            <li><strong>Excel & CSV Export:</strong> Download your complete financial report as a spreadsheet anytime — your data is always yours</li>
+            <li><strong>Dark & Light Themes:</strong> Full theme customization with smooth transitions — choose what feels right for you</li>
+            <li><strong>Multi-Currency Support:</strong> Set your preferred currency (INR, USD, EUR, GBP, and more). RSU prices auto-convert using live forex rates</li>
+            <li><strong>Community Lounge:</strong> Real-time chatroom to share financial tips, celebrate milestones, guide others, and report bugs or request features</li>
+            <li><strong>Account Recovery:</strong> 24-word recovery key generated at signup — your safety net if you ever forget your password</li>
           </ul>
+          <div className="about-note">
+            <strong>Transparency notes:</strong>
+            <ul>
+              <li>No server-side analytics — troubleshooting uses client logs only when you share them</li>
+              <li>E2E encryption may require re-entering credentials on new devices</li>
+              <li>Heavy calculations run client-side to keep data private; load times may vary</li>
+              <li>Notifications are best-effort; ensure in-app preferences are enabled</li>
+            </ul>
+          </div>
         </section>
 
         {/* ── Usage Guide ── */}

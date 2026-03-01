@@ -76,6 +76,50 @@
   padding: 4px 0 !important;
 }
 
+/* ── Why FinFlow Grid ── */
+.why-finflow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.why-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-base);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle, rgba(184, 193, 236, 0.08));
+  transition: all 0.25s ease;
+}
+
+.why-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(34, 211, 238, 0.2);
+}
+
+.why-icon {
+  flex-shrink: 0;
+  font-size: 22px;
+  margin-top: 2px;
+}
+
+.why-item strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  margin-bottom: 4px;
+}
+
+.why-item p {
+  margin: 0 !important;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
 /* ── Usage Guide ── */
 .usage-guide-section {
   background: var(--bg-elevated) !important;
@@ -444,10 +488,21 @@
   font-size: var(--text-sm);
 }
 
-.health-item.good { border-left: 4px solid #10b981; }
-.health-item.ok { border-left: 4px solid #f59e0b; }
-.health-item.not-well { border-left: 4px solid #f97316; }
-.health-item.worrisome { border-left: 4px solid #ef4444; }
+.health-item.good {
+  border-left: 4px solid #10b981;
+}
+
+.health-item.ok {
+  border-left: 4px solid #f59e0b;
+}
+
+.health-item.not-well {
+  border-left: 4px solid #f97316;
+}
+
+.health-item.worrisome {
+  border-left: 4px solid #ef4444;
+}
 
 /* ── Version Info ── */
 .version-info {
