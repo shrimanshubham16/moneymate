@@ -692,7 +692,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                             {paymentInfo.label}
                           </span>
                           {actual.justification && <span className="justification">{actual.justification}</span>}
-                          {isOwnItem(plan) && (
+                          {isOwnItem(plan.userId || plan.user_id) && (
                             <button
                               className="actual-delete-btn"
                               title="Delete expense"
