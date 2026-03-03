@@ -146,8 +146,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
       : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalCreditCardDues) || 0), 0);
     
     
-    // Calculate credit card dues (ALL outstanding balances — matches /health and export; backend returns camelCase)
-    const ownCcDues = (creditCards || []).reduce((sum: number, c: any) => {
+    // Credit card dues: only count cards the current user OWNS (exclude partner's shared cards to avoid double-counting with sharedCreditCardDues from aggregates)
+    const ownCcDues = (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
       const billAmount = parseFloat(c.billAmount ?? 0);
       const paidAmount = parseFloat(c.paidAmount ?? 0);
       const remaining = Math.max(0, billAmount - paidAmount);

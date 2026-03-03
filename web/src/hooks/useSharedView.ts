@@ -53,12 +53,12 @@ export function useSharedView(token: string): UseSharedViewResult {
   const selectedView = localStorage.getItem('finflow_selected_view') || 'me';
   const isSharedView = selectedView !== 'me';
 
-  // Load sharing members on mount if in shared view
+  // Always load sharing members so pages (e.g. credit card management) can check hasSharedAccounts regardless of current view
   useEffect(() => {
-    if (isSharedView && token) {
+    if (token) {
       loadSharingMembers();
     }
-  }, [isSharedView, token]);
+  }, [token]);
 
   const loadSharingMembers = async () => {
     try {

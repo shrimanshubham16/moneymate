@@ -669,6 +669,15 @@ serve(async (req) => {
     if (!user) return error('Unauthorized', 401);
     const userId = user.userId;
 
+    // E2E encryption check: if user has encryption_salt, zero out plaintext amounts on write
+    let _isE2EUserCached: boolean | null = null;
+    const isE2EUser = async (): Promise<boolean> => {
+      if (_isE2EUserCached !== null) return _isE2EUserCached;
+      const { data: u } = await supabase.from('users').select('encryption_salt').eq('id', userId).single();
+      _isE2EUserCached = !!(u?.encryption_salt);
+      return _isE2EUserCached;
+    };
+
     // HEALTH DETAILS - Full health calculation with breakdown
     if (path === '/health/details' && method === 'GET') {
       try {
@@ -1663,6 +1672,11 @@ serve(async (req) => {
       if (body.amount_enc) insertData.amount_enc = body.amount_enc;
       if (body.amount_iv) insertData.amount_iv = body.amount_iv;
 
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        insertData.amount = 0;
+      }
+
       const { data, error: e } = await supabase.from('incomes')
         .insert(insertData)
         .select().single();
@@ -1708,6 +1722,9 @@ serve(async (req) => {
       if (body.amount_enc) updates.amount_enc = body.amount_enc;
       if (body.amount_iv) updates.amount_iv = body.amount_iv;
 
+      // E2E: zero plaintext amounts at rest
+      if (updates.amount !== undefined && await isE2EUser()) updates.amount = 0;
+
       const { data, error: e } = await supabase.from('incomes').update(updates).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       return json({ data });
@@ -1742,6 +1759,12 @@ serve(async (req) => {
       if (body.name_iv) insertData.name_iv = body.name_iv;
       if (body.amount_enc) insertData.amount_enc = body.amount_enc;
       if (body.amount_iv) insertData.amount_iv = body.amount_iv;
+
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        insertData.amount = 0;
+        insertData.accumulated_funds = 0;
+      }
 
       const { data, error: e } = await supabase.from('fixed_expenses')
         .insert(insertData).select().single();
@@ -1782,6 +1805,12 @@ serve(async (req) => {
       if (body.amount_iv) updates.amount_iv = body.amount_iv;
       if (body.accumulated_funds_enc) updates.accumulated_funds_enc = body.accumulated_funds_enc;
       if (body.accumulated_funds_iv) updates.accumulated_funds_iv = body.accumulated_funds_iv;
+
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        if (updates.amount !== undefined) updates.amount = 0;
+        if (updates.accumulated_funds !== undefined) updates.accumulated_funds = 0;
+      }
 
       const { data, error: e } = await supabase.from('fixed_expenses')
         .update(updates)
@@ -1825,6 +1854,11 @@ serve(async (req) => {
       if (body.planned_enc) insertData.planned_enc = body.planned_enc;
       if (body.planned_iv) insertData.planned_iv = body.planned_iv;
 
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        insertData.planned = 0;
+      }
+
       const { data, error: e } = await supabase.from('variable_expense_plans')
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
@@ -1857,6 +1891,9 @@ serve(async (req) => {
       if (body.name_iv) updates.name_iv = body.name_iv;
       if (body.planned_enc) updates.planned_enc = body.planned_enc;
       if (body.planned_iv) updates.planned_iv = body.planned_iv;
+
+      // E2E: zero plaintext amounts at rest
+      if (updates.planned !== undefined && await isE2EUser()) updates.planned = 0;
 
       const { data, error: e } = await supabase.from('variable_expense_plans')
         .update(updates).eq('id', id).select().single();
@@ -1891,6 +1928,11 @@ serve(async (req) => {
       if (body.amount_iv) insertData.amount_iv = body.amount_iv;
       if (body.justification_enc) insertData.justification_enc = body.justification_enc;
       if (body.justification_iv) insertData.justification_iv = body.justification_iv;
+
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        insertData.amount = 0;
+      }
 
       const { data, error: e } = await supabase.from('variable_expense_actuals')
         .insert(insertData).select().single();
@@ -2173,6 +2215,12 @@ serve(async (req) => {
       if (body.accumulated_funds_enc) insertData.accumulated_funds_enc = body.accumulated_funds_enc;
       if (body.accumulated_funds_iv) insertData.accumulated_funds_iv = body.accumulated_funds_iv;
 
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        insertData.monthly_amount = 0;
+        insertData.accumulated_funds = 0;
+      }
+
       const { data, error: e } = await supabase.from('investments')
         .insert(insertData).select().single();
       if (e) {
@@ -2230,6 +2278,12 @@ serve(async (req) => {
       if (body.monthly_amount_iv) updateData.monthly_amount_iv = body.monthly_amount_iv;
       if (body.accumulated_funds_enc) updateData.accumulated_funds_enc = body.accumulated_funds_enc;
       if (body.accumulated_funds_iv) updateData.accumulated_funds_iv = body.accumulated_funds_iv;
+
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        if (updateData.monthly_amount !== undefined) updateData.monthly_amount = 0;
+        if (updateData.accumulated_funds !== undefined) updateData.accumulated_funds = 0;
+      }
 
       const { data, error: e } = await supabase.from('investments')
         .update(updateData)
@@ -2296,6 +2350,12 @@ serve(async (req) => {
       if (body.saved_amount_enc) insertData.saved_amount_enc = body.saved_amount_enc;
       if (body.saved_amount_iv) insertData.saved_amount_iv = body.saved_amount_iv;
 
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        insertData.total_amount = 0;
+        insertData.saved_amount = 0;
+      }
+
       const { data, error: e } = await supabase.from('future_bombs')
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
@@ -2333,6 +2393,12 @@ serve(async (req) => {
       if (body.total_amount_iv) updateData.total_amount_iv = body.total_amount_iv;
       if (body.saved_amount_enc) updateData.saved_amount_enc = body.saved_amount_enc;
       if (body.saved_amount_iv) updateData.saved_amount_iv = body.saved_amount_iv;
+
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        if (updateData.total_amount !== undefined) updateData.total_amount = 0;
+        if (updateData.saved_amount !== undefined) updateData.saved_amount = 0;
+      }
 
       const { data, error: e } = await supabase.from('future_bombs')
         .update(updateData).eq('id', id).eq('user_id', userId).select().single();
@@ -2708,14 +2774,21 @@ serve(async (req) => {
       if (body.paid_amount_enc) insertData.paid_amount_enc = body.paid_amount_enc;
       if (body.paid_amount_iv) insertData.paid_amount_iv = body.paid_amount_iv;
 
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        insertData.bill_amount = 0;
+        insertData.paid_amount = 0;
+      }
+
       const { data, error: e } = await supabase.from('credit_cards')
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
 
       // If paidAmount provided, update it
       if (body.paidAmount !== undefined && body.paidAmount > 0) {
+        const paidToStore = await isE2EUser() ? 0 : body.paidAmount;
         await supabase.from('credit_cards')
-          .update({ paid_amount: body.paidAmount })
+          .update({ paid_amount: paidToStore })
           .eq('id', data.id);
       }
 
@@ -2759,6 +2832,12 @@ serve(async (req) => {
       if (body.paid_amount_enc) updates.paid_amount_enc = body.paid_amount_enc;
       if (body.paid_amount_iv) updates.paid_amount_iv = body.paid_amount_iv;
 
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        if (updates.bill_amount !== undefined) updates.bill_amount = 0;
+        if (updates.paid_amount !== undefined) updates.paid_amount = 0;
+      }
+
       const { data, error: e } = await supabase.from('credit_cards').update(updates).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
       if (!data) return error('Credit card not found', 404);
@@ -2770,11 +2849,13 @@ serve(async (req) => {
       const { data: card, error: cardErr } = await supabase.from('credit_cards').select('*').eq('id', id).eq('user_id', userId).single();
       if (cardErr || !card) return error('Credit card not found', 404);
       const newPaidAmount = (card.paid_amount || 0) + (body.amount || 0);
-      const { data, error: e } = await supabase.from('credit_cards').update({ paid_amount: newPaidAmount }).eq('id', id).select().single();
+      const paidToStore = await isE2EUser() ? 0 : newPaidAmount;
+      const { data, error: e } = await supabase.from('credit_cards').update({ paid_amount: paidToStore }).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'payment', { id: data.id, amount: body.amount });
       await invalidateUserCache(userId);
-      return json({ data: transformCreditCard(data) });
+      const toReturn = paidToStore === 0 ? { ...data, paid_amount: newPaidAmount } : data;
+      return json({ data: transformCreditCard(toReturn) });
     }
     if (path.match(/\/debts\/credit-cards\/[^/]+\/reset-billing$/) && method === 'POST') {
       const id = path.split('/')[3];
@@ -2790,7 +2871,8 @@ serve(async (req) => {
       const { data: card, error: cardErr } = await supabase.from('credit_cards').select('*').eq('id', id).eq('user_id', userId).single();
       if (cardErr || !card) return error('Credit card not found', 404);
       if (body.billAmount === undefined || body.billAmount < 0) return error('billAmount must be a nonnegative number', 400);
-      const { data, error: e } = await supabase.from('credit_cards').update({ bill_amount: Math.round(body.billAmount * 100) / 100, needs_bill_update: false }).eq('id', id).select().single();
+      const billAmountToStore = await isE2EUser() ? 0 : Math.round(body.billAmount * 100) / 100;
+      const { data, error: e } = await supabase.from('credit_cards').update({ bill_amount: billAmountToStore, needs_bill_update: false }).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'updated_bill', { id: data.id, billAmount: data.bill_amount });
       await invalidateUserCache(userId);
@@ -2880,6 +2962,12 @@ serve(async (req) => {
       if (body.principal_iv) insertData.principal_iv = body.principal_iv;
       if (body.emi_enc) insertData.emi_enc = body.emi_enc;
       if (body.emi_iv) insertData.emi_iv = body.emi_iv;
+
+      // E2E: zero plaintext amounts at rest
+      if (await isE2EUser()) {
+        insertData.principal = 0;
+        insertData.emi = 0;
+      }
 
       const { data, error: e } = await supabase.from('loans')
         .insert(insertData).select().single();
@@ -3439,11 +3527,12 @@ serve(async (req) => {
         .eq('month', billingMonthStr)
         .maybeSingle();
 
+      const amountToStore = await isE2EUser() ? 0 : paymentAmount;
       let payment;
       if (existing) {
         const { data: updated } = await supabase
           .from('payments')
-          .update({ amount: paymentAmount, is_skip: isSkip, paid_at: new Date().toISOString() })
+          .update({ amount: amountToStore, is_skip: isSkip, paid_at: new Date().toISOString() })
           .eq('id', existing.id)
           .select()
           .maybeSingle();
@@ -3451,7 +3540,7 @@ serve(async (req) => {
       } else {
         const { data: created } = await supabase
           .from('payments')
-          .insert({ user_id: userId, entity_type: body.itemType, entity_id: body.itemId, month: billingMonthStr, amount: paymentAmount, is_skip: isSkip })
+          .insert({ user_id: userId, entity_type: body.itemType, entity_id: body.itemId, month: billingMonthStr, amount: amountToStore, is_skip: isSkip })
           .select()
           .maybeSingle();
         payment = created;

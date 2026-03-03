@@ -257,13 +257,9 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
     "Personal Care", "Healthcare", "Education", "Utilities", "Other"
   ];
 
-  // Separate own vs shared items
-  const ownPlans = isSharedView
-    ? plans.filter(p => isOwnItem(p.userId || p.user_id))
-    : plans;
-  const sharedPlans = isSharedView
-    ? plans.filter(p => !isOwnItem(p.userId || p.user_id))
-    : [];
+  // Always filter own vs shared — prevents cache contamination from merged view leaking partner's encrypted plans into "me" view
+  const ownPlans = plans.filter(p => isOwnItem(p.userId || p.user_id));
+  const sharedPlans = plans.filter(p => !isOwnItem(p.userId || p.user_id));
 
   // Group shared plans by user — prefer server-side aggregates
   const sharedByUser = (() => {

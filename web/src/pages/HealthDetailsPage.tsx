@@ -245,8 +245,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         sum + (parseFloat(p.planned) || 0), 0);
       const variableProrated = totalVariablePlanned * remainingDaysRatio;
       
-      // Calculate credit card dues from decrypted cards data (NOT backend's totalCreditCardDue) - own only
-      const ownCreditCardTotal = (cardsRes.data || []).reduce((sum: number, c: any) => {
+      // Credit card dues: only count cards the current user OWNS (exclude partner's shared cards to avoid double-counting with sharedCreditCardDues from aggregates)
+      const ownCreditCardTotal = (cardsRes.data || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
         const billAmount = parseFloat(c.billAmount || c.bill_amount) || 0;
         const paidAmount = parseFloat(c.paidAmount || c.paid_amount) || 0;
         const remaining = Math.max(0, billAmount - paidAmount);
