@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaPencilAlt, FaHistory, FaInfoCircle, FaUserCircle } from "react-icons/fa";
+import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaPencilAlt, FaHistory, FaInfoCircle, FaUserCircle, FaTrashAlt, FaEllipsisV } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { PageInfoButton } from "../components/PageInfoButton";
@@ -43,6 +43,19 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const [plans, setPlans] = useState<any[]>([]);  // v1.2: Variable expense plans for usage display
   const [editingCard, setEditingCard] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ name: "", dueDate: "", billingDate: "1", isShared: false });
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const closeMenu = useCallback(() => setOpenMenuId(null), []);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) closeMenu();
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenuId, closeMenu]);
 
   useEffect(() => {
     // Load all data in parallel for faster initial load
@@ -341,48 +354,41 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
             <div className="cards-list">
               {cards.filter(c => !c.isSharedCard).map((card) => {
                 const remaining = card.billAmount - card.paidAmount;
+                const isMenuOpen = openMenuId === card.id;
                 return (
                   <div key={card.id} className="card-item">
+                    {/* Header: Name + badge on left, kebab menu on right */}
                     <div className="card-header">
                       <h3>
                         {card.name}
-                        {card.isShared && (
-                          <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 12, fontSize: '0.65rem', fontWeight: 700, background: 'rgba(0, 217, 255, 0.12)', color: 'var(--accent-cyan, #22d3ee)', verticalAlign: 'middle', letterSpacing: '0.03em' }}>SHARED</span>
-                        )}
+                        {card.isShared && <span className="ccm-shared-badge">SHARED</span>}
                       </h3>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button className="ccm-action-btn edit"
-                          onClick={() => openEditForm(card)}
-                          title="Edit card details"
-                        >
-                          <FaPencilAlt size={12} /> Edit
-                        </button>
-                        <button className="ccm-action-btn edit"
-                          onClick={() => { setSelectedCardId(card.id); setUpdateBillForm({ billAmount: (card.billAmount || 0).toString() }); setShowUpdateBillModal(true); }}
-                          title="Update bill amount"
-                        >
-                          <FaEdit size={14} /> Bill
-                        </button>
-                        <button className="ccm-action-btn usage"
-                          onClick={() => loadCardUsage(card.id)}
-                          title="View credit card usage"
-                        >
-                          <FaHistory size={14} /> Usage
-                        </button>
+                      <div className="ccm-kebab-wrapper" ref={isMenuOpen ? menuRef : undefined}>
                         <button
-                          className="delete-btn"
-                          onClick={() => handleDelete(card.id)}
-                          title="Delete card"
+                          className="ccm-kebab-btn"
+                          onClick={() => setOpenMenuId(isMenuOpen ? null : card.id)}
+                          aria-label="Card options"
                         >
-                          ✕
+                          <FaEllipsisV size={14} />
                         </button>
+                        {isMenuOpen && (
+                          <div className="ccm-kebab-menu">
+                            <button className="ccm-menu-item" onClick={() => { closeMenu(); openEditForm(card); }}>
+                              <FaPencilAlt size={12} /> Edit Card
+                            </button>
+                            <button className="ccm-menu-item ccm-menu-danger" onClick={() => { closeMenu(); handleDelete(card.id); }}>
+                              <FaTrashAlt size={12} /> Delete Card
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Card financial details */}
                     <div className="card-details">
-                      {/* Current Expenses */}
                       {(card.currentExpenses || 0) > 0 && (
-                        <div className="detail-row" style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.15)', padding: '8px 12px', borderRadius: 8 }}>
-                          <span style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Current Expenses</span>
+                        <div className="detail-row detail-row-highlight">
+                          <span>Current Expenses</span>
                           <span className="amount" style={{ color: '#f59e0b' }}>
                             ₹{(card.currentExpenses || 0).toLocaleString("en-IN")}
                           </span>
@@ -416,31 +422,37 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                         </div>
                       )}
                     </div>
+
                     {/* Reset Billing */}
                     {(card.currentExpenses || 0) > 0 && (
-                      <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(184, 193, 236, 0.08)' }}>
+                      <div className="ccm-reset-section">
                         <button
+                          className="ccm-reset-btn"
                           onClick={() => handleResetBilling(card.id, card.name)}
-                          style={{
-                            width: '100%',
-                            padding: '10px',
-                            background: 'rgba(245, 158, 11, 0.12)',
-                            border: '1px solid rgba(245, 158, 11, 0.25)',
-                            borderRadius: 10,
-                            cursor: 'pointer',
-                            fontWeight: 700,
-                            color: '#f59e0b',
-                            fontSize: '0.9rem',
-                            transition: 'all 0.2s'
-                          }}
                         >
                           Reset for Billing (₹{(card.currentExpenses || 0).toLocaleString("en-IN")})
                         </button>
-                        <small style={{ display: 'block', marginTop: 4, color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
-                          This will reset current expenses to 0. You'll need to manually update the bill amount.
+                        <small className="ccm-reset-hint">
+                          Resets current expenses to 0. Update the bill amount manually after.
                         </small>
                       </div>
                     )}
+
+                    {/* Bottom action bar: primary workflow actions */}
+                    <div className="ccm-card-actions">
+                      <button
+                        className="ccm-card-action-btn ccm-action-bill"
+                        onClick={() => { setSelectedCardId(card.id); setUpdateBillForm({ billAmount: (card.billAmount || 0).toString() }); setShowUpdateBillModal(true); }}
+                      >
+                        <FaEdit size={13} /> Update Bill
+                      </button>
+                      <button
+                        className="ccm-card-action-btn ccm-action-usage"
+                        onClick={() => loadCardUsage(card.id)}
+                      >
+                        <FaHistory size={13} /> View Usage
+                      </button>
+                    </div>
                   </div>
                 );
               })}
