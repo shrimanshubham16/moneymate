@@ -174,7 +174,13 @@ export function useEncryptedApiCalls() {
       total_variable_planned: number;
       total_variable_actual: number;
       total_credit_card_dues: number;
+      health_category?: string;
+      health_percentage?: number;
     }) => baseApi.updateUserAggregates(token, aggregates),
+
+    // E2E: Report unpaid CC dues from client
+    reportUnpaidDues: (token: string, unpaidCardCount: number) =>
+      baseApi.reportUnpaidDues(token, unpaidCardCount),
 
     // Health thresholds
     getHealthThresholds: (token: string) =>

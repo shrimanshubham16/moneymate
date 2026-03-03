@@ -334,28 +334,28 @@ serve(async (req) => {
       console.log(`[MONTHLY_RESET] Resetting for user ${userId}, previous: ${previousMonthStr}, current: ${currentMonthStr}, lastReset: ${lastResetPeriod || 'never'}`);
 
       // ── Unpaid Dues Penalty ──
-      // Check for unpaid dues BEFORE deleting payments, add 10pt overspend penalty
+      // E2E users: bill_amount/paid_amount are 0 in DB, so skip the credit card
+      // portion. Unpaid fixed expenses are still detectable via payments table.
+      // Client will report unpaid CC dues separately.
       try {
-        // Get all active fixed expenses for this user
+        const isE2EForPenalty = await isE2EUser();
+
         const { data: activeExpenses } = await supabase.from('fixed_expenses')
-          .select('id')
-          .eq('user_id', userId);
-        // Get payments made for the previous billing period
+          .select('id').eq('user_id', userId);
         const { data: prevPayments } = await supabase.from('payments')
-          .select('entity_id')
-          .eq('user_id', userId)
-          .eq('month', previousMonthStr);
+          .select('entity_id').eq('user_id', userId).eq('month', previousMonthStr);
 
         const paidExpenseIds = new Set((prevPayments || []).map((p: any) => p.entity_id));
         const unpaidCount = (activeExpenses || []).filter((e: any) => !paidExpenseIds.has(e.id)).length;
 
-        // Also check credit cards with unpaid balance
-        const { data: creditCards } = await supabase.from('credit_cards')
-          .select('id, bill_amount, paid_amount')
-          .eq('user_id', userId);
-        const unpaidCards = (creditCards || []).filter((c: any) =>
-          (parseFloat(c.bill_amount) || 0) > (parseFloat(c.paid_amount) || 0)
-        ).length;
+        let unpaidCards = 0;
+        if (!isE2EForPenalty) {
+          const { data: creditCards } = await supabase.from('credit_cards')
+            .select('id, bill_amount, paid_amount').eq('user_id', userId);
+          unpaidCards = (creditCards || []).filter((c: any) =>
+            (parseFloat(c.bill_amount) || 0) > (parseFloat(c.paid_amount) || 0)
+          ).length;
+        }
 
         const totalUnpaidDues = unpaidCount + unpaidCards;
 
@@ -363,19 +363,17 @@ serve(async (req) => {
           const { data: constraint } = await supabase.from('constraint_scores')
             .select('*').eq('user_id', userId).maybeSingle();
 
-          const penalty = 10; // 10pt penalty for having any unpaid dues
+          const penalty = 10;
           if (constraint) {
             const newScore = Math.min(100, (constraint.score || 0) + penalty);
             const newTier = newScore >= 70 ? 'red' : newScore >= 40 ? 'amber' : 'green';
             await supabase.from('constraint_scores')
               .update({ score: newScore, tier: newTier, updated_at: new Date().toISOString() })
               .eq('user_id', userId);
-            console.log(`[UNPAID_DUES_PENALTY] ${totalUnpaidDues} unpaid dues (${unpaidCount} expenses, ${unpaidCards} cards). Score: ${constraint.score} → ${newScore}`);
           } else {
             await supabase.from('constraint_scores').insert({
               user_id: userId, score: penalty, tier: 'green', recent_overspends: 0
             });
-            console.log(`[UNPAID_DUES_PENALTY] Created constraint with penalty ${penalty} for ${totalUnpaidDues} unpaid dues`);
           }
 
           await logActivity(userId, 'system', 'unpaid_dues_penalty', {
@@ -476,15 +474,23 @@ serve(async (req) => {
   // Helper to log activities
   async function logActivity(actorId: string, entity: string, action: string, payload?: any) {
     try {
+      // Strip sensitive amount fields from activity payload for E2E users
+      let safePayload = payload;
+      if (payload && _isE2EUserCached) {
+        const sensitiveKeys = ['amount', 'planned', 'actual', 'overspend', 'billAmount', 'paidAmount', 'accumulatedFunds', 'monthlyAmount', 'principal', 'emi'];
+        safePayload = { ...payload };
+        for (const k of sensitiveKeys) {
+          if (k in safePayload) delete safePayload[k];
+        }
+      }
       await supabase.from('activities').insert({
         actor_id: actorId,
         entity,
         action,
-        payload: payload ? JSON.stringify(payload) : null
+        payload: safePayload ? JSON.stringify(safePayload) : null
       });
     } catch (err) {
       console.error('Failed to log activity:', err);
-      // Don't fail the request if activity logging fails
     }
   }
 
@@ -1599,17 +1605,25 @@ serve(async (req) => {
           }
 
           // 5. Bill reminders — notify 3 days before credit card due dates
+          // E2E users: bill_amount/paid_amount are 0, so skip amount-based notifications
           const threeDaysFromNow = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
+          const isE2EForNotif = await isE2EUser();
           for (const card of (directCreditCards || [])) {
             if (card.user_id !== userId) continue;
             const dueDate = new Date(card.due_date);
             const remaining = (card.bill_amount || 0) - (card.paid_amount || 0);
-            if (remaining > 0 && dueDate >= today && dueDate <= threeDaysFromNow) {
+            const shouldNotify = isE2EForNotif
+              ? (dueDate >= today && dueDate <= threeDaysFromNow) // E2E: just check date, can't check amounts
+              : (remaining > 0 && dueDate >= today && dueDate <= threeDaysFromNow);
+            if (shouldNotify) {
+              const msg = isE2EForNotif
+                ? `${card.name || 'Credit Card'} is due on ${dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                : `${card.name || 'Credit Card'} bill of ₹${Math.round(remaining)} is due on ${dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
               await createNotification(supabase, {
                 userId,
                 type: 'payment_reminder',
                 title: 'Credit Card Bill Due Soon',
-                message: `${card.name || 'Credit Card'} bill of ₹${Math.round(remaining)} is due on ${dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
+                message: msg,
                 entityType: 'credit_card',
                 entityId: card.id,
                 actionUrl: '/credit-cards',
@@ -1628,8 +1642,11 @@ serve(async (req) => {
 
         responseData._notificationCount = unreadNotifCount || 0;
 
-        // Cache the result (60s TTL)
-        await redisSet(cacheKey, responseData, 60);
+        // E2E users: skip Redis caching entirely (client has localStorage cache,
+        // and we don't want to store decryptable amounts in Redis even briefly)
+        if (!(await isE2EUser())) {
+          await redisSet(cacheKey, responseData, 60);
+        }
 
         const totalTime = Date.now() - perfStart;
         console.log('[EDGE_PERF_H3_H7] Dashboard endpoint timing', { totalTime, timings, userId, cached: false });
@@ -1946,6 +1963,17 @@ serve(async (req) => {
           .single();
 
         if (card) {
+          const isE2E = await isE2EUser();
+          // E2E: client sends the new total; non-E2E: server computes from DB
+          const newExpenses = isE2E && body.newCurrentExpenses !== undefined
+            ? 0  // store zero; encrypted value is source of truth
+            : (card.current_expenses || 0) + body.amount;
+          const encUpdate: any = { current_expenses: newExpenses };
+          if (isE2E && body.current_expenses_enc) {
+            encUpdate.current_expenses_enc = body.current_expenses_enc;
+            encUpdate.current_expenses_iv = body.current_expenses_iv;
+          }
+
           // Verify access: own card or shared card from a shared member
           if (card.user_id !== userId) {
             if (!card.is_shared) {
@@ -1955,29 +1983,27 @@ serve(async (req) => {
               if (!memberIds.includes(card.user_id)) {
                 console.warn(`[CREDIT_CARD_SYNC] Denied: card owner not in shared members`);
               } else {
-                await supabase.from('credit_cards')
-                  .update({ current_expenses: (card.current_expenses || 0) + body.amount })
-                  .eq('id', body.credit_card_id);
-                console.log(`[CREDIT_CARD_SYNC] Updated shared card ${body.credit_card_id} current_expenses: ${(card.current_expenses || 0)} + ${body.amount}`);
+                await supabase.from('credit_cards').update(encUpdate).eq('id', body.credit_card_id);
               }
             }
           } else {
-            await supabase.from('credit_cards')
-              .update({ current_expenses: (card.current_expenses || 0) + body.amount })
-              .eq('id', body.credit_card_id);
-            console.log(`[CREDIT_CARD_SYNC] Updated own card ${body.credit_card_id} current_expenses: ${(card.current_expenses || 0)} + ${body.amount}`);
+            await supabase.from('credit_cards').update(encUpdate).eq('id', body.credit_card_id);
           }
         }
       }
 
-      // P0 FIX: Detect and record overspend
+      // Overspend detection: E2E users send isOverspend flag from client;
+      // non-E2E uses server-side DB amounts
+      const isE2EForOverspend = await isE2EUser();
+      const detectedOverspend = isE2EForOverspend ? !!body.isOverspend : false;
+      let totalActual = 0;
+      let plannedAmount = 0;
+
       if (plan?.planned) {
-        // Get user's billing period
         const { data: prefs } = await supabase.from('user_preferences')
           .select('month_start_day').eq('user_id', userId).maybeSingle();
         const monthStartDay = prefs?.month_start_day || 1;
 
-        // Calculate billing period dates
         const today = new Date(body.incurred_at || new Date().toISOString());
         let monthStart: Date;
         let monthEnd: Date;
@@ -1990,23 +2016,20 @@ serve(async (req) => {
           monthEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
         }
 
-        // Get total actual spending for this plan in current billing period
-        const { data: actuals } = await supabase.from('variable_expense_actuals')
-          .select('amount')
-          .eq('plan_id', planId)
-          .eq('user_id', userId)
-          .gte('incurred_at', monthStart.toISOString())
-          .lt('incurred_at', monthEnd.toISOString());
+        if (!isE2EForOverspend) {
+          const { data: actuals } = await supabase.from('variable_expense_actuals')
+            .select('amount')
+            .eq('plan_id', planId).eq('user_id', userId)
+            .gte('incurred_at', monthStart.toISOString())
+            .lt('incurred_at', monthEnd.toISOString());
 
-        const totalActual = (actuals || []).reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
-        const plannedAmount = parseFloat(plan.planned) || 0;
+          totalActual = (actuals || []).reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+          plannedAmount = parseFloat(plan.planned) || 0;
+        }
 
-        // Detect overspend: actual > planned (only count once per plan per billing period)
-        if (totalActual > plannedAmount) {
-          console.log(`[OVERSPEND_CHECK] Plan: ${plan.name}, Planned: ${plannedAmount}, Actual: ${totalActual}, Overspend: ${totalActual - plannedAmount}`);
+        const isOverspend = isE2EForOverspend ? detectedOverspend : totalActual > plannedAmount;
 
-          // Check if we've already recorded an overspend for THIS PLAN this billing period
-          // Use plan.id instead of plan.name to avoid LIKE injection and ensure exact match
+        if (isOverspend) {
           const { data: existingOverspend } = await supabase.from('activities')
             .select('id')
             .eq('actor_id', userId)
@@ -2017,57 +2040,29 @@ serve(async (req) => {
             .lt('created_at', monthEnd.toISOString())
             .limit(1);
 
-          // Only count if this is a NEW overspend for this plan
           if (!existingOverspend || existingOverspend.length === 0) {
-            console.log(`[OVERSPEND_DETECTED] Plan: ${plan.name}, Planned: ${plannedAmount}, Actual: ${totalActual}, Overspend: ${totalActual - plannedAmount}`);
-
-            // Get current constraint score
             const { data: constraint } = await supabase.from('constraint_scores')
               .select('*').eq('user_id', userId).maybeSingle();
+
+            const activityPayload = isE2EForOverspend
+              ? { planId: plan.id, billingPeriod: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}` }
+              : { planId: plan.id, planName: plan.name, planned: plannedAmount, actual: totalActual, overspend: totalActual - plannedAmount, billingPeriod: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}` };
 
             if (constraint) {
               const currentScore = constraint.score || 0;
               const currentOverspends = constraint.recent_overspends || 0;
-
-              // Update constraint score: +5 per overspend, max 100
               const newScore = Math.min(100, currentScore + 5);
               const newTier = newScore >= 70 ? 'red' : newScore >= 40 ? 'amber' : 'green';
 
               await supabase.from('constraint_scores')
-                .update({
-                  score: newScore,
-                  tier: newTier,
-                  recent_overspends: currentOverspends + 1,
-                  updated_at: new Date().toISOString()
-                })
+                .update({ score: newScore, tier: newTier, recent_overspends: currentOverspends + 1, updated_at: new Date().toISOString() })
                 .eq('user_id', userId);
-
-              await logActivity(userId, 'variable_expense', 'overspend_detected', {
-                planId: plan.id,
-                planName: plan.name,
-                planned: plannedAmount,
-                actual: totalActual,
-                overspend: totalActual - plannedAmount,
-                billingPeriod: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`
-              });
-
-              console.log(`[CONSTRAINT_UPDATE] Score: ${currentScore} → ${newScore}, Overspends: ${currentOverspends} → ${currentOverspends + 1}`);
+              await logActivity(userId, 'variable_expense', 'overspend_detected', activityPayload);
             } else {
               await supabase.from('constraint_scores').insert({
-                user_id: userId,
-                score: 5,
-                tier: 'green',
-                recent_overspends: 1
+                user_id: userId, score: 5, tier: 'green', recent_overspends: 1
               });
-
-              await logActivity(userId, 'variable_expense', 'overspend_detected', {
-                planId: plan.id,
-                planName: plan.name,
-                planned: plannedAmount,
-                actual: totalActual,
-                overspend: totalActual - plannedAmount,
-                billingPeriod: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`
-              });
+              await logActivity(userId, 'variable_expense', 'overspend_detected', activityPayload);
             }
           }
         }
@@ -3074,26 +3069,31 @@ serve(async (req) => {
     if (path === '/user/aggregates' && method === 'PUT') {
       const body = await req.json();
 
-      // Validate required fields
       const {
         total_income_monthly,
         total_fixed_monthly,
         total_investments_monthly,
         total_variable_planned,
         total_variable_actual,
-        total_credit_card_dues
+        total_credit_card_dues,
+        health_category,
+        health_percentage
       } = body;
 
-      // Upsert the user's aggregates
+      const isE2EForAgg = await isE2EUser();
+
+      // E2E users: zero out detailed amounts, store only health category/percentage
       const { error: aggErr } = await supabase.from('user_aggregates')
         .upsert({
           user_id: userId,
-          total_income_monthly: total_income_monthly || 0,
-          total_fixed_monthly: total_fixed_monthly || 0,
-          total_investments_monthly: total_investments_monthly || 0,
-          total_variable_planned: total_variable_planned || 0,
-          total_variable_actual: total_variable_actual || 0,
-          total_credit_card_dues: total_credit_card_dues || 0,
+          total_income_monthly: isE2EForAgg ? 0 : (total_income_monthly || 0),
+          total_fixed_monthly: isE2EForAgg ? 0 : (total_fixed_monthly || 0),
+          total_investments_monthly: isE2EForAgg ? 0 : (total_investments_monthly || 0),
+          total_variable_planned: isE2EForAgg ? 0 : (total_variable_planned || 0),
+          total_variable_actual: isE2EForAgg ? 0 : (total_variable_actual || 0),
+          total_credit_card_dues: isE2EForAgg ? 0 : (total_credit_card_dues || 0),
+          health_category: health_category || null,
+          health_percentage: health_percentage !== undefined ? health_percentage : null,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
 
@@ -3102,7 +3102,32 @@ serve(async (req) => {
         return error(aggErr.message, 500);
       }
 
-      console.log('[USER_AGGREGATES] Updated for user:', userId);
+      return json({ data: { success: true } });
+    }
+
+    // E2E: Client reports unpaid CC dues (server can't read encrypted amounts)
+    if (path === '/health/report-unpaid-dues' && method === 'POST') {
+      const body = await req.json();
+      const unpaidCards = body.unpaidCardCount || 0;
+      if (unpaidCards > 0) {
+        const { data: constraint } = await supabase.from('constraint_scores')
+          .select('*').eq('user_id', userId).maybeSingle();
+        const penalty = 10;
+        if (constraint) {
+          const newScore = Math.min(100, (constraint.score || 0) + penalty);
+          const newTier = newScore >= 70 ? 'red' : newScore >= 40 ? 'amber' : 'green';
+          await supabase.from('constraint_scores')
+            .update({ score: newScore, tier: newTier, updated_at: new Date().toISOString() })
+            .eq('user_id', userId);
+        } else {
+          await supabase.from('constraint_scores').insert({
+            user_id: userId, score: penalty, tier: 'green', recent_overspends: 0
+          });
+        }
+        await logActivity(userId, 'system', 'unpaid_dues_penalty_client', {
+          unpaidCards, penalty
+        });
+      }
       return json({ data: { success: true } });
     }
 
@@ -3516,7 +3541,7 @@ serve(async (req) => {
       const billingMonthStr = `${billingMonthStart.getFullYear()}-${String(billingMonthStart.getMonth() + 1).padStart(2, '0')}`;
 
       const paymentAmount = isSkip ? 0 : body.amount;
-      console.log(`[MARK_PAID] Marking ${body.itemType} ${body.itemId} as ${isSkip ? 'SKIPPED' : 'paid'} for user ${userId}, month: ${billingMonthStr}, amount: ${paymentAmount}`);
+      console.log(`[MARK_PAID] Marking ${body.itemType} ${body.itemId} as ${isSkip ? 'SKIPPED' : 'paid'} for user ${userId}, month: ${billingMonthStr}`);
 
       const { data: existing } = await supabase
         .from('payments')
@@ -3546,107 +3571,108 @@ serve(async (req) => {
         payment = created;
       }
 
+      // E2E users: client manages accumulated_funds via encrypted values.
+      // Server only updates for non-E2E users (who have real plaintext amounts in DB).
+      const e2e = await isE2EUser();
+
       // Skip: Don't touch accumulated_funds at all — freeze them
       if (!isSkip) {
-        // P0 FIX: Update accumulated_funds when marked as paid
-        // INVESTMENTS: Add paid amount to accumulated_funds (savings increase)
-        // PERIODIC SIPs: Deduct paid amount from accumulated_funds (savings decrease)
         if (body.itemType === 'investment') {
-          console.log(`[MARK_PAID] Adding paid amount to accumulated_funds for investment ${body.itemId}, amount: ${body.amount}`);
-          const { data: inv } = await supabase.from('investments')
-            .select('accumulated_funds')
-            .eq('id', body.itemId)
-            .eq('user_id', userId)
-            .maybeSingle();
-          const currentAccumulated = inv?.accumulated_funds || 0;
-          const newAccumulated = currentAccumulated + body.amount;
-          const { error: updateErr } = await supabase
-            .from('investments')
-            .update({ accumulated_funds: newAccumulated, accumulated_funds_enc: null, accumulated_funds_iv: null })
-            .eq('id', body.itemId)
-            .eq('user_id', userId);
-          if (updateErr) {
-            console.error('[MARK_PAID] Failed to update accumulated_funds for investment:', updateErr);
+          if (e2e) {
+            // E2E: client sends newAccumulatedFunds + encrypted fields
+            if (body.newAccumulatedFunds !== undefined) {
+              await supabase.from('investments')
+                .update({
+                  accumulated_funds: 0,
+                  accumulated_funds_enc: body.accumulated_funds_enc || null,
+                  accumulated_funds_iv: body.accumulated_funds_iv || null
+                })
+                .eq('id', body.itemId).eq('user_id', userId);
+            }
           } else {
-            console.log(`[MARK_PAID] Updated investment accumulated_funds from ${currentAccumulated} to ${newAccumulated}`);
+            const { data: inv } = await supabase.from('investments')
+              .select('accumulated_funds')
+              .eq('id', body.itemId).eq('user_id', userId).maybeSingle();
+            const currentAccumulated = inv?.accumulated_funds || 0;
+            const newAccumulated = currentAccumulated + body.amount;
+            await supabase.from('investments')
+              .update({ accumulated_funds: newAccumulated, accumulated_funds_enc: null, accumulated_funds_iv: null })
+              .eq('id', body.itemId).eq('user_id', userId);
           }
         } else if (body.itemType === 'fixed_expense') {
           const { data: expense } = await supabase.from('fixed_expenses')
             .select('is_sip, frequency, accumulated_funds')
-            .eq('id', body.itemId)
-            .eq('user_id', userId)
-            .maybeSingle();
+            .eq('id', body.itemId).eq('user_id', userId).maybeSingle();
 
           if (expense?.is_sip && expense.frequency !== 'monthly') {
-            console.log(`[MARK_PAID] Deducting paid amount from accumulated_funds for periodic SIP ${body.itemId}, amount: ${body.amount}`);
-            const currentAccumulated = expense.accumulated_funds || 0;
-            const newAccumulated = Math.max(0, currentAccumulated - body.amount);
-            const { error: updateErr } = await supabase
-              .from('fixed_expenses')
-              .update({ accumulated_funds: newAccumulated, accumulated_funds_enc: null, accumulated_funds_iv: null })
-              .eq('id', body.itemId)
-              .eq('user_id', userId);
-            if (updateErr) {
-              console.error('[MARK_PAID] Failed to update accumulated_funds for periodic SIP:', updateErr);
+            if (e2e) {
+              if (body.newAccumulatedFunds !== undefined) {
+                await supabase.from('fixed_expenses')
+                  .update({
+                    accumulated_funds: 0,
+                    accumulated_funds_enc: body.accumulated_funds_enc || null,
+                    accumulated_funds_iv: body.accumulated_funds_iv || null
+                  })
+                  .eq('id', body.itemId).eq('user_id', userId);
+              }
             } else {
-              console.log(`[MARK_PAID] Updated periodic SIP accumulated_funds from ${currentAccumulated} to ${newAccumulated}`);
+              const currentAccumulated = expense.accumulated_funds || 0;
+              const newAccumulated = Math.max(0, currentAccumulated - body.amount);
+              await supabase.from('fixed_expenses')
+                .update({ accumulated_funds: newAccumulated, accumulated_funds_enc: null, accumulated_funds_iv: null })
+                .eq('id', body.itemId).eq('user_id', userId);
             }
           } else {
-            console.log(`[MARK_PAID] Resetting accumulated_funds for regular fixed expense ${body.itemId}`);
-            const { error: resetErr } = await supabase
-              .from('fixed_expenses')
+            await supabase.from('fixed_expenses')
               .update({ accumulated_funds: 0, accumulated_funds_enc: null, accumulated_funds_iv: null })
-              .eq('id', body.itemId)
-              .eq('user_id', userId);
-            if (resetErr) console.error('[MARK_PAID] Failed to reset accumulated funds:', resetErr);
+              .eq('id', body.itemId).eq('user_id', userId);
           }
         }
       } else if (body.itemType === 'fixed_expense') {
-        // SKIP: Reverse auto-accumulated funds if auto_accumulate already ran this billing period
-        const { data: skipExpense } = await supabase.from('fixed_expenses')
-          .select('is_sip, frequency, amount, accumulated_funds')
-          .eq('id', body.itemId)
-          .eq('user_id', userId)
-          .maybeSingle();
-
-        if (skipExpense?.is_sip && skipExpense.frequency !== 'monthly') {
-          const { data: skipPrefs } = await supabase.from('user_preferences')
-            .select('last_accumulation_date, month_start_day')
-            .eq('user_id', userId)
-            .maybeSingle();
-
-          const skipMsd = skipPrefs?.month_start_day || 1;
-          const skipToday = new Date();
-          let skipBillingStart: Date;
-          if (skipToday.getDate() >= skipMsd) {
-            skipBillingStart = new Date(skipToday.getFullYear(), skipToday.getMonth(), skipMsd);
-          } else {
-            skipBillingStart = new Date(skipToday.getFullYear(), skipToday.getMonth() - 1, skipMsd);
+        if (e2e) {
+          // E2E skip reversal: client sends the new accumulated value
+          if (body.newAccumulatedFunds !== undefined) {
+            await supabase.from('fixed_expenses')
+              .update({
+                accumulated_funds: 0,
+                accumulated_funds_enc: body.accumulated_funds_enc || null,
+                accumulated_funds_iv: body.accumulated_funds_iv || null
+              })
+              .eq('id', body.itemId).eq('user_id', userId);
           }
+        } else {
+          const { data: skipExpense } = await supabase.from('fixed_expenses')
+            .select('is_sip, frequency, amount, accumulated_funds')
+            .eq('id', body.itemId).eq('user_id', userId).maybeSingle();
 
-          const lastAcc = skipPrefs?.last_accumulation_date ? new Date(skipPrefs.last_accumulation_date) : null;
-          const autoAccRanThisPeriod = lastAcc && lastAcc >= skipBillingStart;
+          if (skipExpense?.is_sip && skipExpense.frequency !== 'monthly') {
+            const { data: skipPrefs } = await supabase.from('user_preferences')
+              .select('last_accumulation_date, month_start_day')
+              .eq('user_id', userId).maybeSingle();
 
-          if (autoAccRanThisPeriod) {
-            const monthlyEquiv = skipExpense.frequency === 'quarterly' ? skipExpense.amount / 3 :
-              (skipExpense.frequency === 'yearly' || skipExpense.frequency === 'annual') ? skipExpense.amount / 12 : skipExpense.amount;
-            const curAcc = skipExpense.accumulated_funds || 0;
-            const newAcc = Math.max(0, curAcc - monthlyEquiv);
-            const { error: revErr } = await supabase.from('fixed_expenses')
-              .update({ accumulated_funds: newAcc, accumulated_funds_enc: null, accumulated_funds_iv: null })
-              .eq('id', body.itemId)
-              .eq('user_id', userId);
-            if (revErr) {
-              console.error('[SKIP] Failed to reverse accumulated_funds:', revErr);
+            const skipMsd = skipPrefs?.month_start_day || 1;
+            const skipToday = new Date();
+            let skipBillingStart: Date;
+            if (skipToday.getDate() >= skipMsd) {
+              skipBillingStart = new Date(skipToday.getFullYear(), skipToday.getMonth(), skipMsd);
             } else {
-              console.log(`[SKIP] Reversed auto-accumulated funds for SIP ${body.itemId}: ${curAcc} -> ${newAcc}`);
+              skipBillingStart = new Date(skipToday.getFullYear(), skipToday.getMonth() - 1, skipMsd);
             }
-          } else {
-            console.log(`[SKIP] Auto-accumulate not yet run this period — no reversal needed for ${body.itemId}`);
+
+            const lastAcc = skipPrefs?.last_accumulation_date ? new Date(skipPrefs.last_accumulation_date) : null;
+            const autoAccRanThisPeriod = lastAcc && lastAcc >= skipBillingStart;
+
+            if (autoAccRanThisPeriod) {
+              const monthlyEquiv = skipExpense.frequency === 'quarterly' ? skipExpense.amount / 3 :
+                (skipExpense.frequency === 'yearly' || skipExpense.frequency === 'annual') ? skipExpense.amount / 12 : skipExpense.amount;
+              const curAcc = skipExpense.accumulated_funds || 0;
+              const newAcc = Math.max(0, curAcc - monthlyEquiv);
+              await supabase.from('fixed_expenses')
+                .update({ accumulated_funds: newAcc, accumulated_funds_enc: null, accumulated_funds_iv: null })
+                .eq('id', body.itemId).eq('user_id', userId);
+            }
           }
         }
-      } else {
-        console.log(`[MARK_PAID] Skip mode — no accumulated_funds adjustment for ${body.itemType} ${body.itemId}`);
       }
 
       await logActivity(userId, body.itemType, isSkip ? 'skipped' : 'paid', { id: body.itemId, name: itemName, amount: paymentAmount });
@@ -3719,22 +3745,34 @@ serve(async (req) => {
       if (delErr) return error(delErr.message, 500);
 
       // Re-add accumulated funds that were reversed when the skip was created
-      const { data: undoExp } = await supabase.from('fixed_expenses')
-        .select('is_sip, frequency, amount, accumulated_funds')
-        .eq('id', body.itemId).eq('user_id', userId).maybeSingle();
-
-      if (undoExp?.is_sip && undoExp.frequency !== 'monthly') {
-        const { data: undoPrefs } = await supabase.from('user_preferences')
-          .select('last_accumulation_date').eq('user_id', userId).maybeSingle();
-        const lastAcc = undoPrefs?.last_accumulation_date ? new Date(undoPrefs.last_accumulation_date) : null;
-        if (lastAcc && lastAcc >= bms) {
-          const monthlyEquiv = undoExp.frequency === 'quarterly' ? undoExp.amount / 3 :
-            (undoExp.frequency === 'yearly' || undoExp.frequency === 'annual') ? undoExp.amount / 12 : undoExp.amount;
-          const curAcc = undoExp.accumulated_funds || 0;
+      if (await isE2EUser()) {
+        // E2E: client sends the restored accumulated value
+        if (body.newAccumulatedFunds !== undefined) {
           await supabase.from('fixed_expenses')
-            .update({ accumulated_funds: curAcc + monthlyEquiv, accumulated_funds_enc: null, accumulated_funds_iv: null })
+            .update({
+              accumulated_funds: 0,
+              accumulated_funds_enc: body.accumulated_funds_enc || null,
+              accumulated_funds_iv: body.accumulated_funds_iv || null
+            })
             .eq('id', body.itemId).eq('user_id', userId);
-          console.log(`[UNDO_SKIP] Re-added accumulated funds for SIP ${body.itemId}: ${curAcc} -> ${curAcc + monthlyEquiv}`);
+        }
+      } else {
+        const { data: undoExp } = await supabase.from('fixed_expenses')
+          .select('is_sip, frequency, amount, accumulated_funds')
+          .eq('id', body.itemId).eq('user_id', userId).maybeSingle();
+
+        if (undoExp?.is_sip && undoExp.frequency !== 'monthly') {
+          const { data: undoPrefs } = await supabase.from('user_preferences')
+            .select('last_accumulation_date').eq('user_id', userId).maybeSingle();
+          const lastAcc = undoPrefs?.last_accumulation_date ? new Date(undoPrefs.last_accumulation_date) : null;
+          if (lastAcc && lastAcc >= bms) {
+            const monthlyEquiv = undoExp.frequency === 'quarterly' ? undoExp.amount / 3 :
+              (undoExp.frequency === 'yearly' || undoExp.frequency === 'annual') ? undoExp.amount / 12 : undoExp.amount;
+            const curAcc = undoExp.accumulated_funds || 0;
+            await supabase.from('fixed_expenses')
+              .update({ accumulated_funds: curAcc + monthlyEquiv, accumulated_funds_enc: null, accumulated_funds_iv: null })
+              .eq('id', body.itemId).eq('user_id', userId);
+          }
         }
       }
 

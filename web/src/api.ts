@@ -377,6 +377,7 @@ export async function createVariablePlan(
 }
 
 // v1.2: Updated to include subcategory and payment mode
+// E2E: supports isOverspend flag and newCurrentExpenses for credit card tracking
 export async function addVariableActual(
   token: string,
   id: string,
@@ -387,6 +388,10 @@ export async function addVariableActual(
     subcategory?: string;
     payment_mode: "UPI" | "Cash" | "ExtraCash" | "CreditCard";
     credit_card_id?: string;
+    isOverspend?: boolean;
+    newCurrentExpenses?: number;
+    current_expenses_enc?: string;
+    current_expenses_iv?: string;
   },
   cryptoKey?: CryptoKey
 ) {
@@ -426,11 +431,21 @@ export async function updateUserAggregates(
     total_variable_planned: number;
     total_variable_actual: number;
     total_credit_card_dues: number;
+    health_category?: string;
+    health_percentage?: number;
   }
 ) {
   return request<{ data: { success: boolean } }>("/user/aggregates", {
     method: "PUT",
     body: JSON.stringify(aggregates)
+  }, token);
+}
+
+// E2E: Report unpaid credit card dues (server can't read encrypted amounts)
+export async function reportUnpaidDues(token: string, unpaidCardCount: number) {
+  return request<{ data: { success: boolean } }>("/health/report-unpaid-dues", {
+    method: "POST",
+    body: JSON.stringify({ unpaidCardCount })
   }, token);
 }
 

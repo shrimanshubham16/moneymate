@@ -250,7 +250,9 @@ export function DashboardPage({ token }: DashboardPageProps) {
         total_investments_monthly: ownInvestmentsTotal,
         total_variable_planned: ownVariablePlans.reduce((sum: number, p: any) => sum + (parseFloat(p.planned) || 0), 0),
         total_variable_actual: ownVariableTotal,
-        total_credit_card_dues: ownCcDues
+        total_credit_card_dues: ownCcDues,
+        health_category: category,
+        health_percentage: healthPct
       }
     };
   }, [data, creditCards, token, selectedView]);
