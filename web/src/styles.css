@@ -39,6 +39,11 @@ body::before {
   z-index: -1;
 }
 
+.theme-light body::before,
+:root.theme-light body::before {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+}
+
 /* Typography - BOLD emphasis */
 h1,
 h2,

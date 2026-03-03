@@ -281,6 +281,10 @@ textarea {
     --card-glow: 0 10px 30px rgba(37, 99, 235, 0.12);
     --card-glow-hover: 0 14px 40px rgba(37, 99, 235, 0.16);
 
+    /* Borders & Surfaces (Light Theme) */
+    --border-subtle: rgba(15, 23, 42, 0.1);
+    --bg-base: #f1f5f9;
+
     /* ── Form Field Colors (Light Theme) ── */
     --form-label: #374151;
     --form-input-bg: #ffffff;
@@ -461,4 +465,102 @@ textarea {
 
 .theme-light .shared-aggregate-note {
     color: #94a3b8;
+}
+
+/* ============================================
+   LIGHT THEME: Buttons, Modals, Cards
+   ============================================ */
+
+/* Ghost / Cancel buttons */
+.theme-light .ghost-btn {
+    border-color: #d1d5db;
+    color: #334155;
+}
+
+.theme-light .ghost-btn:hover {
+    background: #f1f5f9;
+}
+
+/* Secondary buttons */
+.theme-light .secondary-btn {
+    background: #f1f5f9;
+    border-color: #d1d5db;
+    color: #334155;
+}
+
+/* Form-actions cancel buttons (generic) */
+.theme-light .form-actions button[type="button"] {
+    background: #f1f5f9;
+    border: 1px solid #d1d5db;
+    color: #334155;
+}
+
+/* Form-actions cancel buttons without classes (CC management, etc.) */
+.theme-light .form-actions button:not(.primary):not([type="submit"]) {
+    background: #f1f5f9;
+    border: 1px solid #d1d5db;
+    color: #334155;
+}
+
+/* Modal shell */
+.theme-light .modal-shell {
+    border-color: #e2e8f0;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15);
+}
+
+.theme-light .modal-header {
+    border-bottom-color: #e2e8f0;
+}
+
+.theme-light .modal-footer {
+    border-top-color: #e2e8f0;
+}
+
+.theme-light .modal-overlay {
+    background: rgba(15, 23, 42, 0.4);
+}
+
+/* Card borders */
+.theme-light .due-card,
+.theme-light .sip-card,
+.theme-light .loan-card,
+.theme-light .cc-card,
+.theme-light .expense-card,
+.theme-light .investment-card,
+.theme-light .plan-card,
+.theme-light .bomb-card,
+.theme-light .income-card,
+.theme-light .card-item,
+.theme-light .dashboard-widget {
+    border-color: #e2e8f0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+/* Card pseudo-elements (gradient top bar) */
+.theme-light .cc-card::before,
+.theme-light .expense-card::before,
+.theme-light .plan-card::before,
+.theme-light .card-item::before {
+    opacity: 0.8;
+}
+
+/* Summary strips / heroes */
+.theme-light .dues-summary-hero,
+.theme-light .sip-summary-hero,
+.theme-light .cme-summary-hero,
+.theme-light .loans-summary-hero,
+.theme-light .fe-summary-strip,
+.theme-light .ve-summary-strip,
+.theme-light .cc-summary-strip {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(139, 92, 246, 0.04) 100%);
+    border-color: rgba(37, 99, 235, 0.12);
+}
+
+/* Expense-form inside slide-over */
+.theme-light .expense-form {
+    border-color: #e2e8f0;
+}
+
+.theme-light .expense-form .form-actions {
+    border-top-color: #e2e8f0;
 }

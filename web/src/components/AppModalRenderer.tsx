@@ -21,7 +21,7 @@ export function AppModalRenderer({ modal, closeModal, confirmAndClose }: Props) 
       footer={
         modal.type === "confirm" ? (
           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <button className="ghost-btn" onClick={closeModal} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "var(--text-primary)", cursor: "pointer" }}>Cancel</button>
+            <button className="ghost-btn" onClick={closeModal} style={{ padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>Cancel</button>
             <button className="primary-btn" onClick={confirmAndClose} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--accent-cyan, #22d3ee)", color: "#041019", fontWeight: 700, cursor: "pointer" }}>Confirm</button>
           </div>
         ) : (

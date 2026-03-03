@@ -2109,7 +2109,7 @@ serve(async (req) => {
 
       return json({ data: { deleted: true } });
     }
-    if (path.startsWith('/planning/variable-expenses/') && method === 'DELETE') {
+    if (path.match(/^\/planning\/variable-expenses\/[^/]+$/) && method === 'DELETE') {
       const id = path.split('/').pop();
       const { data: deleted } = await supabase.from('variable_expense_plans').select('name').eq('id', id).single();
       await supabase.from('variable_expense_plans').delete().eq('id', id);

@@ -66,12 +66,12 @@
 }
 
 .empty-state-action.secondary {
-  background: white;
+  background: var(--bg-elevated, white);
   color: #3b82f6;
   border: 2px solid #3b82f6;
 }
 
 .empty-state-action.secondary:hover {
-  background: #eff6ff;
+  background: var(--bg-hover, #eff6ff);
 }
 
