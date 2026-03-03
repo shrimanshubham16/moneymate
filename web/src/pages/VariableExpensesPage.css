@@ -275,6 +275,7 @@
   box-shadow: var(--shadow-md);
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 
 .plan-card::before {

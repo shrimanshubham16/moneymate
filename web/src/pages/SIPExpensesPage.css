@@ -125,6 +125,7 @@
   transition: all 0.25s ease;
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 
 .sip-card::before {
@@ -507,5 +508,29 @@
 
   .sip-grid {
     gap: var(--space-4);
+  }
+
+  .sip-header {
+    flex-wrap: wrap;
+  }
+
+  .sip-header-right {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .sip-badge,
+  .sip-freq-badge {
+    font-size: 0.6rem;
+    padding: 2px 7px;
+  }
+
+  .sip-skip-actions {
+    padding: 8px 0 0;
+  }
+
+  .sip-action-btn {
+    padding: 5px 12px;
+    font-size: 11px;
   }
 }

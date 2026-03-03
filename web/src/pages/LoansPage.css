@@ -125,6 +125,7 @@
   transition: all 0.25s ease;
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 
 .loan-card::before {
@@ -358,5 +359,14 @@
 
   .loans-grid {
     gap: var(--space-4);
+  }
+
+  .loan-header {
+    flex-wrap: wrap;
+  }
+
+  .loan-header-right {
+    flex-shrink: 1;
+    min-width: 0;
   }
 }

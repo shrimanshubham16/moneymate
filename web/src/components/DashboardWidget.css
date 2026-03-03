@@ -10,6 +10,7 @@
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(184, 193, 236, 0.05);
+  min-width: 0;
 }
 
 /* Subtle animated glow */

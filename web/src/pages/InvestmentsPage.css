@@ -28,6 +28,8 @@
   align-items: center;
   box-shadow: var(--shadow-md), var(--card-glow);
   transition: all var(--transition-base);
+  overflow: hidden;
+  min-width: 0;
 }
 
 .investment-card:hover {

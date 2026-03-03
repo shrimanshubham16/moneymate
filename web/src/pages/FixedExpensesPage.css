@@ -242,6 +242,7 @@
   box-shadow: var(--shadow-md);
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 
 .expense-card::before {
@@ -270,11 +271,19 @@
   background: linear-gradient(90deg, #6366f1, #a78bfa) !important;
 }
 
+.expense-info {
+  min-width: 0;
+  flex: 1;
+}
+
 .expense-info h3 {
   margin: 0 0 var(--space-2) 0;
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .expense-details {
