@@ -131,7 +131,7 @@
   flex-wrap: wrap;
   gap: var(--space-5);
   margin-bottom: var(--space-6);
-  padding: var(--space-6) var(--space-7);
+  padding: var(--space-6);
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle, rgba(184,193,236,0.08));
   border-radius: var(--radius-2xl);
@@ -672,6 +672,29 @@
   .cme-month-label {
     font-size: 0.95rem;
     min-width: 140px;
+  }
+}
+
+@media (max-width: 480px) {
+  .current-month-expenses-page {
+    padding: var(--space-6) var(--space-3);
+  }
+
+  .cme-summary-hero {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .cme-hero-amount {
+    font-size: 1.75rem;
+  }
+
+  .cme-category-section {
+    padding: var(--space-4);
+  }
+
+  .cme-categories {
+    gap: var(--space-4);
   }
 }
 

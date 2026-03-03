@@ -849,4 +849,8 @@
   .inv-summary-value {
     font-size: 14px;
   }
+
+  .investments-management-page {
+    padding: var(--space-6) var(--space-3);
+  }
 }

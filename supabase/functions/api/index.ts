@@ -3094,7 +3094,7 @@ serve(async (req) => {
         message: `${inviter?.username || 'Someone'} wants to share finances with you`,
         entityType: 'sharing_request',
         entityId: request.id,
-        actionUrl: '/sharing'
+        actionUrl: '/settings/sharing'
       });
 
       await logActivity(userId, 'sharing', 'sent_invite', { invitee: invitee.username, role });
@@ -3221,7 +3221,7 @@ serve(async (req) => {
         type: 'sharing_rejected',
         title: 'Sharing Request Declined',
         message: `${rejectingUser?.username || 'User'} declined your sharing request.`,
-        actionUrl: '/sharing'
+        actionUrl: '/settings/sharing'
       });
 
       await logActivity(userId, 'sharing', 'rejected_request', { inviter: inviter?.username });

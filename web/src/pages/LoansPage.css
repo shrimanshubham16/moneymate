@@ -28,7 +28,7 @@
   flex-wrap: wrap;
   gap: var(--space-5);
   margin-bottom: var(--space-8);
-  padding: var(--space-6) var(--space-7);
+  padding: var(--space-6);
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle, rgba(184,193,236,0.08));
   border-radius: var(--radius-2xl);
@@ -334,5 +334,29 @@
 
   .loan-details-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .loans-page {
+    padding: var(--space-6) var(--space-3);
+  }
+
+  .loans-summary-hero {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .loans-hero-amount {
+    font-size: 1.75rem;
+  }
+
+  .loan-card {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .loans-grid {
+    gap: var(--space-4);
   }
 }

@@ -609,3 +609,48 @@
     font-size: 32px;
   }
 }
+
+@media (max-width: 480px) {
+  .hero-section {
+    padding: 40px 5%;
+  }
+
+  .hero-content h1 {
+    font-size: 32px;
+    letter-spacing: -1px;
+  }
+
+  .hero-subtitle {
+    font-size: 15px;
+    margin-bottom: 28px;
+  }
+
+  .hero-badge {
+    font-size: 11px;
+    padding: 6px 12px;
+    margin-bottom: 16px;
+  }
+
+  .cta-primary {
+    padding: 14px 24px;
+    font-size: 15px;
+  }
+
+  .cta-primary.large {
+    padding: 16px 28px;
+    font-size: 16px;
+  }
+
+  .section-header h2 {
+    font-size: 26px;
+  }
+
+  .hero-card {
+    width: 240px;
+    padding: 20px;
+  }
+
+  .card-score {
+    font-size: 30px;
+  }
+}

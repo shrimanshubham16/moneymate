@@ -316,3 +316,13 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 480px) {
+  .credit-cards-management-page {
+    padding: var(--space-6) var(--space-3);
+  }
+
+  .card-item {
+    padding: var(--space-4);
+  }
+}

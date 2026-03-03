@@ -541,6 +541,34 @@
   }
 }
 
+@media (max-width: 480px) {
+  .dashboard-page {
+    padding: var(--space-6) var(--space-3);
+  }
+
+  .widgets-grid {
+    gap: var(--space-4);
+    margin-top: var(--space-6);
+  }
+
+  .empty-state {
+    padding: var(--space-6);
+  }
+
+  .empty-state h2 {
+    font-size: var(--text-2xl);
+  }
+
+  .empty-state p {
+    font-size: var(--text-base);
+    margin-bottom: var(--space-6);
+  }
+
+  .primary-button {
+    padding: var(--space-4) var(--space-8);
+  }
+}
+
 /* Stale Data Banner */
 .stale-data-banner {
   position: fixed;

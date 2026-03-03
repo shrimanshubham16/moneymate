@@ -187,7 +187,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                     <label>Select Card</label>
                     <select value={selectedCard || ""} onChange={(e) => setSelectedCard(e.target.value)} required>
                       <option value="">Choose a card...</option>
-                      {cards.map(c => {
+                      {ownCards.map(c => {
                         const rem = (parseFloat(c.billAmount) || 0) - (parseFloat(c.paidAmount) || 0);
                         return (
                           <option key={c.id} value={c.id}>

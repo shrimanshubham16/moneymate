@@ -109,3 +109,13 @@
     gap: var(--space-4);
   }
 }
+
+@media (max-width: 480px) {
+  .plan-finances-page {
+    padding: var(--space-6) var(--space-3);
+  }
+
+  .plan-grid {
+    gap: var(--space-3);
+  }
+}
