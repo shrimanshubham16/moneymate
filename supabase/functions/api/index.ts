@@ -189,8 +189,20 @@ function transformCreditCard(card: any) {
     currentExpenses: card.current_expenses,
     billingDate: card.billing_date,
     needsBillUpdate: card.needs_bill_update,
+    isShared: card.is_shared || false,
     createdAt: card.created_at
   };
+}
+
+async function getSharedMemberIds(supabase: any, userId: string): Promise<string[]> {
+  const { data: myMemberships } = await supabase
+    .from('shared_members').select('shared_account_id').eq('user_id', userId);
+  const accountIds = (myMemberships || []).map((m: any) => m.shared_account_id);
+  if (accountIds.length === 0) return [];
+  const { data: otherMembers } = await supabase
+    .from('shared_members').select('user_id')
+    .in('shared_account_id', accountIds).neq('user_id', userId);
+  return [...new Set((otherMembers || []).map((m: any) => m.user_id))];
 }
 
 serve(async (req) => {
@@ -1887,17 +1899,32 @@ serve(async (req) => {
       // If paid via credit card, update the card's current_expenses
       if (body.payment_mode === 'CreditCard' && body.credit_card_id) {
         const { data: card } = await supabase.from('credit_cards')
-          .select('current_expenses')
+          .select('current_expenses, user_id, is_shared')
           .eq('id', body.credit_card_id)
-          .eq('user_id', userId)
           .single();
 
         if (card) {
-          await supabase.from('credit_cards')
-            .update({ current_expenses: (card.current_expenses || 0) + body.amount })
-            .eq('id', body.credit_card_id)
-            .eq('user_id', userId);
-          console.log(`[CREDIT_CARD_SYNC] Updated card ${body.credit_card_id} current_expenses: ${(card.current_expenses || 0)} + ${body.amount} = ${(card.current_expenses || 0) + body.amount}`);
+          // Verify access: own card or shared card from a shared member
+          if (card.user_id !== userId) {
+            if (!card.is_shared) {
+              console.warn(`[CREDIT_CARD_SYNC] Denied: card ${body.credit_card_id} not owned and not shared`);
+            } else {
+              const memberIds = await getSharedMemberIds(supabase, userId);
+              if (!memberIds.includes(card.user_id)) {
+                console.warn(`[CREDIT_CARD_SYNC] Denied: card owner not in shared members`);
+              } else {
+                await supabase.from('credit_cards')
+                  .update({ current_expenses: (card.current_expenses || 0) + body.amount })
+                  .eq('id', body.credit_card_id);
+                console.log(`[CREDIT_CARD_SYNC] Updated shared card ${body.credit_card_id} current_expenses: ${(card.current_expenses || 0)} + ${body.amount}`);
+              }
+            }
+          } else {
+            await supabase.from('credit_cards')
+              .update({ current_expenses: (card.current_expenses || 0) + body.amount })
+              .eq('id', body.credit_card_id);
+            console.log(`[CREDIT_CARD_SYNC] Updated own card ${body.credit_card_id} current_expenses: ${(card.current_expenses || 0)} + ${body.amount}`);
+          }
         }
       }
 
@@ -2588,25 +2615,60 @@ serve(async (req) => {
       return json({ data: alerts });
     }
     if (path === '/debts/credit-cards' && method === 'GET') {
-      const { data } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
-      return json({ data: (data || []).map(transformCreditCard) });
+      const { data: ownCards } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
+      const ownTransformed = (ownCards || []).map(transformCreditCard);
+
+      // Include shared members' shared cards
+      const memberIds = await getSharedMemberIds(supabase, userId);
+      let sharedTransformed: any[] = [];
+      if (memberIds.length > 0) {
+        const { data: sharedCards } = await supabase.from('credit_cards').select('*')
+          .in('user_id', memberIds).eq('is_shared', true);
+        if (sharedCards && sharedCards.length > 0) {
+          const { data: users } = await supabase.from('users').select('id, username').in('id', memberIds);
+          const userMap = new Map((users || []).map((u: any) => [u.id, u.username]));
+          sharedTransformed = sharedCards.map((c: any) => ({
+            ...transformCreditCard(c),
+            isSharedCard: true,
+            ownerName: userMap.get(c.user_id) || 'Shared User'
+          }));
+        }
+      }
+
+      return json({ data: [...ownTransformed, ...sharedTransformed] });
     }
     if (path.match(/\/debts\/credit-cards\/[^/]+\/usage$/) && method === 'GET') {
       const id = path.split('/')[3];
-      const { data: card, error: cardErr } = await supabase.from('credit_cards').select('*').eq('id', id).eq('user_id', userId).single();
+      // Verify access: own card or shared card from shared member
+      const { data: card, error: cardErr } = await supabase.from('credit_cards').select('*').eq('id', id).single();
       if (cardErr || !card) return error('Credit card not found', 404);
+      if (card.user_id !== userId) {
+        if (!card.is_shared) return error('Not authorized', 403);
+        const memberIds = await getSharedMemberIds(supabase, userId);
+        if (!memberIds.includes(card.user_id)) return error('Not authorized', 403);
+      }
 
-      // Get all variable expense actuals for this credit card
-      const { data: usage } = await supabase
+      // For shared cards, return ALL users' expenses; for own cards, return only own
+      const usageQuery = supabase
         .from('variable_expense_actuals')
         .select('*')
-        .eq('user_id', userId)
         .eq('payment_mode', 'CreditCard')
         .eq('credit_card_id', id);
+      if (!card.is_shared) usageQuery.eq('user_id', userId);
+      const { data: usage } = await usageQuery;
 
-      // Transform snake_case to camelCase for frontend compatibility
+      // Resolve usernames for shared card usage entries
+      const usageUserIds = [...new Set((usage || []).map((u: any) => u.user_id))];
+      let usageUserMap = new Map<string, string>();
+      if (usageUserIds.length > 0) {
+        const { data: usageUsers } = await supabase.from('users').select('id, username').in('id', usageUserIds);
+        usageUserMap = new Map((usageUsers || []).map((u: any) => [u.id, u.username]));
+      }
+
       const transformedUsage = (usage || []).map((u: any) => ({
         id: u.id,
+        userId: u.user_id,
+        username: usageUserMap.get(u.user_id) || 'Unknown',
         planId: u.plan_id,
         amount: u.amount,
         incurredAt: u.incurred_at,
@@ -2633,8 +2695,14 @@ serve(async (req) => {
         due_date: body.dueDate,
         billing_date: body.billingDate
       };
-      if (body.name_enc) insertData.name_enc = body.name_enc;
-      if (body.name_iv) insertData.name_iv = body.name_iv;
+      if (body.isShared || body.is_shared) {
+        insertData.is_shared = true;
+      }
+      // Shared cards: plaintext name is authoritative, skip encryption
+      if (!insertData.is_shared) {
+        if (body.name_enc) insertData.name_enc = body.name_enc;
+        if (body.name_iv) insertData.name_iv = body.name_iv;
+      }
       if (body.bill_amount_enc) insertData.bill_amount_enc = body.bill_amount_enc;
       if (body.bill_amount_iv) insertData.bill_amount_iv = body.bill_amount_iv;
       if (body.paid_amount_enc) insertData.paid_amount_enc = body.paid_amount_enc;
@@ -2674,9 +2742,18 @@ serve(async (req) => {
       if (body.paidAmount !== undefined) updates.paid_amount = body.paidAmount;
       if (body.dueDate) updates.due_date = body.dueDate;
       if (body.billingDate) updates.billing_date = body.billingDate;
-      // E2E: Include encrypted fields if provided
-      if (body.name_enc) updates.name_enc = body.name_enc;
-      if (body.name_iv) updates.name_iv = body.name_iv;
+      if (body.isShared !== undefined || body.is_shared !== undefined) {
+        updates.is_shared = body.isShared ?? body.is_shared;
+        if (updates.is_shared) {
+          updates.name_enc = null;
+          updates.name_iv = null;
+        }
+      }
+      // E2E: Include encrypted fields if provided (skip name encryption for shared cards)
+      if (!updates.is_shared) {
+        if (body.name_enc) updates.name_enc = body.name_enc;
+        if (body.name_iv) updates.name_iv = body.name_iv;
+      }
       if (body.bill_amount_enc) updates.bill_amount_enc = body.bill_amount_enc;
       if (body.bill_amount_iv) updates.bill_amount_iv = body.bill_amount_iv;
       if (body.paid_amount_enc) updates.paid_amount_enc = body.paid_amount_enc;

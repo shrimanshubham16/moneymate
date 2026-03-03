@@ -27,7 +27,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
   const lastViewRef = useRef<string>("");
   
   // Shared view support
-  const { selectedView, isSharedView, getViewParam, isOwnItem, getOwnerName } = useSharedView(token);
+  const { selectedView, isSharedView, getViewParam, getOwnerName } = useSharedView(token);
 
   useEffect(() => {
     if (hasFetchedRef.current && lastViewRef.current === selectedView) return;
@@ -38,10 +38,19 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
 
   const loadCards = async () => {
     try {
-      // Use dashboard endpoint with view param so shared/combined view includes all members' cards
-      const dashboardRes = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
-      setCards(dashboardRes.data.creditCards || []);
-      setSharedAggregates(dashboardRes.data.sharedUserAggregates || []);
+      // fetchCreditCards now returns own cards + partner's shared cards
+      const res = await api.fetchCreditCards(token);
+      setCards(res.data || []);
+
+      // In shared view, also load aggregates for partners without shared cards
+      if (isSharedView) {
+        try {
+          const dashRes = await api.fetchDashboard(token, new Date().toISOString(), getViewParam());
+          setSharedAggregates(dashRes.data.sharedUserAggregates || []);
+        } catch (e) {
+          console.warn("Failed to load shared aggregates:", e);
+        }
+      }
     } catch (e) {
       console.error("Failed to load cards:", e);
     } finally {
@@ -62,36 +71,34 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
     }
   };
 
-  // Separate own vs shared items
-  const ownCards = isSharedView
-    ? cards.filter(c => { const uid = c.userId || c.user_id; return !uid || isOwnItem(uid); })
-    : cards;
-  const sharedCards = isSharedView ? cards.filter(c => { const uid = c.userId || c.user_id; return uid && !isOwnItem(uid); }) : [];
+  // Own cards = cards where the user is the owner (no isSharedCard flag)
+  const ownCards = cards.filter(c => !c.isSharedCard);
+  // Partner's shared cards = cards with isSharedCard flag from the backend
+  const partnerSharedCards = cards.filter(c => c.isSharedCard);
+  // All displayable cards = own + partner's shared (shown in one grid)
+  const displayCards = [...ownCards, ...partnerSharedCards];
 
-  // Group shared cards by user — prefer server-side aggregates
+  // Partners who have visible shared cards — skip their aggregate banner
+  const partnersWithVisibleCards = new Set(
+    partnerSharedCards.map(c => c.userId || c.user_id)
+  );
+
+  // Aggregate banners only for partners who have NO shared cards visible
   const sharedByUser = (() => {
-    if (isSharedView && sharedAggregates.length > 0) {
-      const result: Record<string, { username: string; totalBill: number; totalPaid: number; count: number }> = {};
-      for (const agg of sharedAggregates) {
-        const uid = agg.user_id;
-        const totalDues = parseFloat(agg.total_credit_card_dues) || 0;
-        result[uid] = {
-          username: getOwnerName(uid),
-          totalBill: totalDues, // Dues = bill - paid
-          totalPaid: 0,
-          count: sharedCards.filter(c => (c.userId || c.user_id) === uid).length
-        };
-      }
-      return result;
+    if (!isSharedView || sharedAggregates.length === 0) return {};
+    const result: Record<string, { username: string; totalBill: number; totalPaid: number; count: number }> = {};
+    for (const agg of sharedAggregates) {
+      const uid = agg.user_id;
+      if (partnersWithVisibleCards.has(uid)) continue;
+      const totalDues = parseFloat(agg.total_credit_card_dues) || 0;
+      result[uid] = {
+        username: getOwnerName(uid),
+        totalBill: totalDues,
+        totalPaid: 0,
+        count: 0
+      };
     }
-    return sharedCards.reduce<Record<string, { username: string; totalBill: number; totalPaid: number; count: number }>>((acc, c) => {
-      const uid = c.userId || c.user_id;
-      if (!acc[uid]) acc[uid] = { username: getOwnerName(uid), totalBill: 0, totalPaid: 0, count: 0 };
-      acc[uid].totalBill += parseFloat(c.billAmount) || 0;
-      acc[uid].totalPaid += parseFloat(c.paidAmount) || 0;
-      acc[uid].count++;
-      return acc;
-    }, {});
+    return result;
   })();
 
   // Compute summary stats (use ownCards for own totals)
@@ -253,7 +260,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
       )}
 
       {/* Cards */}
-      {loading ? <SkeletonLoader type="card" count={3} /> : ownCards.length === 0 && sharedCards.length === 0 ? (
+      {loading ? <SkeletonLoader type="card" count={3} /> : displayCards.length === 0 ? (
         <div className="cc-empty-state">
           <FaCreditCard size={56} color="var(--text-tertiary)" />
           <h3>No Credit Cards Added</h3>
@@ -262,13 +269,10 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
             + Add Your First Card
           </button>
         </div>
-      ) : ownCards.length === 0 && isSharedView ? (
-        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 14 }}>
-          You have no credit cards. Only shared member totals are shown above.
-        </div>
       ) : (
         <div className="cards-grid">
-          {ownCards.map((card, index) => {
+          {displayCards.map((card, index) => {
+            const isPartnerCard = !!card.isSharedCard;
             const bill = parseFloat(card.billAmount) || 0;
             const paid = parseFloat(card.paidAmount) || 0;
             const remaining = Math.max(0, bill - paid);
@@ -293,8 +297,14 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                   <div className="cc-card-name">
                     <FaCreditCard style={{ marginRight: 8, opacity: 0.6 }} />
                     <h3>{card.name}</h3>
+                    {isPartnerCard && (
+                      <span className="cc-owner-tag">
+                        <FaUserCircle style={{ marginRight: 3 }} />{card.ownerName}
+                      </span>
+                    )}
                   </div>
                   <div className="cc-card-badges">
+                    {card.isShared && !isPartnerCard && <span className="cc-badge cc-badge-shared">SHARED</span>}
                     {isOverdue && <span className="cc-badge cc-badge-overdue"><FaExclamationTriangle style={{ marginRight: 4 }} />OVERDUE</span>}
                     {isDueSoon && !isOverdue && <span className="cc-badge cc-badge-due-soon">Due in {daysUntilDue}d</span>}
                     {isPaid && <span className="cc-badge cc-badge-paid"><FaCheckCircle style={{ marginRight: 4 }} />PAID</span>}
@@ -341,8 +351,8 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                   </div>
                 </div>
 
-                {/* Action button */}
-                {remaining > 0 && (
+                {/* Action button — only for own cards */}
+                {remaining > 0 && !isPartnerCard && (
                   <button
                     className="cc-pay-btn"
                     onClick={() => { setSelectedCard(card.id); setPaymentAmount(remaining.toString()); setShowPaymentForm(true); }}

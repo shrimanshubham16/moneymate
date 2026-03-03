@@ -527,7 +527,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                       <option value="">Select credit card</option>
                       {creditCards.map(card => (
                         <option key={card.id} value={card.id}>
-                          {card.name} {card.currentExpenses ? `(Current: ₹${card.currentExpenses.toLocaleString("en-IN")})` : ''}
+                          {card.name}{card.isSharedCard ? ` (${card.ownerName})` : ''} {card.currentExpenses ? `— ₹${card.currentExpenses.toLocaleString("en-IN")} spent` : ''}
                         </option>
                       ))}
                     </select>

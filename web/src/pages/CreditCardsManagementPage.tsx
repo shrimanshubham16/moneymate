@@ -20,17 +20,19 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
   const { modal, showAlert, showConfirm, closeModal, confirmAndClose } = useAppModal();
-  const { isSharedView, getViewParam, getOwnerName } = useSharedView(token);
+  const { isSharedView, getViewParam, getOwnerName, sharingMembers } = useSharedView(token);
+  const hasSharedAccounts = sharingMembers && sharingMembers.length > 0;
   const [cards, setCards] = useState<any[]>([]);
   const [sharedAggregates, setSharedAggregates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    billAmount: "0",  // v1.2: Default to 0, can be set later
+    billAmount: "0",
     paidAmount: "0",
     dueDate: new Date().toISOString().split('T')[0],
-    billingDate: "1"  // v1.2: Default to 1st of month
+    billingDate: "1",
+    isShared: false
   });
   const [billingAlerts, setBillingAlerts] = useState<any[]>([]);  // v1.2: Billing alerts
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);  // v1.2: Selected card for usage view
@@ -141,6 +143,8 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       // Normalize snake_case to camelCase (defensive)
       const normalizedUsage = (res.data || []).map((u: any) => ({
         id: u.id,
+        userId: u.userId || u.user_id,
+        username: u.username,
         planId: u.planId || u.plan_id,
         amount: u.amount,
         incurredAt: u.incurredAt || u.incurred_at,
@@ -186,25 +190,26 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cardData = {
+    const cardData: any = {
       name: form.name,
       billAmount: Number(form.billAmount) || 0,
       paidAmount: Number(form.paidAmount) || 0,
       dueDate: form.dueDate,
       billingDate: Number(form.billingDate)
     };
+    if (form.isShared) cardData.isShared = true;
 
-    // Optimistic: add card immediately
     const tempId = `temp-${Date.now()}`;
     const optimisticCard = {
       id: tempId,
       ...cardData,
+      isShared: form.isShared,
       currentExpenses: 0,
       remainingDue: (Number(form.billAmount) || 0) - (Number(form.paidAmount) || 0)
     };
     setCards(prev => [optimisticCard, ...prev]);
     setShowForm(false);
-    setForm({ name: "", billAmount: "0", paidAmount: "0", dueDate: new Date().toISOString().split('T')[0], billingDate: "1" });
+    setForm({ name: "", billAmount: "0", paidAmount: "0", dueDate: new Date().toISOString().split('T')[0], billingDate: "1", isShared: false });
 
     try {
       const res = await api.createCreditCard(token, cardData);
@@ -300,12 +305,17 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
             </div>
           ) : (
             <div className="cards-list">
-              {cards.map((card) => {
+              {cards.filter(c => !c.isSharedCard).map((card) => {
                 const remaining = card.billAmount - card.paidAmount;
                 return (
                   <div key={card.id} className="card-item">
                     <div className="card-header">
-                      <h3>{card.name}</h3>
+                      <h3>
+                        {card.name}
+                        {card.isShared && (
+                          <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 12, fontSize: '0.65rem', fontWeight: 700, background: 'rgba(0, 217, 255, 0.12)', color: 'var(--accent-cyan, #22d3ee)', verticalAlign: 'middle', letterSpacing: '0.03em' }}>SHARED</span>
+                        )}
+                      </h3>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button className="ccm-action-btn edit"
                           onClick={() => { setSelectedCardId(card.id); setUpdateBillForm({ billAmount: (card.billAmount || 0).toString() }); setShowUpdateBillModal(true); }}
@@ -500,6 +510,22 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       </small>
                     </div>
                   </div>
+                  {hasSharedAccounts && (
+                    <div className="form-group" style={{ marginTop: 8 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textTransform: 'none', letterSpacing: 'normal', fontSize: '0.9rem' }}>
+                        <input
+                          type="checkbox"
+                          checked={form.isShared}
+                          onChange={(e) => setForm({ ...form, isShared: e.target.checked })}
+                          style={{ width: 18, height: 18, accentColor: 'var(--accent-cyan, #22d3ee)' }}
+                        />
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Shared card</span>
+                      </label>
+                      <small style={{ color: 'var(--text-tertiary)', display: 'block', marginTop: 4, fontSize: '0.78rem', paddingLeft: 28 }}>
+                        Your partner can use this card for expenses
+                      </small>
+                    </div>
+                  )}
                 </form>
                 </div>
                 <div className="modal-footer">
@@ -590,6 +616,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                               </div>
                               <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
                                 {usage.incurredAt ? new Date(usage.incurredAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''}
+                                {usage.username && <span style={{ marginLeft: 6, color: 'var(--accent-purple, #a78bfa)' }}>by {usage.username}</span>}
                               </div>
                             </div>
                           </div>
