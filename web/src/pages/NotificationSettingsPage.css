@@ -21,7 +21,7 @@
   color: var(--text-primary, #fff);
 }
 
-.back-button {
+.notification-settings-page .back-button {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -35,7 +35,7 @@
   transition: all 0.2s ease;
 }
 
-.back-button:hover {
+.notification-settings-page .back-button:hover {
   color: var(--text-primary, #fff);
   background: rgba(255, 255, 255, 0.05);
 }

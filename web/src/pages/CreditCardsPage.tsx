@@ -304,7 +304,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                     )}
                   </div>
                   <div className="cc-card-badges">
-                    {card.isShared && !isPartnerCard && <span className="cc-badge cc-badge-shared">SHARED</span>}
+                    {(card.isShared || isPartnerCard) && <span className="cc-badge cc-badge-shared">SHARED</span>}
                     {isOverdue && <span className="cc-badge cc-badge-overdue"><FaExclamationTriangle style={{ marginRight: 4 }} />OVERDUE</span>}
                     {isDueSoon && !isOverdue && <span className="cc-badge cc-badge-due-soon">Due in {daysUntilDue}d</span>}
                     {isPaid && <span className="cc-badge cc-badge-paid"><FaCheckCircle style={{ marginRight: 4 }} />PAID</span>}

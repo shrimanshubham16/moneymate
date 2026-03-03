@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaHistory, FaInfoCircle, FaUserCircle } from "react-icons/fa";
+import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaPencilAlt, FaHistory, FaInfoCircle, FaUserCircle } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { PageInfoButton } from "../components/PageInfoButton";
@@ -41,6 +41,8 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
   const [showUpdateBillModal, setShowUpdateBillModal] = useState(false);  // v1.2: Show update bill modal
   const [updateBillForm, setUpdateBillForm] = useState({ billAmount: "" });  // v1.2: Update bill form
   const [plans, setPlans] = useState<any[]>([]);  // v1.2: Variable expense plans for usage display
+  const [editingCard, setEditingCard] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", dueDate: "", billingDate: "1", isShared: false });
 
   useEffect(() => {
     // Load all data in parallel for faster initial load
@@ -240,6 +242,38 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
     });
   };
 
+  const openEditForm = (card: any) => {
+    setEditingCard(card);
+    setEditForm({
+      name: card.name || "",
+      dueDate: card.dueDate ? new Date(card.dueDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      billingDate: String(card.billingDate || 1),
+      isShared: !!card.isShared
+    });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCard) return;
+    const updates: any = {
+      name: editForm.name,
+      dueDate: editForm.dueDate,
+      billingDate: Number(editForm.billingDate),
+      isShared: editForm.isShared
+    };
+    const prevCards = cards;
+    setCards(prev => prev.map(c => c.id === editingCard.id ? { ...c, name: updates.name, dueDate: updates.dueDate, billingDate: updates.billingDate, isShared: updates.isShared } : c));
+    setEditingCard(null);
+    try {
+      await api.updateCreditCard(token, editingCard.id, updates);
+      invalidateDashboardCache();
+      loadCards();
+    } catch (e: any) {
+      showAlert(e.message);
+      setCards(prevCards);
+    }
+  };
+
   return (
     <div className="credit-cards-management-page">
       <div className="page-header">
@@ -316,7 +350,13 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                           <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 12, fontSize: '0.65rem', fontWeight: 700, background: 'rgba(0, 217, 255, 0.12)', color: 'var(--accent-cyan, #22d3ee)', verticalAlign: 'middle', letterSpacing: '0.03em' }}>SHARED</span>
                         )}
                       </h3>
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="ccm-action-btn edit"
+                          onClick={() => openEditForm(card)}
+                          title="Edit card details"
+                        >
+                          <FaPencilAlt size={12} /> Edit
+                        </button>
                         <button className="ccm-action-btn edit"
                           onClick={() => { setSelectedCardId(card.id); setUpdateBillForm({ billAmount: (card.billAmount || 0).toString() }); setShowUpdateBillModal(true); }}
                           title="Update bill amount"
@@ -662,6 +702,75 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                   <button type="submit" className="primary">Update Bill</button>
                 </div>
               </form>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+      {/* Edit Card Modal */}
+      {editingCard && (
+        <motion.div className="modal-overlay" onClick={() => setEditingCard(null)}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div className="modal-shell modal-md" onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
+            <div className="modal-header">
+              <h3>Edit Credit Card</h3>
+              <button className="modal-close" onClick={() => setEditingCard(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <form id="cc-edit-form" onSubmit={handleEditSubmit}>
+                <div className="form-group">
+                  <label>Card Name *</label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>Due Date *</label>
+                    <input
+                      type="date"
+                      value={editForm.dueDate}
+                      onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Billing Date (Day) *</label>
+                    <input
+                      type="number"
+                      value={editForm.billingDate}
+                      onChange={(e) => {
+                        const day = parseInt(e.target.value);
+                        if (day >= 1 && day <= 31) setEditForm({ ...editForm, billingDate: e.target.value });
+                      }}
+                      min="1" max="31" required
+                    />
+                  </div>
+                </div>
+                {hasSharedAccounts && (
+                  <div className="form-group" style={{ marginTop: 8 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textTransform: 'none', letterSpacing: 'normal', fontSize: '0.9rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.isShared}
+                        onChange={(e) => setEditForm({ ...editForm, isShared: e.target.checked })}
+                        style={{ width: 18, height: 18, accentColor: 'var(--accent-cyan, #22d3ee)' }}
+                      />
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Shared card</span>
+                    </label>
+                    <small style={{ color: 'var(--text-tertiary)', display: 'block', marginTop: 4, fontSize: '0.78rem', paddingLeft: 28 }}>
+                      Your partner can use this card for expenses
+                    </small>
+                  </div>
+                )}
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" onClick={() => setEditingCard(null)}>Cancel</button>
+              <button type="submit" form="cc-edit-form" className="primary">Save Changes</button>
             </div>
           </motion.div>
         </motion.div>

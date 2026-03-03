@@ -465,13 +465,16 @@ export async function fetchCreditCards(token: string, cryptoKey?: CryptoKey) {
 }
 
 // v1.2: Updated to include billingDate
-export async function createCreditCard(token: string, payload: { name: string; billAmount?: number; paidAmount?: number; dueDate: string; billingDate?: number }, cryptoKey?: CryptoKey) {
-  const body = await buildBody(payload, cryptoKey);
+// Shared cards must NOT encrypt the name — partner needs to read it in plaintext
+export async function createCreditCard(token: string, payload: { name: string; billAmount?: number; paidAmount?: number; dueDate: string; billingDate?: number; isShared?: boolean }, cryptoKey?: CryptoKey) {
+  const effectiveKey = (payload as any).isShared ? undefined : cryptoKey;
+  const body = await buildBody(payload, effectiveKey);
   return request<{ data: any }>("/debts/credit-cards", { method: "POST", body }, token);
 }
 
-export async function updateCreditCard(token: string, id: string, payload: { name?: string; billAmount?: number; paidAmount?: number; dueDate?: string; billingDate?: number }, cryptoKey?: CryptoKey) {
-  const body = await buildBody(payload, cryptoKey);
+export async function updateCreditCard(token: string, id: string, payload: { name?: string; billAmount?: number; paidAmount?: number; dueDate?: string; billingDate?: number; isShared?: boolean }, cryptoKey?: CryptoKey) {
+  const effectiveKey = (payload as any).isShared ? undefined : cryptoKey;
+  const body = await buildBody(payload, effectiveKey);
   return request<{ data: any }>(`/debts/credit-cards/${id}`, { method: "PUT", body }, token);
 }
 

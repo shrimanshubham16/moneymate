@@ -502,6 +502,18 @@ textarea {
     color: #334155;
 }
 
+/* Back button */
+.theme-light .back-button {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #334155;
+}
+.theme-light .back-button:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    box-shadow: none;
+}
+
 /* Modal shell */
 .theme-light .modal-shell {
     border-color: #e2e8f0;
