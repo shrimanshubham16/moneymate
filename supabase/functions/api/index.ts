@@ -3080,18 +3080,17 @@ serve(async (req) => {
         health_percentage
       } = body;
 
-      const isE2EForAgg = await isE2EUser();
-
-      // E2E users: zero out detailed amounts, store only health category/percentage
+      // Store client-computed aggregates as-is (summary totals only, not individual items).
+      // E2E users who opt into sharing need these for combined health calculation.
       const { error: aggErr } = await supabase.from('user_aggregates')
         .upsert({
           user_id: userId,
-          total_income_monthly: isE2EForAgg ? 0 : (total_income_monthly || 0),
-          total_fixed_monthly: isE2EForAgg ? 0 : (total_fixed_monthly || 0),
-          total_investments_monthly: isE2EForAgg ? 0 : (total_investments_monthly || 0),
-          total_variable_planned: isE2EForAgg ? 0 : (total_variable_planned || 0),
-          total_variable_actual: isE2EForAgg ? 0 : (total_variable_actual || 0),
-          total_credit_card_dues: isE2EForAgg ? 0 : (total_credit_card_dues || 0),
+          total_income_monthly: total_income_monthly || 0,
+          total_fixed_monthly: total_fixed_monthly || 0,
+          total_investments_monthly: total_investments_monthly || 0,
+          total_variable_planned: total_variable_planned || 0,
+          total_variable_actual: total_variable_actual || 0,
+          total_credit_card_dues: total_credit_card_dues || 0,
           health_category: health_category || null,
           health_percentage: health_percentage !== undefined ? health_percentage : null,
           updated_at: new Date().toISOString()
