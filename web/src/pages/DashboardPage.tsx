@@ -39,6 +39,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
   const [loans, setLoans] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [sharingMembers, setSharingMembers] = useState<any>({ members: [] });
+  const [sharingMembersLoaded, setSharingMembersLoaded] = useState(false);
   // Persist selectedView in localStorage so it survives navigation
   const [selectedView, setSelectedView] = useState<string>(() => {
     const saved = localStorage.getItem('finflow_selected_view');
@@ -250,6 +251,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     return { 
       remaining: noAggregateData ? null : remaining, // null indicates unavailable
       category: noAggregateData ? 'unavailable' : category,
+      healthPct: noAggregateData ? 0 : healthPct,
       noAggregateData,
       isSpecificUserView,
       // Own values for aggregate push (so shared users can see our totals)
@@ -375,6 +377,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setLoans(loansRes.data);
       setActivities(activityRes.data);
       setSharingMembers(membersRes.data);
+      setSharingMembersLoaded(true);
       if (!quickAddPlanId && dashboardRes.data?.variablePlans?.length) {
         setQuickAddPlanId(dashboardRes.data.variablePlans[0].id);
       }
@@ -465,13 +468,15 @@ export function DashboardPage({ token }: DashboardPageProps) {
 
   // Reset to "me" if sharing was revoked and no shared members remain
   // IMPORTANT: This hook MUST be before any early returns to follow React hooks rules
+  // Only reset after sharing members have been fetched to avoid a race condition
+  // where the initial empty state incorrectly overrides the persisted view
   const hasSharedMembersHook = (sharingMembers?.members || []).length > 0;
   useEffect(() => {
-    if (!hasSharedMembersHook && selectedView !== 'me') {
+    if (sharingMembersLoaded && !hasSharedMembersHook && selectedView !== 'me') {
       setSelectedView('me');
       localStorage.setItem('finflow_selected_view', 'me');
     }
-  }, [hasSharedMembersHook, selectedView]);
+  }, [sharingMembersLoaded, hasSharedMembersHook, selectedView]);
 
   const loadData = async (forceRefresh = false, viewOverride?: string) => {
     try {
@@ -509,9 +514,11 @@ export function DashboardPage({ token }: DashboardPageProps) {
         api.fetchSharingMembers(token).then(res => {
           if (!mountedRef.current) return;
           setSharingMembers(res.data);
+          setSharingMembersLoaded(true);
         }).catch(() => {
           if (!mountedRef.current) return;
           setSharingMembers({ members: [] });
+          setSharingMembersLoaded(true);
         });
         setLoading(false);
         setLoadProgress(100);
@@ -562,6 +569,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setLoans(loansRes.data);
       setActivities(activityRes.data);
       setSharingMembers(membersRes.data);
+      setSharingMembersLoaded(true);
       if (!quickAddPlanId && dashboardRes.data?.variablePlans?.length) {
         setQuickAddPlanId(dashboardRes.data.variablePlans[0].id);
       }
@@ -839,6 +847,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         <HealthIndicator
           category={correctHealth.category as any}
           remaining={correctHealth.remaining ?? 0}
+          healthPct={correctHealth.healthPct ?? 0}
           currencySymbol={currSym}
           onClick={() => navigate("/health")}
         />

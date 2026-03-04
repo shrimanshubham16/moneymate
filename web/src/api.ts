@@ -121,11 +121,7 @@ async function decryptObjectFields(obj: any, key: CryptoKey): Promise<any> {
               const num = parseFloat(dec);
               result[orig] = isNaN(num) ? dec : num;
             })
-            .catch((err) => { 
-              console.error(`[E2E_DECRYPT_ERROR] Failed to decrypt ${orig}:`, err);
-              // Preserve plaintext numeric values for shared user items
-              // (backend keeps numerics in plaintext for server-side & aggregate calculations)
-              // Text fields get '[Private]' placeholder
+            .catch(() => { 
               result[orig] = typeof obj[orig] === 'number' ? obj[orig] : '[Private]';
             })
         );
