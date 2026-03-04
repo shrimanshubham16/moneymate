@@ -348,6 +348,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
           creditCards: {
             total: creditCardTotalForHealth,
             items: cardsRes.data.filter((card: any) => {
+              if (card.isSharedCard) return false;
               const billAmount = card.billAmount || card.bill_amount || 0;
               const paidAmount = card.paidAmount || card.paid_amount || 0;
               return (billAmount - paidAmount) > 0;

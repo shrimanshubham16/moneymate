@@ -167,8 +167,17 @@ export function DashboardPage({ token }: DashboardPageProps) {
       }, 0);
     const totalIncome = ownIncome + sharedIncomeTotal;
     
-    // Calculate ALL fixed expenses (commitment exists whether paid or not — paying doesn't improve health)
+    // Calculate fixed expenses (exclude skipped, expired, and not-yet-started — must match /health page logic)
+    const now = new Date();
     const ownFixedTotal = ownFixedExpenses
+      .filter((exp: any) => {
+        if (exp.isSkipped) return false;
+        const endDate = exp.endDate || exp.end_date;
+        const startDate = exp.startDate || exp.start_date;
+        if (endDate && new Date(endDate) < now) return false;
+        if (startDate && new Date(startDate) > now) return false;
+        return true;
+      })
       .reduce((sum: number, exp: any) => {
         const amount = parseFloat(exp.amount) || 0;
         const monthly = exp.frequency === 'monthly' ? amount :
@@ -638,7 +647,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     }, 0) || 0;
     const unpaidInv = data.investments?.filter((i: any) => !i.paid && (i.status === 'active' || !i.status))
       .reduce((s: number, i: any) => s + (i.monthlyAmount || 0), 0) || 0;
-    const ccDues = (creditCards || []).reduce((s: number, c: any) => {
+    const ccDues = (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((s: number, c: any) => {
       const remaining = parseFloat(c.billAmount || 0) - parseFloat(c.paidAmount || 0);
       if (remaining > 0) {
         const d = new Date(c.dueDate); const now = new Date();
@@ -682,7 +691,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const totalInvestments = (data.investments || [])
       .filter((i: any) => i.status === 'active')
       .reduce((s: number, i: any) => s + (parseFloat(i.monthlyAmount) || 0), 0);
-    const totalCC = (creditCards || []).reduce((s: number, c: any) => {
+    const totalCC = (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((s: number, c: any) => {
       const bill = parseFloat(c.billAmount ?? 0);
       const paid = parseFloat(c.paidAmount ?? 0);
       return s + Math.max(0, bill - paid);
