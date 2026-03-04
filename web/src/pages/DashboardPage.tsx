@@ -147,7 +147,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
     
     
     // Credit card dues: only count cards the current user OWNS (exclude partner's shared cards to avoid double-counting with sharedCreditCardDues from aggregates)
-    const ownCcDues = (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
+    // For specific user view, skip own cards entirely — we're viewing another user's health
+    const ownCcDues = isSpecificUserView ? 0 : (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
       const billAmount = parseFloat(c.billAmount ?? 0);
       const paidAmount = parseFloat(c.paidAmount ?? 0);
       const remaining = Math.max(0, billAmount - paidAmount);

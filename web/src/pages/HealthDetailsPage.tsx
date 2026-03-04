@@ -246,7 +246,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const variableProrated = totalVariablePlanned * remainingDaysRatio;
       
       // Credit card dues: only count cards the current user OWNS (exclude partner's shared cards to avoid double-counting with sharedCreditCardDues from aggregates)
-      const ownCreditCardTotal = (cardsRes.data || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
+      // For specific user view, skip own cards — we're viewing another user's health
+      const ownCreditCardTotal = isSpecificUserView ? 0 : (cardsRes.data || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
         const billAmount = parseFloat(c.billAmount || c.bill_amount) || 0;
         const paidAmount = parseFloat(c.paidAmount || c.paid_amount) || 0;
         const remaining = Math.max(0, billAmount - paidAmount);
@@ -315,8 +316,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       // Use ALL items for health calculation (paid/unpaid doesn't matter — commitment exists regardless)
       const allActiveInvestments = ownInvestmentsData.filter((inv: any) => inv.status === 'active');
       
-      // For merged view, add shared aggregate as a visible line item so totals match breakdown
-      const isShowingSharedData = selectedView === 'merged' && sharedAggregates.length > 0;
+      // For merged or specific user view, show shared aggregate line items so totals match breakdown
+      const isShowingSharedData = (selectedView === 'merged' || isSpecificUserView) && sharedAggregates.length > 0;
       
       // Only show health-included incomes in breakdown so items sum to total
       const healthIncomes = ownIncomes.filter((inc: any) => inc.includeInHealth !== false);
@@ -347,7 +348,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         debts: {
           creditCards: {
             total: creditCardTotalForHealth,
-            items: cardsRes.data.filter((card: any) => {
+            items: isSpecificUserView ? [] : cardsRes.data.filter((card: any) => {
               if (card.isSharedCard) return false;
               const billAmount = card.billAmount || card.bill_amount || 0;
               const paidAmount = card.paidAmount || card.paid_amount || 0;
