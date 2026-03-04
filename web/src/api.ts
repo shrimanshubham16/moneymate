@@ -157,10 +157,14 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
   
-  // Add Supabase apikey header for Edge Functions (required even for public endpoints)
+  // Add Supabase apikey + Authorization headers for Edge Functions
   if (isSupabaseEdgeFunction) {
     if (SUPABASE_ANON_KEY) {
       headers['apikey'] = SUPABASE_ANON_KEY;
+      // Use anon key as Authorization fallback when no user token is present (e.g. login, signup)
+      if (!headers['Authorization']) {
+        headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
+      }
     } else {
       console.error('[API_ERROR] VITE_SUPABASE_ANON_KEY is not set. Supabase Edge Functions require the apikey header.');
     }
