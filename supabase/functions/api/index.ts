@@ -508,7 +508,7 @@ serve(async (req) => {
 
       // Check existing username
       const { data: existingUser } = await supabase
-        .from('users').select('id').eq('username', username).single();
+        .from('users').select('id').eq('username', username).maybeSingle();
       if (existingUser) return error('Username already taken', 409);
 
       // Create user
@@ -551,8 +551,9 @@ serve(async (req) => {
         .from('users')
         .select('id, recovery_key_hash, encryption_salt, password_hash')
         .eq('username', username)
-        .single();
-      if (userErr || !user) return error('User not found', 404);
+        .maybeSingle();
+      if (userErr) return error('Database error', 500);
+      if (!user) return error('No account found with that username', 404);
 
       const encoder = new TextEncoder();
       const recoveryData = encoder.encode(recoveryKey.trim().toLowerCase());
@@ -587,14 +588,14 @@ serve(async (req) => {
         const { data: user, error: userErr } = await supabase
           .from('users')
           .select('id, username, password_hash, encryption_salt, failed_login_attempts, account_locked_until')
-          .eq('username', username).single();
+          .eq('username', username).maybeSingle();
 
         if (userErr) {
           console.error('User fetch error:', userErr);
           return error('Database error', 500);
         }
 
-        if (!user) return error('Invalid credentials', 401);
+        if (!user) return error('No account found with that username', 401);
 
         // Check lockout
         if (user.account_locked_until && new Date(user.account_locked_until) > new Date()) {
@@ -648,7 +649,7 @@ serve(async (req) => {
 
     if (path.startsWith('/auth/salt/') && method === 'GET') {
       const username = path.replace('/auth/salt/', '');
-      const { data: user } = await supabase.from('users').select('id, encryption_salt').eq('username', username).single();
+      const { data: user } = await supabase.from('users').select('id, encryption_salt').eq('username', username).maybeSingle();
 
       // Auto-generate encryption salt for users who don't have one (legacy users)
       if (user && !user.encryption_salt) {
