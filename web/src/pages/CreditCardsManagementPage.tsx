@@ -10,6 +10,7 @@ import { ClientCache } from "../utils/cache";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
+import { feedbackPowerUp, feedbackOneUp, feedbackFireball, feedbackBump } from "../utils/haptics";
 import "./CreditCardsManagementPage.css";
 
 interface CreditCardsManagementPageProps {
@@ -140,11 +141,13 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
     showConfirm(`Reset current expenses for ${cardName}? You'll need to manually update the bill amount.`, async () => {
       try {
         await api.resetCreditCardBilling(token, cardId);
+        feedbackPowerUp();
         invalidateDashboardCache();
         showAlert("Current expenses reset. Please update the bill amount manually.", "Success");
         loadCards();
         loadBillingAlerts();
       } catch (e: any) {
+        feedbackBump();
         showAlert(e.message);
       }
     });
@@ -193,11 +196,13 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       setSelectedCardId(null);
       
       await api.updateCreditCardBill(token, cardId, amount);
+      feedbackOneUp();
       invalidateDashboardCache();
-      loadCards(); // background refresh
-      loadBillingAlerts(); // background refresh
+      loadCards();
+      loadBillingAlerts();
       showAlert("Bill amount updated successfully", "Success");
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message || "Failed to update bill");
       loadCards(); // rollback
     }
@@ -232,11 +237,13 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       if (res?.data) {
         setCards(prev => prev.map(c => c.id === tempId ? { ...c, ...res.data } : c));
       }
+      feedbackPowerUp();
       invalidateDashboardCache();
-      loadCards(); // background refresh
+      loadCards();
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message);
-      setCards(prev => prev.filter(c => c.id !== tempId)); // rollback
+      setCards(prev => prev.filter(c => c.id !== tempId));
     }
   };
 
@@ -246,11 +253,13 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
       setCards(prev => prev.filter(c => c.id !== id)); // optimistic removal
       try {
         await api.deleteCreditCard(token, id);
+        feedbackFireball();
         invalidateDashboardCache();
-        loadCards(); // background refresh
+        loadCards();
       } catch (e: any) {
+        feedbackBump();
         showAlert(e.message);
-        setCards(prevCards); // rollback
+        setCards(prevCards);
       }
     });
   };
@@ -279,9 +288,11 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
     setEditingCard(null);
     try {
       await api.updateCreditCard(token, editingCard.id, updates);
+      feedbackPowerUp();
       invalidateDashboardCache();
       loadCards();
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message);
       setCards(prevCards);
     }

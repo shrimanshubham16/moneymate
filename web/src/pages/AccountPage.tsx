@@ -12,6 +12,7 @@ import { useCrypto } from "../contexts/CryptoContext";
 import { deriveKey, saltFromBase64, generateSalt } from "../lib/crypto";
 import { reEncryptAllData, ReEncryptionProgress } from "../services/reEncryptionService";
 import { RecoveryKeyModal } from "../components/RecoveryKeyModal";
+import { feedbackPowerUp, feedbackBump } from "../utils/haptics";
 import "./AccountPage.css";
 
 // ── Recovery key generation ─────────────────────────
@@ -149,8 +150,10 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
       const result = await resp.json();
       const avatarUrl = result.data?.avatar_url;
       setUser((prev: any) => ({ ...prev, avatar_url: avatarUrl }));
+      feedbackPowerUp();
       showToast('success', 'Profile photo updated!');
     } catch (err: any) {
+      feedbackBump();
       console.error('Avatar upload error:', err);
       showToast('error', err.message || 'Failed to upload photo. Please try again.');
     } finally {
@@ -544,6 +547,7 @@ function PasswordResetCard({ token }: { token: string }) {
       const data = await response.json();
 
       if (response.ok) {
+        feedbackPowerUp();
         setShowSuccessToast(true);
         setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
         setPasswordStrength([]);
@@ -554,6 +558,7 @@ function PasswordResetCard({ token }: { token: string }) {
         setMessage({ type: "error", text: data.error?.message || "Failed to update password" });
       }
     } catch (e: any) {
+      feedbackBump();
       setMessage({ type: "error", text: e.message || "Network error" });
     } finally {
       setLoading(false);

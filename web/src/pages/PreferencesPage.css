@@ -177,6 +177,63 @@
   margin-bottom: 8px;
 }
 
+/* ── Sound Toggle ── */
+.sound-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+}
+
+.sound-toggle-label {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.sound-toggle-btn {
+  position: relative;
+  width: 52px;
+  height: 28px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.25s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.sound-toggle-btn.on {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.sound-toggle-btn.off {
+  background: #374151;
+}
+
+.sound-toggle-knob {
+  position: absolute;
+  top: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: left 0.25s ease;
+}
+
+.sound-toggle-btn.on .sound-toggle-knob {
+  left: 27px;
+}
+
+.sound-toggle-btn.off .sound-toggle-knob {
+  left: 3px;
+}
+
 .loading {
   text-align: center;
   padding: 60px 20px;
@@ -184,7 +241,7 @@
   font-size: 18px;
 }
 
-/* Light Theme Overrides */
+/* ── Light Theme Overrides ── */
 .theme-light .preference-card {
   background: #ffffff;
   border-color: #e2e8f0;

@@ -10,7 +10,7 @@ import { Toast } from "../components/Toast";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
-import { hapticSuccess, hapticMedium } from "../utils/haptics";
+import { hapticSuccess, hapticMedium, feedbackPipe, feedbackBump } from "../utils/haptics";
 import "./DuesPage.css";
 
 interface DuesPageProps {
@@ -63,6 +63,7 @@ export function DuesPage({ token }: DuesPageProps) {
       if (wasPaid) {
         // Correct order: (token, itemId, itemType)
         await api.markAsUnpaid(token, due.id, due.itemType);
+        feedbackPipe();
         setToast({ show: true, message: `${dueName} marked as unpaid` });
       } else {
         // Correct order: (token, itemId, itemType, amount)
@@ -74,7 +75,7 @@ export function DuesPage({ token }: DuesPageProps) {
       // Refresh in background to sync with server
       loadDues().catch(console.error);
     } catch (e: any) {
-      // Revert optimistic update on error
+      feedbackBump();
       await loadDues();
       showAlert("Failed to update payment status: " + e.message);
     }
@@ -92,6 +93,7 @@ export function DuesPage({ token }: DuesPageProps) {
           setToast({ show: true, message: `${due.name} skipped — removed from dues` });
           loadDues().catch(console.error);
         } catch (e: any) {
+          feedbackBump();
           await loadDues();
           showAlert("Failed to skip: " + e.message);
         }

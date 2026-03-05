@@ -12,6 +12,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { Modal } from "../components/Modal";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
+import { feedbackPowerUp, feedbackFireball, feedbackPipe, feedbackBump } from "../utils/haptics";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./InvestmentsPage.css";
@@ -71,7 +72,9 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
       setWalletModal({ isOpen: false, investmentId: "", investmentName: "", currentFund: 0 });
       setWalletAmount("");
       loadInvestments();
+      feedbackPowerUp();
     } catch (e: any) {
+      feedbackBump();
       showAlert("Failed to update: " + e.message);
     }
   };
@@ -91,7 +94,9 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
       }
       invalidateDashboardCache();
       loadInvestments();
+      feedbackPipe();
     } catch (e: any) {
+      feedbackBump();
       showAlert("Failed to update status: " + e.message);
     }
   };
@@ -103,7 +108,9 @@ export function InvestmentsPage({ token }: InvestmentsPageProps) {
         await api.deleteInvestment(token, inv.id);
         invalidateDashboardCache();
         loadInvestments();
+        feedbackFireball();
       } catch (e: any) {
+        feedbackBump();
         showAlert("Failed to delete: " + e.message);
       }
     });

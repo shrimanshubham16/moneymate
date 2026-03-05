@@ -12,6 +12,7 @@ import { PageInfoButton } from "../components/PageInfoButton";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
+import { feedbackCoin, feedbackPowerUp, feedbackFireball, feedbackBump } from "../utils/haptics";
 import "./VariableExpensesPage.css";
 
 interface VariableExpensesPageProps {
@@ -140,8 +141,10 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         }
       }
       invalidateDashboardCache();
+      feedbackPowerUp();
       loadPlans(true);
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message);
       if (editingId) {
         loadPlans(true);
@@ -162,7 +165,9 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
           showNewSubcategory: false,
           newSubcategory: ""
         });
+        feedbackCoin();
       } catch (e: any) {
+        feedbackBump();
         showAlert(e.message);
       }
     }
@@ -240,10 +245,12 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       });
 
       invalidateDashboardCache();
+      feedbackCoin();
       // Background refresh — fire-and-forget
       Promise.all([loadPlans(true), loadCreditCards()]);
 
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message);
       loadPlans(true);
       loadCreditCards();
@@ -639,7 +646,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                     </div>
                     <div className="plan-actions">
                       <button onClick={() => { setEditingId(plan.id); setPlanForm({ name: plan.name, planned: plan.planned.toString(), category: plan.category, start_date: plan.startDate || plan.start_date || "", end_date: plan.endDate || plan.end_date || "" }); setShowPlanForm(true); }} title="Edit" aria-label="Edit plan"><FaEdit size={16} /></button>
-                      <button className="delete-btn" onClick={() => showConfirm("Delete this variable plan?", () => { api.deleteVariableExpensePlan(token, plan.id).then(() => { invalidateDashboardCache(); loadPlans(true); }); })} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
+                      <button className="delete-btn" onClick={() => showConfirm("Delete this variable plan?", () => { api.deleteVariableExpensePlan(token, plan.id).then(() => { invalidateDashboardCache(); feedbackFireball(); loadPlans(true); }).catch(() => { feedbackBump(); }); })} title="Delete" aria-label="Delete plan"><FaTrash size={16} /></button>
                     </div>
                   </div>
                 </div>
@@ -702,7 +709,9 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                                   try {
                                     await api.deleteVariableActual(token, plan.id, actual.id);
                                     invalidateDashboardCache();
+                                    feedbackFireball();
                                   } catch (err) {
+                                    feedbackBump();
                                     console.error('Delete actual failed:', err);
                                     loadPlans(true);
                                   }

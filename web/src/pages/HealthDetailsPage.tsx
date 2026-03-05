@@ -10,6 +10,7 @@ import { funFacts } from "../data/funFacts";
 import { isFeatureEnabled } from "../features";
 import { getHealthThresholds, updateHealthThresholds } from "../api";
 import { HealthThresholds } from "../services/clientCalculations";
+import { feedbackPowerUp, feedbackBump } from "../utils/haptics";
 import "./HealthDetailsPage.css";
 
 interface HealthDetailsPageProps {
@@ -405,8 +406,10 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
     try {
       const updated = await api.updateHealthThresholds(token, thresholds);
       setThresholds(updated);
+      feedbackPowerUp();
       setSaveMessage("Saved ✓");
     } catch (e: any) {
+      feedbackBump();
       setSaveMessage(e?.message || "Failed to save");
     } finally {
       setSavingThresholds(false);

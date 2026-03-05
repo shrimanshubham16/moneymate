@@ -7,6 +7,7 @@ import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
+import { feedbackOneUp, feedbackBump } from "../utils/haptics";
 import "./CreditCardsPage.css";
 
 interface CreditCardsPageProps {
@@ -63,10 +64,12 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
     if (!selectedCard) return;
     try {
       await api.payCreditCard(token, selectedCard, Number(paymentAmount));
+      feedbackOneUp();
       setShowPaymentForm(false);
       setPaymentAmount("");
       loadCards();
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message);
     }
   };

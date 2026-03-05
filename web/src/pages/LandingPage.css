@@ -515,6 +515,7 @@
 .pricing-section {
   padding: 80px 10%;
   text-align: center;
+  overflow: visible;
 }
 
 .pricing-grid {
@@ -522,14 +523,28 @@
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 20px;
   margin-top: 24px;
+  overflow: visible;
 }
 
 .pricing-card {
+  position: relative;
   background: #0b1220;
   border: 1px solid #1f2937;
   border-radius: 16px;
   padding: 20px;
   color: #e5e7eb;
+  overflow: visible;
+}
+
+.pricing-card.finflow {
+  padding-top: 36px;
+}
+
+.pricing-card.finflow .recommended-badge {
+  top: -12px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
 }
 
 .pricing-card h3 {

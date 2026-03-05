@@ -9,6 +9,7 @@ import { SkeletonLoader } from "../components/SkeletonLoader";
 import { isFeatureEnabled } from "../features";
 import { Modal } from "../components/Modal";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
+import { feedbackPowerUp, feedbackFireball, feedbackPipe, feedbackBump } from "../utils/haptics";
 import "./IncomePage.css";
 
 interface IncomePageProps {
@@ -278,9 +279,11 @@ export function IncomePage({ token }: IncomePageProps) {
         }
       }
       invalidateDashboardCache();
+      feedbackPowerUp();
       // Background refresh — fire-and-forget (don't await)
       loadIncomes();
     } catch (e: any) {
+      feedbackBump();
       setErrorMsg(e.message);
       // Rollback optimistic update
       if (prevEditingId) {
@@ -299,8 +302,10 @@ export function IncomePage({ token }: IncomePageProps) {
     try {
       await api.deleteIncome(token, id);
       invalidateDashboardCache();
+      feedbackFireball();
       loadIncomes(); // background refresh
     } catch (e: any) {
+      feedbackBump();
       setErrorMsg(e.message);
       setIncomes(prevIncomes); // rollback
     }
@@ -312,7 +317,9 @@ export function IncomePage({ token }: IncomePageProps) {
       await api.updateIncome(token, income.id, { include_in_health: newValue });
       setIncomes(prev => prev.map(inc => inc.id === income.id ? { ...inc, includeInHealth: newValue } : inc));
       invalidateDashboardCache();
+      feedbackPipe();
     } catch (e: any) {
+      feedbackBump();
       setErrorMsg("Failed to update: " + e.message);
     }
   };

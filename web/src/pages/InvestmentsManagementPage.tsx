@@ -12,6 +12,7 @@ import { Modal } from "../components/Modal";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
+import { feedbackPowerUp, feedbackFireball, feedbackPipe, feedbackBump } from "../utils/haptics";
 import "./InvestmentsManagementPage.css";
 
 interface InvestmentsManagementPageProps {
@@ -139,9 +140,11 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
         }
       }
       invalidateDashboardCache();
+      feedbackPowerUp();
       // Non-blocking refresh in background
       setTimeout(() => loadInvestments(), 100);
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message);
       if (editingId) {
         // Rollback on error
@@ -173,8 +176,10 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
         setInvestments(prev => prev.filter(inv => inv.id !== id));
         await api.deleteInvestment(token, id);
         invalidateDashboardCache();
+        feedbackFireball();
         loadInvestments();
       } catch (e: any) {
+        feedbackBump();
         showAlert(e.message);
         loadInvestments();
       }
@@ -195,8 +200,10 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
         await api.resumeInvestment(token, inv.id);
       }
       invalidateDashboardCache();
+      feedbackPipe();
       loadInvestments();
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message);
     }
   };

@@ -14,6 +14,7 @@ import { EmptyState } from "../components/EmptyState";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { Modal } from "../components/Modal";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
+import { feedbackPowerUp, feedbackOneUp, feedbackFireball, feedbackPipe, feedbackBump } from "../utils/haptics";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import "./FutureBombsPage.css";
@@ -478,7 +479,9 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       }
 
       invalidateDashboardCache();
+      feedbackPowerUp();
     } catch (e: any) {
+      feedbackBump();
       showAlert("Failed to save: " + e.message);
       // Revert on failure — reload from server
       loadData();
@@ -492,7 +495,9 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       try {
         await api.deleteFutureBomb(token, bomb.id);
         invalidateDashboardCache();
+        feedbackFireball();
       } catch (e: any) {
+        feedbackBump();
         showAlert("Failed to delete: " + e.message);
         setBombs(prevBombs); // rollback
       }
@@ -514,7 +519,9 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
             await api.pauseInvestment(token, s.id);
           }
           invalidateDashboardCache();
+          feedbackPipe();
         } catch (e: any) {
+          feedbackBump();
           showAlert("Failed to pause investments: " + e.message);
           loadData(); // background reload
         }
@@ -533,7 +540,9 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
       await api.updateFutureBomb(token, bomb.id, { saved_amount: val });
       invalidateDashboardCache();
       loadData(); // background refresh
+      feedbackPowerUp();
     } catch (e: any) {
+      feedbackBump();
       showAlert("Failed to update: " + e.message);
       loadData(); // rollback by reloading
     }
@@ -572,7 +581,9 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
 
           invalidateDashboardCache();
           loadData(); // background refresh for consistency
+          feedbackOneUp();
         } catch (e: any) {
+          feedbackBump();
           showAlert("Failed to apply withdrawal: " + e.message);
           loadData(); // rollback by reloading
         }

@@ -18,6 +18,7 @@ import { TrendIndicator } from "../components/TrendIndicator";
 import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
+import { feedbackCoin, feedbackBump } from "../utils/haptics";
 import { ClientCache } from "../utils/cache";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
@@ -620,9 +621,11 @@ export function DashboardPage({ token }: DashboardPageProps) {
       setQuickAddJustification("");
       setQuickAddSubcategory("");
       setQuickAddCardId("");
+      feedbackCoin();
       showAlert("Expense added successfully!", "Success");
       await loadData(true);
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message || "Failed to add expense");
     }
   };

@@ -14,7 +14,7 @@ import { ClientCache } from "../utils/cache";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
-import { hapticError } from "../utils/haptics";
+import { feedbackPowerUp, feedbackFireball, feedbackBump } from "../utils/haptics";
 import "./FixedExpensesPage.css";
 
 interface FixedExpensesPageProps {
@@ -145,8 +145,10 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       }
       // Invalidate dashboard cache and background refresh
       invalidateDashboardCache();
+      feedbackPowerUp();
       loadExpenses();
     } catch (e: any) {
+      feedbackBump();
       showAlert(e.message);
       // Rollback on error
       if (editingId) {
@@ -184,7 +186,9 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       await api.updateFixedExpense(token, walletModal.expenseId, { accumulated_funds: amount });
       invalidateDashboardCache();
       loadExpenses().catch(console.error);
+      feedbackPowerUp();
     } catch (e: any) {
+      feedbackBump();
       loadExpenses().catch(console.error);
       showAlert("Failed to update: " + e.message);
     }
@@ -196,10 +200,11 @@ export function FixedExpensesPage({ token }: FixedExpensesPageProps) {
       setExpenses(prev => prev.filter(e => e.id !== id)); // optimistic removal
       try {
         await api.deleteFixedExpense(token, id);
-        hapticError(element);
+        feedbackFireball(element);
         invalidateDashboardCache();
         loadExpenses(); // background refresh
       } catch (e: any) {
+        feedbackBump();
         showAlert(e.message);
         setExpenses(prevExpenses); // rollback
       }

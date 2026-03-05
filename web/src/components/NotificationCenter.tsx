@@ -102,8 +102,13 @@ export function NotificationCenter({ token }: NotificationCenterProps) {
       markAsRead([notification.id]);
     }
     
-    if (notification.actionUrl) {
-      navigate(notification.actionUrl);
+    let url = notification.actionUrl;
+    const isSharingType = ['sharing_request', 'sharing_accepted', 'sharing_rejected'].includes(notification.type);
+    if (url === '/sharing' || (isSharingType && (!url || url === '/sharing'))) {
+      url = '/settings/sharing';
+    }
+    if (url) {
+      navigate(url);
       setIsOpen(false);
     }
   };

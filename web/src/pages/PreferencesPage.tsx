@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCog, FaCalendar, FaMoneyBillWave, FaClock, FaSave, FaExclamationTriangle } from "react-icons/fa";
+import { FaCog, FaCalendar, FaMoneyBillWave, FaClock, FaSave, FaExclamationTriangle, FaVolumeUp, FaVolumeMute } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
+import { soundCoin } from "../utils/sounds";
+import { feedbackPowerUp, feedbackBump } from "../utils/haptics";
 import "./PreferencesPage.css";
 
 interface PreferencesPageProps {
@@ -17,6 +19,9 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
   const { modal, showAlert, closeModal, confirmAndClose } = useAppModal();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() =>
+    localStorage.getItem('finflow_sound_enabled') !== 'false'
+  );
   const [preferences, setPreferences] = useState({
     monthStartDay: 1,
     currency: "INR",
@@ -43,9 +48,11 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
     setSaving(true);
     try {
       await api.updateUserPreferences(token, preferences);
+      feedbackPowerUp();
       showAlert("Preferences saved successfully! Your billing cycle will be updated.", "Success");
       navigate("/settings");
     } catch (e: any) {
+      feedbackBump();
       showAlert("Failed to save preferences: " + e.message);
     } finally {
       setSaving(false);
@@ -139,6 +146,28 @@ export function PreferencesPage({ token }: PreferencesPageProps) {
                 <option value="Europe/London">UK (Europe/London)</option>
                 <option value="Asia/Tokyo">Japan (Asia/Tokyo)</option>
               </select>
+            </div>
+          </div>
+
+          <div className="preference-card">
+            <h2>{soundEnabled ? <FaVolumeUp style={{ marginRight: 8, verticalAlign: 'middle' }} /> : <FaVolumeMute style={{ marginRight: 8, verticalAlign: 'middle' }} />} Sound Effects</h2>
+            <p className="preference-description">
+              Mario-themed 8-bit sounds play when you pay dues, add expenses, delete items, and more.
+            </p>
+            <div className="sound-toggle-row">
+              <span className="sound-toggle-label">{soundEnabled ? 'Sound ON' : 'Sound OFF'}</span>
+              <button
+                className={`sound-toggle-btn ${soundEnabled ? 'on' : 'off'}`}
+                onClick={() => {
+                  const next = !soundEnabled;
+                  setSoundEnabled(next);
+                  localStorage.setItem('finflow_sound_enabled', String(next));
+                  if (next) soundCoin();
+                }}
+                aria-label={soundEnabled ? 'Disable sounds' : 'Enable sounds'}
+              >
+                <span className="sound-toggle-knob" />
+              </button>
             </div>
           </div>
 

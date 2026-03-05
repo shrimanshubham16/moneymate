@@ -11,7 +11,7 @@ import { Modal } from "../components/Modal";
 import { invalidateDashboardCache } from "../utils/cacheInvalidation";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
-import { hapticSuccess } from "../utils/haptics";
+import { hapticSuccess, feedbackPipe, feedbackBump } from "../utils/haptics";
 import "./SIPExpensesPage.css";
 
 interface SIPExpensesPageProps {
@@ -78,6 +78,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
       invalidateDashboardCache();
       loadSIPExpenses().catch(console.error);
     } catch (e: any) {
+      feedbackBump();
       loadSIPExpenses().catch(console.error);
       showAlert("Failed to update: " + e.message);
     }
@@ -96,8 +97,10 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
           setSipExpenses(prev => prev.map(s => s.id === sip.id ? { ...s, isSkipped: true } : s));
           await api.skipSIP(token, sip.id);
           invalidateDashboardCache();
+          feedbackPipe();
           loadSIPExpenses();
         } catch (e: any) {
+          feedbackBump();
           loadSIPExpenses();
           showAlert("Failed to skip: " + e.message);
         }
@@ -111,8 +114,10 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
       setSipExpenses(prev => prev.map(s => s.id === sip.id ? { ...s, isSkipped: false } : s));
       await api.undoSkipSIP(token, sip.id);
       invalidateDashboardCache();
+      feedbackPipe();
       loadSIPExpenses();
     } catch (e: any) {
+      feedbackBump();
       loadSIPExpenses();
       showAlert("Failed to undo skip: " + e.message);
     }

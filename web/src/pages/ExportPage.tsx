@@ -8,6 +8,7 @@ import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { feedbackStar, feedbackBump } from "../utils/haptics";
 import "./ExportPage.css";
 
 interface ExportPageProps {
@@ -427,8 +428,10 @@ export function ExportPage({ token }: ExportPageProps) {
       const blob = new Blob([wbout], { type: "application/octet-stream" });
       saveAs(blob, `finflow-export-${new Date().toISOString().split('T')[0]}.xlsx`);
 
+      feedbackStar();
       showAlert("Excel export successful! Check your downloads folder.", "Success");
     } catch (e: any) {
+      feedbackBump();
       setError(e.message || "Export failed");
     } finally {
       setExporting(false);

@@ -6,6 +6,7 @@ import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import { PageInfoButton } from "../components/PageInfoButton";
+import { feedbackStar, feedbackPipe, feedbackBump } from "../utils/haptics";
 import "./SharingPage.css";
 
 interface SharingPageProps {
@@ -56,9 +57,11 @@ export function SharingPage({ token }: SharingPageProps) {
           });
           setShowInviteForm(false);
           setInviteForm({ username: "" });
+          feedbackStar();
           showAlert("Invite sent! They'll see your request when they visit their Sharing page.", "Invite Sent");
           await loadData();
         } catch (err: any) {
+          feedbackBump();
           showAlert(err.message);
         }
       },
@@ -72,9 +75,11 @@ export function SharingPage({ token }: SharingPageProps) {
       async () => {
         try {
           await api.approveRequest(token, id);
+          feedbackStar();
           showAlert("Request approved! Switch to the Combined view on your Dashboard to see merged finances.", "Success");
           await loadData();
         } catch (err: any) {
+          feedbackBump();
           showAlert(err.message);
         }
       },
@@ -88,9 +93,11 @@ export function SharingPage({ token }: SharingPageProps) {
       async () => {
         try {
           await api.rejectRequest(token, id);
+          feedbackPipe();
           showAlert("Request declined.", "Done");
           await loadData();
         } catch (err: any) {
+          feedbackBump();
           showAlert(err.message);
         }
       },
@@ -104,9 +111,11 @@ export function SharingPage({ token }: SharingPageProps) {
       async () => {
         try {
           await api.cancelSharingRequest(token, id);
+          feedbackPipe();
           showAlert("Invite withdrawn.", "Done");
           await loadData();
         } catch (err: any) {
+          feedbackBump();
           showAlert(err.message);
         }
       },
@@ -120,9 +129,11 @@ export function SharingPage({ token }: SharingPageProps) {
       async () => {
         try {
           await api.revokeSharing(token, sharedAccountId);
+          feedbackPipe();
           showAlert("Sharing revoked. The combined view has been removed.", "Sharing Ended");
           await loadData();
         } catch (err: any) {
+          feedbackBump();
           showAlert(err.message);
         }
       },
