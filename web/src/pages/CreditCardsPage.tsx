@@ -105,12 +105,12 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
   })();
 
   // Compute summary stats (use ownCards for own totals)
-  const totalBill = ownCards.reduce((sum, c) => sum + (parseFloat(c.billAmount) || 0), 0);
+  const totalBill = ownCards.reduce((sum, c) => sum + (parseFloat(c.billAmount || c.bill_amount) || 0), 0);
   const totalPaid = ownCards.reduce((sum, c) => sum + (parseFloat(c.paidAmount) || 0), 0);
   const totalRemaining = totalBill - totalPaid;
   const totalUnbilled = ownCards.reduce((sum, c) => sum + (parseFloat(c.currentExpenses) || 0), 0);
   const overdueCount = ownCards.filter(c => {
-    const remaining = (parseFloat(c.billAmount) || 0) - (parseFloat(c.paidAmount) || 0);
+    const remaining = (parseFloat(c.billAmount || c.bill_amount) || 0) - (parseFloat(c.paidAmount || c.paid_amount) || 0);
     return new Date(c.dueDate) < new Date() && remaining > 0;
   }).length;
 
@@ -198,7 +198,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
                     <select value={selectedCard || ""} onChange={(e) => setSelectedCard(e.target.value)} required>
                       <option value="">Choose a card...</option>
                       {ownCards.map(c => {
-                        const rem = (parseFloat(c.billAmount) || 0) - (parseFloat(c.paidAmount) || 0);
+                        const rem = (parseFloat(c.billAmount || c.bill_amount) || 0) - (parseFloat(c.paidAmount || c.paid_amount) || 0);
                         return (
                           <option key={c.id} value={c.id}>
                             {c.name} — ₹{rem.toLocaleString("en-IN")} remaining
@@ -276,8 +276,8 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
         <div className="cards-grid">
           {displayCards.map((card, index) => {
             const isPartnerCard = !!card.isSharedCard;
-            const bill = parseFloat(card.billAmount) || 0;
-            const paid = parseFloat(card.paidAmount) || 0;
+            const bill = parseFloat(card.billAmount || card.bill_amount) || 0;
+            const paid = parseFloat(card.paidAmount || card.paid_amount) || 0;
             const remaining = Math.max(0, bill - paid);
             const unbilled = parseFloat(card.currentExpenses) || 0;
             const dueDate = new Date(card.dueDate);

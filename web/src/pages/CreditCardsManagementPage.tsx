@@ -364,7 +364,9 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
           ) : (
             <div className="cards-list">
               {cards.filter(c => !c.isSharedCard).map((card) => {
-                const remaining = card.billAmount - card.paidAmount;
+                const billAmt = card.billAmount || card.bill_amount || 0;
+                const paidAmt = card.paidAmount || card.paid_amount || 0;
+                const remaining = billAmt - paidAmt;
                 const isMenuOpen = openMenuId === card.id;
                 return (
                   <div key={card.id} className="card-item">
@@ -407,11 +409,11 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       )}
                       <div className="detail-row">
                         <span>Bill Amount</span>
-                        <span className="amount">₹{(card.billAmount || 0).toLocaleString("en-IN")}</span>
+                        <span className="amount">₹{billAmt.toLocaleString("en-IN")}</span>
                       </div>
                       <div className="detail-row">
                         <span>Paid Amount</span>
-                        <span className="amount" style={{ color: '#10b981' }}>₹{(parseFloat(card.paidAmount || 0)).toLocaleString("en-IN")}</span>
+                        <span className="amount" style={{ color: '#10b981' }}>₹{paidAmt.toLocaleString("en-IN")}</span>
                       </div>
                       <div className="detail-row">
                         <span>Remaining</span>
@@ -453,7 +455,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                     <div className="ccm-card-actions">
                       <button
                         className="ccm-card-action-btn ccm-action-bill"
-                        onClick={() => { setSelectedCardId(card.id); setUpdateBillForm({ billAmount: (card.billAmount || 0).toString() }); setShowUpdateBillModal(true); }}
+                        onClick={() => { setSelectedCardId(card.id); setUpdateBillForm({ billAmount: billAmt.toString() }); setShowUpdateBillModal(true); }}
                       >
                         <FaEdit size={13} /> Update Bill
                       </button>

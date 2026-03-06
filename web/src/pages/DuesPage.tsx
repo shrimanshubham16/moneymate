@@ -173,7 +173,9 @@ export function DuesPage({ token }: DuesPageProps) {
       // Credit card dues (current billing period) — skip partner's shared cards (covered by aggregate)
       cardsRes.data.forEach((card: any) => {
         if (card.isSharedCard) return;
-        const remaining = card.billAmount - card.paidAmount;
+        const cardBill = parseFloat(card.billAmount || card.bill_amount) || 0;
+        const cardPaid = parseFloat(card.paidAmount || card.paid_amount) || 0;
+        const remaining = cardBill - cardPaid;
         if (remaining > 0) {
           const dueDate = new Date(card.dueDate);
           
@@ -197,8 +199,8 @@ export function DuesPage({ token }: DuesPageProps) {
               amount: remaining,
               dueDate: card.dueDate,
               paid: false,
-              partialPaid: card.paidAmount,
-              total: card.billAmount,
+              partialPaid: cardPaid,
+              total: cardBill,
               userId: card.userId || card.user_id
             });
             total += remaining;

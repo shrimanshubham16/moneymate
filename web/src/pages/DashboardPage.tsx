@@ -151,8 +151,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
     // Credit card dues: only count cards the current user OWNS (exclude partner's shared cards to avoid double-counting with sharedCreditCardDues from aggregates)
     // For specific user view, skip own cards entirely — we're viewing another user's health
     const ownCcDues = isSpecificUserView ? 0 : (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
-      const billAmount = parseFloat(c.billAmount ?? 0);
-      const paidAmount = parseFloat(c.paidAmount ?? 0);
+      const billAmount = parseFloat(c.billAmount || c.bill_amount) || 0;
+      const paidAmount = parseFloat(c.paidAmount || c.paid_amount) || 0;
       const remaining = Math.max(0, billAmount - paidAmount);
       return sum + remaining;
     }, 0);
@@ -660,7 +660,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const unpaidInv = data.investments?.filter((i: any) => !i.paid && (i.status === 'active' || !i.status))
       .reduce((s: number, i: any) => s + (i.monthlyAmount || 0), 0) || 0;
     const ccDues = (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((s: number, c: any) => {
-      const remaining = parseFloat(c.billAmount || 0) - parseFloat(c.paidAmount || 0);
+      const remaining = (parseFloat(c.billAmount || c.bill_amount) || 0) - (parseFloat(c.paidAmount || c.paid_amount) || 0);
       if (remaining > 0) {
         const d = new Date(c.dueDate); const now = new Date();
         if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) return s + remaining;
@@ -704,8 +704,8 @@ export function DashboardPage({ token }: DashboardPageProps) {
       .filter((i: any) => i.status === 'active')
       .reduce((s: number, i: any) => s + (parseFloat(i.monthlyAmount) || 0), 0);
     const totalCC = (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((s: number, c: any) => {
-      const bill = parseFloat(c.billAmount ?? 0);
-      const paid = parseFloat(c.paidAmount ?? 0);
+      const bill = parseFloat(c.billAmount || c.bill_amount) || 0;
+      const paid = parseFloat(c.paidAmount || c.paid_amount) || 0;
       return s + Math.max(0, bill - paid);
     }, 0);
     const net = totalIncome - totalFixed - totalVariable - totalInvestments - totalCC;
@@ -1016,7 +1016,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         <DashboardWidget
           title="Credit Cards"
           value={creditCards.length}
-          subtitle={`${currSym}${(creditCards || []).reduce((s: number, c: any) => s + (parseFloat(c.billAmount || 0)), 0).toLocaleString("en-IN")} total bills`}
+          subtitle={`${currSym}${(creditCards || []).reduce((s: number, c: any) => s + (parseFloat(c.billAmount || c.bill_amount) || 0), 0).toLocaleString("en-IN")} total bills`}
           icon={<FaCreditCard />}
           onClick={() => navigate("/credit-cards")}
           color="#ef4444"

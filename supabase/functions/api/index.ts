@@ -2868,7 +2868,10 @@ serve(async (req) => {
       if (cardErr || !card) return error('Credit card not found', 404);
       if (body.billAmount === undefined || body.billAmount < 0) return error('billAmount must be a nonnegative number', 400);
       const billAmountToStore = await isE2EUser() ? 0 : Math.round(body.billAmount * 100) / 100;
-      const { data, error: e } = await supabase.from('credit_cards').update({ bill_amount: billAmountToStore, needs_bill_update: false }).eq('id', id).select().single();
+      const updatePayload: any = { bill_amount: billAmountToStore, needs_bill_update: false };
+      if (body.bill_amount_enc) updatePayload.bill_amount_enc = body.bill_amount_enc;
+      if (body.bill_amount_iv) updatePayload.bill_amount_iv = body.bill_amount_iv;
+      const { data, error: e } = await supabase.from('credit_cards').update(updatePayload).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'updated_bill', { id: data.id, billAmount: data.bill_amount });
       await invalidateUserCache(userId);

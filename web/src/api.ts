@@ -516,10 +516,13 @@ export async function getCreditCardUsage(token: string, cardId: string) {
 }
 
 // v1.2: Update credit card bill amount
-export async function updateCreditCardBill(token: string, cardId: string, billAmount: number) {
+export async function updateCreditCardBill(token: string, cardId: string, billAmount: number, cryptoKey?: CryptoKey) {
+  const rounded = Math.round(billAmount * 100) / 100;
+  const payload: any = { billAmount: rounded, bill_amount: rounded };
+  const body = await buildBody(payload, cryptoKey);
   return request<{ data: any }>(`/debts/credit-cards/${cardId}`, { 
     method: "PATCH", 
-    body: JSON.stringify({ billAmount: Math.round(billAmount * 100) / 100 }) 
+    body
   }, token);
 }
 
