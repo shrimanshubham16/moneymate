@@ -2770,8 +2770,9 @@ serve(async (req) => {
       if (body.paid_amount_enc) insertData.paid_amount_enc = body.paid_amount_enc;
       if (body.paid_amount_iv) insertData.paid_amount_iv = body.paid_amount_iv;
 
-      // E2E: zero plaintext amounts at rest
-      if (await isE2EUser()) {
+      // E2E: zero plaintext amounts at rest (shared cards keep plaintext — no encryption)
+      const isE2E = await isE2EUser();
+      if (isE2E && !insertData.is_shared) {
         insertData.bill_amount = 0;
         insertData.paid_amount = 0;
       }
@@ -2781,25 +2782,27 @@ serve(async (req) => {
       if (e) return error(e.message, 500);
 
       // If paidAmount provided, update it
-      if (body.paidAmount !== undefined && body.paidAmount > 0) {
-        const paidToStore = await isE2EUser() ? 0 : body.paidAmount;
+      if (body.paidAmount !== undefined && body.paidAmount > 0 && !(isE2E && !insertData.is_shared)) {
         await supabase.from('credit_cards')
-          .update({ paid_amount: paidToStore })
+          .update({ paid_amount: body.paidAmount })
           .eq('id', data.id);
       }
 
-      // E2E: Include encrypted fields in activity for frontend decryption
+      const actualBill = body.billAmount ?? 0;
+      const actualPaid = body.paidAmount ?? 0;
       await logActivity(userId, 'credit_card', 'created', {
         id: data.id,
         name: data.name,
         name_enc: data.name_enc,
         name_iv: data.name_iv,
-        billAmount: data.bill_amount,
+        billAmount: actualBill,
         bill_amount_enc: data.bill_amount_enc,
         bill_amount_iv: data.bill_amount_iv
       });
       await invalidateUserCache(userId);
-      return json({ data: transformCreditCard(data) }, 201);
+      // E2E non-shared: return actual amounts (DB stores 0, client decrypts from encrypted fields)
+      const toReturn = (isE2E && !insertData.is_shared) ? { ...data, bill_amount: actualBill, paid_amount: actualPaid } : data;
+      return json({ data: transformCreditCard(toReturn) }, 201);
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'PUT') {
       const id = path.split('/').pop();
@@ -2828,8 +2831,17 @@ serve(async (req) => {
       if (body.paid_amount_enc) updates.paid_amount_enc = body.paid_amount_enc;
       if (body.paid_amount_iv) updates.paid_amount_iv = body.paid_amount_iv;
 
-      // E2E: zero plaintext amounts at rest
-      if (await isE2EUser()) {
+      // E2E: zero plaintext amounts at rest for non-shared cards only
+      const isE2E = await isE2EUser();
+      // Determine shared status: check update payload, then load existing card
+      let isSharedCard = updates.is_shared;
+      if (isSharedCard === undefined) {
+        const { data: existingCard } = await supabase.from('credit_cards').select('is_shared').eq('id', id).eq('user_id', userId).single();
+        isSharedCard = existingCard?.is_shared;
+      }
+      const actualBill = updates.bill_amount;
+      const actualPaid = updates.paid_amount;
+      if (isE2E && !isSharedCard) {
         if (updates.bill_amount !== undefined) updates.bill_amount = 0;
         if (updates.paid_amount !== undefined) updates.paid_amount = 0;
       }
@@ -2837,20 +2849,35 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('credit_cards').update(updates).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
       if (!data) return error('Credit card not found', 404);
-      return json({ data: transformCreditCard(data) });
+      // E2E non-shared: return actual amounts in response
+      const toReturn = (isE2E && !isSharedCard) ? {
+        ...data,
+        ...(actualBill !== undefined ? { bill_amount: actualBill } : {}),
+        ...(actualPaid !== undefined ? { paid_amount: actualPaid } : {})
+      } : data;
+      return json({ data: transformCreditCard(toReturn) });
     }
     if (path.match(/\/debts\/credit-cards\/[^/]+\/payments$/) && method === 'POST') {
       const id = path.split('/')[3];
       const body = await req.json();
       const { data: card, error: cardErr } = await supabase.from('credit_cards').select('*').eq('id', id).eq('user_id', userId).single();
       if (cardErr || !card) return error('Credit card not found', 404);
-      const newPaidAmount = (card.paid_amount || 0) + (body.amount || 0);
-      const paidToStore = await isE2EUser() ? 0 : newPaidAmount;
-      const { data, error: e } = await supabase.from('credit_cards').update({ paid_amount: paidToStore }).eq('id', id).select().single();
+      const isE2E = await isE2EUser();
+      const isSharedCard = card.is_shared;
+      // E2E non-shared: client sends newTotalPaid since server can't read encrypted paid_amount
+      // Shared cards: server has real paid_amount, so use server-side addition
+      const newPaidAmount = (isE2E && !isSharedCard && body.newTotalPaid !== undefined)
+        ? body.newTotalPaid
+        : (card.paid_amount || 0) + (body.amount || 0);
+      const paidToStore = (isE2E && !isSharedCard) ? 0 : newPaidAmount;
+      const updatePayload: any = { paid_amount: paidToStore };
+      if (body.paid_amount_enc) updatePayload.paid_amount_enc = body.paid_amount_enc;
+      if (body.paid_amount_iv) updatePayload.paid_amount_iv = body.paid_amount_iv;
+      const { data, error: e } = await supabase.from('credit_cards').update(updatePayload).eq('id', id).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'payment', { id: data.id, amount: body.amount });
       await invalidateUserCache(userId);
-      const toReturn = paidToStore === 0 ? { ...data, paid_amount: newPaidAmount } : data;
+      const toReturn = (paidToStore === 0) ? { ...data, paid_amount: newPaidAmount } : data;
       return json({ data: transformCreditCard(toReturn) });
     }
     if (path.match(/\/debts\/credit-cards\/[^/]+\/reset-billing$/) && method === 'POST') {
@@ -2867,15 +2894,19 @@ serve(async (req) => {
       const { data: card, error: cardErr } = await supabase.from('credit_cards').select('*').eq('id', id).eq('user_id', userId).single();
       if (cardErr || !card) return error('Credit card not found', 404);
       if (body.billAmount === undefined || body.billAmount < 0) return error('billAmount must be a nonnegative number', 400);
-      const billAmountToStore = await isE2EUser() ? 0 : Math.round(body.billAmount * 100) / 100;
+      const isE2E = await isE2EUser();
+      const isSharedCard = card.is_shared;
+      const actualBillAmount = Math.round(body.billAmount * 100) / 100;
+      const billAmountToStore = (isE2E && !isSharedCard) ? 0 : actualBillAmount;
       const updatePayload: any = { bill_amount: billAmountToStore, needs_bill_update: false };
       if (body.bill_amount_enc) updatePayload.bill_amount_enc = body.bill_amount_enc;
       if (body.bill_amount_iv) updatePayload.bill_amount_iv = body.bill_amount_iv;
       const { data, error: e } = await supabase.from('credit_cards').update(updatePayload).eq('id', id).select().single();
       if (e) return error(e.message, 500);
-      await logActivity(userId, 'credit_card', 'updated_bill', { id: data.id, billAmount: data.bill_amount });
+      await logActivity(userId, 'credit_card', 'updated_bill', { id: data.id, billAmount: actualBillAmount });
       await invalidateUserCache(userId);
-      return json({ data: transformCreditCard(data) });
+      const toReturn = (isE2E && !isSharedCard) ? { ...data, bill_amount: actualBillAmount } : data;
+      return json({ data: transformCreditCard(toReturn) });
     }
     if (path.startsWith('/debts/credit-cards/') && method === 'DELETE') {
       const id = path.split('/').pop();

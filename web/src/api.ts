@@ -483,22 +483,32 @@ export async function fetchCreditCards(token: string, cryptoKey?: CryptoKey) {
 // Shared cards must NOT encrypt the name — partner needs to read it in plaintext
 export async function createCreditCard(token: string, payload: { name: string; billAmount?: number; paidAmount?: number; dueDate: string; billingDate?: number; isShared?: boolean }, cryptoKey?: CryptoKey) {
   const effectiveKey = (payload as any).isShared ? undefined : cryptoKey;
-  const body = await buildBody(payload, effectiveKey);
-  return request<{ data: any }>("/debts/credit-cards", { method: "POST", body }, token);
+  // Include snake_case amount fields so they get encrypted (camelCase not in SENSITIVE_FIELDS)
+  const encPayload: any = { ...payload };
+  if (payload.billAmount !== undefined) encPayload.bill_amount = payload.billAmount;
+  if (payload.paidAmount !== undefined) encPayload.paid_amount = payload.paidAmount;
+  const body = await buildBody(encPayload, effectiveKey);
+  return request<{ data: any }>("/debts/credit-cards", { method: "POST", body }, token, effectiveKey);
 }
 
 export async function updateCreditCard(token: string, id: string, payload: { name?: string; billAmount?: number; paidAmount?: number; dueDate?: string; billingDate?: number; isShared?: boolean }, cryptoKey?: CryptoKey) {
   const effectiveKey = (payload as any).isShared ? undefined : cryptoKey;
-  const body = await buildBody(payload, effectiveKey);
-  return request<{ data: any }>(`/debts/credit-cards/${id}`, { method: "PUT", body }, token);
+  const encPayload: any = { ...payload };
+  if (payload.billAmount !== undefined) encPayload.bill_amount = payload.billAmount;
+  if (payload.paidAmount !== undefined) encPayload.paid_amount = payload.paidAmount;
+  const body = await buildBody(encPayload, effectiveKey);
+  return request<{ data: any }>(`/debts/credit-cards/${id}`, { method: "PUT", body }, token, effectiveKey);
 }
 
 export async function deleteCreditCard(token: string, id: string) {
   return request<{ data: any }>(`/debts/credit-cards/${id}`, { method: "DELETE" }, token);
 }
 
-export async function payCreditCard(token: string, id: string, amount: number) {
-  return request<{ data: any }>(`/debts/credit-cards/${id}/payments`, { method: "POST", body: JSON.stringify({ amount }) }, token);
+export async function payCreditCard(token: string, id: string, amount: number, currentPaidTotal?: number, cryptoKey?: CryptoKey) {
+  const newTotal = (currentPaidTotal || 0) + amount;
+  const payload: any = { amount, newTotalPaid: newTotal, paid_amount: newTotal };
+  const body = await buildBody(payload, cryptoKey);
+  return request<{ data: any }>(`/debts/credit-cards/${id}/payments`, { method: "POST", body }, token, cryptoKey);
 }
 
 // v1.2: Credit card billing functions
@@ -523,7 +533,7 @@ export async function updateCreditCardBill(token: string, cardId: string, billAm
   return request<{ data: any }>(`/debts/credit-cards/${cardId}`, { 
     method: "PATCH", 
     body
-  }, token);
+  }, token, cryptoKey);
 }
 
 export async function fetchLoans(token: string, cryptoKey?: CryptoKey) {

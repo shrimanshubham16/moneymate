@@ -189,8 +189,8 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
         showAlert("Please enter a valid bill amount");
         return;
       }
-      // Optimistic update
-      setCards(prev => prev.map(c => c.id === cardId ? { ...c, billAmount: amount } : c));
+      // Optimistic update — set both camelCase and snake_case for display fallback
+      setCards(prev => prev.map(c => c.id === cardId ? { ...c, billAmount: amount, bill_amount: amount } : c));
       setShowUpdateBillModal(false);
       setUpdateBillForm({ billAmount: "" });
       setSelectedCardId(null);

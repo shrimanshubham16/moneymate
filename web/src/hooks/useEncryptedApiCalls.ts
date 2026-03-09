@@ -92,8 +92,8 @@ export function useEncryptedApiCalls() {
       baseApi.updateCreditCardBill(token, id, billAmount, key || undefined),
     resetCreditCardBilling: (token: string, id: string) => 
       baseApi.resetCreditCardBilling(token, id),
-    payCreditCard: (token: string, id: string, amount: number) =>
-      baseApi.payCreditCard(token, id, amount),
+    payCreditCard: (token: string, id: string, amount: number, currentPaidTotal?: number) =>
+      baseApi.payCreditCard(token, id, amount, currentPaidTotal, key || undefined),
     getBillingAlerts: (token: string) =>
       baseApi.getBillingAlerts(token),
     getCreditCardUsage: (token: string, cardId: string) =>
