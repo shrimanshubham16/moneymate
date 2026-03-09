@@ -119,3 +119,85 @@ export async function hashRecoveryKey(mnemonic: string): Promise<string> {
   return toBase64(new Uint8Array(digest));
 }
 
+// ── Key Wrapping (KEK-based recovery-safe encryption) ──
+
+/**
+ * Generate a random 256-bit AES-GCM master key (KEK).
+ * Unlike deriveKey, this is not tied to any password.
+ */
+export async function generateMasterKey(): Promise<CryptoKey> {
+  return crypto.subtle.generateKey(
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"]
+  );
+}
+
+/**
+ * Export a CryptoKey to base64 string (raw format).
+ */
+export async function exportKeyRaw(key: CryptoKey): Promise<string> {
+  const raw = await crypto.subtle.exportKey("raw", key);
+  return toBase64(new Uint8Array(raw));
+}
+
+/**
+ * Import a CryptoKey from base64 string (raw format).
+ */
+export async function importKeyRaw(b64: string): Promise<CryptoKey> {
+  const raw = fromBase64(b64);
+  return crypto.subtle.importKey(
+    "raw",
+    raw,
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"]
+  );
+}
+
+/**
+ * Wrap (encrypt) a master key with a wrapping key using AES-GCM.
+ * Returns base64 ciphertext + iv.
+ */
+export async function wrapKey(
+  masterKey: CryptoKey,
+  wrappingKey: CryptoKey
+): Promise<{ ciphertext: string; iv: string }> {
+  const rawKey = await crypto.subtle.exportKey("raw", masterKey);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const wrapped = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    wrappingKey,
+    rawKey
+  );
+  return {
+    ciphertext: toBase64(new Uint8Array(wrapped)),
+    iv: toBase64(iv),
+  };
+}
+
+/**
+ * Unwrap (decrypt) a master key using a wrapping key.
+ * Returns the original CryptoKey.
+ */
+export async function unwrapKey(
+  ciphertext: string,
+  iv: string,
+  wrappingKey: CryptoKey
+): Promise<CryptoKey> {
+  const encBytes = fromBase64(ciphertext);
+  const ivBytes = fromBase64(iv);
+  const rawKey = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: ivBytes },
+    wrappingKey,
+    encBytes
+  );
+  return crypto.subtle.importKey(
+    "raw",
+    rawKey,
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"]
+  );
+}
+

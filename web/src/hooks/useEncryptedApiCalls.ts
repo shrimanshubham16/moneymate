@@ -203,6 +203,10 @@ export function useEncryptedApiCalls() {
     // Avatar
     updateAvatarUrl: (token: string, avatarUrl: string) =>
       baseApi.updateAvatarUrl(token, avatarUrl),
+
+    // Key wrapping
+    updateWrappedKeys: (token: string, payload: Parameters<typeof baseApi.updateWrappedKeys>[1]) =>
+      baseApi.updateWrappedKeys(token, payload),
   };
 }
 

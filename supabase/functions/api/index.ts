@@ -500,7 +500,9 @@ serve(async (req) => {
     // ========================================================================
 
     if (path === '/auth/signup' && method === 'POST') {
-      const { username, password, encryptionSalt, recoveryKeyHash } = await req.json();
+      const { username, password, encryptionSalt, recoveryKeyHash,
+              wrapSalt, wrappedKeyPassword, wrappedKeyPasswordIv,
+              wrappedKeyRecovery, wrappedKeyRecoveryIv } = await req.json();
 
       if (!username || !password) return error('Username and password required');
       if (username.length < 3 || username.length > 20) return error('Username must be 3-20 characters');
@@ -513,14 +515,22 @@ serve(async (req) => {
 
       // Create user
       const passwordHash = await hashPassword(password);
+      const insertData: any = {
+        username,
+        password_hash: passwordHash,
+        encryption_salt: encryptionSalt,
+        recovery_key_hash: recoveryKeyHash
+      };
+      // Key wrapping fields (new signups send these)
+      if (wrapSalt) insertData.wrap_salt = wrapSalt;
+      if (wrappedKeyPassword) insertData.wrapped_key_password = wrappedKeyPassword;
+      if (wrappedKeyPasswordIv) insertData.wrapped_key_password_iv = wrappedKeyPasswordIv;
+      if (wrappedKeyRecovery) insertData.wrapped_key_recovery = wrappedKeyRecovery;
+      if (wrappedKeyRecoveryIv) insertData.wrapped_key_recovery_iv = wrappedKeyRecoveryIv;
+
       const { data: user, error: insertErr } = await supabase
         .from('users')
-        .insert({
-          username,
-          password_hash: passwordHash,
-          encryption_salt: encryptionSalt,
-          recovery_key_hash: recoveryKeyHash
-        })
+        .insert(insertData)
         .select('id, username').single();
 
       if (insertErr) {
@@ -549,7 +559,7 @@ serve(async (req) => {
 
       const { data: user, error: userErr } = await supabase
         .from('users')
-        .select('id, recovery_key_hash, encryption_salt, password_hash')
+        .select('id, recovery_key_hash, encryption_salt, password_hash, wrap_salt, wrapped_key_recovery, wrapped_key_recovery_iv')
         .eq('username', username)
         .maybeSingle();
       if (userErr) return error('Database error', 500);
@@ -565,6 +575,8 @@ serve(async (req) => {
         return error('Invalid recovery key. Please check your 24-word recovery phrase.');
       }
 
+      // Don't update password_hash yet — client will call /auth/update-wrapped-keys
+      // with the new wrapped_key_password + new password_hash after unwrapping the KEK
       const newPasswordHash = await hashPassword(newPassword);
       await supabase.from('users').update({
         password_hash: newPasswordHash,
@@ -573,11 +585,18 @@ serve(async (req) => {
       }).eq('id', user.id);
 
       const token = await createToken(user.id, username);
-      return json({
+      const response: any = {
         message: 'Password reset via recovery key successful',
         access_token: token,
         encryption_salt: user.encryption_salt
-      });
+      };
+      // Include key-wrapping fields for recovery-safe unwrapping
+      if (user.wrap_salt && user.wrapped_key_recovery) {
+        response.wrap_salt = user.wrap_salt;
+        response.wrapped_key_recovery = user.wrapped_key_recovery;
+        response.wrapped_key_recovery_iv = user.wrapped_key_recovery_iv;
+      }
+      return json(response);
     }
 
     if (path === '/auth/login' && method === 'POST') {
@@ -587,7 +606,7 @@ serve(async (req) => {
 
         const { data: user, error: userErr } = await supabase
           .from('users')
-          .select('id, username, password_hash, encryption_salt, failed_login_attempts, account_locked_until')
+          .select('id, username, password_hash, encryption_salt, failed_login_attempts, account_locked_until, wrap_salt, wrapped_key_password, wrapped_key_password_iv')
           .eq('username', username).maybeSingle();
 
         if (userErr) {
@@ -633,14 +652,18 @@ serve(async (req) => {
         }
 
         const token = await createToken(user.id, user.username);
-        return json({
+        const response: any = {
           access_token: token,
-          user: {
-            id: user.id,
-            username: user.username
-          },
+          user: { id: user.id, username: user.username },
           encryption_salt: encryptionSalt
-        });
+        };
+        // Include key-wrapping fields if present
+        if (user.wrap_salt) {
+          response.wrap_salt = user.wrap_salt;
+          response.wrapped_key_password = user.wrapped_key_password;
+          response.wrapped_key_password_iv = user.wrapped_key_password_iv;
+        }
+        return json(response);
       } catch (loginErr) {
         console.error('Login error:', loginErr);
         return error('Login failed: ' + (loginErr as Error).message, 500);
@@ -2590,7 +2613,8 @@ serve(async (req) => {
 
     // CHANGE PASSWORD
     if (path === '/auth/change-password' && method === 'POST') {
-      const { currentPassword, newPassword } = await req.json();
+      const { currentPassword, newPassword,
+              wrappedKeyPassword, wrappedKeyPasswordIv } = await req.json();
 
       if (!currentPassword || !newPassword) {
         return error('Current password and new password are required', 400);
@@ -2625,10 +2649,16 @@ serve(async (req) => {
       // Hash new password
       const newPasswordHash = await hashPassword(newPassword);
 
-      // Update password in database
+      // Build update payload — include re-wrapped key if key-wrapping user
+      const updatePayload: any = { password_hash: newPasswordHash };
+      if (wrappedKeyPassword) {
+        updatePayload.wrapped_key_password = wrappedKeyPassword;
+        updatePayload.wrapped_key_password_iv = wrappedKeyPasswordIv;
+      }
+
       const { error: updateErr } = await supabase
         .from('users')
-        .update({ password_hash: newPasswordHash })
+        .update(updatePayload)
         .eq('id', userId);
 
       if (updateErr) {
@@ -2637,6 +2667,43 @@ serve(async (req) => {
       }
 
       return json({ message: 'Password updated successfully' });
+    }
+
+    // Update wrapped keys (silent migration, recovery re-wrap, enable recovery protection)
+    if (path === '/auth/update-wrapped-keys' && method === 'POST') {
+      const body = await req.json();
+      const updatePayload: any = {};
+
+      // If setting recovery wrapped key, verify the recovery hash matches
+      if (body.wrappedKeyRecovery && body.recoveryKeyHash) {
+        const { data: u } = await supabase.from('users').select('recovery_key_hash').eq('id', userId).single();
+        if (!u || u.recovery_key_hash !== body.recoveryKeyHash) {
+          return error('Recovery phrase does not match. Please check your 24 words.', 400);
+        }
+      }
+
+      if (body.wrapSalt) updatePayload.wrap_salt = body.wrapSalt;
+      if (body.wrappedKeyPassword) updatePayload.wrapped_key_password = body.wrappedKeyPassword;
+      if (body.wrappedKeyPasswordIv) updatePayload.wrapped_key_password_iv = body.wrappedKeyPasswordIv;
+      if (body.wrappedKeyRecovery) updatePayload.wrapped_key_recovery = body.wrappedKeyRecovery;
+      if (body.wrappedKeyRecoveryIv) updatePayload.wrapped_key_recovery_iv = body.wrappedKeyRecoveryIv;
+      if (body.passwordHash) updatePayload.password_hash = body.passwordHash;
+
+      if (Object.keys(updatePayload).length === 0) {
+        return error('No fields to update', 400);
+      }
+
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update(updatePayload)
+        .eq('id', userId);
+
+      if (updateErr) {
+        console.error('Update wrapped keys error:', updateErr);
+        return error('Failed to update wrapped keys', 500);
+      }
+
+      return json({ message: 'Wrapped keys updated successfully' });
     }
 
     // CREDIT CARDS

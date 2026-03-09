@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { recoverWithKey, login, fetchSalt } from "../api";
+import { recoverWithKey, fetchSalt, updateWrappedKeys } from "../api";
 import { useCrypto } from "../contexts/CryptoContext";
-import { deriveKey, saltFromBase64 } from "../lib/crypto";
+import { deriveKey, saltFromBase64, unwrapKey, wrapKey, generateSalt } from "../lib/crypto";
 import "./RecoveryPage.css";
 
 interface RecoveryPageProps {
@@ -41,11 +41,49 @@ export function RecoveryPage({ onBack }: RecoveryPageProps) {
     }
     setLoading(true);
     try {
-      const res = await recoverWithKey(username.trim(), recoveryKey.trim().toLowerCase(), newPassword);
+      const phraseNormalized = recoveryKey.trim().toLowerCase();
+      const res = await recoverWithKey(username.trim(), phraseNormalized, newPassword);
       const salt = res.encryption_salt || (await fetchSalt(username)).encryption_salt;
       if (!salt) throw new Error("Missing encryption salt");
-      const key = await deriveKey(newPassword, saltFromBase64(salt));
-      await cryptoCtx.setKey(key, salt);
+
+      let masterKey: CryptoKey;
+      let activeWrapSalt: string | undefined;
+
+      if (res.wrap_salt && res.wrapped_key_recovery && res.wrapped_key_recovery_iv) {
+        // Key-wrapping mode: unwrap KEK from recovery-wrapped blob
+        const recoveryWK = await deriveKey(phraseNormalized, saltFromBase64(salt));
+        masterKey = await unwrapKey(res.wrapped_key_recovery, res.wrapped_key_recovery_iv, recoveryWK);
+        activeWrapSalt = res.wrap_salt;
+
+        // Re-wrap KEK with the new password so future logins work
+        const passwordWK = await deriveKey(newPassword, saltFromBase64(res.wrap_salt));
+        const newWrappedPwd = await wrapKey(masterKey, passwordWK);
+        await updateWrappedKeys(res.access_token, {
+          wrappedKeyPassword: newWrappedPwd.ciphertext,
+          wrappedKeyPasswordIv: newWrappedPwd.iv,
+        });
+        console.log('[RECOVERY] KEK unwrapped and re-wrapped with new password');
+      } else {
+        // Legacy mode: derive key from new password (old data NOT recoverable)
+        masterKey = await deriveKey(newPassword, saltFromBase64(salt));
+
+        // Silently migrate to key wrapping for future recovery protection
+        try {
+          const { b64: wrapSaltB64 } = generateSalt();
+          const passwordWK = await deriveKey(newPassword, saltFromBase64(wrapSaltB64));
+          const wrapped = await wrapKey(masterKey, passwordWK);
+          await updateWrappedKeys(res.access_token, {
+            wrapSalt: wrapSaltB64,
+            wrappedKeyPassword: wrapped.ciphertext,
+            wrappedKeyPasswordIv: wrapped.iv,
+          });
+          activeWrapSalt = wrapSaltB64;
+        } catch (migrationErr) {
+          console.warn('[RECOVERY] Silent migration failed (non-fatal):', migrationErr);
+        }
+      }
+
+      await cryptoCtx.setKey(masterKey, salt, activeWrapSalt);
       localStorage.setItem("token", res.access_token);
       setSuccess("Recovery successful! Redirecting to dashboard...");
       setTimeout(() => {

@@ -5,6 +5,18 @@ export type LoginResponse = {
   access_token: string; 
   user: { id: string; username: string }; 
   encryption_salt?: string;
+  // Key wrapping fields (present when user has KEK-based encryption)
+  wrap_salt?: string;
+  wrapped_key_password?: string;
+  wrapped_key_password_iv?: string;
+};
+
+export type RecoveryResponse = {
+  access_token: string;
+  encryption_salt: string;
+  wrap_salt?: string;
+  wrapped_key_recovery?: string;
+  wrapped_key_recovery_iv?: string;
 };
 
 export type HealthThresholds = {
@@ -283,11 +295,18 @@ export async function signup(
   username: string, 
   password: string, 
   encryptionSalt: string, 
-  recoveryKeyHash: string
+  recoveryKeyHash: string,
+  keyWrapping?: {
+    wrapSalt: string;
+    wrappedKeyPassword: string;
+    wrappedKeyPasswordIv: string;
+    wrappedKeyRecovery: string;
+    wrappedKeyRecoveryIv: string;
+  }
 ): Promise<LoginResponse> {
   return request<LoginResponse>("/auth/signup", { 
     method: "POST", 
-    body: JSON.stringify({ username, password, encryptionSalt, recoveryKeyHash }) 
+    body: JSON.stringify({ username, password, encryptionSalt, recoveryKeyHash, ...keyWrapping }) 
   });
 }
 
@@ -318,11 +337,29 @@ export async function recoverWithKey(
   username: string,
   recoveryKey: string,
   newPassword: string
-): Promise<{ access_token: string; encryption_salt: string }> {
-  return request<{ access_token: string; encryption_salt: string }>("/auth/recover-with-key", {
+): Promise<RecoveryResponse> {
+  return request<RecoveryResponse>("/auth/recover-with-key", {
     method: "POST",
     body: JSON.stringify({ username, recoveryKey, newPassword })
   });
+}
+
+// Update wrapped keys (migration, recovery re-wrap, password change re-wrap)
+export async function updateWrappedKeys(
+  token: string,
+  payload: {
+    wrapSalt?: string;
+    wrappedKeyPassword?: string;
+    wrappedKeyPasswordIv?: string;
+    wrappedKeyRecovery?: string;
+    wrappedKeyRecoveryIv?: string;
+    passwordHash?: string;
+  }
+): Promise<{ message: string }> {
+  return request<{ message: string }>("/auth/update-wrapped-keys", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  }, token);
 }
 
 // User profile

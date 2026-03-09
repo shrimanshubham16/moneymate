@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { login, signup, fetchSalt } from "./api";
+import { login, signup, fetchSalt, updateWrappedKeys } from "./api";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DashboardPage } from "./pages/DashboardPage";
 import { Header } from "./components/Header";
@@ -39,7 +39,8 @@ const LandingPage = lazy(() => import("./pages/LandingPage").then(m => ({ defaul
 const RecoveryPage = lazy(() => import("./pages/RecoveryPage").then(m => ({ default: m.RecoveryPage })));
 const ChatroomPage = lazy(() => import("./pages/ChatroomPage").then(m => ({ default: m.ChatroomPage })));
 import { useCrypto } from "./contexts/CryptoContext";
-import { deriveKey, generateRecoveryKey, generateSalt, hashRecoveryKey, saltFromBase64 } from "./lib/crypto";
+import { deriveKey, generateRecoveryKey, generateSalt, hashRecoveryKey, saltFromBase64,
+         generateMasterKey, wrapKey, unwrapKey } from "./lib/crypto";
 import "./App.css";
 import { applyTheme, getCurrentTheme } from "./theme";
 
@@ -93,10 +94,24 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
         encryptionSalt = saltB64;
         const newRecoveryKey = generateRecoveryKey();
         const recoveryKeyHash = await hashRecoveryKey(newRecoveryKey);
-        const res = await signup(username, password, encryptionSalt, recoveryKeyHash);
-        const key = await deriveKey(password, saltFromBase64(encryptionSalt));
-        await cryptoCtx.setKey(key, encryptionSalt);
-        console.log('[AUTH] Encryption key set for new user');
+
+        // KEK-based key wrapping: generate random master key, wrap with password + recovery
+        const kek = await generateMasterKey();
+        const { b64: wrapSaltB64 } = generateSalt();
+        const passwordWK = await deriveKey(password, saltFromBase64(wrapSaltB64));
+        const recoveryWK = await deriveKey(newRecoveryKey.trim().toLowerCase(), saltFromBase64(saltB64));
+        const wrappedPwd = await wrapKey(kek, passwordWK);
+        const wrappedRec = await wrapKey(kek, recoveryWK);
+
+        const res = await signup(username, password, encryptionSalt, recoveryKeyHash, {
+          wrapSalt: wrapSaltB64,
+          wrappedKeyPassword: wrappedPwd.ciphertext,
+          wrappedKeyPasswordIv: wrappedPwd.iv,
+          wrappedKeyRecovery: wrappedRec.ciphertext,
+          wrappedKeyRecoveryIv: wrappedRec.iv,
+        });
+        await cryptoCtx.setKey(kek, encryptionSalt, wrapSaltB64);
+        console.log('[AUTH] KEK-based encryption key set for new user');
 
         // Show recovery key modal before completing auth
         setRecoveryKey(newRecoveryKey);
@@ -115,12 +130,39 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
           if (!encryptionSalt) {
             throw new Error("Encryption salt not found for user");
           }
-          const key = await deriveKey(password, saltFromBase64(encryptionSalt));
-          await cryptoCtx.setKey(key, encryptionSalt);
+
+          let masterKey: CryptoKey;
+          let activeWrapSalt: string | undefined;
+          if (res.wrap_salt && res.wrapped_key_password && res.wrapped_key_password_iv) {
+            // Key-wrapping mode: unwrap KEK from password-wrapped blob
+            const passwordWK = await deriveKey(password, saltFromBase64(res.wrap_salt));
+            masterKey = await unwrapKey(res.wrapped_key_password, res.wrapped_key_password_iv, passwordWK);
+            activeWrapSalt = res.wrap_salt;
+            console.log('[AUTH] KEK unwrapped from key-wrapping store');
+          } else {
+            // Legacy mode: derive key directly from password
+            masterKey = await deriveKey(password, saltFromBase64(encryptionSalt));
+            // Silent migration: wrap the legacy key for future key-wrapping logins
+            try {
+              const { b64: wrapSaltB64 } = generateSalt();
+              const passwordWK = await deriveKey(password, saltFromBase64(wrapSaltB64));
+              const wrapped = await wrapKey(masterKey, passwordWK);
+              await updateWrappedKeys(res.access_token, {
+                wrapSalt: wrapSaltB64,
+                wrappedKeyPassword: wrapped.ciphertext,
+                wrappedKeyPasswordIv: wrapped.iv,
+              });
+              activeWrapSalt = wrapSaltB64;
+              console.log('[AUTH] Silent migration: legacy key wrapped for future logins');
+            } catch (migrationErr) {
+              console.warn('[AUTH] Silent migration failed (non-fatal):', migrationErr);
+            }
+          }
+          await cryptoCtx.setKey(masterKey, encryptionSalt, activeWrapSalt);
           onAuth(res.access_token);
         } catch (loginErr: any) {
           console.error('[LOGIN_ERROR]', loginErr);
-          throw loginErr; // Re-throw to be caught by outer catch
+          throw loginErr;
         }
       }
     } catch (err: any) {

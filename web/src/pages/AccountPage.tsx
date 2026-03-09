@@ -9,8 +9,9 @@ import {
 } from "react-icons/fa";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { useCrypto } from "../contexts/CryptoContext";
-import { deriveKey, saltFromBase64, generateSalt } from "../lib/crypto";
+import { deriveKey, saltFromBase64, generateSalt, wrapKey, isValidRecoveryKey, hashRecoveryKey } from "../lib/crypto";
 import { reEncryptAllData, ReEncryptionProgress } from "../services/reEncryptionService";
+import { updateWrappedKeys } from "../api";
 import { RecoveryKeyModal } from "../components/RecoveryKeyModal";
 import { feedbackPowerUp, feedbackBump } from "../utils/haptics";
 import "./AccountPage.css";
@@ -277,6 +278,18 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
         <EncryptionSettingsCard token={token} user={user} />
       </motion.div>
 
+      {/* ── Recovery Protection ──────────────── */}
+      {isEncrypted && (
+        <motion.div
+          className="account-section-card"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.16 }}
+        >
+          <RecoveryProtectionCard token={token} />
+        </motion.div>
+      )}
+
       {/* ── Logout ─────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -524,7 +537,18 @@ function PasswordResetCard({ token }: { token: string }) {
 
     setLoading(true);
     try {
-      if (cryptoCtx.encryptionSalt) {
+      let wrappedKeyPassword: string | undefined;
+      let wrappedKeyPasswordIv: string | undefined;
+
+      if (cryptoCtx.encryptionSalt && cryptoCtx.wrapSalt && cryptoCtx.key) {
+        // Key-wrapping mode: re-wrap the KEK with new password (no re-encryption!)
+        setMessage({ type: "success", text: "Re-wrapping encryption key..." });
+        const newPasswordWK = await deriveKey(formData.newPassword, saltFromBase64(cryptoCtx.wrapSalt));
+        const wrapped = await wrapKey(cryptoCtx.key, newPasswordWK);
+        wrappedKeyPassword = wrapped.ciphertext;
+        wrappedKeyPasswordIv = wrapped.iv;
+      } else if (cryptoCtx.encryptionSalt) {
+        // Legacy mode: re-encrypt all data with new password-derived key
         setMessage({ type: "success", text: "Re-encrypting your data with new password..." });
         await reEncryptAllData(
           formData.currentPassword, formData.newPassword,
@@ -539,10 +563,19 @@ function PasswordResetCard({ token }: { token: string }) {
         cryptoCtx.setKey(newKey, cryptoCtx.encryptionSalt);
       }
 
+      const bodyPayload: any = {
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword
+      };
+      if (wrappedKeyPassword) {
+        bodyPayload.wrappedKeyPassword = wrappedKeyPassword;
+        bodyPayload.wrappedKeyPasswordIv = wrappedKeyPasswordIv;
+      }
+
       const response = await fetch(`${BASE_URL}/auth/change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ currentPassword: formData.currentPassword, newPassword: formData.newPassword })
+        body: JSON.stringify(bodyPayload)
       });
       const data = await response.json();
 
@@ -658,6 +691,135 @@ function PasswordResetCard({ token }: { token: string }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Recovery Protection Card — lets existing users enable
+// recovery-safe key wrapping by entering their 24-word phrase
+// ═══════════════════════════════════════════════════════
+function RecoveryProtectionCard({ token }: { token: string }) {
+  const cryptoCtx = useCrypto();
+  const hasRecoveryWrapping = !!cryptoCtx.wrapSalt;
+  const [showForm, setShowForm] = useState(false);
+  const [phrase, setPhrase] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleEnable = async () => {
+    setMessage(null);
+    const words = phrase.trim().toLowerCase().split(/\s+/);
+    if (words.length !== 24) {
+      setMessage({ type: "error", text: `Recovery phrase must be 24 words (you entered ${words.length})` });
+      return;
+    }
+    const normalized = words.join(" ");
+    if (!isValidRecoveryKey(normalized)) {
+      setMessage({ type: "error", text: "Invalid recovery phrase. Please check your words." });
+      return;
+    }
+    if (!cryptoCtx.key || !cryptoCtx.encryptionSalt) {
+      setMessage({ type: "error", text: "Encryption key not available. Please re-login." });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const phraseHash = await hashRecoveryKey(normalized);
+
+      // Wrap current KEK with recovery-derived wrapping key
+      const recoveryWK = await deriveKey(normalized, saltFromBase64(cryptoCtx.encryptionSalt));
+      const wrapped = await wrapKey(cryptoCtx.key, recoveryWK);
+
+      const payload: any = {
+        wrappedKeyRecovery: wrapped.ciphertext,
+        wrappedKeyRecoveryIv: wrapped.iv,
+        recoveryKeyHash: phraseHash,
+      };
+
+      await updateWrappedKeys(token, payload);
+      feedbackPowerUp();
+      setMessage({ type: "success", text: "Recovery protection enabled! Your data is now safe during account recovery." });
+      setShowForm(false);
+      setPhrase("");
+    } catch (e: any) {
+      feedbackBump();
+      setMessage({ type: "error", text: e.message || "Failed to enable recovery protection" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="section-card-header">
+        <div className="section-card-icon encryption"><FaKey /></div>
+        <div style={{ flex: 1 }}>
+          <h3 className="section-card-title">Recovery Protection</h3>
+          <p className="section-card-subtitle">Keep data safe during account recovery</p>
+        </div>
+        <span className={`encryption-badge ${hasRecoveryWrapping ? 'enabled' : 'disabled'}`}>
+          {hasRecoveryWrapping ? <><FaCheckCircle /> Active</> : <><FaExclamationTriangle /> Off</>}
+        </span>
+      </div>
+
+      {hasRecoveryWrapping ? (
+        <div className="encryption-features">
+          <div className="encryption-feature"><FaCheckCircle /> Your data survives account recovery</div>
+          <div className="encryption-feature"><FaCheckCircle /> Password changes skip re-encryption</div>
+          <div className="encryption-feature"><FaCheckCircle /> Recovery phrase protects your master key</div>
+        </div>
+      ) : (
+        <>
+          <p style={{ color: '#8B95B0', fontSize: 14, margin: '0 0 12px', lineHeight: 1.6 }}>
+            Without recovery protection, recovering your account with a new password will make
+            your existing encrypted data unreadable. Enable it by entering your 24-word recovery phrase.
+          </p>
+          <div className="recovery-warning-card">
+            <FaExclamationTriangle />
+            <p><strong>Recommended:</strong> Enable this to prevent data loss during account recovery.</p>
+          </div>
+
+          {!showForm ? (
+            <button className="account-action-btn primary" onClick={() => setShowForm(true)} style={{ marginTop: 12 }}>
+              <FaShieldAlt /> Enable Recovery Protection
+            </button>
+          ) : (
+            <div className="enc-password-prompt" style={{ marginTop: 12 }}>
+              <p className="prompt-info">Enter your 24-word recovery phrase:</p>
+              <textarea
+                value={phrase}
+                onChange={(e) => setPhrase(e.target.value)}
+                placeholder="word1 word2 word3 ... word24"
+                rows={3}
+                disabled={loading}
+                style={{ width: '100%', borderRadius: 8, padding: 10, background: 'rgba(255,255,255,0.05)', color: '#E8ECF8', border: '1px solid rgba(255,255,255,0.1)', resize: 'none', fontFamily: 'monospace', fontSize: 13 }}
+              />
+              <div className="form-btn-row" style={{ marginTop: 10 }}>
+                <button
+                  className="account-action-btn ghost"
+                  onClick={() => { setShowForm(false); setPhrase(""); setMessage(null); }}
+                  disabled={loading}
+                >Cancel</button>
+                <button
+                  className="account-action-btn primary"
+                  onClick={handleEnable}
+                  disabled={loading || !phrase.trim()}
+                >{loading ? "Enabling..." : "Enable"}</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {message && (
+        <div style={{ marginTop: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13,
+          background: message.type === 'success' ? 'rgba(52,211,153,0.12)' : 'rgba(248,113,113,0.12)',
+          color: message.type === 'success' ? '#34D399' : '#f87171' }}>
+          {message.text}
+        </div>
+      )}
     </>
   );
 }

@@ -48,7 +48,9 @@ serve(async (req) => {
     // SIGNUP
     // ========================================================================
     if (path === 'signup' && req.method === 'POST') {
-      const { username, password, encryptionSalt, recoveryKeyHash } = await req.json();
+      const { username, password, encryptionSalt, recoveryKeyHash,
+              wrapSalt, wrappedKeyPassword, wrappedKeyPasswordIv,
+              wrappedKeyRecovery, wrappedKeyRecoveryIv } = await req.json();
 
       // Validate input
       if (!username || !password) {
@@ -90,15 +92,22 @@ serve(async (req) => {
       const passwordHash = await bcrypt.hash(password);
 
       // Create user
+      const insertData: any = {
+        username,
+        password_hash: passwordHash,
+        encryption_salt: encryptionSalt || null,
+        recovery_key_hash: recoveryKeyHash || null,
+        created_at: new Date().toISOString()
+      };
+      if (wrapSalt) insertData.wrap_salt = wrapSalt;
+      if (wrappedKeyPassword) insertData.wrapped_key_password = wrappedKeyPassword;
+      if (wrappedKeyPasswordIv) insertData.wrapped_key_password_iv = wrappedKeyPasswordIv;
+      if (wrappedKeyRecovery) insertData.wrapped_key_recovery = wrappedKeyRecovery;
+      if (wrappedKeyRecoveryIv) insertData.wrapped_key_recovery_iv = wrappedKeyRecoveryIv;
+
       const { data: newUser, error: insertError } = await supabase
         .from('users')
-        .insert({
-          username,
-          password_hash: passwordHash,
-          encryption_salt: encryptionSalt || null,
-          recovery_key_hash: recoveryKeyHash || null,
-          created_at: new Date().toISOString()
-        })
+        .insert(insertData)
         .select('id, username')
         .single();
 
@@ -162,7 +171,7 @@ serve(async (req) => {
       // Get user
       const { data: user, error: userError } = await supabase
         .from('users')
-        .select('id, username, password_hash, encryption_salt, failed_login_attempts, account_locked_until')
+        .select('id, username, password_hash, encryption_salt, failed_login_attempts, account_locked_until, wrap_salt, wrapped_key_password, wrapped_key_password_iv')
         .eq('username', username)
         .single();
 
@@ -235,12 +244,18 @@ serve(async (req) => {
         key
       );
 
+      const loginResponse: any = {
+        access_token: token,
+        user: { id: user.id, username: user.username },
+        encryption_salt: user.encryption_salt || null
+      };
+      if (user.wrap_salt) {
+        loginResponse.wrap_salt = user.wrap_salt;
+        loginResponse.wrapped_key_password = user.wrapped_key_password;
+        loginResponse.wrapped_key_password_iv = user.wrapped_key_password_iv;
+      }
       return new Response(
-        JSON.stringify({
-          access_token: token,
-          user: { id: user.id, username: user.username },
-          encryption_salt: user.encryption_salt || null
-        }),
+        JSON.stringify(loginResponse),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
