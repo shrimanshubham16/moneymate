@@ -471,6 +471,10 @@ serve(async (req) => {
 
   const error = (message: string, status = 400) => json({ error: { message } }, status);
 
+  // E2E flag — declared here so logActivity (same scope) can read it;
+  // actual value is set once the authenticated user is resolved.
+  let _isE2EUserCached: boolean | null = null;
+
   // Helper to log activities
   async function logActivity(actorId: string, entity: string, action: string, payload?: any) {
     try {
@@ -704,7 +708,8 @@ serve(async (req) => {
     const userId = user.userId;
 
     // E2E encryption check: if user has encryption_salt, zero out plaintext amounts on write
-    let _isE2EUserCached: boolean | null = null;
+    // _isE2EUserCached is declared at handler scope (before logActivity) so both can share it.
+    _isE2EUserCached = null;
     const isE2EUser = async (): Promise<boolean> => {
       if (_isE2EUserCached !== null) return _isE2EUserCached;
       const { data: u } = await supabase.from('users').select('encryption_salt').eq('id', userId).single();
