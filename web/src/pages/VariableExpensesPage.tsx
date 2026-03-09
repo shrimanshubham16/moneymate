@@ -466,7 +466,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                 {/* Subcategory Selection */}
                 <div className="form-group">
                   <label>Subcategory</label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', minWidth: 0 }}>
                     <select
                       value={actualForm.subcategory}
                       onChange={(e) => {
@@ -476,7 +476,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                           setActualForm({ ...actualForm, subcategory: e.target.value, showNewSubcategory: false });
                         }
                       }}
-                      style={{ flex: 1 }}
+                      style={{ flex: 1, minWidth: 0 }}
                     >
                       {userSubcategories.map(sub => (
                         <option key={sub} value={sub}>{sub}</option>
@@ -486,14 +486,14 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
                     {actualForm.showNewSubcategory && (
                       <input
                         type="text"
-                        placeholder="Enter new subcategory"
+                        placeholder="New subcategory"
                         value={actualForm.newSubcategory}
                         onChange={(e) => setActualForm({ ...actualForm, newSubcategory: e.target.value })}
                         onBlur={handleAddSubcategory}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') { e.preventDefault(); handleAddSubcategory(); }
                         }}
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, minWidth: 0 }}
                         autoFocus
                       />
                     )}

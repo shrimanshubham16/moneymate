@@ -1145,23 +1145,25 @@ export function DashboardPage({ token }: DashboardPageProps) {
               )}
               <div className="form-row">
                 <label>Subcategory</label>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <select value={quickAddSubcategory} onChange={(e) => setQuickAddSubcategory(e.target.value)} style={{ flex: 1 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+                  <select value={quickAddSubcategory} onChange={(e) => setQuickAddSubcategory(e.target.value)} style={{ flex: 1, minWidth: 0 }}>
                     {(userSubcategories.length ? userSubcategories : ["Unspecified"]).map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
-                  <button className="secondary-btn" onClick={() => setShowQuickNewSub(!showQuickNewSub)}>+ Add</button>
+                  <button className="secondary-btn" style={{ padding: '8px 12px', fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => setShowQuickNewSub(!showQuickNewSub)}>+ Add</button>
                 </div>
                 {showQuickNewSub && (
-                  <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                  <div style={{ marginTop: 8, display: 'flex', gap: 6, minWidth: 0 }}>
                     <input
                       value={newQuickSub}
                       onChange={(e) => setNewQuickSub(e.target.value)}
                       placeholder="New subcategory"
+                      style={{ flex: 1, minWidth: 0 }}
                     />
                     <button
                       className="primary-btn"
+                      style={{ padding: '8px 12px', fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
                       onClick={async () => {
                         if (!newQuickSub.trim()) return;
                         try {
