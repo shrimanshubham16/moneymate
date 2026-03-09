@@ -123,6 +123,13 @@
   to   { transform: rotate(360deg); }
 }
 
+.profile-display-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: #E8ECF8;
+  margin: 0 0 2px;
+  z-index: 1;
+}
 .profile-username {
   font-size: 26px;
   font-weight: 700;
@@ -614,6 +621,7 @@
   .account-page { padding: 16px 12px 32px; }
   .account-profile-hero { padding: 24px 20px; }
   .avatar-circle { width: 80px; height: 80px; font-size: 30px; }
+  .profile-display-name { font-size: 22px; }
   .profile-username { font-size: 22px; }
   .form-btn-row { flex-direction: column; }
   .account-toast { bottom: 20px; font-size: 13px; padding: 12px 18px; }

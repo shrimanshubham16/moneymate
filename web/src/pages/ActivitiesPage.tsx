@@ -14,6 +14,7 @@ import { PageInfoButton } from "../components/PageInfoButton";
 import { ActivityHistoryModal } from "../components/ActivityHistoryModal";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import * as social from "../lib/activitySocial";
+import { getBaseUrl } from "../api";
 import "./ActivitiesPage.css";
 
 interface ActivitiesPageProps {
@@ -65,6 +66,21 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
 
   const { selectedView, isSharedView } = useSharedView(token);
   const { userId, username } = useMemo(() => social.getUserFromToken(token), [token]);
+  const [displayLabel, setDisplayLabel] = useState(username);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch(`${getBaseUrl()}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.data?.display_name) setDisplayLabel(data.data.display_name);
+        }
+      } catch { /* silently fail */ }
+    })();
+  }, [token]);
 
   // ─── Load Activities ───
   useEffect(() => {
@@ -231,7 +247,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         id: `opt-${Date.now()}`,
         activity_id: activityId,
         user_id: userId,
-        username,
+        username: displayLabel,
         comment: text.slice(0, 300),
         created_at: new Date().toISOString(),
         _optimistic: true,
@@ -247,7 +263,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       setCommentSending((prev) => new Set(prev).add(activityId));
 
       try {
-        const real = await social.addComment(activityId, userId, username, text);
+        const real = await social.addComment(activityId, userId, displayLabel, text);
         // Replace optimistic with real
         setComments((prev) => {
           const next = new Map(prev);
@@ -286,7 +302,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         });
       }
     },
-    [commentText, commentSending, userId, username],
+    [commentText, commentSending, userId, displayLabel],
   );
 
   const handleDeleteComment = useCallback(

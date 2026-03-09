@@ -120,6 +120,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
   const [loading, setLoading] = useState(true);
   const [showNewPill, setShowNewPill] = useState(false);
   const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
+  const [displayLabel, setDisplayLabel] = useState<string>(username);
 
   const [reactions, setReactions] = useState<Record<string, ChatReaction[]>>({});
   const [emojiBarMsgId, setEmojiBarMsgId] = useState<string | null>(null);
@@ -155,7 +156,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     if (isNearBottom.current) setShowNewPill(false);
   }, []);
 
-  // ---- Fetch own avatar ----
+  // ---- Fetch own avatar + display name ----
   useEffect(() => {
     (async () => {
       try {
@@ -165,6 +166,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
         if (resp.ok) {
           const data = await resp.json();
           setMyAvatarUrl(data.data?.avatar_url || null);
+          if (data.data?.display_name) setDisplayLabel(data.data.display_name);
         }
       } catch {
         // silently fail
@@ -244,15 +246,26 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
       );
       unsubs.push(unsubReactions);
 
-      const unsubPresence = joinPresence(username, setOnlineUsers);
-      unsubs.push(unsubPresence);
     })();
 
     return () => {
       unsubs.forEach((fn) => fn());
-      leaveChat();
     };
   }, [username, scrollToBottom]);
+
+  // ---- Presence (re-joins when displayLabel resolves) ----
+  // NOTE: Cleanup must only call unsub() (leavePresence), NOT leaveChat().
+  // leaveChat() removes message/reaction channels; those are managed by the bootstrap effect.
+  // Calling leaveChat() here would disconnect messages when displayLabel changes (e.g. after /auth/me).
+  useEffect(() => {
+    const unsub = joinPresence(displayLabel, setOnlineUsers);
+    return () => unsub();
+  }, [displayLabel]);
+
+  // ---- Full chat cleanup on unmount ----
+  useEffect(() => {
+    return () => leaveChat();
+  }, []);
 
   // ---- Close emoji bar on outside click ----
   useEffect(() => {
@@ -275,7 +288,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     const optimistic: ChatMessage = {
       id: `opt-${Date.now()}`,
       user_id: userId,
-      username,
+      username: displayLabel,
       message: text,
       created_at: new Date().toISOString(),
       avatar_url: myAvatarUrl,
@@ -285,7 +298,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
     requestAnimationFrame(() => scrollToBottom(true));
 
     try {
-      await sendMessage(userId, username, text, myAvatarUrl);
+      await sendMessage(userId, displayLabel, text, myAvatarUrl);
     } catch (err: any) {
       setError(err.message || 'Failed to send');
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));

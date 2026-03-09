@@ -674,7 +674,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const seen = new Set<string>();
     for (const m of (sharingMembers?.members || [])) {
       const id = m.shared_user_id || m.user_id || m.userId || m.id;
-      if (id && !seen.has(id)) { seen.add(id); base.push({ value: id, label: m.username || id || "Shared Member" }); }
+      if (id && !seen.has(id)) { seen.add(id); base.push({ value: id, label: m.display_name || m.username || id || "Shared Member" }); }
     }
     return {
       currSym: _currSym, variableTotal: _variableTotal, fixedTotal: _fixedTotal,

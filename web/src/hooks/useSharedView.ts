@@ -26,6 +26,7 @@ function getUserIdFromToken(token: string): string | null {
 interface SharedMember {
   userId: string;
   username: string;
+  display_name?: string | null;
   role?: string;
 }
 
@@ -69,12 +70,12 @@ export function useSharedView(token: string): UseSharedViewResult {
     }
   };
 
-  // Get owner name for display
+  // Get owner name for display (uses display_name with username fallback)
   const getOwnerName = (itemUserId: string): string => {
     if (!itemUserId) return "Unknown";
     if (itemUserId === currentUserId) return "You";
     const member = sharingMembers.find((m) => m.userId === itemUserId);
-    return member?.username || "Shared User";
+    return member?.display_name || member?.username || "Shared User";
   };
 
   // Check if current user owns this item

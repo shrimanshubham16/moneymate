@@ -911,12 +911,38 @@ serve(async (req) => {
     if (path === '/user/profile' && method === 'GET') {
       const { data: profile, error: profileErr } = await supabase
         .from('users')
-        .select('id, username, encryption_salt, avatar_url, created_at')
+        .select('id, username, display_name, encryption_salt, avatar_url, created_at')
         .eq('id', userId)
         .single();
 
       if (profileErr || !profile) return error('User not found', 404);
       return json({ data: profile });
+    }
+
+    // UPDATE user profile (display name etc.)
+    if (path === '/user/profile' && method === 'PATCH') {
+      const body = await req.json();
+      const updateData: any = {};
+
+      if (body.displayName !== undefined) {
+        const trimmed = (body.displayName || '').trim();
+        if (trimmed.length > 50) return error('Display name must be 50 characters or less', 400);
+        updateData.display_name = trimmed || null;
+      }
+
+      if (Object.keys(updateData).length === 0) return error('No fields to update', 400);
+
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('id', userId);
+
+      if (updateErr) {
+        console.error('Profile update error:', updateErr);
+        return error('Failed to update profile', 500);
+      }
+
+      return json({ message: 'Profile updated successfully' });
     }
 
     // UPDATE user avatar — accepts multipart/form-data with an image file
@@ -1502,17 +1528,30 @@ serve(async (req) => {
           userId: l.user_id
         }));
 
+        // Fetch display names for shared aggregate users
+        const sharedAggUserIds = sharedUserAggregates.map((a: any) => a.user_id).filter(Boolean);
+        let sharedAggUserMap = new Map<string, any>();
+        if (sharedAggUserIds.length > 0) {
+          const { data: aggUsers } = await supabase.from('users').select('id, username, display_name').in('id', sharedAggUserIds);
+          sharedAggUserMap = new Map((aggUsers || []).map((u: any) => [u.id, u]));
+        }
+
         // Map shared user aggregates with camelCase for frontend consistency
-        const finalSharedUserAggregates = sharedUserAggregates.map((agg: any) => ({
-          ...agg,
-          userId: agg.user_id,
-          totalIncomeMonthly: agg.total_income_monthly,
-          totalFixedMonthly: agg.total_fixed_monthly,
-          totalInvestmentsMonthly: agg.total_investments_monthly,
-          totalVariablePlanned: agg.total_variable_planned,
-          totalVariableActual: agg.total_variable_actual,
-          totalCreditCardDues: agg.total_credit_card_dues
-        }));
+        const finalSharedUserAggregates = sharedUserAggregates.map((agg: any) => {
+          const aggUser = sharedAggUserMap.get(agg.user_id);
+          return {
+            ...agg,
+            userId: agg.user_id,
+            username: aggUser?.username || undefined,
+            display_name: aggUser?.display_name || null,
+            totalIncomeMonthly: agg.total_income_monthly,
+            totalFixedMonthly: agg.total_fixed_monthly,
+            totalInvestmentsMonthly: agg.total_investments_monthly,
+            totalVariablePlanned: agg.total_variable_planned,
+            totalVariableActual: agg.total_variable_actual,
+            totalCreditCardDues: agg.total_credit_card_dues
+          };
+        });
 
         const responseData = {
           incomes: finalIncomes,
@@ -2608,7 +2647,7 @@ serve(async (req) => {
 
     // AUTH/ME - Get current user info
     if (path === '/auth/me' && method === 'GET') {
-      const { data: userData } = await supabase.from('users').select('id, username, encryption_salt, avatar_url, created_at, wrapped_key_recovery').eq('id', userId).single();
+      const { data: userData } = await supabase.from('users').select('id, username, display_name, encryption_salt, avatar_url, created_at, wrapped_key_recovery').eq('id', userId).single();
       const result = { ...userData, has_recovery_wrapping: !!userData?.wrapped_key_recovery };
       delete result.wrapped_key_recovery;
       return json({ data: result });
@@ -2759,8 +2798,8 @@ serve(async (req) => {
         const { data: sharedCards } = await supabase.from('credit_cards').select('*')
           .in('user_id', memberIds).eq('is_shared', true);
         if (sharedCards && sharedCards.length > 0) {
-          const { data: users } = await supabase.from('users').select('id, username').in('id', memberIds);
-          const userMap = new Map((users || []).map((u: any) => [u.id, u.username]));
+          const { data: users } = await supabase.from('users').select('id, username, display_name').in('id', memberIds);
+          const userMap = new Map((users || []).map((u: any) => [u.id, u.display_name || u.username]));
           sharedTransformed = sharedCards.map((c: any) => ({
             ...transformCreditCard(c),
             isSharedCard: true,
@@ -2795,8 +2834,8 @@ serve(async (req) => {
       const usageUserIds = [...new Set((usage || []).map((u: any) => u.user_id))];
       let usageUserMap = new Map<string, string>();
       if (usageUserIds.length > 0) {
-        const { data: usageUsers } = await supabase.from('users').select('id, username').in('id', usageUserIds);
-        usageUserMap = new Map((usageUsers || []).map((u: any) => [u.id, u.username]));
+        const { data: usageUsers } = await supabase.from('users').select('id, username, display_name').in('id', usageUserIds);
+        usageUserMap = new Map((usageUsers || []).map((u: any) => [u.id, u.display_name || u.username]));
       }
 
       const transformedUsage = (usage || []).map((u: any) => ({
@@ -3137,15 +3176,15 @@ serve(async (req) => {
         return json({ data: [] });
       }
 
-      // Get unique actor IDs and fetch usernames
+      // Get unique actor IDs and fetch usernames + display names
       const actorIds = [...new Set((activities || []).map((a: any) => a.actor_id))];
       const { data: users } = await supabase
         .from('users')
-        .select('id, username')
+        .select('id, username, display_name')
         .in('id', actorIds);
 
-      // Create a map of user ID to username
-      const usernameMap = new Map((users || []).map((u: any) => [u.id, u.username]));
+      // Use display_name with fallback to username
+      const usernameMap = new Map((users || []).map((u: any) => [u.id, u.display_name || u.username]));
 
       // Format response with username and parse JSON payload
       const formatted = (activities || []).map((act: any) => {
@@ -3263,7 +3302,7 @@ serve(async (req) => {
         if (otherUserIds.length > 0) {
           const { data: users } = await supabase
             .from('users')
-            .select('id, username')
+            .select('id, username, display_name')
             .in('id', otherUserIds);
 
           const userMap = new Map((users || []).map((u: any) => [u.id, u]));
@@ -3274,6 +3313,7 @@ serve(async (req) => {
               ...m,
               userId: m.user_id,
               username: user.username || 'Unknown',
+              display_name: user.display_name || null,
               role: m.role
             };
           });
@@ -3296,7 +3336,7 @@ serve(async (req) => {
       ])];
 
       const { data: users } = await supabase.from('users')
-        .select('id, username')
+        .select('id, username, display_name')
         .in('id', allUserIds);
 
       const userMap = new Map((users || []).map((u: any) => [u.id, u]));
@@ -3308,6 +3348,7 @@ serve(async (req) => {
           ...req,
           ownerId: req.inviter_id,
           inviterUsername: inviter.username,
+          inviterDisplayName: inviter.display_name || null,
           mergeFinances: req.merge_finances
         };
       });
@@ -3319,6 +3360,7 @@ serve(async (req) => {
           ...req,
           inviteeId: req.invitee_id,
           inviteeUsername: invitee.username,
+          inviteeDisplayName: invitee.display_name || null,
           mergeFinances: req.merge_finances
         };
       });

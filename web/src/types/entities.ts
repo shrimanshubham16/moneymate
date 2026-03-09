@@ -140,6 +140,7 @@ export interface UserPreferences {
 export interface SharedMember {
   userId: string;
   username: string;
+  display_name?: string | null;
   role: 'owner' | 'member';
   sharedAccountId: string;
   shared_user_id?: string;
@@ -148,6 +149,8 @@ export interface SharedMember {
 
 export interface UserAggregate {
   userId: string;
+  username?: string;
+  display_name?: string | null;
   totalIncomeMonthly: number;
   totalFixedMonthly: number;
   totalInvestmentsMonthly: number;

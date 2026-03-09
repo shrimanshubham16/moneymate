@@ -86,6 +86,9 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingDisplayName, setEditingDisplayName] = useState(false);
+  const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setToast({ type, text });
@@ -163,6 +166,30 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
     }
   };
 
+  const handleSaveDisplayName = async () => {
+    setSavingDisplayName(true);
+    try {
+      const resp = await fetch(`${BASE_URL}/user/profile`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ displayName: displayNameDraft }),
+      });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        throw new Error(errBody?.error || 'Failed to update');
+      }
+      setUser((prev: any) => ({ ...prev, display_name: displayNameDraft.trim() || null }));
+      setEditingDisplayName(false);
+      feedbackPowerUp();
+      showToast('success', 'Display name updated!');
+    } catch (err: any) {
+      feedbackBump();
+      showToast('error', err.message || 'Failed to save display name');
+    } finally {
+      setSavingDisplayName(false);
+    }
+  };
+
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : '—';
@@ -191,7 +218,7 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="avatar" />
             ) : (
-              user?.username?.charAt(0).toUpperCase() || "U"
+              (user?.display_name || user?.username || "U").charAt(0).toUpperCase()
             )}
           </div>
           <button
@@ -211,9 +238,12 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
           />
         </div>
 
-        <h2 className="profile-username">
+        {user?.display_name && (
+          <h2 className="profile-display-name">{user.display_name}</h2>
+        )}
+        <p className="profile-username" style={user?.display_name ? { fontSize: 14, opacity: 0.65, marginTop: 2 } : undefined}>
           <span className="profile-username-at">@</span>{user?.username || "User"}
-        </h2>
+        </p>
 
         <div className="profile-meta-row">
           <span className="profile-meta-chip">
@@ -246,10 +276,45 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
             <span className="account-detail-value">@{user?.username || "—"}</span>
           </div>
           <div className="account-detail-row">
-            <span className="account-detail-label">User ID</span>
-            <span className="account-detail-value" style={{ fontSize: 11 }}>
-              {user?.id || "—"}
-            </span>
+            <span className="account-detail-label">Display Name</span>
+            {editingDisplayName ? (
+              <span className="account-detail-value" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={displayNameDraft}
+                  onChange={e => setDisplayNameDraft(e.target.value)}
+                  maxLength={50}
+                  placeholder="e.g. Shubham"
+                  style={{
+                    padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border-color, #d1d5db)',
+                    fontSize: 13, width: 120, background: 'var(--input-bg, #fff)', color: 'var(--text-primary, #111)'
+                  }}
+                  autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveDisplayName(); if (e.key === 'Escape') setEditingDisplayName(false); }}
+                />
+                <button
+                  onClick={handleSaveDisplayName}
+                  disabled={savingDisplayName}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                    background: 'var(--accent-color, #6c5ce7)', color: '#fff', border: 'none', cursor: 'pointer', opacity: savingDisplayName ? 0.6 : 1
+                  }}
+                >{savingDisplayName ? '...' : 'Save'}</button>
+                <button
+                  onClick={() => setEditingDisplayName(false)}
+                  style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, background: 'transparent', border: '1px solid var(--border-color, #d1d5db)', cursor: 'pointer', color: 'var(--text-secondary, #6b7280)' }}
+                >✕</button>
+              </span>
+            ) : (
+              <span
+                className="account-detail-value"
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => { setDisplayNameDraft(user?.display_name || ''); setEditingDisplayName(true); }}
+              >
+                {user?.display_name || <span style={{ opacity: 0.45, fontStyle: 'italic' }}>Set a friendly name</span>}
+                <FaChevronRight style={{ fontSize: 10, opacity: 0.4 }} />
+              </span>
+            )}
           </div>
           <div className="account-detail-row">
             <span className="account-detail-label">Member Since</span>

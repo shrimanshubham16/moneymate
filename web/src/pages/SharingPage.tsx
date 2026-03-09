@@ -123,9 +123,9 @@ export function SharingPage({ token }: SharingPageProps) {
     );
   };
 
-  const handleRevoke = async (memberId: string, sharedAccountId: string, username: string) => {
+  const handleRevoke = async (memberId: string, sharedAccountId: string, displayLabel: string) => {
     showConfirm(
-      `Revoke sharing with "${username}"? Both of you will lose access to each other's finances in the Combined view. This cannot be undone.`,
+      `Revoke sharing with ${displayLabel}? Both of you will lose access to each other's finances in the Combined view. This cannot be undone.`,
       async () => {
         try {
           await api.revokeSharing(token, sharedAccountId);
@@ -241,7 +241,7 @@ export function SharingPage({ token }: SharingPageProps) {
                 {requests.incoming.map((req) => (
                   <div key={req.id} className="request-card incoming">
                     <div className="request-info">
-                      <h3>From: {req.inviterUsername || 'Unknown'}</h3>
+                      <h3>From: {req.inviterDisplayName || req.inviterUsername || 'Unknown'}{req.inviterDisplayName ? <span style={{ opacity: 0.55, fontWeight: 400, fontSize: '0.85em' }}> (@{req.inviterUsername})</span> : null}</h3>
                       <div className="request-meta">
                         <span className={`role-badge ${req.role}`}>{req.role}</span>
                         {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}
@@ -250,13 +250,13 @@ export function SharingPage({ token }: SharingPageProps) {
                     </div>
                     <div className="request-actions">
                       <button
-                        onClick={() => handleApprove(req.id, req.inviterUsername || 'Unknown')}
+                        onClick={() => handleApprove(req.id, req.inviterDisplayName || req.inviterUsername || 'Unknown')}
                         className="approve-btn"
                       >
                         Approve
                       </button>
                       <button
-                        onClick={() => handleReject(req.id, req.inviterUsername || 'Unknown')}
+                        onClick={() => handleReject(req.id, req.inviterDisplayName || req.inviterUsername || 'Unknown')}
                         className="reject-btn"
                       >
                         Decline
@@ -284,7 +284,7 @@ export function SharingPage({ token }: SharingPageProps) {
                 {requests.outgoing.map((req) => (
                   <div key={req.id} className="request-card outgoing">
                     <div className="request-info">
-                      <h3>To: {req.inviteeUsername || 'Unknown'}</h3>
+                      <h3>To: {req.inviteeDisplayName || req.inviteeUsername || 'Unknown'}{req.inviteeDisplayName ? <span style={{ opacity: 0.55, fontWeight: 400, fontSize: '0.85em' }}> (@{req.inviteeUsername})</span> : null}</h3>
                       <div className="request-meta">
                         <span className={`role-badge ${req.role}`}>{req.role}</span>
                         {req.mergeFinances && <span className="merge-badge">Merge Finances</span>}
@@ -293,7 +293,7 @@ export function SharingPage({ token }: SharingPageProps) {
                     </div>
                     <div className="request-actions">
                       <button
-                        onClick={() => handleCancelOutgoing(req.id, req.inviteeUsername || 'Unknown')}
+                        onClick={() => handleCancelOutgoing(req.id, req.inviteeDisplayName || req.inviteeUsername || 'Unknown')}
                         className="cancel-btn"
                       >
                         <FaTimesCircle style={{ marginRight: 4 }} />
@@ -322,10 +322,10 @@ export function SharingPage({ token }: SharingPageProps) {
                 {members.members.map((member) => (
                   <div key={member.userId || member.user_id} className="member-card">
                     <div className="member-avatar">
-                      {member.username?.charAt(0).toUpperCase() || "U"}
+                      {(member.display_name || member.username || "U").charAt(0).toUpperCase()}
                     </div>
                     <div className="member-info">
-                      <h3>{member.username || "User"}</h3>
+                      <h3>{member.display_name || member.username || "User"}{member.display_name ? <span style={{ opacity: 0.55, fontWeight: 400, fontSize: '0.85em' }}> (@{member.username})</span> : null}</h3>
                       <div className="member-meta">
                         <span className={`role-badge ${member.role}`}>{member.role}</span>
                         {member.merge_finances && <span className="merge-badge">Merged</span>}
@@ -333,7 +333,7 @@ export function SharingPage({ token }: SharingPageProps) {
                     </div>
                     <button
                       className="revoke-btn"
-                      onClick={() => handleRevoke(member.userId || member.user_id, member.shared_account_id, member.username || 'User')}
+                      onClick={() => handleRevoke(member.userId || member.user_id, member.shared_account_id, member.display_name ? `"${member.display_name}" (@${member.username})` : `"${member.username || 'User'}"` )}
                     >
                       Revoke
                     </button>
