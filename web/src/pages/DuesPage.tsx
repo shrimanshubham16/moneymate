@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { FaUserCircle, FaCheckCircle, FaFileInvoiceDollar, FaCreditCard, FaChartLine, FaCalendarCheck, FaCheck, FaForward } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaUserCircle, FaCheckCircle, FaFileInvoiceDollar, FaCreditCard, FaChartLine, FaCalendarCheck, FaCheck, FaForward, FaWallet } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -28,6 +28,14 @@ export function DuesPage({ token }: DuesPageProps) {
   const hasFetchedRef = useRef(false);
   const lastViewRef = useRef<string>("");
 
+  // CC payment modal state
+  const [showCCPayModal, setShowCCPayModal] = useState(false);
+  const [ccPayCardId, setCcPayCardId] = useState<string>("");
+  const [ccPayCardName, setCcPayCardName] = useState<string>("");
+  const [ccPayAmount, setCcPayAmount] = useState<string>("");
+  const [ccPayPartialPaid, setCcPayPartialPaid] = useState<number>(0);
+  const [ccPaying, setCcPaying] = useState(false);
+
   // Shared view support
   const { selectedView, isSharedView, getViewParam, isOwnItem, getOwnerName } = useSharedView(token);
 
@@ -41,7 +49,6 @@ export function DuesPage({ token }: DuesPageProps) {
   const handleTogglePaid = async (due: any, e?: React.MouseEvent<HTMLButtonElement>) => {
     try {
       if (due.itemType === "credit_card") {
-        showAlert("Credit cards must be paid through the Credit Cards page");
         return;
       }
 
@@ -100,6 +107,32 @@ export function DuesPage({ token }: DuesPageProps) {
       },
       "Skip This Month?"
     );
+  };
+
+  const openCCPayModal = (due: any) => {
+    setCcPayCardId(due.id);
+    setCcPayCardName(due.name);
+    setCcPayAmount(due.amount.toString());
+    setCcPayPartialPaid(due.partialPaid || 0);
+    setShowCCPayModal(true);
+  };
+
+  const handleCCPay = async () => {
+    const amt = parseFloat(ccPayAmount);
+    if (!amt || amt <= 0 || !ccPayCardId) return;
+    setCcPaying(true);
+    try {
+      await api.payCreditCard(token, ccPayCardId, amt, ccPayPartialPaid);
+      hapticSuccess(null);
+      setShowCCPayModal(false);
+      setToast({ show: true, message: `${ccPayCardName} bill paid!` });
+      await loadDues();
+    } catch (e: any) {
+      feedbackBump();
+      showAlert("Payment failed: " + e.message);
+    } finally {
+      setCcPaying(false);
+    }
   };
 
   // Helper function to calculate next due date for periodic expenses
@@ -378,6 +411,14 @@ export function DuesPage({ token }: DuesPageProps) {
             </button>
           </div>
         )}
+        {/* Pay Bill action for credit card dues (own cards only) */}
+        {due.itemType === "credit_card" && !due.paid && (!isSharedView || isOwnItem(due.userId || due.user_id)) && (
+          <div className="due-actions">
+            <button className="due-action-btn pay-cc-btn" onClick={() => openCCPayModal(due)}>
+              <FaWallet size={12} /> Pay Bill
+            </button>
+          </div>
+        )}
       </motion.div>
     );
   };
@@ -415,7 +456,7 @@ export function DuesPage({ token }: DuesPageProps) {
             "All commitments count toward your health score regardless of payment status",
             "Periodic SIP expenses (quarterly/yearly) have a 'Skip This Month' option — skipping removes the item from dues entirely, relieving the obligation from health. No funds accumulate and no penalty is applied",
             "To undo a skip, visit the SIP Expenses page where skipped items are shown with an Undo option",
-            "Credit card payments are managed separately on the Credit Cards page"
+            "Credit card bills can be paid directly using the Pay Bill button, or managed on the Credit Cards page"
           ]}
         />
       </div>
@@ -496,6 +537,68 @@ export function DuesPage({ token }: DuesPageProps) {
           )}
         </>
       )}
+      {/* CC Payment Modal */}
+      <AnimatePresence>
+        {showCCPayModal && (
+          <motion.div
+            className="dashboard-modal-overlay"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => !ccPaying && setShowCCPayModal(false)}
+          >
+            <motion.div
+              className="dashboard-modal-card"
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: 360 }}
+            >
+              <h3 style={{ margin: '0 0 16px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FaCreditCard /> Pay {ccPayCardName}
+              </h3>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, color: 'var(--text-muted, #94a3b8)', display: 'block', marginBottom: 4 }}>Payment Amount</label>
+                <input
+                  type="number"
+                  value={ccPayAmount}
+                  onChange={(e) => setCcPayAmount(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    border: '1px solid var(--border-color, #334155)',
+                    background: 'var(--input-bg, #1e293b)', color: 'var(--text-primary, #e2e8f0)',
+                    fontSize: 16, boxSizing: 'border-box'
+                  }}
+                  autoFocus
+                  min={1}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCCPay(); }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={handleCCPay}
+                  disabled={ccPaying || !parseFloat(ccPayAmount)}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
+                    background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff',
+                    fontWeight: 600, fontSize: 14, opacity: ccPaying ? 0.6 : 1
+                  }}
+                >
+                  {ccPaying ? 'Processing...' : `Pay ₹${parseFloat(ccPayAmount || '0').toLocaleString('en-IN')}`}
+                </button>
+                <button
+                  onClick={() => setShowCCPayModal(false)}
+                  disabled={ccPaying}
+                  style={{
+                    padding: '10px 16px', borderRadius: 8, border: '1px solid var(--border-color, #334155)',
+                    background: 'transparent', color: 'var(--text-secondary, #94a3b8)', cursor: 'pointer', fontSize: 14
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AppModalRenderer modal={modal} closeModal={closeModal} confirmAndClose={confirmAndClose} />
     </div>
   );

@@ -532,6 +532,16 @@
   background: rgba(245, 158, 11, 0.2);
 }
 
+.pay-cc-btn {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.pay-cc-btn:hover {
+  background: rgba(16, 185, 129, 0.22);
+}
+
 .undo-skip-btn {
   background: rgba(59, 130, 246, 0.12);
   color: #3b82f6;

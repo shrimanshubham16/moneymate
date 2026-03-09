@@ -483,12 +483,15 @@ serve(async (req) => {
           if (k in safePayload) delete safePayload[k];
         }
       }
-      await supabase.from('activities').insert({
+      const { error: insertErr } = await supabase.from('activities').insert({
         actor_id: actorId,
         entity,
         action,
         payload: safePayload ? JSON.stringify(safePayload) : null
       });
+      if (insertErr) {
+        console.error('[ACTIVITY_INSERT_ERROR]', insertErr.message, insertErr.code, insertErr.hint, { actorId, entity, action });
+      }
     } catch (err) {
       console.error('Failed to log activity:', err);
     }
@@ -942,6 +945,7 @@ serve(async (req) => {
         return error('Failed to update profile', 500);
       }
 
+      await logActivity(userId, 'profile', 'updated profile', { displayName: updateData.display_name });
       return json({ message: 'Profile updated successfully' });
     }
 
@@ -1808,6 +1812,14 @@ serve(async (req) => {
 
       const { data, error: e } = await supabase.from('incomes').update(updates).eq('id', id).select().single();
       if (e) return error(e.message, 500);
+      await logActivity(userId, 'income', 'updated income source', {
+        id,
+        name: body.source || data?.name || '[encrypted]',
+        frequency: body.frequency,
+        incomeType: body.income_type,
+        amount: body.amount
+      });
+      await invalidateUserCache(userId);
       return json({ data });
     }
     if (path.startsWith('/planning/income/') && method === 'DELETE') {
@@ -1901,9 +1913,17 @@ serve(async (req) => {
         .maybeSingle();
       if (e) return error(e.message, 500);
       if (!data) return error('Fixed expense not found', 404);
-      // Log accumulated fund updates
+      // Log accumulated fund updates specifically, and general updates
       if (body.accumulated_funds !== undefined) {
         await logActivity(userId, 'fixed_expense', 'updated accumulated fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
+      } else {
+        await logActivity(userId, 'fixed_expense', 'updated fixed expense', {
+          id,
+          name: body.name || data.name || '[encrypted]',
+          category: body.category || data.category,
+          amount: body.amount,
+          frequency: body.frequency
+        });
       }
       await invalidateUserCache(userId);
       return json({ data });
@@ -3113,11 +3133,22 @@ serve(async (req) => {
       const { data, error: e } = await supabase.from('loans')
         .insert(insertData).select().single();
       if (e) return error(e.message, 500);
+      await logActivity(userId, 'loan', 'added loan', {
+        id: data.id,
+        name: body.name || '[encrypted]',
+        principal: body.principal,
+        emi: body.emi,
+        remainingTenureMonths: body.remainingTenureMonths
+      });
+      await invalidateUserCache(userId);
       return json({ data }, 201);
     }
     if (path.startsWith('/debts/loans/') && method === 'DELETE') {
       const id = path.split('/').pop();
+      const { data: deleted } = await supabase.from('loans').select('name').eq('id', id).single();
       await supabase.from('loans').delete().eq('id', id);
+      if (deleted) await logActivity(userId, 'loan', 'deleted loan', { id, name: deleted.name });
+      await invalidateUserCache(userId);
       return json({ data: { deleted: true } });
     }
 
