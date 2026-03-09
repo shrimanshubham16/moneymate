@@ -286,7 +286,7 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.16 }}
         >
-          <RecoveryProtectionCard token={token} />
+          <RecoveryProtectionCard token={token} user={user} />
         </motion.div>
       )}
 
@@ -699,9 +699,10 @@ function PasswordResetCard({ token }: { token: string }) {
 // Recovery Protection Card — lets existing users enable
 // recovery-safe key wrapping by entering their 24-word phrase
 // ═══════════════════════════════════════════════════════
-function RecoveryProtectionCard({ token }: { token: string }) {
+function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
   const cryptoCtx = useCrypto();
-  const hasRecoveryWrapping = !!cryptoCtx.wrapSalt;
+  const [justEnabled, setJustEnabled] = useState(false);
+  const hasRecoveryWrapping = justEnabled || !!user?.has_recovery_wrapping;
   const [showForm, setShowForm] = useState(false);
   const [phrase, setPhrase] = useState("");
   const [loading, setLoading] = useState(false);
@@ -740,6 +741,7 @@ function RecoveryProtectionCard({ token }: { token: string }) {
 
       await updateWrappedKeys(token, payload);
       feedbackPowerUp();
+      setJustEnabled(true);
       setMessage({ type: "success", text: "Recovery protection enabled! Your data is now safe during account recovery." });
       setShowForm(false);
       setPhrase("");

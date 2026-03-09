@@ -72,14 +72,20 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const setKey = useCallback(async (next: CryptoKey, salt: string, ws?: string) => {
     setKeyState(next);
     setSalt(salt);
-    if (ws !== undefined) setWrapSalt(ws);
+    if (ws !== undefined) {
+      setWrapSalt(ws || null);
+    }
     
     try {
       const exported = await exportKey(next);
       localStorage.setItem(STORAGE_KEY, exported);
       localStorage.setItem(STORAGE_SALT, salt);
-      if (ws) {
-        localStorage.setItem(STORAGE_WRAP_SALT, ws);
+      if (ws !== undefined) {
+        if (ws) {
+          localStorage.setItem(STORAGE_WRAP_SALT, ws);
+        } else {
+          localStorage.removeItem(STORAGE_WRAP_SALT);
+        }
       }
     } catch (e) {
       console.error('[CRYPTO] Failed to store key:', e);

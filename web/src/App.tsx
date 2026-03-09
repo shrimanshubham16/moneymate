@@ -134,11 +134,17 @@ function AuthForm({ onAuth, onShowLanding, onRecovery }: { onAuth: (token: strin
           let masterKey: CryptoKey;
           let activeWrapSalt: string | undefined;
           if (res.wrap_salt && res.wrapped_key_password && res.wrapped_key_password_iv) {
-            // Key-wrapping mode: unwrap KEK from password-wrapped blob
-            const passwordWK = await deriveKey(password, saltFromBase64(res.wrap_salt));
-            masterKey = await unwrapKey(res.wrapped_key_password, res.wrapped_key_password_iv, passwordWK);
-            activeWrapSalt = res.wrap_salt;
-            console.log('[AUTH] KEK unwrapped from key-wrapping store');
+            try {
+              // Key-wrapping mode: unwrap KEK from password-wrapped blob
+              const passwordWK = await deriveKey(password, saltFromBase64(res.wrap_salt));
+              masterKey = await unwrapKey(res.wrapped_key_password, res.wrapped_key_password_iv, passwordWK);
+              activeWrapSalt = res.wrap_salt;
+              console.log('[AUTH] KEK unwrapped from key-wrapping store');
+            } catch (unwrapErr) {
+              // Wrapped key corrupted — fall back to legacy derivation
+              console.warn('[AUTH] KEK unwrap failed, falling back to legacy key derivation:', unwrapErr);
+              masterKey = await deriveKey(password, saltFromBase64(encryptionSalt));
+            }
           } else {
             // Legacy mode: derive key directly from password
             masterKey = await deriveKey(password, saltFromBase64(encryptionSalt));

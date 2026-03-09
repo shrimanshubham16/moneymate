@@ -55,12 +55,13 @@ export function RecoveryPage({ onBack }: RecoveryPageProps) {
         masterKey = await unwrapKey(res.wrapped_key_recovery, res.wrapped_key_recovery_iv, recoveryWK);
         activeWrapSalt = res.wrap_salt;
 
-        // Re-wrap KEK with the new password so future logins work
+        // Atomically re-wrap KEK with new password AND update password_hash on the server
         const passwordWK = await deriveKey(newPassword, saltFromBase64(res.wrap_salt));
         const newWrappedPwd = await wrapKey(masterKey, passwordWK);
         await updateWrappedKeys(res.access_token, {
           wrappedKeyPassword: newWrappedPwd.ciphertext,
           wrappedKeyPasswordIv: newWrappedPwd.iv,
+          newPassword: newPassword,
         });
         console.log('[RECOVERY] KEK unwrapped and re-wrapped with new password');
       } else {

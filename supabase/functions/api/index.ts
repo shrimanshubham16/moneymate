@@ -575,14 +575,15 @@ serve(async (req) => {
         return error('Invalid recovery key. Please check your 24-word recovery phrase.');
       }
 
-      // Don't update password_hash yet — client will call /auth/update-wrapped-keys
-      // with the new wrapped_key_password + new password_hash after unwrapping the KEK
       const newPasswordHash = await hashPassword(newPassword);
-      await supabase.from('users').update({
-        password_hash: newPasswordHash,
-        failed_login_attempts: 0,
-        account_locked_until: null
-      }).eq('id', user.id);
+      // For key-wrapped users, only clear lockout here — password_hash + wrapped_key_password
+      // are updated atomically by the client via /auth/update-wrapped-keys to avoid split-brain.
+      // For legacy users, update password_hash directly since there's no wrapping to sync.
+      const recoveryUpdate: any = { failed_login_attempts: 0, account_locked_until: null };
+      if (!user.wrap_salt || !user.wrapped_key_recovery) {
+        recoveryUpdate.password_hash = newPasswordHash;
+      }
+      await supabase.from('users').update(recoveryUpdate).eq('id', user.id);
 
       const token = await createToken(user.id, username);
       const response: any = {
@@ -2607,8 +2608,10 @@ serve(async (req) => {
 
     // AUTH/ME - Get current user info
     if (path === '/auth/me' && method === 'GET') {
-      const { data: userData } = await supabase.from('users').select('id, username, encryption_salt, avatar_url, created_at').eq('id', userId).single();
-      return json({ data: userData });
+      const { data: userData } = await supabase.from('users').select('id, username, encryption_salt, avatar_url, created_at, wrapped_key_recovery').eq('id', userId).single();
+      const result = { ...userData, has_recovery_wrapping: !!userData?.wrapped_key_recovery };
+      delete result.wrapped_key_recovery;
+      return json({ data: result });
     }
 
     // CHANGE PASSWORD
@@ -2688,6 +2691,8 @@ serve(async (req) => {
       if (body.wrappedKeyRecovery) updatePayload.wrapped_key_recovery = body.wrappedKeyRecovery;
       if (body.wrappedKeyRecoveryIv) updatePayload.wrapped_key_recovery_iv = body.wrappedKeyRecoveryIv;
       if (body.passwordHash) updatePayload.password_hash = body.passwordHash;
+      // For recovery flow: client sends newPassword so server can hash + update atomically
+      if (body.newPassword) updatePayload.password_hash = await hashPassword(body.newPassword);
 
       if (Object.keys(updatePayload).length === 0) {
         return error('No fields to update', 400);

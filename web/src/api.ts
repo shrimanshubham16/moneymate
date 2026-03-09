@@ -354,6 +354,8 @@ export async function updateWrappedKeys(
     wrappedKeyRecovery?: string;
     wrappedKeyRecoveryIv?: string;
     passwordHash?: string;
+    newPassword?: string;
+    recoveryKeyHash?: string;
   }
 ): Promise<{ message: string }> {
   return request<{ message: string }>("/auth/update-wrapped-keys", {
