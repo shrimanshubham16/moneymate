@@ -792,14 +792,6 @@ export function DashboardPage({ token }: DashboardPageProps) {
           color="#3b82f6"
         />
         <DashboardWidget
-          title="This Month's Spend"
-          value={`${currSym}${Math.round(totalSpentThisMonth).toLocaleString("en-IN")}`}
-          subtitle="Tap for full breakdown"
-          icon={<FaCalendar />}
-          onClick={() => navigate("/current-month-expenses")}
-          color="#14b8a6"
-        />
-        <DashboardWidget
           title="Fixed Expenses"
           value={data.fixedExpenses?.length || 0}
           subtitle={`${currSym}${Math.round(fixedTotal).toLocaleString("en-IN")}/month`}
@@ -883,6 +875,14 @@ export function DashboardPage({ token }: DashboardPageProps) {
         />
 
         {/* ─── Overview & Social ─── */}
+        <DashboardWidget
+          title="This Month's Spend"
+          value={`${currSym}${Math.round(totalSpentThisMonth).toLocaleString("en-IN")}`}
+          subtitle="Tap for full breakdown"
+          icon={<FaCalendar />}
+          onClick={() => navigate("/current-month-expenses")}
+          color="#14b8a6"
+        />
         <DashboardWidget
           title="Income"
           value={`${currSym}${Math.round(incomeTotal).toLocaleString("en-IN")}`}

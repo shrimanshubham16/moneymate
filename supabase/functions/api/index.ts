@@ -218,12 +218,14 @@ function transformCreditCard(card: any) {
     dueDate: card.due_date,
     billAmount: card.bill_amount,
     paidAmount: card.paid_amount,
-    // E2E: Include encrypted bill/paid fields
-    bill_amount_enc: card.bill_amount_enc,
-    bill_amount_iv: card.bill_amount_iv,
-    paid_amount_enc: card.paid_amount_enc,
-    paid_amount_iv: card.paid_amount_iv,
+    // E2E: Include encrypted bill/paid fields (camelCase to match decryption target)
+    billAmount_enc: card.bill_amount_enc,
+    billAmount_iv: card.bill_amount_iv,
+    paidAmount_enc: card.paid_amount_enc,
+    paidAmount_iv: card.paid_amount_iv,
     currentExpenses: card.current_expenses,
+    currentExpenses_enc: card.current_expenses_enc,
+    currentExpenses_iv: card.current_expenses_iv,
     billingDate: card.billing_date,
     needsBillUpdate: card.needs_bill_update,
     isShared: card.is_shared || false,
@@ -1607,12 +1609,14 @@ serve(async (req) => {
           statementDate: c.statement_date,
           dueDate: c.due_date,
           billAmount: c.bill_amount || 0,
-          bill_amount_enc: c.bill_amount_enc,
-          bill_amount_iv: c.bill_amount_iv,
+          billAmount_enc: c.bill_amount_enc,
+          billAmount_iv: c.bill_amount_iv,
           paidAmount: c.paid_amount || 0,
-          paid_amount_enc: c.paid_amount_enc,
-          paid_amount_iv: c.paid_amount_iv,
+          paidAmount_enc: c.paid_amount_enc,
+          paidAmount_iv: c.paid_amount_iv,
           currentExpenses: c.current_expenses || 0,
+          currentExpenses_enc: c.current_expenses_enc,
+          currentExpenses_iv: c.current_expenses_iv,
           billingDate: c.billing_date,
           needsBillUpdate: c.needs_bill_update,
           createdAt: c.created_at
@@ -3017,9 +3021,13 @@ serve(async (req) => {
         username: usageUserMap.get(u.user_id) || 'Unknown',
         planId: u.plan_id,
         amount: u.amount,
+        amount_enc: u.amount_enc,
+        amount_iv: u.amount_iv,
         incurredAt: u.incurred_at,
         subcategory: u.subcategory,
         justification: u.justification,
+        justification_enc: u.justification_enc,
+        justification_iv: u.justification_iv,
         paymentMode: u.payment_mode,
         creditCardId: u.credit_card_id
       }));
@@ -3185,7 +3193,7 @@ serve(async (req) => {
     if (path.match(/\/debts\/credit-cards\/[^/]+\/reset-billing$/) && method === 'POST') {
       const id = path.split('/')[3];
       const { data: resetCard } = await supabase.from('credit_cards').select('name, bill_amount, paid_amount').eq('id', id).eq('user_id', userId).single();
-      const { data, error: e } = await supabase.from('credit_cards').update({ current_expenses: 0, needs_bill_update: false }).eq('id', id).eq('user_id', userId).select().single();
+      const { data, error: e } = await supabase.from('credit_cards').update({ current_expenses: 0, current_expenses_enc: null, current_expenses_iv: null, needs_bill_update: false }).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'reset_billing', {
         id: data.id,

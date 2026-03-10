@@ -568,8 +568,8 @@ export async function getBillingAlerts(token: string) {
 }
 
 // v1.2: Get credit card usage
-export async function getCreditCardUsage(token: string, cardId: string) {
-  return request<{ data: any[] }>(`/debts/credit-cards/${cardId}/usage`, { method: "GET" }, token);
+export async function getCreditCardUsage(token: string, cardId: string, cryptoKey?: CryptoKey) {
+  return request<{ data: any[] }>(`/debts/credit-cards/${cardId}/usage`, { method: "GET" }, token, cryptoKey);
 }
 
 // v1.2: Update credit card bill amount

@@ -97,7 +97,7 @@ export function useEncryptedApiCalls() {
     getBillingAlerts: (token: string) =>
       baseApi.getBillingAlerts(token),
     getCreditCardUsage: (token: string, cardId: string) =>
-      baseApi.getCreditCardUsage(token, cardId),
+      baseApi.getCreditCardUsage(token, cardId, key || undefined),
     
     // Loans
     fetchLoans: (token: string) => 
