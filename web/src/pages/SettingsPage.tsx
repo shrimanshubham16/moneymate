@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaUser, FaCreditCard, FaHandshake, FaPalette, FaInfoCircle, FaChartLine, FaCog, FaShieldAlt, FaBell, FaHeadset } from "react-icons/fa";
-import { StatusBadge } from "../components/StatusBadge";
 import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import "./SettingsPage.css";
@@ -19,12 +18,7 @@ export function SettingsPage() {
         { id: "credit-cards", title: "Credit Cards", icon: <FaCreditCard size={32} />, description: "Track bills and manage card payments" },
         { 
           id: "sharing", 
-          title: (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              Sharing
-              <StatusBadge status="info" size="small" label="BETA" />
-            </div>
-          ), 
+          title: "Sharing", 
           icon: <FaHandshake size={32} />, 
           description: "Share finances with family or partners" 
         },
