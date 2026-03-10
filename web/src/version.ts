@@ -18,7 +18,7 @@ const patchFromBuild = typeof __PATCH_VERSION__ !== 'undefined' ? __PATCH_VERSIO
 
 export const VERSION = {
   major: 2,
-  minor: 7,
+  minor: 8,
   patch: patchFromBuild,
   build: commitId,
   
@@ -30,37 +30,28 @@ export const VERSION = {
     return `${this.major}.${this.minor}.${this.patch}+${this.build}`;
   },
   
-  codeName: "Performance & Polish",
+  codeName: "Companion Awareness",
 
-  releaseDate: "Feb 27, 2026",
+  releaseDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
   
-  // Release notes
   releaseNotes: [
+    "Companion Activity Alerts — Get notified when your shared partner adds expenses, pays bills, or skips SIPs",
+    "Rich Activity Logging — Every action now captures full context: frequency, category, billing period, card names",
+    "Recovery Phrase Fix — Generate/Regenerate recovery phrase now works correctly for all encrypted users",
+    "Security & Profile Activities — Password changes and encryption enablement are now logged",
     "End-to-End Encryption — AES-256 military-grade encryption on device",
     "Zero-Knowledge Privacy — We can't read your financial data",
     "24-Word Recovery Key — Secure account backup & password reset",
-    "Premium Dark Theme — Ultra-polished UI across all pages",
-    "Simplified Health Thresholds — Intuitive 2-slider configuration",
+    "Key Wrapping — Data survives account recovery and password changes",
+    "Display Names — Set a display name shown in Lounge, activities, and sharing",
+    "Delete Account — Permanently delete your account and all data",
     "Overspend Risk Tracking — Gradual cooldown with adaptive decay",
-    "Premium Credit Cards Page — Usage bars, billing cycle details",
-    "Enhanced Activities Log — Expandable details & entity filters",
     "Skip Monthly SIP — Skip periodic SIP payments with health score relief",
-    "Unified App Modals — Consistent popups replacing browser dialogs",
-    "Dashboard Cache Invalidation — Instant data refresh after changes",
-    "PWA Support — Install as a native app on your device",
+    "CC Dues Payment — Clear credit card dues directly from the Dues page",
+    "Smart Notifications — Auto-alerts for unpaid dues, overspends, health drops, CC billing",
     "Community Lounge — Real-time chatroom to share tips & make friends",
     "Activity Pins & Comments — Pin activities, inline real-time comments for shared accounts",
-    "Smart Notifications — Auto-alerts for unpaid dues, overspends, health drops, CC billing",
-    "Investment Priority — Mark investments as priority to protect from pause suggestions",
-    "3-Path Future Bomb Defusal — Pause investments, sell RSU shares, or custom mix with live feedback",
-    "RSU Live Pricing — Verify stock tickers with real-time market data, auto-refresh on dashboard",
-    "Conservative RSU Planning — Net shares after tax withholding + configurable decline buffer",
-    "Currency Conversion — Automatic forex rate for RSU stocks in different currencies",
-    "Income Health Toggle — Choose which income sources count toward health score",
-    "Bill Start Date Reset — Properly resets billing cycle when start day changes",
-    "Account Page Redesign — Premium dark theme with profile hero & detail sections",
-    "Avatar Upload — Upload your profile picture via Supabase Storage",
-    "Tooltip & Modal Fixes — Forced dark context for text visibility across all themes",
+    "PWA Support — Install as a native app on your device",
     "Auto Versioning — Patch version auto-increments with each build from git history",
     "Performance Boost — Parallelized backend queries, code-split routes, memoized computations"
   ]
