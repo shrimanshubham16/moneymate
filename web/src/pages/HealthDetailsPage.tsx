@@ -246,13 +246,11 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         sum + (parseFloat(p.planned) || 0), 0);
       const variableProrated = totalVariablePlanned * remainingDaysRatio;
       
-      // Credit card dues: only count cards the current user OWNS (exclude partner's shared cards to avoid double-counting with sharedCreditCardDues from aggregates)
-      // For specific user view, skip own cards — we're viewing another user's health
+      // Credit card BILL for health: use full bill amount (committed obligation).
+      // Paying the CC company doesn't change the obligation — health only improves
+      // by skipping SIP, pausing investment, saving on prorated variable, or adding income.
       const ownCreditCardTotal = isSpecificUserView ? 0 : (cardsRes.data || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
-        const billAmount = parseFloat(c.billAmount || c.bill_amount) || 0;
-        const paidAmount = parseFloat(c.paidAmount || c.paid_amount) || 0;
-        const remaining = Math.max(0, billAmount - paidAmount);
-        return sum + remaining;
+        return sum + (parseFloat(c.billAmount || c.bill_amount) || 0);
       }, 0);
       const creditCardTotalForHealth = ownCreditCardTotal + sharedCreditCardDues;
       
@@ -351,9 +349,8 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             total: creditCardTotalForHealth,
             items: isSpecificUserView ? [] : cardsRes.data.filter((card: any) => {
               if (card.isSharedCard) return false;
-              const billAmount = card.billAmount || card.bill_amount || 0;
-              const paidAmount = card.paidAmount || card.paid_amount || 0;
-              return (billAmount - paidAmount) > 0;
+              const billAmount = parseFloat(card.billAmount || card.bill_amount || 0) || 0;
+              return billAmount > 0;
             }),
             sharedTotal: isShowingSharedData ? sharedCreditCardDues : 0
           },
@@ -852,25 +849,23 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
             transition={{ delay: 0.5 }}
           >
             <div className="card-header">
-              <h3><FaCreditCard style={{ marginRight: 8 }} />Unpaid Credit Card Bills</h3>
+              <h3><FaCreditCard style={{ marginRight: 8 }} />Credit Card Bills</h3>
               <span className="amount negative">-₹{Math.round(breakdown.debts?.creditCards?.total || 0).toLocaleString("en-IN")}</span>
             </div>
             <div className="sub-note">
-              <small>Only unpaid credit card bills for current month are counted in your health</small>
+              <small>Full bill amount is counted as a committed obligation — paying the bill does not change health</small>
             </div>
             <div className="items-list">
               {(!breakdown.debts?.creditCards?.items || breakdown.debts.creditCards.items.length === 0) && !breakdown.debts?.creditCards?.sharedTotal ? (
-                <div className="item-row"><span>All credit card bills are paid! </span></div>
+                <div className="item-row"><span>No credit card bills this month</span></div>
               ) : (
                 <>
                   {breakdown.debts.creditCards.items.map((card: any) => {
-                    const billAmount = parseFloat(card.billAmount || card.bill_amount || 0);
-                    const paidAmount = parseFloat(card.paidAmount || card.paid_amount || 0);
-                    const remaining = billAmount - paidAmount;
+                    const billAmount = parseFloat(card.billAmount || card.bill_amount || 0) || 0;
                     return (
                       <div key={card.id} className="item-row">
                         <span>{card.name}</span>
-                        <span>-₹{Math.round(remaining || 0).toLocaleString("en-IN")}</span>
+                        <span>-₹{Math.round(billAmount).toLocaleString("en-IN")}</span>
                       </div>
                     );
                   })}

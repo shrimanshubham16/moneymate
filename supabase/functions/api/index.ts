@@ -793,7 +793,7 @@ serve(async (req) => {
 
         const creditCardItems = (creditCards || []).map((c: any) => ({
           ...c,
-          remaining: Math.max(0, (c.bill_amount || 0) - (c.paid_amount || 0))
+          remaining: c.bill_amount || 0
         }));
         const totalCreditCardDue = creditCardItems.reduce((sum: number, c: any) => sum + c.remaining, 0);
 
@@ -1313,7 +1313,7 @@ serve(async (req) => {
         const calcTotalInvestments = activeInv.reduce((sum: number, i: any) => sum + (i.monthly_amount || 0), 0);
 
         const calcTotalCreditCard = (directCreditCards || []).reduce((sum: number, c: any) =>
-          sum + Math.max(0, (c.bill_amount || 0) - (c.paid_amount || 0)), 0);
+          sum + (c.bill_amount || 0), 0);
 
         // Calculate month progress for proration
         const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
@@ -4105,20 +4105,11 @@ serve(async (req) => {
         return sum + amount;
       }, 0);
 
-      const creditCardDues = (creditCards || []).reduce((sum: number, c: any) => {
-        const billAmount = num(c.bill_amount || c.billAmount || 0);
-        const paidAmount = num(c.paid_amount || c.paidAmount || 0);
-        const remaining = billAmount - paidAmount;
-        if (remaining > 0) {
-          const dueDate = new Date(c.due_date || c.dueDate);
-          if (dueDate.getMonth() === today.getMonth() && dueDate.getFullYear() === today.getFullYear()) {
-            return sum + remaining;
-          }
-        }
-        return sum;
+      const creditCardBill = (creditCards || []).reduce((sum: number, c: any) => {
+        return sum + num(c.bill_amount || c.billAmount || 0);
       }, 0);
 
-      const remainingBalance = totalIncome - (totalFixedExpenses + effectiveVariableExpense + totalInvestments + creditCardDues);
+      const remainingBalance = totalIncome - (totalFixedExpenses + effectiveVariableExpense + totalInvestments + creditCardBill);
       let healthCategory = 'ok';
       if (remainingBalance > 10000) healthCategory = 'good';
       else if (remainingBalance >= 0) healthCategory = 'ok';

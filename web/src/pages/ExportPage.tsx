@@ -144,11 +144,9 @@ export function ExportPage({ token }: ExportPageProps) {
         return sum + (parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0);
       }, 0);
       
-      // Credit card dues (matching health page)
-      const creditCardDues = (data.creditCards || []).reduce((sum: number, c: any) => {
-        const bill = parseFloat(c.billAmount || c.bill_amount) || 0;
-        const paid = parseFloat(c.paidAmount || c.paid_amount) || 0;
-        return sum + Math.max(0, bill - paid);
+      // Credit card bill total (full bill = committed obligation, matching health page)
+      const creditCardBill = (data.creditCards || []).reduce((sum: number, c: any) => {
+        return sum + (parseFloat(c.billAmount || c.bill_amount) || 0);
       }, 0);
       
       // Future Bomb Defusal SIP
@@ -163,7 +161,7 @@ export function ExportPage({ token }: ExportPageProps) {
       }, 0);
       
       // Health score calculation (matching health page exactly)
-      const healthRemaining = recalcTotalIncome - (recalcTotalFixed + recalcTotalVariableActual + recalcTotalInvestments + creditCardDues + bombSipTotal);
+      const healthRemaining = recalcTotalIncome - (recalcTotalFixed + recalcTotalVariableActual + recalcTotalInvestments + creditCardBill + bombSipTotal);
       
       // For backward compatibility - simple remaining
       const recalcRemaining = healthRemaining;
@@ -187,7 +185,7 @@ export function ExportPage({ token }: ExportPageProps) {
         totalFixedExpenses: recalcTotalFixed,
         totalVariableActual: recalcTotalVariableActual,
         totalInvestments: recalcTotalInvestments,
-        creditCardDues: creditCardDues,
+        creditCardBill: creditCardBill,
         bombDefusalSip: Math.round(bombSipTotal),
         remainingBalance: Math.round(recalcRemaining),
         healthRemaining: Math.round(healthRemaining),
@@ -215,7 +213,7 @@ export function ExportPage({ token }: ExportPageProps) {
         ["Fixed Expenses", data.summary?.totalFixedExpenses],
         ["Variable Expenses (max of Prorated/Actual)", data.summary?.totalVariableActual],
         ["Investments (Active)", data.summary?.totalInvestments],
-        ["Credit Card Dues", data.summary?.creditCardDues],
+        ["Credit Card Bills", data.summary?.creditCardBill],
         ["Bomb Defusal SIP", data.summary?.bombDefusalSip],
         [],
         ["HEALTH (Matching /health page exactly)"],

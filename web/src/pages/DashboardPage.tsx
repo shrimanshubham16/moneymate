@@ -143,20 +143,17 @@ export function DashboardPage({ token }: DashboardPageProps) {
     const sharedVariableActual = isSpecificUserView
       ? (parseFloat(specificUserAggregate?.totalVariableActual) || 0)
       : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalVariableActual) || 0), 0);
-    const sharedCreditCardDues = isSpecificUserView
+    const sharedCreditCardBill = isSpecificUserView
       ? (parseFloat(specificUserAggregate?.totalCreditCardDues) || 0)
       : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalCreditCardDues) || 0), 0);
     
     
-    // Credit card dues: only count cards the current user OWNS (exclude partner's shared cards to avoid double-counting with sharedCreditCardDues from aggregates)
-    // For specific user view, skip own cards entirely — we're viewing another user's health
-    const ownCcDues = isSpecificUserView ? 0 : (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
-      const billAmount = parseFloat(c.billAmount || c.bill_amount) || 0;
-      const paidAmount = parseFloat(c.paidAmount || c.paid_amount) || 0;
-      const remaining = Math.max(0, billAmount - paidAmount);
-      return sum + remaining;
+    // Credit card BILL for health: use full bill amount (committed obligation),
+    // not dues (bill - paid). Paying the CC company doesn't change the obligation.
+    const ownCcBill = isSpecificUserView ? 0 : (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
+      return sum + (parseFloat(c.billAmount || c.bill_amount) || 0);
     }, 0);
-    const ccDues = ownCcDues + sharedCreditCardDues;
+    const ccBill = ownCcBill + sharedCreditCardBill;
     
     // Calculate total income (own + shared) - use filtered ownIncomes
     // Respect includeInHealth flag: exclude incomes where includeInHealth === false
@@ -228,7 +225,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
       return sum + (bombRemaining / monthsLeft);
     }, 0);
     
-    const totalOutflow = totalFixedForHealth + variableTotal + totalInvestmentsForHealth + ccDues + bombSipTotal;
+    const totalOutflow = totalFixedForHealth + variableTotal + totalInvestmentsForHealth + ccBill + bombSipTotal;
     const remaining = totalIncome - totalOutflow;
     
     // Determine category using PERCENTAGE-BASED configurable thresholds
@@ -263,7 +260,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         total_investments_monthly: ownInvestmentsTotal,
         total_variable_planned: ownVariablePlans.reduce((sum: number, p: any) => sum + (parseFloat(p.planned) || 0), 0),
         total_variable_actual: ownVariableTotal,
-        total_credit_card_dues: ownCcDues,
+        total_credit_card_dues: ownCcBill,
         health_category: category,
         health_percentage: healthPct
       }
@@ -685,37 +682,74 @@ export function DashboardPage({ token }: DashboardPageProps) {
     };
   }, [data, creditCards, sharingMembers]);
 
-  // Monthly Report totals (for selectedView === 'me')
+  // Monthly Report totals — mirrors the health score formula exactly so net matches health remaining
   const reportTotals = useMemo(() => {
     if (!data || selectedView !== 'me') return null;
-    const totalIncome = (data.incomes || [])
+
+    let uid: string | null = null;
+    try { const p = JSON.parse(atob(token.split('.')[1])); uid = p.userId || p.user_id || p.sub; } catch (_) { /* */ }
+    const own = (items: any[]) => items.filter((i: any) => i.userId === uid);
+
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const remainingDaysRatio = 1 - now.getDate() / daysInMonth;
+
+    const totalIncome = own(data.incomes || [])
       .filter((inc: any) => inc.includeInHealth !== false)
       .reduce((s: number, inc: any) => {
         const amt = parseFloat(inc.amount) || 0;
         return s + (inc.frequency === 'monthly' ? amt : inc.frequency === 'quarterly' ? amt / 3 : amt / 12);
       }, 0);
-    const totalFixed = (data.fixedExpenses || []).reduce((s: number, f: any) => {
-      const amt = parseFloat(f.amount) || 0;
-      return s + (f.frequency === 'monthly' ? amt : f.frequency === 'quarterly' ? amt / 3 : amt / 12);
+
+    const totalFixed = own(data.fixedExpenses || [])
+      .filter((exp: any) => {
+        if (exp.isSkipped) return false;
+        const endDate = exp.endDate || exp.end_date;
+        const startDate = exp.startDate || exp.start_date;
+        if (endDate && new Date(endDate) < now) return false;
+        if (startDate && new Date(startDate) > now) return false;
+        return true;
+      })
+      .reduce((s: number, f: any) => {
+        const amt = parseFloat(f.amount) || 0;
+        return s + (f.frequency === 'monthly' ? amt : f.frequency === 'quarterly' ? amt / 3 : amt / 12);
+      }, 0);
+
+    const totalVariable = own(data.variablePlans || []).reduce((s: number, plan: any) => {
+      const actuals = (plan.actuals || []).filter((a: any) =>
+        a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
+      );
+      const actualTotal = actuals.reduce((sa: number, a: any) => sa + (parseFloat(a.amount) || 0), 0);
+      const prorated = (parseFloat(plan.planned) || 0) * remainingDaysRatio;
+      return s + Math.max(actualTotal, prorated);
     }, 0);
-    const totalVariable = (data.variablePlans || []).reduce((s: number, p: any) =>
-      s + (p.actuals || []).reduce((sa: number, a: any) => sa + (parseFloat(a.amount) || 0), 0), 0);
-    const totalInvestments = (data.investments || [])
+
+    const totalInvestments = own(data.investments || [])
       .filter((i: any) => i.status === 'active')
       .reduce((s: number, i: any) => s + (parseFloat(i.monthlyAmount) || 0), 0);
+
     const totalCC = (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((s: number, c: any) => {
-      const bill = parseFloat(c.billAmount || c.bill_amount) || 0;
-      const paid = parseFloat(c.paidAmount || c.paid_amount) || 0;
-      return s + Math.max(0, bill - paid);
+      return s + (parseFloat(c.billAmount || c.bill_amount) || 0);
     }, 0);
-    const net = totalIncome - totalFixed - totalVariable - totalInvestments - totalCC;
+
+    const totalBombSip = ((data.futureBombs || []) as any[]).reduce((s: number, bomb: any) => {
+      const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount ?? 0) || 0) - (parseFloat(bomb.savedAmount ?? 0) || 0));
+      if (bombRemaining <= 0) return s;
+      const dueDate = new Date(bomb.dueDate);
+      const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
+      const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
+      const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - now.getTime()) / msPerMonth));
+      return s + (bombRemaining / monthsLeft);
+    }, 0);
+
+    const net = totalIncome - totalFixed - totalVariable - totalInvestments - totalCC - totalBombSip;
     const ht = data.healthThresholds || { good_min: 20, ok_min: 10 };
     const pct = totalIncome > 0 ? (net / totalIncome) * 100 : (net < 0 ? -100 : 0);
     let rating: 'good' | 'tight' | 'negative' = 'negative';
     if (net >= 0 && pct >= ht.good_min) rating = 'good';
     else if (net >= 0 && pct >= ht.ok_min) rating = 'tight';
-    return { totalIncome, totalFixed, totalVariable, totalInvestments, totalCC, net, rating };
-  }, [data, creditCards, selectedView]);
+    return { totalIncome, totalFixed, totalVariable, totalInvestments, totalCC, totalBombSip, net, rating };
+  }, [data, creditCards, selectedView, token]);
 
   if (loading) {
     return (
@@ -873,7 +907,10 @@ export function DashboardPage({ token }: DashboardPageProps) {
               <div className="report-row"><span>Fixed Expenses</span><span className="negative">-{currSym}{Math.round(reportTotals.totalFixed).toLocaleString("en-IN")}</span></div>
               <div className="report-row"><span>Variable Spending</span><span className="negative">-{currSym}{Math.round(reportTotals.totalVariable).toLocaleString("en-IN")}</span></div>
               <div className="report-row"><span>Investments</span><span className="negative">-{currSym}{Math.round(reportTotals.totalInvestments).toLocaleString("en-IN")}</span></div>
-              <div className="report-row"><span>Credit Cards</span><span className="negative">-{currSym}{Math.round(reportTotals.totalCC).toLocaleString("en-IN")}</span></div>
+              <div className="report-row"><span>Credit Card Bills</span><span className="negative">-{currSym}{Math.round(reportTotals.totalCC).toLocaleString("en-IN")}</span></div>
+              {reportTotals.totalBombSip > 0 && (
+                <div className="report-row"><span>Bomb Defusal SIP</span><span className="negative">-{currSym}{Math.round(reportTotals.totalBombSip).toLocaleString("en-IN")}</span></div>
+              )}
               <hr className="report-divider" />
               <div className="report-row report-net"><span>Net Position</span><span className={reportTotals.net >= 0 ? 'positive' : 'negative'}>{currSym}{Math.round(reportTotals.net).toLocaleString("en-IN")}</span></div>
             </div>
