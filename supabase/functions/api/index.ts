@@ -2368,11 +2368,14 @@ serve(async (req) => {
 
       if (deleteErr) return error('Failed to delete: ' + deleteErr.message, 500);
 
-      // Log activity
+      const { data: delPlan } = await supabase.from('variable_expense_plans')
+        .select('name').eq('id', planId).maybeSingle();
       await logActivity(userId, 'variable_expense', 'deleted_actual', {
         planId,
         actualId,
+        planName: delPlan?.name,
         amount: actual.amount,
+        amount_enc: actual.amount_enc, amount_iv: actual.amount_iv,
         subcategory: actual.subcategory
       });
 
@@ -3159,6 +3162,7 @@ serve(async (req) => {
       const resolvedCardName = body.cardName || card.name || '[encrypted]';
       await logActivity(userId, 'credit_card', 'payment', {
         id: data.id, amount: body.amount,
+        amount_enc: body.amount_enc, amount_iv: body.amount_iv,
         cardName: resolvedCardName,
         newTotalPaid: newPaidAmount,
         billAmount: card.bill_amount || 0
@@ -3211,6 +3215,7 @@ serve(async (req) => {
         id: data.id,
         cardName: body.cardName || card.name || '[encrypted]',
         billAmount: actualBillAmount,
+        bill_amount_enc: body.bill_amount_enc, bill_amount_iv: body.bill_amount_iv,
         previousBillAmount: card.bill_amount || 0
       });
 

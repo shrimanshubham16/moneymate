@@ -16,6 +16,8 @@ import { ActivityHistoryModal } from "../components/ActivityHistoryModal";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import * as social from "../lib/activitySocial";
 import { getBaseUrl } from "../api";
+import { useCrypto } from "../contexts/CryptoContext";
+import { decryptString } from "../lib/crypto";
 import "./ActivitiesPage.css";
 
 interface ActivitiesPageProps {
@@ -40,9 +42,32 @@ const ENTITY_LABELS: Record<string, string> = {
   profile: "Profile",
 };
 
+async function decryptPayloadFields(payload: any, key: CryptoKey): Promise<any> {
+  if (!payload || typeof payload !== 'object') return payload;
+  const result = { ...payload };
+  const tasks: Promise<void>[] = [];
+  for (const field of Object.keys(payload)) {
+    if (!field.endsWith('_enc')) continue;
+    const base = field.slice(0, -4);
+    const ivField = `${base}_iv`;
+    if (!payload[ivField]) continue;
+    tasks.push(
+      decryptString(payload[field], payload[ivField], key)
+        .then(dec => {
+          const num = parseFloat(dec);
+          result[base] = isNaN(num) ? dec : num;
+        })
+        .catch(() => { /* keep existing value */ })
+    );
+  }
+  await Promise.all(tasks);
+  return result;
+}
+
 export function ActivitiesPage({ token }: ActivitiesPageProps) {
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
+  const { key: cryptoKey } = useCrypto();
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -147,7 +172,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
     try {
       const res = await api.fetchActivity(token, undefined, undefined, selectedView);
 
-      const sanitizedActivities = (res.data || []).map((activity: any) => {
+      const rawActivities = (res.data || []).map((activity: any) => {
         let parsedPayload = activity.payload;
         if (typeof parsedPayload === "string") {
           try {
@@ -165,6 +190,17 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
           payload: parsedPayload,
         };
       });
+
+      // Decrypt encrypted payload fields (name_enc, amount_enc, etc.) for E2E users
+      const sanitizedActivities = cryptoKey
+        ? await Promise.all(rawActivities.map(async (a: any) => {
+            if (!a.payload || typeof a.payload !== 'object') return a;
+            const hasEncFields = Object.keys(a.payload).some(k => k.endsWith('_enc'));
+            if (!hasEncFields) return a;
+            const decrypted = await decryptPayloadFields(a.payload, cryptoKey);
+            return { ...a, payload: decrypted };
+          }))
+        : rawActivities;
 
       sanitizedActivities.sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -403,12 +439,13 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       case "created":
       case "added":
       case "added income source":
-        if (activity.entity === "income" && payload.name && payload.amount) {
+        if (activity.entity === "income") {
           const frequency = payload.frequency ? ` (${payload.frequency})` : "";
-          return `${uname} added income source ${formatCurrency(payload.amount)}${frequency} for ${payload.name}`;
+          if (payload.name && payload.amount) return `${uname} added income ${formatCurrency(payload.amount)}${frequency} for "${payload.name}"`;
+          if (payload.name) return `${uname} added income source "${payload.name}"${frequency}`;
         }
         if (activity.entity === "credit_card" && payload.name) {
-          const billInfo = payload.billAmount ? ` with bill ₹${payload.billAmount}` : "";
+          const billInfo = payload.billAmount ? ` with bill ${formatCurrency(payload.billAmount)}` : "";
           return `${uname} added credit card "${payload.name}"${billInfo}`;
         }
         return `${uname} added ${entity}`;
@@ -418,17 +455,20 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         const paymentMode = payload.paymentMode ? ` via ${payload.paymentMode}` : "";
         const subcat = payload.subcategory && payload.subcategory !== "Unspecified" ? ` (${payload.subcategory})` : "";
         if (amount > 0) return `${uname} spent ${formatCurrency(amount)} on ${planName}${subcat}${paymentMode}`;
+        if (planName !== "expense") return `${uname} added expense on ${planName}${subcat}${paymentMode}`;
         return `${uname} added actual expense`;
       }
       case "added fixed expense":
         if (payload.name && payload.amount) {
-          return `${uname} added fixed expense ${formatCurrency(payload.amount)} for ${payload.name}`;
+          return `${uname} added fixed expense ${formatCurrency(payload.amount)} for "${payload.name}"`;
         }
+        if (payload.name) return `${uname} added fixed expense "${payload.name}"`;
         return `${uname} added fixed expense`;
       case "added variable expense plan":
         if (payload.name && payload.planned) {
-          return `${uname} planned ${formatCurrency(payload.planned)} for ${payload.name}`;
+          return `${uname} planned ${formatCurrency(payload.planned)} for "${payload.name}"`;
         }
+        if (payload.name) return `${uname} added plan "${payload.name}"`;
         return `${uname} added variable expense plan`;
       case "added investment": {
         const invAmount = payload.monthlyAmount || payload.monthly_amount || 0;
@@ -443,19 +483,22 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         return `${uname} added future bomb "${bombName}"${total}${due}`;
       }
       case "payment":
-        if (activity.entity === "credit_card" && payload.amount) {
+        if (activity.entity === "credit_card") {
           const cardName = payload.cardName || "credit card";
-          const totalPaid = payload.newTotalPaid ? ` (total paid: ${formatCurrency(payload.newTotalPaid)})` : "";
-          return `${uname} paid ${formatCurrency(payload.amount)} on ${cardName}${totalPaid}`;
+          if (payload.amount) {
+            const totalPaid = payload.newTotalPaid ? ` (total paid: ${formatCurrency(payload.newTotalPaid)})` : "";
+            return `${uname} paid ${formatCurrency(payload.amount)} on ${cardName}${totalPaid}`;
+          }
+          return `${uname} made payment on ${cardName}`;
         }
         return `${uname} made payment ${payload.amount ? formatCurrency(payload.amount) : ""}`.trim();
       case "updated_bill": {
         const cardLabel = payload.cardName || "credit card";
         if (payload.billAmount) {
           const prev = payload.previousBillAmount ? ` (was ${formatCurrency(payload.previousBillAmount)})` : "";
-          return `${uname} updated bill to ${formatCurrency(payload.billAmount)} for ${cardLabel}${prev}`;
+          return `${uname} updated bill to ${formatCurrency(payload.billAmount)} for "${cardLabel}"${prev}`;
         }
-        return `${uname} updated ${entity} bill`;
+        return `${uname} updated bill for "${cardLabel}"`;
       }
       case "reset_billing": {
         const resetCard = payload.cardName || "credit card";
@@ -487,13 +530,15 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       case "deleted_actual": {
         const delPlan = payload.planName || "expense";
         const delSub = payload.subcategory && payload.subcategory !== "Unspecified" ? ` (${payload.subcategory})` : "";
-        return `${uname} deleted expense from ${delPlan}${delSub}`;
+        const delAmt = payload.amount ? ` of ${formatCurrency(payload.amount)}` : "";
+        return `${uname} deleted expense${delAmt} from "${delPlan}"${delSub}`;
       }
       case "paid": {
-        const name = payload.name || "";
+        const paidName = payload.name || "";
         const freq = payload.frequency ? ` (${payload.frequency})` : "";
-        if (payload.amount && name) return `${uname} marked "${name}"${freq} as paid (${formatCurrency(payload.amount)})`;
-        if (name) return `${uname} marked "${name}"${freq} as paid`;
+        const sipTag = payload.isSip ? " SIP" : "";
+        if (payload.amount && paidName) return `${uname} paid${sipTag} "${paidName}"${freq} (${formatCurrency(payload.amount)})`;
+        if (paidName) return `${uname} paid${sipTag} "${paidName}"${freq}`;
         return `${uname} marked ${entity} as paid`;
       }
       case "skipped": {
@@ -509,8 +554,13 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       }
       case "unpaid":
         return `${uname} unmarked "${payload.name || entity}" payment`;
-      case "overspend_detected":
-        return `Overspend detected on "${payload.planName || "plan"}" — spent ${formatCurrency(payload.actual || 0)} vs planned ${formatCurrency(payload.planned || 0)}`;
+      case "overspend_detected": {
+        const opName = payload.planName || "plan";
+        const hasAmounts = payload.actual > 0 || payload.planned > 0;
+        if (hasAmounts)
+          return `Overspend detected on "${opName}" — spent ${formatCurrency(payload.actual)} vs planned ${formatCurrency(payload.planned)}`;
+        return `Overspend detected on "${opName}" — over budget this month`;
+      }
       case "monthly_reset":
         return `Monthly billing cycle reset for ${payload.month || "new period"}`;
       case "password_changed":
