@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaFileExcel, FaCheckCircle, FaLightbulb, FaTable } from "react-icons/fa";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { saveAs } from "file-saver";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import { PageInfoButton } from "../components/PageInfoButton";
 import { feedbackStar, feedbackBump } from "../utils/haptics";
+import { calculateHealthScore } from "../utils/healthCalculation";
 import "./ExportPage.css";
 
 interface ExportPageProps {
@@ -95,330 +96,354 @@ export function ExportPage({ token }: ExportPageProps) {
         data.loans = loansRes.data || [];
       } catch {}
 
-      // Recalculate totals after decryption - MATCHING HEALTH PAGE LOGIC
-      // Respect includeInHealth flag for health calculation
-      const recalcTotalIncome = (data.incomes || [])
-        .filter((i: any) => i.includeInHealth !== false)
-        .reduce((sum: number, i: any) => {
-          const amount = parseFloat(i.amount) || 0;
-          const monthly = i.frequency === 'monthly' ? amount : i.frequency === 'quarterly' ? amount / 3 : amount / 12;
-          return sum + monthly;
-        }, 0);
-      
-      // Count ALL fixed expenses (commitment exists whether paid or not)
-      const recalcTotalFixed = (data.fixedExpenses || []).reduce((sum: number, e: any) => {
-        const amount = parseFloat(e.amount) || 0;
-        const monthly = e.frequency === 'monthly' ? amount : e.frequency === 'quarterly' ? amount / 3 : amount / 12;
-        return sum + monthly;
-      }, 0);
-      
-      // Recalculate variable actuals after decryption (for display — includes all payment modes)
+      // Recalculate variable actuals after decryption (for display)
       const variableExpensesWithActuals = (data.variableExpenses || []).map((exp: any) => {
         const recalcActualTotal = (exp.actuals || []).reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
         return { ...exp, actualTotal: recalcActualTotal };
       });
-      
-      // Variable: use max of actual vs prorated planned (matching health page EXACTLY)
-      // CRITICAL: Exclude ExtraCash & CreditCard payment modes from health actuals
-      const today = new Date();
-      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      const daysPassed = today.getDate();
-      const monthProgress = daysPassed / daysInMonth;
-      const remainingDaysRatio = 1 - monthProgress;
-      
-      const recalcTotalVariableActual = variableExpensesWithActuals.reduce((sum: number, e: any) => {
-        // Filter out ExtraCash and CreditCard payment modes (they don't reduce available funds)
-        const healthActuals = (e.actuals || []).filter((a: any) => 
-          a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard" &&
-          a.payment_mode !== "ExtraCash" && a.payment_mode !== "CreditCard"
-        );
-        const healthActualTotal = healthActuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
-        const planned = parseFloat(e.planned) || 0;
-        const prorated = planned * remainingDaysRatio;
-        return sum + Math.max(healthActualTotal, prorated);
-      }, 0);
-      
-      // Count ALL active investments (commitment exists whether paid or not)
-      const recalcTotalInvestments = (data.investments || []).reduce((sum: number, inv: any) => {
-        if (inv.status === 'paused') return sum; // Skip paused only
-        return sum + (parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0);
-      }, 0);
-      
-      // Credit card bill total (full bill = committed obligation, matching health page)
-      const creditCardBill = (data.creditCards || []).reduce((sum: number, c: any) => {
-        return sum + (parseFloat(c.billAmount || c.bill_amount) || 0);
-      }, 0);
-      
-      // Future Bomb Defusal SIP
-      const bombSipTotal = ((data.futureBombs || []) as any[]).reduce((sum: number, bomb: any) => {
-        const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount || bomb.total_amount) || 0) - (parseFloat(bomb.savedAmount || bomb.saved_amount) || 0));
-        if (bombRemaining <= 0) return sum;
-        const dueDate = new Date(bomb.dueDate || bomb.due_date);
-        const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
-        const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
-        const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today.getTime()) / msPerMonth));
-        return sum + (bombRemaining / monthsLeft);
-      }, 0);
-      
-      // Health score calculation (matching health page exactly)
-      const healthRemaining = recalcTotalIncome - (recalcTotalFixed + recalcTotalVariableActual + recalcTotalInvestments + creditCardBill + bombSipTotal);
-      
-      // For backward compatibility - simple remaining
-      const recalcRemaining = healthRemaining;
-      
-      
-      // Determine health category using PERCENTAGE-BASED thresholds (matching health page)
-      const ht = data.healthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
-      const exportHealthPct = recalcTotalIncome > 0
-        ? (healthRemaining / recalcTotalIncome) * 100
-        : (healthRemaining < 0 ? -100 : 0);
-      let healthCategory: string;
-      if (exportHealthPct < 0) healthCategory = "worrisome";
-      else if (exportHealthPct >= ht.good_min) healthCategory = "good";
-      else if (exportHealthPct >= ht.ok_min) healthCategory = "ok";
-      else healthCategory = "not_well";
-      
-      // Update summary with recalculated values
+
+      // Use the shared health calculation utility (single source of truth)
+      const healthResult = calculateHealthScore({
+        incomes: data.incomes || [],
+        fixedExpenses: data.fixedExpenses || [],
+        variablePlans: variableExpensesWithActuals,
+        investments: data.investments || [],
+        creditCards: data.creditCards || [],
+        futureBombs: data.futureBombs || [],
+        sharedAggregates: [],
+        healthThresholds: data.healthThresholds,
+        currentUserId,
+        selectedView: 'me',
+      });
+
+      const bd = healthResult.breakdown;
       data.summary = {
         ...data.summary,
-        totalIncome: recalcTotalIncome,
-        totalFixedExpenses: recalcTotalFixed,
-        totalVariableActual: recalcTotalVariableActual,
-        totalInvestments: recalcTotalInvestments,
-        creditCardBill: creditCardBill,
-        bombDefusalSip: Math.round(bombSipTotal),
-        remainingBalance: Math.round(recalcRemaining),
-        healthRemaining: Math.round(healthRemaining),
-        healthPercentage: Math.round(exportHealthPct * 100) / 100,
-        healthCategory: healthCategory,
+        totalIncome: Math.round(bd.totalIncome),
+        totalFixedExpenses: Math.round(bd.totalFixed),
+        totalVariableActual: Math.round(bd.totalVariable),
+        totalInvestments: Math.round(bd.totalInvestments),
+        creditCardBill: Math.round(bd.totalCcBill),
+        bombDefusalSip: Math.round(bd.bombSip),
+        remainingBalance: Math.round(healthResult.remaining || 0),
+        healthRemaining: Math.round(healthResult.remaining || 0),
+        healthPercentage: Math.round(healthResult.healthPct * 100) / 100,
+        healthCategory: healthResult.category,
       };
-      
-      // Use recalculated variable expenses
+
       data.variableExpenses = variableExpensesWithActuals;
       setStatus("Building workbook...");
 
-      // Create workbook
+      // ── Style Definitions ──
+      const brand = { rgb: "0D9488" };
+      const headerFill = { fgColor: { rgb: "1E293B" }, patternType: "solid" } as any;
+      const headerFont = { bold: true, color: { rgb: "FFFFFF" }, sz: 11 } as any;
+      const headerBorder = { bottom: { style: "thin", color: { rgb: "475569" } } } as any;
+      const sectionFill = { fgColor: { rgb: "F1F5F9" }, patternType: "solid" } as any;
+      const sectionFont = { bold: true, color: { rgb: "1E293B" }, sz: 11 } as any;
+      const titleFont = { bold: true, color: { rgb: "0D9488" }, sz: 16 } as any;
+      const subtitleFont = { bold: true, color: { rgb: "334155" }, sz: 12 } as any;
+      const currFmt = "₹#,##0";
+      const pctFmt = "0.0%";
+      const labelStyle = { font: { bold: true, color: { rgb: "475569" }, sz: 10 } };
+      const positiveStyle = { font: { bold: true, color: { rgb: "10B981" } }, numFmt: currFmt };
+      const negativeStyle = { font: { bold: true, color: { rgb: "EF4444" } }, numFmt: currFmt };
+      const neutralNum = { numFmt: currFmt };
+
+      const styleHeaders = (ws: any, colCount: number) => {
+        for (let c = 0; c < colCount; c++) {
+          const ref = XLSX.utils.encode_cell({ r: 0, c });
+          if (!ws[ref]) continue;
+          ws[ref].s = { fill: headerFill, font: headerFont, border: headerBorder, alignment: { horizontal: "center" } };
+        }
+      };
+
+      const styleCurrencyCols = (ws: any, cols: number[], rowCount: number) => {
+        for (const c of cols) {
+          for (let r = 1; r <= rowCount; r++) {
+            const ref = XLSX.utils.encode_cell({ r, c });
+            if (ws[ref] && typeof ws[ref].v === "number") ws[ref].s = { ...ws[ref].s, numFmt: currFmt };
+          }
+        }
+      };
+
       const wb = XLSX.utils.book_new();
 
-      // Summary Sheet with calculations matching health page
-      const summaryData = [
+      // ── Summary Sheet ──
+      const s = data.summary;
+      const totalOutflow = (s?.totalFixedExpenses || 0) + (s?.totalVariableActual || 0) +
+        (s?.totalInvestments || 0) + (s?.creditCardBill || 0) + (s?.bombDefusalSip || 0);
+      const summaryRows: any[][] = [
         [isSharedView ? "FinFlow Combined Financial Report" : "FinFlow Financial Report"],
-        ["Export Date", new Date().toLocaleDateString()],
+        ["Export Date", new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })],
         isSharedView ? ["View", "Combined (Shared Finances)"] : ["Username", data.user?.username || "User"],
         [],
-        ["FINANCIAL SUMMARY"],
-        ["Total Monthly Income", data.summary?.totalIncome],
+        ["INCOME"],
+        ["Total Monthly Income", s?.totalIncome || 0],
         [],
         ["OUTFLOW BREAKDOWN"],
-        ["Fixed Expenses", data.summary?.totalFixedExpenses],
-        ["Variable Expenses (max of Prorated/Actual)", data.summary?.totalVariableActual],
-        ["Investments (Active)", data.summary?.totalInvestments],
-        ["Credit Card Bills", data.summary?.creditCardBill],
-        ["Bomb Defusal SIP", data.summary?.bombDefusalSip],
+        ["Fixed Expenses", s?.totalFixedExpenses || 0],
+        ["Variable Expenses", s?.totalVariableActual || 0],
+        ["Active Investments", s?.totalInvestments || 0],
+        ["Credit Card Bills", s?.creditCardBill || 0],
+        ["Bomb Defusal SIP", s?.bombDefusalSip || 0],
+        ["Total Outflow", totalOutflow],
         [],
-        ["HEALTH (Matching /health page exactly)"],
-        ["Remaining Balance", data.summary?.healthRemaining],
-        ["Health Score %", data.summary?.healthPercentage],
-        ["Health Status", (data.summary?.healthCategory || "good").toUpperCase()],
-        ["Formula", "Income - (Fixed + max(Prorated,Actual) Variable + Investments + CC Dues + Bomb SIP)"],
+        ["HEALTH SCORE"],
+        ["Remaining Balance", s?.healthRemaining || 0],
+        ["Health %", (s?.healthPercentage || 0) / 100],
+        ["Health Status", (s?.healthCategory || "good").toUpperCase()],
         [],
-        ["CONSTRAINT SCORE"],
+        ["FORMULA"],
+        ["Health = Income − (Fixed + max(Prorated, Actual) Variable + Investments + CC Bill + Bomb SIP)"],
+        [],
+        ["OVERSPEND RISK"],
         ["Score", data.constraintScore?.score || 0],
         ["Tier", (data.constraintScore?.tier || "green").toUpperCase()],
       ];
-      if (isSharedView) {
-        summaryData.push([], ["Note: This report includes combined finances from shared members."]);
-      }
-      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-      wsSummary["!cols"] = [{ wch: 25 }, { wch: 20 }];
+      if (isSharedView) summaryRows.push([], ["Note: This report includes combined finances from shared members."]);
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary["!cols"] = [{ wch: 42 }, { wch: 22 }];
+      wsSummary["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+
+      // Style the title
+      if (wsSummary["A1"]) wsSummary["A1"].s = { font: titleFont };
+      // Style section headers
+      [4, 7, 15, 20, 23].forEach(r => {
+        const ref = XLSX.utils.encode_cell({ r, c: 0 });
+        if (wsSummary[ref]) wsSummary[ref].s = { font: sectionFont, fill: sectionFill };
+        const ref2 = XLSX.utils.encode_cell({ r, c: 1 });
+        if (wsSummary[ref2]) wsSummary[ref2].s = { fill: sectionFill };
+      });
+      // Style labels (left column)
+      [1, 2, 5, 8, 9, 10, 11, 12, 13, 16, 17, 18, 24, 25].forEach(r => {
+        const ref = XLSX.utils.encode_cell({ r, c: 0 });
+        if (wsSummary[ref]) wsSummary[ref].s = { ...wsSummary[ref].s, ...labelStyle };
+      });
+      // Style currency values
+      [5, 8, 9, 10, 11, 12, 16].forEach(r => {
+        const ref = XLSX.utils.encode_cell({ r, c: 1 });
+        if (wsSummary[ref]) {
+          const val = wsSummary[ref].v;
+          wsSummary[ref].s = val >= 0 ? positiveStyle : negativeStyle;
+        }
+      });
+      // Total outflow row (bold red)
+      const totRef = XLSX.utils.encode_cell({ r: 13, c: 0 });
+      if (wsSummary[totRef]) wsSummary[totRef].s = { font: { bold: true, color: { rgb: "1E293B" } } };
+      const totVal = XLSX.utils.encode_cell({ r: 13, c: 1 });
+      if (wsSummary[totVal]) wsSummary[totVal].s = negativeStyle;
+      // Health remaining
+      const hrRef = XLSX.utils.encode_cell({ r: 16, c: 1 });
+      if (wsSummary[hrRef]) wsSummary[hrRef].s = (s?.healthRemaining || 0) >= 0 ? positiveStyle : negativeStyle;
+      // Health %
+      const hpRef = XLSX.utils.encode_cell({ r: 17, c: 1 });
+      if (wsSummary[hpRef]) wsSummary[hpRef].s = { numFmt: "0.0%" };
+      // Formula row
+      const fRef = XLSX.utils.encode_cell({ r: 21, c: 0 });
+      if (wsSummary[fRef]) wsSummary[fRef].s = { font: { italic: true, color: { rgb: "64748B" }, sz: 9 } };
+
       XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
 
-      // Income Sheet (with Owner column for shared views)
-      if (data.incomes && data.incomes.length > 0) {
-        const incomeData = data.incomes.map((inc: any) => {
-          const amount = parseFloat(inc.amount) || 0;
-          const row: any = {
-            Source: inc.source || inc.name || '[No Source]',
-            Amount: amount,
-            Frequency: inc.frequency || 'monthly',
-            "Monthly Equivalent": inc.frequency === "monthly" ? amount : inc.frequency === "quarterly" ? amount / 3 : amount / 12
-          };
-          if (isSharedView) row.Owner = getOwnerName(inc.userId || inc.user_id);
-          return row;
-        });
-        const wsIncome = XLSX.utils.json_to_sheet(incomeData);
-        wsIncome["!cols"] = isSharedView 
-          ? [{ wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 15 }]
-          : [{ wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 18 }];
-        XLSX.utils.book_append_sheet(wb, wsIncome, "Income");
+      // ── Helper: create a styled data sheet ──
+      const addDataSheet = (name: string, rows: any[], colWidths: number[], currencyCols: number[]) => {
+        if (!rows.length) return;
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws["!cols"] = colWidths.map(w => ({ wch: w }));
+        styleHeaders(ws, colWidths.length);
+        styleCurrencyCols(ws, currencyCols, rows.length);
+        XLSX.utils.book_append_sheet(wb, ws, name);
+      };
+
+      // ── Income Sheet ──
+      const incomeRows = (data.incomes || []).map((inc: any) => {
+        const amount = parseFloat(inc.amount) || 0;
+        const row: any = {
+          Source: inc.source || inc.name || '[No Source]',
+          Amount: amount,
+          Frequency: inc.frequency || 'monthly',
+          "Monthly Eq.": inc.frequency === "monthly" ? amount : inc.frequency === "quarterly" ? amount / 3 : amount / 12
+        };
+        if (isSharedView) row.Owner = getOwnerName(inc.userId || inc.user_id);
+        return row;
+      });
+      addDataSheet("Income", incomeRows, isSharedView ? [22, 14, 12, 14, 14] : [22, 14, 12, 14], [1, 3]);
+
+      // ── Fixed Expenses Sheet ──
+      const fixedRows = (data.fixedExpenses || []).map((exp: any) => {
+        const amount = parseFloat(exp.amount) || 0;
+        const row: any = {
+          Name: exp.name || '[No Name]',
+          Amount: amount,
+          Frequency: exp.frequency || 'monthly',
+          Category: exp.category || '',
+          "Monthly Eq.": exp.frequency === 'monthly' ? amount : exp.frequency === 'quarterly' ? amount / 3 : amount / 12,
+          Type: (exp.is_sip_flag || exp.is_sip) ? "SIP" : "Fixed"
+        };
+        if (isSharedView) row.Owner = getOwnerName(exp.userId || exp.user_id);
+        return row;
+      });
+      addDataSheet("Fixed Expenses", fixedRows, isSharedView ? [22, 14, 12, 14, 14, 8, 14] : [22, 14, 12, 14, 14, 8], [1, 4]);
+
+      // ── Variable Expenses Sheet ──
+      const variableRows = (data.variableExpenses || []).map((exp: any) => {
+        const planned = parseFloat(exp.planned) || 0;
+        const actualTotal = parseFloat(exp.actualTotal) || 0;
+        const diff = actualTotal - planned;
+        const row: any = {
+          Name: exp.name || '[No Name]',
+          Planned: planned,
+          Actual: actualTotal,
+          Difference: diff,
+          "% Used": planned > 0 ? actualTotal / planned : 0,
+          Category: exp.category || '',
+          Status: actualTotal > planned ? "OVERSPEND" : "OK"
+        };
+        if (isSharedView) row.Owner = getOwnerName(exp.userId || exp.user_id);
+        return row;
+      });
+      if (variableRows.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(variableRows);
+        const cols = isSharedView ? [22, 14, 14, 14, 10, 14, 12, 14] : [22, 14, 14, 14, 10, 14, 12];
+        ws["!cols"] = cols.map(w => ({ wch: w }));
+        styleHeaders(ws, cols.length);
+        styleCurrencyCols(ws, [1, 2, 3], variableRows.length);
+        // Format % column and status
+        for (let r = 1; r <= variableRows.length; r++) {
+          const pctRef = XLSX.utils.encode_cell({ r, c: 4 });
+          if (ws[pctRef]) ws[pctRef].s = { numFmt: pctFmt };
+          const statusRef = XLSX.utils.encode_cell({ r, c: 6 });
+          if (ws[statusRef]?.v === "OVERSPEND") {
+            ws[statusRef].s = { font: { bold: true, color: { rgb: "EF4444" } }, alignment: { horizontal: "center" } };
+          } else if (ws[statusRef]) {
+            ws[statusRef].s = { font: { color: { rgb: "10B981" } }, alignment: { horizontal: "center" } };
+          }
+        }
+        XLSX.utils.book_append_sheet(wb, ws, "Variable Expenses");
       }
 
-      // Fixed Expenses Sheet (with Owner column for shared views)
-      if (data.fixedExpenses && data.fixedExpenses.length > 0) {
-        const fixedData = data.fixedExpenses.map((exp: any) => {
-          const amount = parseFloat(exp.amount) || 0;
-          const monthlyEquiv = exp.frequency === 'monthly' ? amount : exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
-          const row: any = {
-            Name: exp.name || '[No Name]',
-            Amount: amount,
-            Frequency: exp.frequency || 'monthly',
-            Category: exp.category || '',
-            "Monthly Equivalent": monthlyEquiv,
-            "SIP Enabled": (exp.is_sip_flag || exp.is_sip) ? "Yes" : "No"
-          };
-          if (isSharedView) row.Owner = getOwnerName(exp.userId || exp.user_id);
-          return row;
-        });
-        const wsFixed = XLSX.utils.json_to_sheet(fixedData);
-        wsFixed["!cols"] = isSharedView
-          ? [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 15 }]
-          : [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 18 }, { wch: 12 }];
-        XLSX.utils.book_append_sheet(wb, wsFixed, "Fixed Expenses");
+      // ── Investments Sheet ──
+      const investRows = (data.investments || []).map((inv: any) => {
+        const monthlyAmt = parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0;
+        const row: any = {
+          Name: inv.name || '[No Name]',
+          Goal: inv.goal || '',
+          "Monthly Amount": monthlyAmt,
+          "Annual Amount": monthlyAmt * 12,
+          Status: (inv.status || 'active').toUpperCase()
+        };
+        if (isSharedView) row.Owner = getOwnerName(inv.userId || inv.user_id);
+        return row;
+      });
+      addDataSheet("Investments", investRows, isSharedView ? [22, 18, 14, 14, 10, 14] : [22, 18, 14, 14, 10], [2, 3]);
+
+      // ── Future Bombs Sheet ──
+      const bombRows = (data.futureBombs || []).map((bomb: any) => {
+        const totalAmount = parseFloat(bomb.totalAmount || bomb.total_amount) || 0;
+        const savedAmount = parseFloat(bomb.savedAmount || bomb.saved_amount) || 0;
+        const remaining = totalAmount - savedAmount;
+        const row: any = {
+          Name: bomb.name || '[No Name]',
+          "Due Date": bomb.dueDate || bomb.due_date ? new Date(bomb.dueDate || bomb.due_date).toLocaleDateString() : 'N/A',
+          "Total": totalAmount,
+          "Saved": savedAmount,
+          "Remaining": remaining,
+          "Ready %": totalAmount > 0 ? savedAmount / totalAmount : 0,
+        };
+        if (isSharedView) row.Owner = getOwnerName(bomb.userId || bomb.user_id);
+        return row;
+      });
+      if (bombRows.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(bombRows);
+        const cols = isSharedView ? [22, 12, 14, 14, 14, 10, 14] : [22, 12, 14, 14, 14, 10];
+        ws["!cols"] = cols.map(w => ({ wch: w }));
+        styleHeaders(ws, cols.length);
+        styleCurrencyCols(ws, [2, 3, 4], bombRows.length);
+        for (let r = 1; r <= bombRows.length; r++) {
+          const pRef = XLSX.utils.encode_cell({ r, c: 5 });
+          if (ws[pRef]) ws[pRef].s = { numFmt: pctFmt };
+        }
+        XLSX.utils.book_append_sheet(wb, ws, "Future Bombs");
       }
 
-      // Variable Expenses Sheet (with Owner column for shared views)
-      if (data.variableExpenses && data.variableExpenses.length > 0) {
-        const variableData = data.variableExpenses.map((exp: any) => {
-          const planned = parseFloat(exp.planned) || 0;
-          const actualTotal = parseFloat(exp.actualTotal) || 0;
-          const diff = actualTotal - planned;
-          const pctOfPlan = planned > 0 ? ((actualTotal / planned) * 100).toFixed(1) + "%" : "N/A";
-          const row: any = {
-            Name: exp.name || '[No Name]',
-            Planned: planned,
-            Actual: actualTotal,
-            Difference: diff,
-            "% of Plan": pctOfPlan,
-            Category: exp.category || '',
-            Status: actualTotal > planned ? "OVERSPEND" : "OK"
-          };
-          if (isSharedView) row.Owner = getOwnerName(exp.userId || exp.user_id);
-          return row;
-        });
-        const wsVariable = XLSX.utils.json_to_sheet(variableData);
-        wsVariable["!cols"] = isSharedView
-          ? [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 15 }]
-          : [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }];
-        XLSX.utils.book_append_sheet(wb, wsVariable, "Variable Expenses");
+      // ── Credit Cards Sheet ──
+      const cardRows = (data.creditCards || []).map((card: any) => {
+        const billAmount = parseFloat(card.billAmount || card.bill_amount) || 0;
+        const paidAmount = parseFloat(card.paidAmount || card.paid_amount) || 0;
+        const remaining = billAmount - paidAmount;
+        const row: any = {
+          Name: card.name || '[No Name]',
+          "Bill Amount": billAmount,
+          "Paid": paidAmount,
+          "Remaining": remaining,
+          Status: remaining <= 0 ? "PAID" : "PENDING"
+        };
+        if (isSharedView) row.Owner = getOwnerName(card.userId || card.user_id);
+        return row;
+      });
+      if (cardRows.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(cardRows);
+        const cols = isSharedView ? [22, 14, 14, 14, 10, 14] : [22, 14, 14, 14, 10];
+        ws["!cols"] = cols.map(w => ({ wch: w }));
+        styleHeaders(ws, cols.length);
+        styleCurrencyCols(ws, [1, 2, 3], cardRows.length);
+        for (let r = 1; r <= cardRows.length; r++) {
+          const stRef = XLSX.utils.encode_cell({ r, c: 4 });
+          if (ws[stRef]?.v === "PAID") {
+            ws[stRef].s = { font: { bold: true, color: { rgb: "10B981" } }, alignment: { horizontal: "center" } };
+          } else if (ws[stRef]) {
+            ws[stRef].s = { font: { bold: true, color: { rgb: "F59E0B" } }, alignment: { horizontal: "center" } };
+          }
+        }
+        XLSX.utils.book_append_sheet(wb, ws, "Credit Cards");
       }
 
-      // Investments Sheet (with Owner column for shared views)
-      if (data.investments && data.investments.length > 0) {
-        const investmentData = data.investments.map((inv: any) => {
-          const monthlyAmt = parseFloat(inv.monthlyAmount || inv.monthly_amount) || 0;
-          const row: any = {
-            Name: inv.name || '[No Name]',
-            Goal: inv.goal || '',
-            "Monthly Amount": monthlyAmt,
-            "Annual Amount": monthlyAmt * 12,
-            Status: (inv.status || 'active').toUpperCase()
-          };
-          if (isSharedView) row.Owner = getOwnerName(inv.userId || inv.user_id);
-          return row;
-        });
-        const wsInvestments = XLSX.utils.json_to_sheet(investmentData);
-        wsInvestments["!cols"] = isSharedView
-          ? [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 15 }]
-          : [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
-        XLSX.utils.book_append_sheet(wb, wsInvestments, "Investments");
-      }
+      // ── Loans Sheet ──
+      const loanRows = (data.loans || []).map((loan: any) => {
+        const row: any = {
+          Name: loan.name,
+          Principal: loan.principal,
+          "Monthly EMI": loan.emi,
+          "Remaining Months": loan.remainingTenureMonths,
+          "Total Remaining": loan.emi * loan.remainingTenureMonths
+        };
+        if (isSharedView) row.Owner = getOwnerName(loan.userId || loan.user_id);
+        return row;
+      });
+      addDataSheet("Loans", loanRows, isSharedView ? [22, 14, 14, 16, 16, 14] : [22, 14, 14, 16, 16], [1, 2, 4]);
 
-      // Future Bombs Sheet (with Owner column for shared views)
-      if (data.futureBombs && data.futureBombs.length > 0) {
-        const bombData = data.futureBombs.map((bomb: any) => {
-          const totalAmount = parseFloat(bomb.totalAmount || bomb.total_amount) || 0;
-          const savedAmount = parseFloat(bomb.savedAmount || bomb.saved_amount) || 0;
-          const remaining = totalAmount - savedAmount;
-          const prepRatio = totalAmount > 0 ? (savedAmount / totalAmount) : 0;
-          const row: any = {
-            Name: bomb.name || '[No Name]',
-            "Due Date": bomb.dueDate || bomb.due_date ? new Date(bomb.dueDate || bomb.due_date).toLocaleDateString() : 'N/A',
-            "Total Amount": totalAmount,
-            "Saved Amount": savedAmount,
-            "Remaining": remaining,
-            "Preparedness %": (prepRatio * 100).toFixed(1) + "%",
-            "Monthly Target": parseFloat(bomb.monthlyEquivalent || bomb.monthly_equivalent) || 0
-          };
-          if (isSharedView) row.Owner = getOwnerName(bomb.userId || bomb.user_id);
-          return row;
-        });
-        const wsBombs = XLSX.utils.json_to_sheet(bombData);
-        wsBombs["!cols"] = isSharedView
-          ? [{ wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
-          : [{ wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
-        XLSX.utils.book_append_sheet(wb, wsBombs, "Future Bombs");
-      }
-
-      // Credit Cards Sheet
-      if (data.creditCards && data.creditCards.length > 0) {
-        const cardData = data.creditCards.map((card: any) => {
-          const billAmount = parseFloat(card.billAmount || card.bill_amount) || 0;
-          const paidAmount = parseFloat(card.paidAmount || card.paid_amount) || 0;
-          const remaining = billAmount - paidAmount;
-          const row: any = {
-            Name: card.name || '[No Name]',
-            "Bill Amount": billAmount,
-            "Paid Amount": paidAmount,
-            "Remaining": remaining,
-            "Due Date": card.dueDate || card.due_date ? new Date(card.dueDate || card.due_date).toLocaleDateString() : 'N/A',
-            Status: remaining === 0 ? "PAID" : "PENDING"
-          };
-          if (isSharedView) row.Owner = getOwnerName(card.userId || card.user_id);
-          return row;
-        });
-        const wsCards = XLSX.utils.json_to_sheet(cardData);
-        wsCards["!cols"] = isSharedView
-          ? [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }]
-          : [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }];
-        XLSX.utils.book_append_sheet(wb, wsCards, "Credit Cards");
-      }
-
-      // Loans Sheet (with Owner column for shared views)
-      if (data.loans && data.loans.length > 0) {
-        const loanData = data.loans.map((loan: any) => {
-          const row: any = {
-            Name: loan.name,
-            Principal: loan.principal,
-            "Monthly EMI": loan.emi,
-            "Remaining Months": loan.remainingTenureMonths,
-            "Total Remaining": loan.emi * loan.remainingTenureMonths
-          };
-          if (isSharedView) row.Owner = getOwnerName(loan.userId || loan.user_id);
-          return row;
-        });
-        const wsLoans = XLSX.utils.json_to_sheet(loanData);
-        wsLoans["!cols"] = isSharedView
-          ? [{ wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
-          : [{ wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
-        XLSX.utils.book_append_sheet(wb, wsLoans, "Loans");
-      }
-
-      // Category-wise Breakdown Sheet
+      // ── Category Breakdown Sheet ──
       const categoryMap = new Map<string, number>();
       data.fixedExpenses?.forEach((exp: any) => {
         const cat = exp.category || 'Uncategorized';
         const amount = parseFloat(exp.amount) || 0;
         const monthly = exp.frequency === 'monthly' ? amount : exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
-        const current = categoryMap.get(cat) || 0;
-        categoryMap.set(cat, current + monthly);
+        categoryMap.set(cat, (categoryMap.get(cat) || 0) + monthly);
       });
       data.variableExpenses?.forEach((exp: any) => {
         const cat = exp.category || 'Uncategorized';
-        const actual = parseFloat(exp.actualTotal) || 0;
-        const current = categoryMap.get(cat) || 0;
-        categoryMap.set(cat, current + actual);
+        categoryMap.set(cat, (categoryMap.get(cat) || 0) + (parseFloat(exp.actualTotal) || 0));
       });
 
       const totalCategorySpend = Array.from(categoryMap.values()).reduce((sum, v) => sum + v, 0);
       if (categoryMap.size > 0) {
-        const categoryData = Array.from(categoryMap.entries()).map(([category, amount]) => ({
-          Category: category || 'Uncategorized',
-          "Total Spend": Math.round(amount),
-          "% of Total": totalCategorySpend > 0 ? ((amount / totalCategorySpend) * 100).toFixed(1) + "%" : "0%"
-        }));
-        const wsCategory = XLSX.utils.json_to_sheet(categoryData);
-        wsCategory["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }];
-        XLSX.utils.book_append_sheet(wb, wsCategory, "Category Breakdown");
+        const catRows = Array.from(categoryMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([category, amount]) => ({
+            Category: category || 'Uncategorized',
+            "Total Spend": Math.round(amount),
+            "% of Total": totalCategorySpend > 0 ? amount / totalCategorySpend : 0
+          }));
+        const ws = XLSX.utils.json_to_sheet(catRows);
+        ws["!cols"] = [{ wch: 22 }, { wch: 14 }, { wch: 12 }];
+        styleHeaders(ws, 3);
+        styleCurrencyCols(ws, [1], catRows.length);
+        for (let r = 1; r <= catRows.length; r++) {
+          const pRef = XLSX.utils.encode_cell({ r, c: 2 });
+          if (ws[pRef]) ws[pRef].s = { numFmt: pctFmt };
+        }
+        XLSX.utils.book_append_sheet(wb, ws, "Category Breakdown");
       }
 
       // Write file

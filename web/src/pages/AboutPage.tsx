@@ -241,7 +241,7 @@ export function AboutPage() {
         <>
           <p>The Health page is the heart of FinFlow. Think of it as a <strong>daily 5-second check</strong> — open the app, glance at your health, know exactly where you stand.</p>
           <h5>The Health Score</h5>
-          <p><strong>Income - (Fixed + Variable + Investments + CC Dues + Bomb SIP) = Remaining.</strong> That remaining amount, as a percentage of income, determines your category:</p>
+          <p><strong>Income − (Fixed + max(Prorated, Actual) Variable + Investments + CC Bill + Bomb SIP) = Remaining.</strong> That remaining amount, as a percentage of income, determines your category:</p>
           <ul>
             <li><strong>Good</strong> — Healthy buffer. You're on track with room to spare.</li>
             <li><strong>OK</strong> — You'll make it, but not much cushion left.</li>
@@ -249,7 +249,7 @@ export function AboutPage() {
             <li><strong>Worrisome</strong> — Significant shortfall. Immediate action needed.</li>
           </ul>
           <h5>The Breakdown</h5>
-          <p>Tap into Health Details for a full breakdown: each income source, each fixed expense, variable spending (prorated vs. actual — whichever is higher), active investments, CC dues, and bomb defusal SIP.</p>
+          <p>Tap into Health Details for a full breakdown: each income source, each fixed expense, variable spending (prorated vs. actual — whichever is higher), active investments, CC bills, and bomb defusal SIP.</p>
           <h5>Configurable Thresholds</h5>
           <p>What "Good" means is personal. Adjust the threshold sliders to match your comfort level. If you're comfortable with a 10% buffer, set Good to 10%. If you need 30%, set it there.</p>
           <h5>Overspend Risk</h5>

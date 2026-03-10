@@ -355,7 +355,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
         title="Financial Health Score"
         description="This is the page that tells you the truth — how much money you really have left after every bill, investment, and variable expense. A single number that captures your entire financial standing this month."
         tips={[
-          "Health Score = Income − (Fixed Expenses + max(Prorated, Actual) Variable + Investments + Credit Card Dues + Bomb Defusal SIP)",
+          "Health Score = Income − (Fixed Expenses + max(Prorated, Actual) Variable + Investments + CC Bill + Bomb Defusal SIP)",
           "Green (≥20% of income left) = Healthy, Yellow (10–20%) = Tight, Red (<10%) = Danger — you can customise these thresholds",
           "Overspend Risk tracks how often you exceed variable expense budgets and decays monthly",
           "The full breakdown shows exactly where every rupee is going so you can optimise",
@@ -493,7 +493,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       <div className="calculation-section">
         <h2><FaChartLine style={{ marginRight: 8 }} />How We Calculated Your Health</h2>
         <div className="calculation-explanation">
-          <p><strong>Health Score = Income - (Fixed + max(Prorated, Actual) Variable + Active Investments + CC Dues + Bomb SIP)</strong></p>
+          <p><strong>Health Score = Income − (Fixed + max(Prorated, Actual) Variable + Active Investments + CC Bill + Bomb SIP)</strong></p>
           
         </div>
 
