@@ -477,13 +477,19 @@ export function DashboardPage({ token }: DashboardPageProps) {
         showAlert("Enter a valid amount");
         return;
       }
+      const matchedPlan = (data?.variablePlans || []).find((p: any) => p.id === quickAddPlanId);
+      const currentActual = matchedPlan?.actualTotal || 0;
+      const plannedBudget = parseFloat(matchedPlan?.planned) || 0;
+      const isOverspend = plannedBudget > 0 && (currentActual + amountNum) > plannedBudget;
+
       await api.addVariableActual(token, quickAddPlanId, {
         amount: amountNum,
         incurred_at: new Date().toISOString(),
         justification: quickAddJustification || undefined,
         subcategory: quickAddSubcategory || undefined,
         payment_mode: quickAddMode,
-        credit_card_id: quickAddMode === "CreditCard" ? quickAddCardId || undefined : undefined
+        credit_card_id: quickAddMode === "CreditCard" ? quickAddCardId || undefined : undefined,
+        isOverspend,
       });
       setShowQuickAdd(false);
       setQuickAddAmount("");

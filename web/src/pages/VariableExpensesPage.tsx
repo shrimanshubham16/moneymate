@@ -235,13 +235,20 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
       });
       setSelectedPlanId(null);
 
+      const currentPlan = plans.find(p => p.id === selectedPlanId);
+      const currentActualTotal = currentPlan?.actualTotal || 0;
+      const plannedAmount = parseFloat(currentPlan?.planned) || 0;
+      const newTotal = currentActualTotal + tempActual.amount;
+      const isOverspend = plannedAmount > 0 && newTotal > plannedAmount;
+
       await api.addVariableActual(token, selectedPlanId, {
         amount: Number(tempActual.amount),
         incurred_at: tempActual.incurredAt,
         justification: tempActual.justification || undefined,
         subcategory: tempActual.subcategory,
         payment_mode: tempActual.paymentMode,
-        credit_card_id: tempActual.creditCardId
+        credit_card_id: tempActual.creditCardId,
+        isOverspend,
       });
 
       invalidateDashboardCache();

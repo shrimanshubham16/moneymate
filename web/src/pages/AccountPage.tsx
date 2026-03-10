@@ -5,13 +5,14 @@ import {
   FaLock, FaShieldAlt, FaKey, FaCheckCircle,
   FaExclamationTriangle, FaDownload, FaLockOpen,
   FaUpload, FaCamera, FaSignOutAlt, FaFingerprint,
-  FaInfoCircle, FaUserShield, FaChevronRight, FaTimes
+  FaInfoCircle, FaUserShield, FaChevronRight, FaTimes,
+  FaTrash, FaSkullCrossbones
 } from "react-icons/fa";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { useCrypto } from "../contexts/CryptoContext";
 import { deriveKey, saltFromBase64, generateSalt, wrapKey, isValidRecoveryKey, hashRecoveryKey, generateRecoveryKey } from "../lib/crypto";
 import { reEncryptAllData, ReEncryptionProgress } from "../services/reEncryptionService";
-import { updateWrappedKeys, login } from "../api";
+import { updateWrappedKeys, login, deleteAccount } from "../api";
 import { RecoveryKeyModal } from "../components/RecoveryKeyModal";
 import { feedbackPowerUp, feedbackBump } from "../utils/haptics";
 import "./AccountPage.css";
@@ -44,6 +45,13 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
   const [editingDisplayName, setEditingDisplayName] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [savingDisplayName, setSavingDisplayName] = useState(false);
+
+  // Delete account state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setToast({ type, text });
@@ -142,6 +150,23 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
       showToast('error', err.message || 'Failed to save display name');
     } finally {
       setSavingDisplayName(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) { setDeleteError('Password is required.'); return; }
+    if (deleteConfirmText !== 'DELETE') { setDeleteError('Please type DELETE to confirm.'); return; }
+    setDeletingAccount(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount(token, deletePassword);
+      feedbackBump();
+      onLogout();
+    } catch (err: any) {
+      feedbackBump();
+      setDeleteError(err.message || 'Failed to delete account.');
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -314,6 +339,87 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
         <button className="account-action-btn danger" onClick={onLogout}>
           <FaSignOutAlt /> Sign Out
         </button>
+      </motion.div>
+
+      {/* ── Danger Zone ───────────────────────── */}
+      <motion.div
+        className="account-section-card danger-zone"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.20 }}
+      >
+        <div className="section-card-header">
+          <div className="section-card-icon danger"><FaSkullCrossbones /></div>
+          <div style={{ flex: 1 }}>
+            <h3 className="section-card-title" style={{ color: '#f87171' }}>Danger Zone</h3>
+            <p className="section-card-subtitle">Irreversible actions</p>
+          </div>
+        </div>
+
+        {!showDeleteConfirm ? (
+          <button
+            className="account-action-btn danger-outline"
+            onClick={() => setShowDeleteConfirm(true)}
+          >
+            <FaTrash /> Delete Account Permanently
+          </button>
+        ) : (
+          <div className="delete-confirm-form">
+            <div className="recovery-warning-card" style={{ marginBottom: 12, borderColor: 'rgba(248,113,113,0.3)' }}>
+              <FaExclamationTriangle style={{ color: '#f87171' }} />
+              <div>
+                <p style={{ margin: 0, color: '#f87171', fontWeight: 600 }}>This action is permanent and cannot be undone.</p>
+                <p style={{ margin: '6px 0 0', color: '#8B95B0', fontSize: 13 }}>
+                  All your data — income, expenses, investments, credit cards, activities, and shared accounts — will be permanently erased.
+                </p>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Confirm your password</label>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={e => setDeletePassword(e.target.value)}
+                placeholder="Enter your password"
+                disabled={deletingAccount}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Type <strong style={{ color: '#f87171' }}>DELETE</strong> to confirm</label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                disabled={deletingAccount}
+                autoComplete="off"
+              />
+            </div>
+
+            {deleteError && (
+              <div className="form-message error">
+                <FaExclamationTriangle /> {deleteError}
+              </div>
+            )}
+
+            <div className="form-btn-row">
+              <button
+                className="account-action-btn ghost"
+                onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteConfirmText(''); setDeleteError(null); }}
+                disabled={deletingAccount}
+              >Cancel</button>
+              <button
+                className="account-action-btn danger"
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount || deleteConfirmText !== 'DELETE' || !deletePassword}
+              >
+                {deletingAccount ? 'Deleting...' : <><FaTrash /> Delete Forever</>}
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* ── Info Footer ────────────────────────── */}

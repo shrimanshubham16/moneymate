@@ -1053,6 +1053,51 @@ serve(async (req) => {
       return json({ message: 'Password updated successfully' });
     }
 
+    // DELETE user account permanently
+    if (path === '/user/delete-account' && method === 'POST') {
+      const body = await req.json();
+      const { password } = body;
+
+      if (!password) return error('Password is required to delete your account');
+
+      const { data: currentUser, error: userErr } = await supabase
+        .from('users')
+        .select('password_hash, username')
+        .eq('id', userId)
+        .single();
+
+      if (userErr || !currentUser) return error('User not found', 404);
+
+      const valid = await verifyPassword(password, currentUser.password_hash);
+      if (!valid) return error('Incorrect password');
+
+      try {
+        // Clean up tables without ON DELETE CASCADE FK
+        await supabase.from('chat_messages').delete().eq('user_id', userId);
+        await supabase.from('chat_reactions').delete().eq('user_id', userId);
+        await supabase.from('activity_comments').delete().eq('user_id', userId);
+        await supabase.from('activity_pins').delete().eq('user_id', userId);
+
+        // Remove avatar from storage if present
+        try {
+          const { data: files } = await supabase.storage.from('avatars').list(userId);
+          if (files?.length) {
+            await supabase.storage.from('avatars').remove(files.map((f: any) => `${userId}/${f.name}`));
+          }
+        } catch (e) { console.warn('[DELETE_ACCOUNT] Avatar cleanup:', e); }
+
+        // Delete the user row — CASCADE handles all FK-constrained tables
+        const { error: deleteErr } = await supabase.from('users').delete().eq('id', userId);
+        if (deleteErr) throw deleteErr;
+
+        console.log(`[DELETE_ACCOUNT] User ${currentUser.username} (${userId}) permanently deleted`);
+        return json({ message: 'Account deleted permanently' });
+      } catch (e: any) {
+        console.error('[DELETE_ACCOUNT] Failed:', e);
+        return error('Failed to delete account. Please try again.', 500);
+      }
+    }
+
     // ENABLE user encryption
     if (path === '/user/enable-encryption' && method === 'POST') {
       let body;
@@ -2014,9 +2059,8 @@ serve(async (req) => {
       const planId = path.split('/')[3];
       const body = await req.json();
 
-      // Get plan details for activity log and overspend detection
       const { data: plan } = await supabase.from('variable_expense_plans')
-        .select('name, category, planned').eq('id', planId).single();
+        .select('id, name, category, planned').eq('id', planId).single();
 
       // E2E Phase 2: Use encrypted fields, fallback to plaintext, or placeholder
       const hasEncryption = body.amount_enc && body.amount_iv;
@@ -2082,29 +2126,31 @@ serve(async (req) => {
       }
 
       // Overspend detection: E2E users send isOverspend flag from client;
+      // Overspend detection: E2E users send isOverspend flag from client;
       // non-E2E uses server-side DB amounts
       const isE2EForOverspend = await isE2EUser();
-      const detectedOverspend = isE2EForOverspend ? !!body.isOverspend : false;
       let totalActual = 0;
       let plannedAmount = 0;
 
-      if (plan?.planned) {
-        const { data: prefs } = await supabase.from('user_preferences')
-          .select('month_start_day').eq('user_id', userId).maybeSingle();
-        const monthStartDay = prefs?.month_start_day || 1;
+      // E2E: plan.planned is 0 in DB, so we need the flag from client
+      // Non-E2E: plan.planned has the real value; skip if plan doesn't exist
+      const canDetectOverspend = isE2EForOverspend ? !!body.isOverspend : !!(plan && parseFloat(plan.planned));
 
-        const today = new Date(body.incurred_at || new Date().toISOString());
-        let monthStart: Date;
-        let monthEnd: Date;
+      const { data: prefs } = await supabase.from('user_preferences')
+        .select('month_start_day').eq('user_id', userId).maybeSingle();
+      const monthStartDay = prefs?.month_start_day || 1;
+      const today = new Date(body.incurred_at || new Date().toISOString());
+      let monthStart: Date;
+      let monthEnd: Date;
+      if (today.getDate() >= monthStartDay) {
+        monthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+        monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, monthStartDay);
+      } else {
+        monthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+        monthEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+      }
 
-        if (today.getDate() >= monthStartDay) {
-          monthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
-          monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, monthStartDay);
-        } else {
-          monthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
-          monthEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
-        }
-
+      if (canDetectOverspend) {
         if (!isE2EForOverspend) {
           const { data: actuals } = await supabase.from('variable_expense_actuals')
             .select('amount')
@@ -2116,7 +2162,7 @@ serve(async (req) => {
           plannedAmount = parseFloat(plan.planned) || 0;
         }
 
-        const isOverspend = isE2EForOverspend ? detectedOverspend : totalActual > plannedAmount;
+        const isOverspend = isE2EForOverspend ? !!body.isOverspend : totalActual > plannedAmount;
 
         if (isOverspend) {
           const { data: existingOverspend } = await supabase.from('activities')
@@ -2124,7 +2170,7 @@ serve(async (req) => {
             .eq('actor_id', userId)
             .eq('entity', 'variable_expense')
             .eq('action', 'overspend_detected')
-            .contains('payload', { planId: plan.id })
+            .contains('payload', { planId })
             .gte('created_at', monthStart.toISOString())
             .lt('created_at', monthEnd.toISOString())
             .limit(1);
@@ -2133,9 +2179,10 @@ serve(async (req) => {
             const { data: constraint } = await supabase.from('constraint_scores')
               .select('*').eq('user_id', userId).maybeSingle();
 
+            const billingPeriod = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
             const activityPayload = isE2EForOverspend
-              ? { planId: plan.id, billingPeriod: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}` }
-              : { planId: plan.id, planName: plan.name, planned: plannedAmount, actual: totalActual, overspend: totalActual - plannedAmount, billingPeriod: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}` };
+              ? { planId, billingPeriod }
+              : { planId, planName: plan.name, planned: plannedAmount, actual: totalActual, overspend: totalActual - plannedAmount, billingPeriod };
 
             if (constraint) {
               const currentScore = constraint.score || 0;
@@ -2155,9 +2202,10 @@ serve(async (req) => {
             }
           }
         }
+      }
 
-        // Notify shared companions about overspend (gentle nudge)
-        if (totalActual > plannedAmount) {
+      // Notify shared companions about overspend (gentle nudge)
+      if (!isE2EForOverspend && totalActual > plannedAmount) {
           try {
             const billingMonth = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
             const { data: myMemberships } = await supabase.from('shared_members')
@@ -2173,12 +2221,11 @@ serve(async (req) => {
                   type: 'budget_alert',
                   title: 'Companion Budget Alert',
                   message: `${me?.username || 'Your companion'} exceeded their ${plan.name} budget this month`,
-                  groupKey: `companion_overspend:${userId}:${plan.id}:${billingMonth}`
+                  groupKey: `companion_overspend:${userId}:${planId}:${billingMonth}`
                 }).catch(err => console.warn('[BACKGROUND] Companion notification failed:', err));
               }
             }
           } catch (e) { console.warn('[COMPANION_NUDGE]', e); }
-        }
       }
 
       // Enhanced activity log with all details

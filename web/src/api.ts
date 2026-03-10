@@ -380,6 +380,13 @@ export async function updateUserPassword(
   }, token);
 }
 
+export async function deleteAccount(token: string, password: string): Promise<{ message: string }> {
+  return request<{ message: string }>("/user/delete-account", {
+    method: "POST",
+    body: JSON.stringify({ password })
+  }, token);
+}
+
 export async function fetchDashboard(token: string, asOf?: string, view?: string, cryptoKey?: CryptoKey, nocache?: boolean): Promise<{ data: DashboardData }> {
   const params = new URLSearchParams();
   if (asOf) params.set("today", asOf);
