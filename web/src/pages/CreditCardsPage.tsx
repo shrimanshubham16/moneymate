@@ -65,7 +65,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
     try {
       const card = cards.find(c => c.id === selectedCard);
       const currentPaid = parseFloat(card?.paidAmount || card?.paid_amount) || 0;
-      await api.payCreditCard(token, selectedCard, Number(paymentAmount), currentPaid);
+      await api.payCreditCard(token, selectedCard, Number(paymentAmount), currentPaid, undefined, card?.name || card?.card_name);
       feedbackOneUp();
       setShowPaymentForm(false);
       setPaymentAmount("");

@@ -95,7 +95,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
       async () => {
         try {
           setSipExpenses(prev => prev.map(s => s.id === sip.id ? { ...s, isSkipped: true } : s));
-          await api.skipSIP(token, sip.id);
+          await api.skipSIP(token, sip.id, sip.name);
           invalidateDashboardCache();
           feedbackPipe();
           loadSIPExpenses();
@@ -112,7 +112,7 @@ export function SIPExpensesPage({ token }: SIPExpensesPageProps) {
   const handleUndoSkipSIP = async (sip: any) => {
     try {
       setSipExpenses(prev => prev.map(s => s.id === sip.id ? { ...s, isSkipped: false } : s));
-      await api.undoSkipSIP(token, sip.id);
+      await api.undoSkipSIP(token, sip.id, sip.name);
       invalidateDashboardCache();
       feedbackPipe();
       loadSIPExpenses();

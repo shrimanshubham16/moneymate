@@ -249,6 +249,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
         payment_mode: tempActual.paymentMode,
         credit_card_id: tempActual.creditCardId,
         isOverspend,
+        planName: currentPlan?.name,
       });
 
       invalidateDashboardCache();

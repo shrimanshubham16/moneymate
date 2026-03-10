@@ -438,6 +438,7 @@ export async function addVariableActual(
     newCurrentExpenses?: number;
     current_expenses_enc?: string;
     current_expenses_iv?: string;
+    planName?: string;
   },
   cryptoKey?: CryptoKey
 ) {
@@ -550,9 +551,9 @@ export async function deleteCreditCard(token: string, id: string) {
   return request<{ data: any }>(`/debts/credit-cards/${id}`, { method: "DELETE" }, token);
 }
 
-export async function payCreditCard(token: string, id: string, amount: number, currentPaidTotal?: number, cryptoKey?: CryptoKey) {
+export async function payCreditCard(token: string, id: string, amount: number, currentPaidTotal?: number, cryptoKey?: CryptoKey, cardName?: string) {
   const newTotal = (currentPaidTotal || 0) + amount;
-  const payload: any = { amount, newTotalPaid: newTotal, paid_amount: newTotal };
+  const payload: any = { amount, newTotalPaid: newTotal, paid_amount: newTotal, cardName };
   const body = await buildBody(payload, cryptoKey);
   return request<{ data: any }>(`/debts/credit-cards/${id}/payments`, { method: "POST", body }, token, cryptoKey);
 }
@@ -709,21 +710,21 @@ export async function deleteFutureBomb(token: string, id: string) {
   return request<{ data: { deleted: boolean } }>(`/future-bombs/${id}`, { method: "DELETE" }, token);
 }
 
-// Payment tracking
-export async function markAsPaid(token: string, itemId: string, itemType: 'fixed_expense' | 'investment' | 'loan', amount: number) {
-  return request<{ data: any }>("/payments/mark-paid", { method: "POST", body: JSON.stringify({ itemId, itemType, amount }) }, token);
+// Payment tracking — itemName is sent so E2E activity logs show the real name
+export async function markAsPaid(token: string, itemId: string, itemType: 'fixed_expense' | 'investment' | 'loan', amount: number, itemName?: string) {
+  return request<{ data: any }>("/payments/mark-paid", { method: "POST", body: JSON.stringify({ itemId, itemType, amount, itemName }) }, token);
 }
 
 export async function markAsUnpaid(token: string, itemId: string, itemType: 'fixed_expense' | 'investment' | 'loan') {
   return request<{ data: any }>("/payments/mark-unpaid", { method: "POST", body: JSON.stringify({ itemId, itemType }) }, token);
 }
 
-export async function skipSIP(token: string, itemId: string) {
-  return request<{ data: any }>("/payments/mark-paid", { method: "POST", body: JSON.stringify({ itemId, itemType: 'fixed_expense', isSkip: true }) }, token);
+export async function skipSIP(token: string, itemId: string, itemName?: string) {
+  return request<{ data: any }>("/payments/mark-paid", { method: "POST", body: JSON.stringify({ itemId, itemType: 'fixed_expense', isSkip: true, itemName }) }, token);
 }
 
-export async function undoSkipSIP(token: string, itemId: string) {
-  return request<{ data: any }>("/payments/undo-skip", { method: "POST", body: JSON.stringify({ itemId }) }, token);
+export async function undoSkipSIP(token: string, itemId: string, itemName?: string) {
+  return request<{ data: any }>("/payments/undo-skip", { method: "POST", body: JSON.stringify({ itemId, itemName }) }, token);
 }
 
 export async function getPaymentStatus(token: string, entityType?: string, entityId?: string, month?: string) {

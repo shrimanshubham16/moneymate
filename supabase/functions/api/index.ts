@@ -2249,9 +2249,10 @@ serve(async (req) => {
                 .select('*').eq('user_id', userId).maybeSingle();
 
               const billingPeriod = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+              const resolvedPlanName = body.planName || plan?.name || 'a variable expense';
               const activityPayload = isE2EForOverspend
-                ? { planId, billingPeriod }
-                : { planId, planName: plan.name, planned: plannedAmount, actual: totalActual, overspend: totalActual - plannedAmount, billingPeriod };
+                ? { planId, planName: resolvedPlanName, billingPeriod }
+                : { planId, planName: resolvedPlanName, planned: plannedAmount, actual: totalActual, overspend: totalActual - plannedAmount, billingPeriod };
 
               if (constraint) {
                 const currentScore = constraint.score || 0;
@@ -2272,7 +2273,7 @@ serve(async (req) => {
               await logActivity(userId, 'variable_expense', 'overspend_detected', activityPayload);
 
               // Companion overspend nudge
-              const overspendPlanName = plan?.name || 'a variable expense';
+              const overspendPlanName = body.planName || plan?.name || 'a variable expense';
               notifyCompanions(supabase, userId, 'Budget Overspend',
                 `Overspent on "${overspendPlanName}" this month`,
                 `companion_overspend:${userId}:${planId}:${billingPeriod}`, '/activities');
@@ -2296,7 +2297,7 @@ serve(async (req) => {
       await logActivity(userId, 'variable_expense', 'added actual expense', {
         planId: planId,
         actualId: data.id,
-        planName: plan?.name,
+        planName: body.planName || plan?.name,
         category: plan?.category,
         amount: body.amount || data.amount || 0,
         amount_enc: body.amount_enc || data.amount_enc,
@@ -2315,7 +2316,7 @@ serve(async (req) => {
       if (actorAmt > 0) {
         const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
         const actorName = actor?.display_name || actor?.username || 'Companion';
-        const planLabel = plan?.name || 'expense';
+        const planLabel = body.planName || plan?.name || 'expense';
         notifyCompanions(supabase, userId, 'Expense Added',
           `${actorName} spent ₹${actorAmt.toLocaleString('en-IN')} on ${planLabel}`,
           `companion_expense:${userId}:${data.id}`, '/activities');
@@ -3155,16 +3156,17 @@ serve(async (req) => {
       if (body.paid_amount_iv) updatePayload.paid_amount_iv = body.paid_amount_iv;
       const { data, error: e } = await supabase.from('credit_cards').update(updatePayload).eq('id', id).select().single();
       if (e) return error(e.message, 500);
+      const resolvedCardName = body.cardName || card.name || '[encrypted]';
       await logActivity(userId, 'credit_card', 'payment', {
         id: data.id, amount: body.amount,
-        cardName: card.name || '[encrypted]',
+        cardName: resolvedCardName,
         newTotalPaid: newPaidAmount,
         billAmount: card.bill_amount || 0
       });
 
       {
         const payAmt = body.amount || 0;
-        const ccName = card.name || 'credit card';
+        const ccName = body.cardName || card.name || 'credit card';
         const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
         const actorName = actor?.display_name || actor?.username || 'Companion';
         notifyCompanions(supabase, userId, 'CC Bill Payment',
@@ -3207,13 +3209,13 @@ serve(async (req) => {
       if (e) return error(e.message, 500);
       await logActivity(userId, 'credit_card', 'updated_bill', {
         id: data.id,
-        cardName: card.name || '[encrypted]',
+        cardName: body.cardName || card.name || '[encrypted]',
         billAmount: actualBillAmount,
         previousBillAmount: card.bill_amount || 0
       });
 
       {
-        const ccLabel = card.name || 'credit card';
+        const ccLabel = body.cardName || card.name || 'credit card';
         const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
         const actorName = actor?.display_name || actor?.username || 'Companion';
         notifyCompanions(supabase, userId, 'CC Bill Updated',
@@ -3879,22 +3881,26 @@ serve(async (req) => {
         }
       }
 
-      let itemName = 'Unknown';
+      let itemName = body.itemName || 'Unknown';
       let itemFrequency = '';
       let itemCategory = '';
       let itemIsSip = false;
       if (body.itemType === 'fixed_expense') {
         const { data: expense } = await supabase.from('fixed_expenses').select('name, frequency, category, is_sip').eq('id', body.itemId).maybeSingle();
-        itemName = expense?.name || 'Unknown Expense';
+        if (!body.itemName) itemName = expense?.name || 'Unknown Expense';
         itemFrequency = expense?.frequency || '';
         itemCategory = expense?.category || '';
         itemIsSip = !!expense?.is_sip;
       } else if (body.itemType === 'investment') {
-        const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).maybeSingle();
-        itemName = investment?.name || 'Unknown Investment';
+        if (!body.itemName) {
+          const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).maybeSingle();
+          itemName = investment?.name || 'Unknown Investment';
+        }
       } else if (body.itemType === 'loan') {
-        const { data: loan } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).eq('category', 'loan').maybeSingle();
-        itemName = loan?.name || 'Unknown Loan';
+        if (!body.itemName) {
+          const { data: loan } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).eq('category', 'loan').maybeSingle();
+          itemName = loan?.name || 'Unknown Loan';
+        }
       }
 
       // Get user's billing period month (same logic as dashboard)
@@ -4079,17 +4085,18 @@ serve(async (req) => {
       if (!body.itemId || !body.itemType) return error('itemId and itemType required');
       if (!['fixed_expense', 'investment', 'loan'].includes(body.itemType)) return error('Invalid itemType');
 
-      // Fetch the item name for activity logging
-      let itemName = 'Unknown';
-      if (body.itemType === 'fixed_expense') {
-        const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).maybeSingle();
-        itemName = expense?.name || 'Unknown Expense';
-      } else if (body.itemType === 'investment') {
-        const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).maybeSingle();
-        itemName = investment?.name || 'Unknown Investment';
-      } else if (body.itemType === 'loan') {
-        const { data: loan } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).eq('category', 'loan').maybeSingle();
-        itemName = loan?.name || 'Unknown Loan';
+      let itemName = body.itemName || 'Unknown';
+      if (!body.itemName) {
+        if (body.itemType === 'fixed_expense') {
+          const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).maybeSingle();
+          itemName = expense?.name || 'Unknown Expense';
+        } else if (body.itemType === 'investment') {
+          const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).maybeSingle();
+          itemName = investment?.name || 'Unknown Investment';
+        } else if (body.itemType === 'loan') {
+          const { data: loan } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).eq('category', 'loan').maybeSingle();
+          itemName = loan?.name || 'Unknown Loan';
+        }
       }
 
       const month = new Date().toISOString().slice(0, 7);
@@ -4112,7 +4119,7 @@ serve(async (req) => {
       if (!body.itemId) return error('itemId required');
 
       const { data: undoExpDetail } = await supabase.from('fixed_expenses').select('name, frequency, category').eq('id', body.itemId).maybeSingle();
-      const itemName = undoExpDetail?.name || 'Unknown Expense';
+      const itemName = body.itemName || undoExpDetail?.name || 'Unknown Expense';
 
       const { data: prefs } = await supabase.from('user_preferences')
         .select('month_start_day').eq('user_id', userId).maybeSingle();

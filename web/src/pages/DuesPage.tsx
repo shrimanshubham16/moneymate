@@ -74,7 +74,7 @@ export function DuesPage({ token }: DuesPageProps) {
         setToast({ show: true, message: `${dueName} marked as unpaid` });
       } else {
         // Correct order: (token, itemId, itemType, amount)
-        await api.markAsPaid(token, due.id, due.itemType, due.amount);
+        await api.markAsPaid(token, due.id, due.itemType, due.amount, due.name);
         hapticSuccess(e?.currentTarget ?? null);
         setToast({ show: true, message: `Hurray!! ${dueName} Due paid` });
       }
@@ -96,7 +96,7 @@ export function DuesPage({ token }: DuesPageProps) {
           hapticMedium(element);
           setDues(prev => prev.filter(d => d.id !== due.id));
           setTotalDues(prev => prev - due.amount);
-          await api.skipSIP(token, due.id);
+          await api.skipSIP(token, due.id, due.name);
           setToast({ show: true, message: `${due.name} skipped — removed from dues` });
           loadDues().catch(console.error);
         } catch (e: any) {
@@ -122,7 +122,7 @@ export function DuesPage({ token }: DuesPageProps) {
     if (!amt || amt <= 0 || !ccPayCardId) return;
     setCcPaying(true);
     try {
-      await api.payCreditCard(token, ccPayCardId, amt, ccPayPartialPaid);
+      await api.payCreditCard(token, ccPayCardId, amt, ccPayPartialPaid, undefined, ccPayCardName);
       hapticSuccess(null);
       setShowCCPayModal(false);
       setToast({ show: true, message: `${ccPayCardName} bill paid!` });

@@ -92,8 +92,8 @@ export function useEncryptedApiCalls() {
       baseApi.updateCreditCardBill(token, id, billAmount, key || undefined),
     resetCreditCardBilling: (token: string, id: string) => 
       baseApi.resetCreditCardBilling(token, id),
-    payCreditCard: (token: string, id: string, amount: number, currentPaidTotal?: number) =>
-      baseApi.payCreditCard(token, id, amount, currentPaidTotal, key || undefined),
+    payCreditCard: (token: string, id: string, amount: number, currentPaidTotal?: number, _cryptoKey?: CryptoKey, cardName?: string) =>
+      baseApi.payCreditCard(token, id, amount, currentPaidTotal, key || undefined, cardName),
     getBillingAlerts: (token: string) =>
       baseApi.getBillingAlerts(token),
     getCreditCardUsage: (token: string, cardId: string) =>
@@ -104,14 +104,14 @@ export function useEncryptedApiCalls() {
       baseApi.fetchLoans(token, key || undefined),
     
     // Payments — params: (token, itemId, itemType, amount?)
-    markAsPaid: (token: string, itemId: string, itemType: string, amount?: number) => 
-      baseApi.markAsPaid(token, itemId, itemType, amount),
+    markAsPaid: (token: string, itemId: string, itemType: string, amount?: number, itemName?: string) => 
+      baseApi.markAsPaid(token, itemId, itemType as any, amount!, itemName),
     markAsUnpaid: (token: string, itemId: string, itemType: string) => 
-      baseApi.markAsUnpaid(token, itemId, itemType),
-    skipSIP: (token: string, itemId: string) =>
-      baseApi.skipSIP(token, itemId),
-    undoSkipSIP: (token: string, itemId: string) =>
-      baseApi.undoSkipSIP(token, itemId),
+      baseApi.markAsUnpaid(token, itemId, itemType as any),
+    skipSIP: (token: string, itemId: string, itemName?: string) =>
+      baseApi.skipSIP(token, itemId, itemName),
+    undoSkipSIP: (token: string, itemId: string, itemName?: string) =>
+      baseApi.undoSkipSIP(token, itemId, itemName),
     getPaymentStatus: (token: string, entityType?: string, entityId?: string, month?: string) => 
       baseApi.getPaymentStatus(token, entityType, entityId, month),
     getPaymentsSummary: (token: string) => 

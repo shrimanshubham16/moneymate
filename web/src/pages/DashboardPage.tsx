@@ -490,6 +490,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
         payment_mode: quickAddMode,
         credit_card_id: quickAddMode === "CreditCard" ? quickAddCardId || undefined : undefined,
         isOverspend,
+        planName: matchedPlan?.name,
       });
       setShowQuickAdd(false);
       setQuickAddAmount("");
