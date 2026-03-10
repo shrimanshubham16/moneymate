@@ -876,7 +876,7 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
     }
   };
 
-  const handleRegenerate = async () => {
+  const handleGeneratePhrase = async () => {
     if (!regenPassword) {
       setMessage({ type: "error", text: "Please enter your password to confirm." });
       return;
@@ -893,23 +893,50 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
 
       const mnemonic = generateRecoveryKey();
       const phraseHash = await hashRecoveryKey(mnemonic);
-      const recoveryWK = await deriveKey(mnemonic, saltFromBase64(cryptoCtx.encryptionSalt));
-      const wrapped = await wrapKey(cryptoCtx.key, recoveryWK);
 
-      await updateWrappedKeys(token, {
-        wrappedKeyRecovery: wrapped.ciphertext,
-        wrappedKeyRecoveryIv: wrapped.iv,
+      // Use existing wrapSalt or generate one for first-time setup
+      let activeWrapSalt = cryptoCtx.wrapSalt || cryptoCtx.encryptionSalt;
+      const isFirstTimeSetup = !hasRecoveryWrapping;
+
+      if (isFirstTimeSetup && !cryptoCtx.wrapSalt) {
+        const { b64: newWrapSalt } = generateSalt();
+        activeWrapSalt = newWrapSalt;
+      }
+
+      const recoveryWK = await deriveKey(mnemonic, saltFromBase64(activeWrapSalt));
+      const wrappedRecovery = await wrapKey(cryptoCtx.key, recoveryWK);
+
+      const payload: any = {
+        wrappedKeyRecovery: wrappedRecovery.ciphertext,
+        wrappedKeyRecoveryIv: wrappedRecovery.iv,
         recoveryKeyHash: phraseHash,
-      });
+      };
+
+      // First-time: also wrap KEK with password and send wrapSalt
+      if (isFirstTimeSetup) {
+        const passwordWK = await deriveKey(regenPassword, saltFromBase64(activeWrapSalt));
+        const wrappedPassword = await wrapKey(cryptoCtx.key, passwordWK);
+        payload.wrapSalt = activeWrapSalt;
+        payload.wrappedKeyPassword = wrappedPassword.ciphertext;
+        payload.wrappedKeyPasswordIv = wrappedPassword.iv;
+      }
+
+      await updateWrappedKeys(token, payload);
+
+      // Update local context with wrapSalt if newly set
+      if (isFirstTimeSetup && activeWrapSalt !== cryptoCtx.wrapSalt) {
+        cryptoCtx.setKey(cryptoCtx.key, cryptoCtx.encryptionSalt, activeWrapSalt);
+      }
 
       feedbackPowerUp();
+      setJustEnabled(true);
       setNewRecoveryPhrase(mnemonic);
       setShowRecoveryModal(true);
       setShowRegenPrompt(false);
       setRegenPassword("");
     } catch (e: any) {
       feedbackBump();
-      const msg = e.message?.includes("Invalid") ? "Incorrect password." : (e.message || "Failed to regenerate phrase.");
+      const msg = e.message?.includes("Invalid") ? "Incorrect password." : (e.message || "Failed to generate phrase.");
       setMessage({ type: "error", text: msg });
     } finally {
       setLoading(false);
@@ -930,71 +957,33 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
       </div>
 
       {hasRecoveryWrapping ? (
-        <>
-          <div className="encryption-features">
-            <div className="encryption-feature"><FaCheckCircle /> Your data survives account recovery</div>
-            <div className="encryption-feature"><FaCheckCircle /> Password changes skip re-encryption</div>
-            <div className="encryption-feature"><FaCheckCircle /> Recovery phrase protects your master key</div>
-          </div>
-
-          {!showRegenPrompt ? (
-            <button
-              className="account-action-btn ghost"
-              onClick={() => { setShowRegenPrompt(true); setMessage(null); }}
-              style={{ marginTop: 12 }}
-            >
-              <FaKey /> Regenerate Recovery Phrase
-            </button>
-          ) : (
-            <div className="enc-password-prompt" style={{ marginTop: 12 }}>
-              <div className="recovery-warning-card" style={{ marginBottom: 10 }}>
-                <FaExclamationTriangle />
-                <p><strong>Warning:</strong> This will invalidate your current 24-word recovery phrase and generate a new one. Make sure to save it!</p>
-              </div>
-              <p className="prompt-info">Confirm your password:</p>
-              <input
-                type="password"
-                value={regenPassword}
-                onChange={e => setRegenPassword(e.target.value)}
-                placeholder="Enter your password"
-                disabled={loading}
-                autoFocus
-                onKeyDown={e => { if (e.key === 'Enter') handleRegenerate(); }}
-                style={{ width: '100%', borderRadius: 8, padding: 10, background: 'rgba(255,255,255,0.05)', color: '#E8ECF8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', fontSize: 13 }}
-              />
-              <div className="form-btn-row" style={{ marginTop: 10 }}>
-                <button
-                  className="account-action-btn ghost"
-                  onClick={() => { setShowRegenPrompt(false); setRegenPassword(""); setMessage(null); }}
-                  disabled={loading}
-                >Cancel</button>
-                <button
-                  className="account-action-btn primary"
-                  onClick={handleRegenerate}
-                  disabled={loading || !regenPassword}
-                >{loading ? "Regenerating..." : "Regenerate"}</button>
-              </div>
-            </div>
-          )}
-        </>
+        <div className="encryption-features">
+          <div className="encryption-feature"><FaCheckCircle /> Your data survives account recovery</div>
+          <div className="encryption-feature"><FaCheckCircle /> Password changes skip re-encryption</div>
+          <div className="encryption-feature"><FaCheckCircle /> Recovery phrase protects your master key</div>
+        </div>
       ) : (
         <>
           <p style={{ color: '#8B95B0', fontSize: 14, margin: '0 0 12px', lineHeight: 1.6 }}>
-            Without recovery protection, recovering your account with a new password will make
-            your existing encrypted data unreadable. Enable it by entering your 24-word recovery phrase.
+            Recovery protection ensures your encrypted data is preserved when you recover your account with a new password.
           </p>
           <div className="recovery-warning-card">
             <FaExclamationTriangle />
-            <p><strong>Recommended:</strong> Enable this to prevent data loss during account recovery.</p>
+            <p><strong>Recommended:</strong> {hasRecoveryWrapping ? 'Active' : 'Enable this to prevent data loss during account recovery.'}</p>
           </div>
+        </>
+      )}
 
+      {/* Enable via existing phrase (for users who have their original phrase) */}
+      {!hasRecoveryWrapping && (
+        <>
           {!showForm ? (
-            <button className="account-action-btn primary" onClick={() => setShowForm(true)} style={{ marginTop: 12 }}>
-              <FaShieldAlt /> Enable Recovery Protection
+            <button className="account-action-btn ghost" onClick={() => { setShowForm(true); setShowRegenPrompt(false); }} style={{ marginTop: 12 }}>
+              <FaShieldAlt /> I have my recovery phrase
             </button>
           ) : (
             <div className="enc-password-prompt" style={{ marginTop: 12 }}>
-              <p className="prompt-info">Enter your 24-word recovery phrase:</p>
+              <p className="prompt-info">Enter your existing 24-word recovery phrase:</p>
               <textarea
                 value={phrase}
                 onChange={(e) => setPhrase(e.target.value)}
@@ -1018,6 +1007,50 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
             </div>
           )}
         </>
+      )}
+
+      {/* Generate new phrase — always visible for encrypted users */}
+      {!showRegenPrompt ? (
+        <button
+          className={`account-action-btn ${hasRecoveryWrapping ? 'ghost' : 'primary'}`}
+          onClick={() => { setShowRegenPrompt(true); setShowForm(false); setMessage(null); }}
+          style={{ marginTop: 12 }}
+        >
+          <FaKey /> {hasRecoveryWrapping ? 'Regenerate Recovery Phrase' : 'Generate New Recovery Phrase'}
+        </button>
+      ) : (
+        <div className="enc-password-prompt" style={{ marginTop: 12 }}>
+          <div className="recovery-warning-card" style={{ marginBottom: 10 }}>
+            <FaExclamationTriangle />
+            <p><strong>{hasRecoveryWrapping ? 'Warning:' : 'Note:'}</strong> {hasRecoveryWrapping
+              ? 'This will invalidate your current recovery phrase and generate a new one.'
+              : 'This will generate a new 24-word recovery phrase and enable recovery protection.'
+            } Make sure to save it!</p>
+          </div>
+          <p className="prompt-info">Confirm your password:</p>
+          <input
+            type="password"
+            value={regenPassword}
+            onChange={e => setRegenPassword(e.target.value)}
+            placeholder="Enter your password"
+            disabled={loading}
+            autoFocus
+            onKeyDown={e => { if (e.key === 'Enter') handleGeneratePhrase(); }}
+            style={{ width: '100%', borderRadius: 8, padding: 10, background: 'rgba(255,255,255,0.05)', color: '#E8ECF8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', fontSize: 13 }}
+          />
+          <div className="form-btn-row" style={{ marginTop: 10 }}>
+            <button
+              className="account-action-btn ghost"
+              onClick={() => { setShowRegenPrompt(false); setRegenPassword(""); setMessage(null); }}
+              disabled={loading}
+            >Cancel</button>
+            <button
+              className="account-action-btn primary"
+              onClick={handleGeneratePhrase}
+              disabled={loading || !regenPassword}
+            >{loading ? "Generating..." : hasRecoveryWrapping ? "Regenerate" : "Generate & Enable"}</button>
+          </div>
+        </div>
       )}
 
       {message && (
