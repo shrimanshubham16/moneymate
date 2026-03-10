@@ -16,7 +16,7 @@ import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
 // ============================================================================
 
 type NotificationType = 'sharing_request' | 'sharing_accepted' | 'sharing_rejected' |
-  'payment_reminder' | 'budget_alert' | 'health_update' | 'system';
+  'payment_reminder' | 'budget_alert' | 'health_update' | 'system' | 'companion_activity';
 
 interface CreateNotificationParams {
   userId: string;
@@ -39,7 +39,7 @@ async function createNotification(supabase: any, params: CreateNotificationParam
       .single();
 
     // Determine if we should send based on type and preferences
-    const shouldNotify = {
+    const shouldNotify: Record<string, boolean> = {
       sharing_request: prefs?.in_app_sharing ?? true,
       sharing_accepted: prefs?.in_app_sharing ?? true,
       sharing_rejected: prefs?.in_app_sharing ?? true,
@@ -47,6 +47,7 @@ async function createNotification(supabase: any, params: CreateNotificationParam
       budget_alert: prefs?.in_app_budget_alerts ?? true,
       health_update: prefs?.in_app_system ?? true,
       system: prefs?.in_app_system ?? true,
+      companion_activity: prefs?.in_app_companion_activity ?? true,
     };
 
     if (!shouldNotify[params.type]) {
@@ -92,6 +93,42 @@ async function createNotification(supabase: any, params: CreateNotificationParam
   }
 }
 
+
+async function notifyCompanions(
+  supabase: any,
+  actorUserId: string,
+  title: string,
+  message: string,
+  groupKey?: string,
+  actionUrl?: string
+): Promise<void> {
+  try {
+    const { data: memberships } = await supabase.from('shared_members')
+      .select('shared_account_id').eq('user_id', actorUserId);
+    if (!memberships?.length) return;
+
+    const accountIds = memberships.map((m: any) => m.shared_account_id);
+    const { data: companions } = await supabase.from('shared_members')
+      .select('user_id').in('shared_account_id', accountIds).neq('user_id', actorUserId);
+    if (!companions?.length) return;
+
+    const seen = new Set<string>();
+    for (const c of companions) {
+      if (seen.has(c.user_id)) continue;
+      seen.add(c.user_id);
+      await createNotification(supabase, {
+        userId: c.user_id,
+        type: 'companion_activity',
+        title,
+        message,
+        actionUrl: actionUrl || '/activities',
+        groupKey
+      }).catch(err => console.warn('[COMPANION_NOTIFY]', err));
+    }
+  } catch (e) {
+    console.warn('[COMPANION_NOTIFY_ERROR]', e);
+  }
+}
 
 async function hashPassword(password: string): Promise<string> {
   // Use hashSync — async hash() uses Web Workers which aren't available in Deno Deploy
@@ -1832,6 +1869,15 @@ serve(async (req) => {
         frequency: body.frequency || 'monthly',
         encrypted: hasEncryption
       });
+
+      {
+        const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
+        const actorName = actor?.display_name || actor?.username || 'Companion';
+        notifyCompanions(supabase, userId, 'Income Added',
+          `${actorName} added a new income source`,
+          `companion_income:${userId}:${data.id}`, '/activities');
+      }
+
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
@@ -1929,6 +1975,16 @@ serve(async (req) => {
         isSip: body.is_sip || false,
         encrypted: hasEncryption
       });
+
+      {
+        const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
+        const actorName = actor?.display_name || actor?.username || 'Companion';
+        const expLabel = body.is_sip ? 'SIP' : 'fixed expense';
+        notifyCompanions(supabase, userId, 'Fixed Expense Added',
+          `${actorName} added ${expLabel} "${body.name || 'expense'}"`,
+          `companion_fixed:${userId}:${data.id}`, '/activities');
+      }
+
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
@@ -2265,6 +2321,17 @@ serve(async (req) => {
         incurredAt: body.incurred_at || data.incurred_at
       });
 
+      // Notify shared companions
+      const actorAmt = body.amount || data.amount || 0;
+      if (actorAmt > 0) {
+        const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
+        const actorName = actor?.display_name || actor?.username || 'Companion';
+        const planLabel = plan?.name || 'expense';
+        notifyCompanions(supabase, userId, 'Expense Added',
+          `${actorName} spent ₹${actorAmt.toLocaleString('en-IN')} on ${planLabel}`,
+          `companion_expense:${userId}:${data.id}`, '/activities');
+      }
+
       await invalidateUserCache(userId);
       return json({ data }, 201);
     }
@@ -2392,7 +2459,16 @@ serve(async (req) => {
         accumulatedFunds: data.accumulated_funds || 0,
         status: data.status
       });
-      await invalidateUserCache(userId); // P0 FIX: Invalidate cache after creation
+
+      {
+        const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
+        const actorName = actor?.display_name || actor?.username || 'Companion';
+        notifyCompanions(supabase, userId, 'Investment Added',
+          `${actorName} added investment "${body.name || 'investment'}"`,
+          `companion_invest:${userId}:${data.id}`, '/activities');
+      }
+
+      await invalidateUserCache(userId);
       // Transform response to include camelCase for frontend
       const createResponseData = {
         ...data,
@@ -3096,6 +3172,17 @@ serve(async (req) => {
         newTotalPaid: newPaidAmount,
         billAmount: card.bill_amount || 0
       });
+
+      {
+        const payAmt = body.amount || 0;
+        const ccName = card.name || 'credit card';
+        const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
+        const actorName = actor?.display_name || actor?.username || 'Companion';
+        notifyCompanions(supabase, userId, 'CC Bill Payment',
+          `${actorName} paid ₹${payAmt.toLocaleString('en-IN')} on ${ccName}`,
+          `companion_cc_pay:${userId}:${id}`, '/activities');
+      }
+
       await invalidateUserCache(userId);
       const toReturn = (paidToStore === 0) ? { ...data, paid_amount: newPaidAmount } : data;
       return json({ data: transformCreditCard(toReturn) });
@@ -3135,6 +3222,16 @@ serve(async (req) => {
         billAmount: actualBillAmount,
         previousBillAmount: card.bill_amount || 0
       });
+
+      {
+        const ccLabel = card.name || 'credit card';
+        const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
+        const actorName = actor?.display_name || actor?.username || 'Companion';
+        notifyCompanions(supabase, userId, 'CC Bill Updated',
+          `${actorName} updated ${ccLabel} bill to ₹${actualBillAmount.toLocaleString('en-IN')}`,
+          `companion_cc_bill:${userId}:${id}`, '/activities');
+      }
+
       await invalidateUserCache(userId);
       const toReturn = (isE2E && !isSharedCard) ? { ...data, bill_amount: actualBillAmount } : data;
       return json({ data: transformCreditCard(toReturn) });
@@ -3969,6 +4066,22 @@ serve(async (req) => {
         markPaidPayload.billingPeriod = billingMonthStr;
       }
       await logActivity(userId, body.itemType, isSkip ? 'skipped' : 'paid', markPaidPayload);
+
+      {
+        const { data: actor } = await supabase.from('users').select('username, display_name').eq('id', userId).single();
+        const actorName = actor?.display_name || actor?.username || 'Companion';
+        if (isSkip) {
+          notifyCompanions(supabase, userId, 'SIP Skipped',
+            `${actorName} skipped SIP "${itemName}" (${itemFrequency})`,
+            `companion_skip:${userId}:${body.itemId}:${billingMonthStr}`, '/activities');
+        } else {
+          const paidLabel = itemIsSip ? 'SIP' : 'expense';
+          notifyCompanions(supabase, userId, 'Payment Made',
+            `${actorName} paid ${paidLabel} "${itemName}" (₹${paymentAmount.toLocaleString('en-IN')})`,
+            `companion_paid:${userId}:${body.itemId}:${billingMonthStr}`, '/activities');
+        }
+      }
+
       await invalidateUserCache(userId);
       return json({ data: payment });
     }
@@ -4387,7 +4500,8 @@ serve(async (req) => {
         in_app_sharing: true,
         in_app_payments: true,
         in_app_budget_alerts: true,
-        in_app_system: true
+        in_app_system: true,
+        in_app_companion_activity: true
       };
 
       return json({
@@ -4396,7 +4510,8 @@ serve(async (req) => {
             sharing: preferences.in_app_sharing,
             payments: preferences.in_app_payments,
             budgetAlerts: preferences.in_app_budget_alerts,
-            system: preferences.in_app_system
+            system: preferences.in_app_system,
+            companionActivity: preferences.in_app_companion_activity ?? true
           }
         }
       });
@@ -4414,6 +4529,7 @@ serve(async (req) => {
         if (typeof body.inApp.payments === 'boolean') updates.in_app_payments = body.inApp.payments;
         if (typeof body.inApp.budgetAlerts === 'boolean') updates.in_app_budget_alerts = body.inApp.budgetAlerts;
         if (typeof body.inApp.system === 'boolean') updates.in_app_system = body.inApp.system;
+        if (typeof body.inApp.companionActivity === 'boolean') updates.in_app_companion_activity = body.inApp.companionActivity;
       }
 
       updates.updated_at = new Date().toISOString();

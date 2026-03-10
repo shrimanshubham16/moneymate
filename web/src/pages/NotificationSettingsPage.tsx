@@ -11,6 +11,7 @@ interface NotificationPreferences {
     payments: boolean;
     budgetAlerts: boolean;
     system: boolean;
+    companionActivity: boolean;
   };
 }
 
@@ -19,7 +20,8 @@ const defaultPreferences: NotificationPreferences = {
     sharing: true,
     payments: true,
     budgetAlerts: true,
-    system: true
+    system: true,
+    companionActivity: true
   }
 };
 
@@ -157,6 +159,21 @@ export function NotificationSettingsPage({ token }: NotificationSettingsPageProp
                   type="checkbox" 
                   checked={preferences.inApp.budgetAlerts}
                   onChange={() => toggleInApp("budgetAlerts")}
+                />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+
+            <div className="setting-item">
+              <div className="setting-info">
+                <span className="setting-label">Shared User Activity</span>
+                <span className="setting-description">When your shared partner adds expenses, pays bills, or skips SIPs</span>
+              </div>
+              <label className="toggle">
+                <input 
+                  type="checkbox" 
+                  checked={preferences.inApp.companionActivity}
+                  onChange={() => toggleInApp("companionActivity")}
                 />
                 <span className="toggle-slider" />
               </label>
