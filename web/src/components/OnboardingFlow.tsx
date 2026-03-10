@@ -542,7 +542,7 @@ export function OnboardingFlow({ token, onClose, onComplete }: OnboardingFlowPro
               <h2>{title}</h2>
               <p>{blurb}</p>
             </div>
-            <button className="close-btn" onClick={onClose}>✕</button>
+            <button className="close-btn" onClick={onClose}><FaTimes /></button>
           </div>
 
           {/* ── Body ── */}

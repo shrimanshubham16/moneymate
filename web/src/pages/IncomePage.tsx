@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaMoneyBillWave, FaPlus, FaEdit, FaLock, FaUserCircle, FaChartLine, FaToggleOn, FaToggleOff, FaSync, FaCheckCircle, FaInfoCircle, FaTimesCircle } from "react-icons/fa";
+import { FaMoneyBillWave, FaPlus, FaEdit, FaLock, FaUserCircle, FaChartLine, FaToggleOn, FaToggleOff, FaSync, FaCheckCircle, FaInfoCircle, FaTimesCircle, FaTimes, FaCheck } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { PageInfoButton } from "../components/PageInfoButton";
@@ -580,7 +580,7 @@ export function IncomePage({ token }: IncomePageProps) {
                               onClick={() => setConfirmDeleteId(income.id)}
                               title="Delete income source"
                             >
-                              ✕
+                              <FaTimes />
                             </button>
                           </>
                         ) : (
@@ -770,7 +770,7 @@ export function IncomePage({ token }: IncomePageProps) {
                           </button>
                         )}
                         {form.rsuStockPrice === String(verifiedQuote.price) && (
-                          <div className="verify-confirmed">Price applied ✓</div>
+                          <div className="verify-confirmed">Price applied <FaCheck /></div>
                         )}
                       </div>
                     )}

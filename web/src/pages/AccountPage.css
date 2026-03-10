@@ -235,6 +235,62 @@
   word-break: break-all;
 }
 
+/* ── Display Name Edit Controls ───────────────────── */
+.display-name-editing {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.display-name-edit-controls {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  max-width: none !important;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+}
+.display-name-input {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #d1d5db);
+  font-size: 13px;
+  min-width: 0;
+  flex: 1;
+  max-width: 160px;
+  background: var(--input-bg, #1a1a2e);
+  color: var(--text-primary, #e0e0e0);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.display-name-save-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent-color, #6c5ce7);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.display-name-save-btn:disabled {
+  opacity: 0.6;
+}
+.display-name-cancel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--border-color, #d1d5db);
+  cursor: pointer;
+  color: var(--text-secondary, #6b7280);
+  flex-shrink: 0;
+}
+
 /* ── Action Buttons ─────────────────────────────────── */
 .account-action-btn {
   width: 100%;

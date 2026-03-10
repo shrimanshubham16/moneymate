@@ -5,61 +5,16 @@ import {
   FaLock, FaShieldAlt, FaKey, FaCheckCircle,
   FaExclamationTriangle, FaDownload, FaLockOpen,
   FaUpload, FaCamera, FaSignOutAlt, FaFingerprint,
-  FaInfoCircle, FaUserShield, FaChevronRight
+  FaInfoCircle, FaUserShield, FaChevronRight, FaTimes
 } from "react-icons/fa";
 import { SkeletonLoader } from "../components/SkeletonLoader";
 import { useCrypto } from "../contexts/CryptoContext";
-import { deriveKey, saltFromBase64, generateSalt, wrapKey, isValidRecoveryKey, hashRecoveryKey } from "../lib/crypto";
+import { deriveKey, saltFromBase64, generateSalt, wrapKey, isValidRecoveryKey, hashRecoveryKey, generateRecoveryKey } from "../lib/crypto";
 import { reEncryptAllData, ReEncryptionProgress } from "../services/reEncryptionService";
-import { updateWrappedKeys } from "../api";
+import { updateWrappedKeys, login } from "../api";
 import { RecoveryKeyModal } from "../components/RecoveryKeyModal";
 import { feedbackPowerUp, feedbackBump } from "../utils/haptics";
 import "./AccountPage.css";
-
-// ── Recovery key generation ─────────────────────────
-const WORD_LIST = [
-  'abandon','ability','able','about','above','absent','absorb','abstract',
-  'absurd','abuse','access','accident','account','accuse','achieve','acid',
-  'acoustic','acquire','across','action','actor','actress','actual','adapt',
-  'add','addict','address','adjust','admit','adult','advance','advice',
-  'aerobic','affair','afford','afraid','again','age','agent','agree',
-  'ahead','aim','air','airport','aisle','alarm','album','alcohol',
-  'alert','alien','all','alley','allow','almost','alone','alpha',
-  'already','also','alter','always','amateur','amazing','among','amount',
-  'anchor','ancient','anger','angle','angry','animal','ankle','announce',
-  'annual','answer','antenna','antique','anxiety','any','apart','apology',
-  'appear','apple','approve','april','arch','arctic','area','arena',
-  'argue','arm','armed','armor','army','around','arrange','arrest',
-  'arrive','arrow','art','artist','artwork','ask','aspect','assault',
-  'asset','assist','assume','asthma','athlete','atom','attack','attend',
-  'attitude','attract','auction','audit','august','aunt','author','auto',
-  'autumn','average','avocado','avoid','awake','aware','away','awesome',
-  'balance','ball','bamboo','banana','banner','bar','barely','bargain',
-  'barrel','base','basic','basket','battle','beach','bean','beauty',
-  'become','beef','before','begin','behave','behind','believe','below',
-  'belt','bench','benefit','best','betray','better','between','beyond',
-  'bicycle','bid','bike','bind','biology','bird','birth','bitter',
-  'black','blade','blame','blanket','blast','bleak','bless','blind',
-  'blood','blossom','blouse','blue','blur','blush','board','boat',
-  'body','boil','bomb','bone','bonus','book','boost','border',
-  'boring','borrow','boss','bottom','bounce','box','boy','bracket',
-  'brain','brand','brass','brave','bread','breeze','brick','bridge',
-  'brief','bright','bring','brisk','broken','bronze','broom','brother',
-  'brown','brush','bubble','buddy','budget','buffalo','build','bulb',
-  'bulk','bullet','bundle','bunker','burden','burger','burst','bus',
-  'business','busy','butter','buyer','buzz','cabbage','cabin','cable',
-  'cactus','cage','cake','call','calm','camera','camp','can',
-  'canal','cancel','candy','cannon','canoe','canvas','canyon','capable'
-];
-
-function generateRecoveryMnemonic(): string {
-  const words: string[] = [];
-  const randomValues = crypto.getRandomValues(new Uint32Array(24));
-  for (let i = 0; i < 24; i++) {
-    words.push(WORD_LIST[randomValues[i] % WORD_LIST.length]);
-  }
-  return words.join(' ');
-}
 
 // ── API base URL ────────────────────────────────────
 function getBaseUrl(): string {
@@ -275,35 +230,29 @@ export function AccountPage({ token, onLogout }: AccountPageProps) {
             <span className="account-detail-label">Username</span>
             <span className="account-detail-value">@{user?.username || "—"}</span>
           </div>
-          <div className="account-detail-row">
+          <div className={`account-detail-row${editingDisplayName ? ' display-name-editing' : ''}`}>
             <span className="account-detail-label">Display Name</span>
             {editingDisplayName ? (
-              <span className="account-detail-value" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span className="account-detail-value display-name-edit-controls">
                 <input
                   type="text"
                   value={displayNameDraft}
                   onChange={e => setDisplayNameDraft(e.target.value)}
                   maxLength={50}
                   placeholder="e.g. Shubham"
-                  style={{
-                    padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border-color, #d1d5db)',
-                    fontSize: 13, width: 120, background: 'var(--input-bg, #fff)', color: 'var(--text-primary, #111)'
-                  }}
+                  className="display-name-input"
                   autoFocus
                   onKeyDown={e => { if (e.key === 'Enter') handleSaveDisplayName(); if (e.key === 'Escape') setEditingDisplayName(false); }}
                 />
                 <button
                   onClick={handleSaveDisplayName}
                   disabled={savingDisplayName}
-                  style={{
-                    padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-                    background: 'var(--accent-color, #6c5ce7)', color: '#fff', border: 'none', cursor: 'pointer', opacity: savingDisplayName ? 0.6 : 1
-                  }}
+                  className="display-name-save-btn"
                 >{savingDisplayName ? '...' : 'Save'}</button>
                 <button
                   onClick={() => setEditingDisplayName(false)}
-                  style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, background: 'transparent', border: '1px solid var(--border-color, #d1d5db)', cursor: 'pointer', color: 'var(--text-secondary, #6b7280)' }}
-                >✕</button>
+                  className="display-name-cancel-btn"
+                ><FaTimes /></button>
               </span>
             ) : (
               <span
@@ -427,12 +376,10 @@ function EncryptionSettingsCard({ token, user }: { token: string; user: any }) {
     setError(null);
     try {
       const { raw: salt, b64: saltB64 } = generateSalt();
-      const mnemonic = generateRecoveryMnemonic();
+      const mnemonic = generateRecoveryKey();
       const words = mnemonic.split(' ');
       const encryptionKey = await deriveKey(password, salt);
-      const encoder = new TextEncoder();
-      const recoveryKeyHash = await crypto.subtle.digest('SHA-256', encoder.encode(mnemonic));
-      const recoveryHashB64 = btoa(String.fromCharCode(...new Uint8Array(recoveryKeyHash)));
+      const recoveryHashB64 = await hashRecoveryKey(mnemonic);
 
       setEncryptionProgress({ phase: 'Updating account...', current: 0, total: 3 });
 
@@ -750,7 +697,7 @@ function PasswordResetCard({ token }: { token: string }) {
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
             transition={{ duration: 0.3 }}>
             <div className="toast-content">
-              <span className="toast-icon">✓</span>
+              <span className="toast-icon"><FaCheckCircle /></span>
               <span className="toast-message">Password updated! Redirecting...</span>
             </div>
           </motion.div>
@@ -773,6 +720,12 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Regenerate state
+  const [showRegenPrompt, setShowRegenPrompt] = useState(false);
+  const [regenPassword, setRegenPassword] = useState("");
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [newRecoveryPhrase, setNewRecoveryPhrase] = useState("");
+
   const handleEnable = async () => {
     setMessage(null);
     const words = phrase.trim().toLowerCase().split(/\s+/);
@@ -794,7 +747,6 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
     try {
       const phraseHash = await hashRecoveryKey(normalized);
 
-      // Wrap current KEK with recovery-derived wrapping key
       const recoveryWK = await deriveKey(normalized, saltFromBase64(cryptoCtx.encryptionSalt));
       const wrapped = await wrapKey(cryptoCtx.key, recoveryWK);
 
@@ -818,6 +770,46 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
     }
   };
 
+  const handleRegenerate = async () => {
+    if (!regenPassword) {
+      setMessage({ type: "error", text: "Please enter your password to confirm." });
+      return;
+    }
+    if (!cryptoCtx.key || !cryptoCtx.encryptionSalt) {
+      setMessage({ type: "error", text: "Encryption key not available. Please re-login." });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+    try {
+      await login(user.username, regenPassword);
+
+      const mnemonic = generateRecoveryKey();
+      const phraseHash = await hashRecoveryKey(mnemonic);
+      const recoveryWK = await deriveKey(mnemonic, saltFromBase64(cryptoCtx.encryptionSalt));
+      const wrapped = await wrapKey(cryptoCtx.key, recoveryWK);
+
+      await updateWrappedKeys(token, {
+        wrappedKeyRecovery: wrapped.ciphertext,
+        wrappedKeyRecoveryIv: wrapped.iv,
+        recoveryKeyHash: phraseHash,
+      });
+
+      feedbackPowerUp();
+      setNewRecoveryPhrase(mnemonic);
+      setShowRecoveryModal(true);
+      setShowRegenPrompt(false);
+      setRegenPassword("");
+    } catch (e: any) {
+      feedbackBump();
+      const msg = e.message?.includes("Invalid") ? "Incorrect password." : (e.message || "Failed to regenerate phrase.");
+      setMessage({ type: "error", text: msg });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="section-card-header">
@@ -832,11 +824,53 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
       </div>
 
       {hasRecoveryWrapping ? (
-        <div className="encryption-features">
-          <div className="encryption-feature"><FaCheckCircle /> Your data survives account recovery</div>
-          <div className="encryption-feature"><FaCheckCircle /> Password changes skip re-encryption</div>
-          <div className="encryption-feature"><FaCheckCircle /> Recovery phrase protects your master key</div>
-        </div>
+        <>
+          <div className="encryption-features">
+            <div className="encryption-feature"><FaCheckCircle /> Your data survives account recovery</div>
+            <div className="encryption-feature"><FaCheckCircle /> Password changes skip re-encryption</div>
+            <div className="encryption-feature"><FaCheckCircle /> Recovery phrase protects your master key</div>
+          </div>
+
+          {!showRegenPrompt ? (
+            <button
+              className="account-action-btn ghost"
+              onClick={() => { setShowRegenPrompt(true); setMessage(null); }}
+              style={{ marginTop: 12 }}
+            >
+              <FaKey /> Regenerate Recovery Phrase
+            </button>
+          ) : (
+            <div className="enc-password-prompt" style={{ marginTop: 12 }}>
+              <div className="recovery-warning-card" style={{ marginBottom: 10 }}>
+                <FaExclamationTriangle />
+                <p><strong>Warning:</strong> This will invalidate your current 24-word recovery phrase and generate a new one. Make sure to save it!</p>
+              </div>
+              <p className="prompt-info">Confirm your password:</p>
+              <input
+                type="password"
+                value={regenPassword}
+                onChange={e => setRegenPassword(e.target.value)}
+                placeholder="Enter your password"
+                disabled={loading}
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter') handleRegenerate(); }}
+                style={{ width: '100%', borderRadius: 8, padding: 10, background: 'rgba(255,255,255,0.05)', color: '#E8ECF8', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', fontSize: 13 }}
+              />
+              <div className="form-btn-row" style={{ marginTop: 10 }}>
+                <button
+                  className="account-action-btn ghost"
+                  onClick={() => { setShowRegenPrompt(false); setRegenPassword(""); setMessage(null); }}
+                  disabled={loading}
+                >Cancel</button>
+                <button
+                  className="account-action-btn primary"
+                  onClick={handleRegenerate}
+                  disabled={loading || !regenPassword}
+                >{loading ? "Regenerating..." : "Regenerate"}</button>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <>
           <p style={{ color: '#8B95B0', fontSize: 14, margin: '0 0 12px', lineHeight: 1.6 }}>
@@ -886,6 +920,17 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
           color: message.type === 'success' ? '#34D399' : '#f87171' }}>
           {message.text}
         </div>
+      )}
+
+      {showRecoveryModal && newRecoveryPhrase && (
+        <RecoveryKeyModal
+          recoveryKey={newRecoveryPhrase}
+          onClose={() => {
+            setShowRecoveryModal(false);
+            setNewRecoveryPhrase("");
+            setMessage({ type: "success", text: "New recovery phrase saved. Keep it safe!" });
+          }}
+        />
       )}
     </>
   );

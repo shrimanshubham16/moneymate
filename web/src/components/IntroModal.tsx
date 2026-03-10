@@ -5,7 +5,7 @@ interface IntroModalProps {
   onClose: () => void;
   title: string;
   description: string;
-  tips?: string[];
+  tips?: (string | React.ReactNode)[];
 }
 
 /**

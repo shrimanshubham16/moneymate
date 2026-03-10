@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaExclamationTriangle, FaShieldAlt, FaPlus } from "react-icons/fa";
+import { FaEdit, FaPause, FaPlay, FaTrashAlt, FaWallet, FaUserCircle, FaLock, FaExclamationTriangle, FaShieldAlt, FaPlus, FaTimes, FaCheck } from "react-icons/fa";
 import { MdTrendingUp } from "react-icons/md";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
@@ -243,7 +243,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
             >
               <div className="inv-form-header">
                 <h2>{editingId ? "Update" : "Add"} Investment</h2>
-                <button className="inv-form-close" onClick={resetForm}>✕</button>
+                <button className="inv-form-close" onClick={resetForm}><FaTimes /></button>
               </div>
 
               <form onSubmit={handleSubmit}>
@@ -460,7 +460,7 @@ export function InvestmentsManagementPage({ token }: InvestmentsManagementPagePr
                     <div className="inv-stat">
                       <span className="inv-stat-label">This Month</span>
                       {inv.paid 
-                        ? <span className="inv-paid-pill">✓ Paid</span>
+                        ? <span className="inv-paid-pill"><FaCheck /> Paid</span>
                         : <span className="inv-unpaid-pill"><FaExclamationTriangle size={10} /> Unpaid</span>
                       }
                     </div>

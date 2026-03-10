@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaPencilAlt, FaHistory, FaInfoCircle, FaUserCircle, FaTrashAlt, FaEllipsisV } from "react-icons/fa";
+import { FaCreditCard, FaPlus, FaBell, FaExclamationTriangle, FaEdit, FaPencilAlt, FaHistory, FaInfoCircle, FaUserCircle, FaTrashAlt, FaEllipsisV, FaTimes } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { PageInfoButton } from "../components/PageInfoButton";
@@ -431,7 +431,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                       </div>
                       {card.needsBillUpdate && (
                         <div style={{ padding: '8px 12px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: 8, color: '#f87171', fontWeight: 700, fontSize: '0.85rem' }}>
-                          ⚠ Bill needs to be updated with actual amount
+                          <FaExclamationTriangle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Bill needs to be updated with actual amount
                         </div>
                       )}
                     </div>
@@ -505,7 +505,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
                 initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
                 <div className="modal-header">
                   <h3>Add New Credit Card</h3>
-                  <button className="modal-close" onClick={() => setShowForm(false)}>✕</button>
+                  <button className="modal-close" onClick={() => setShowForm(false)}><FaTimes /></button>
                 </div>
                 <div className="modal-body">
                 <form id="cc-add-form" onSubmit={handleSubmit}>
@@ -626,7 +626,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
               <h3><FaCreditCard style={{ marginRight: 8, opacity: 0.7 }} />
                 {cards.find(c => c.id === selectedCardId)?.name || 'Card'} — Usage
               </h3>
-              <button className="modal-close" onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}>✕</button>
+              <button className="modal-close" onClick={() => { setShowUsageModal(false); setSelectedCardId(null); }}><FaTimes /></button>
             </div>
             <div className="modal-body">
               {cardUsage.length === 0 ? (
@@ -704,7 +704,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
             initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
             <div className="modal-header">
               <h3>Update Bill Amount</h3>
-              <button className="modal-close" onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}>✕</button>
+              <button className="modal-close" onClick={() => { setShowUpdateBillModal(false); setSelectedCardId(null); }}><FaTimes /></button>
             </div>
             <div className="modal-body">
               <form onSubmit={(e) => { e.preventDefault(); handleUpdateBill(selectedCardId); }}>
@@ -739,7 +739,7 @@ export function CreditCardsManagementPage({ token }: CreditCardsManagementPagePr
             initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
             <div className="modal-header">
               <h3>Edit Credit Card</h3>
-              <button className="modal-close" onClick={() => setEditingCard(null)}>✕</button>
+              <button className="modal-close" onClick={() => setEditingCard(null)}><FaTimes /></button>
             </div>
             <div className="modal-body">
               <form id="cc-edit-form" onSubmit={handleEditSubmit}>

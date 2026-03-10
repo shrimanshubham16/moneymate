@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaCreditCard, FaUserCircle, FaCalendarAlt, FaWallet, FaCheckCircle, FaExclamationTriangle, FaCog } from "react-icons/fa";
+import { FaCreditCard, FaUserCircle, FaCalendarAlt, FaWallet, FaCheckCircle, FaExclamationTriangle, FaCog, FaTimes } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SkeletonLoader } from "../components/SkeletonLoader";
@@ -191,7 +191,7 @@ export function CreditCardsPage({ token }: CreditCardsPageProps) {
             >
               <div className="modal-header">
                 <h3><FaWallet style={{ marginRight: 8 }} />Pay Credit Card Bill</h3>
-                <button className="modal-close" onClick={() => setShowPaymentForm(false)}>✕</button>
+                <button className="modal-close" onClick={() => setShowPaymentForm(false)}><FaTimes /></button>
               </div>
               <div className="modal-body">
                 <form onSubmit={handlePayment}>

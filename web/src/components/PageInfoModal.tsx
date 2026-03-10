@@ -8,7 +8,7 @@ interface PageInfoModalProps {
   title: string;
   description: string;
   impact?: string;
-  howItWorks?: string[];
+  howItWorks?: (string | React.ReactNode)[];
 }
 
 export function PageInfoModal({

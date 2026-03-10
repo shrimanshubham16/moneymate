@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaMoneyBillWave, FaShoppingCart, FaChartLine, FaCreditCard, FaUniversity, FaHeart, FaUsers, FaBomb } from "react-icons/fa";
+import { FaSun, FaCloud, FaCloudRain, FaBolt, FaQuestionCircle, FaLightbulb, FaMoneyBillWave, FaShoppingCart, FaChartLine, FaCreditCard, FaUniversity, FaHeart, FaUsers, FaBomb, FaCheck } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { IntroModal } from "../components/IntroModal";
@@ -31,7 +31,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
   const [funFact, setFunFact] = useState<string>("");
   const [thresholds, setThresholds] = useState<HealthThresholds>(DEFAULT_THRESHOLDS);
   const [savingThresholds, setSavingThresholds] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<React.ReactNode | null>(null);
   const navigate = useNavigate();
   const api = useEncryptedApiCalls();
   const { showIntro, closeIntro } = useIntroModal("health");
@@ -277,7 +277,7 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       const updated = await api.updateHealthThresholds(token, thresholds);
       setThresholds(updated);
       feedbackPowerUp();
-      setSaveMessage("Saved ✓");
+      setSaveMessage(<><FaCheck /> Saved</>);
     } catch (e: any) {
       feedbackBump();
       setSaveMessage(e?.message || "Failed to save");

@@ -1,5 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FaTimes } from "react-icons/fa";
 import "./Modal.css";
 
 interface ModalProps {
@@ -47,7 +48,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = "md" }:
           >
             <div className="modal-header">
               <h3>{title}</h3>
-              <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+              <button className="modal-close" onClick={onClose} aria-label="Close"><FaTimes /></button>
             </div>
             <div className="modal-body">
               {children}

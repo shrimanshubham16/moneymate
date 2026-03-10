@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FaUserCircle, FaLock, FaBomb, FaEdit, FaTrashAlt, FaPause,
-  FaLightbulb, FaCheckCircle, FaExclamationTriangle, FaChartLine, FaSlidersH,
+  FaLightbulb, FaCheck, FaCheckCircle, FaExclamationTriangle, FaChartLine, FaSlidersH,
   FaInfoCircle, FaWallet
 } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
@@ -953,7 +953,7 @@ export function FutureBombsPage({ token }: FutureBombsPageProps) {
             <div className="mix-feedback-row">
               <span className="fb-label" style={{ fontWeight: 700 }}>Remaining Gap</span>
               <span className={`fb-value ${mixResult.covered ? "positive" : "negative"}`}>
-                {mixResult.covered ? "Covered ✓" : `${cs}${fmt(mixResult.remaining)}/mo short`}
+                {mixResult.covered ? <><FaCheck /> Covered</> : `${cs}${fmt(mixResult.remaining)}/mo short`}
               </span>
             </div>
           </div>

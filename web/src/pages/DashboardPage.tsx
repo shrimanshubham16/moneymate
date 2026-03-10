@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FaWallet, FaChartLine, FaChartBar, FaUniversity, FaCreditCard,
   FaBomb, FaClipboardList, FaClock, FaCalendar, FaBell, FaMoneyBillWave,
-  FaExchangeAlt, FaHandHoldingUsd, FaPlus
+  FaExchangeAlt, FaHandHoldingUsd, FaPlus, FaTimes, FaCheck, FaExclamationTriangle, FaRegCircle
 } from "react-icons/fa";
 import { HiChatBubbleLeftRight } from "react-icons/hi2";
 import { MdAccountBalanceWallet, MdSavings, MdTrendingUp } from "react-icons/md";
@@ -672,7 +672,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
           "Green = Healthy, Yellow = Tight, Red = Needs Attention — customise thresholds in Health Details",
           "Tap any widget (Expenses, Investments, Dues, etc.) to see the full page",
           "Use the Quick Add button to log a variable expense without leaving the dashboard",
-          "Smart notifications (🔔) alert you about unpaid dues, overspends, and health drops"
+          <>Smart notifications (<FaBell />) alert you about unpaid dues, overspends, and health drops</>
         ]}
       />
 
@@ -716,7 +716,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
             <span>Monthly Report</span>
             <span className="report-header-right">
               <span className={`report-rating report-rating-${reportTotals.rating}`} title={reportTotals.rating === 'good' ? 'Healthy surplus' : reportTotals.rating === 'tight' ? 'Tight budget' : 'Deficit'}>
-                {reportTotals.rating === 'good' ? '✓' : reportTotals.rating === 'tight' ? '⚠' : '✕'}
+                {reportTotals.rating === 'good' ? <FaCheck /> : reportTotals.rating === 'tight' ? <FaExclamationTriangle /> : <FaTimes />}
               </span>
               <span className="report-toggle">{showReport ? '▲' : '▼'}</span>
             </span>
@@ -758,7 +758,7 @@ export function DashboardPage({ token }: DashboardPageProps) {
                 className={`checklist-item ${item.done ? 'done' : ''}`}
                 onClick={() => navigate(item.path)}
               >
-                <div className="checklist-check">{item.done ? '✓' : '○'}</div>
+                <div className="checklist-check">{item.done ? <FaCheck /> : <FaRegCircle />}</div>
                 <span>{item.label}</span>
               </div>
             ))}

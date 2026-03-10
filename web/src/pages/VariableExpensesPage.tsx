@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaUserCircle } from "react-icons/fa";
+import { FaChartBar, FaShoppingCart, FaMobileAlt, FaMoneyBillWave, FaWallet, FaCreditCard, FaEdit, FaTrash, FaUserCircle, FaLightbulb } from "react-icons/fa";
 import { useEncryptedApiCalls } from "../hooks/useEncryptedApiCalls";
 import { useSharedView } from "../hooks/useSharedView";
 import { SharedViewBanner } from "../components/SharedViewBanner";
@@ -624,7 +624,7 @@ export function VariableExpensesPage({ token }: VariableExpensesPageProps) {
               >
                 {suggestion && (
                   <div className="budget-suggestion">
-                    <span className="suggestion-icon">💡</span>
+                    <span className="suggestion-icon"><FaLightbulb /></span>
                     <span>You typically spend ₹{Math.round(suggestion.avgSpend).toLocaleString("en-IN")} on {plan.name} — your plan is ₹{Math.round(suggestion.planned).toLocaleString("en-IN")}. {suggestion.avgSpend > suggestion.planned ? "Consider increasing your budget." : "Great job staying under budget!"}</span>
                     <button onClick={() => setDismissedSuggestions(prev => new Set([...prev, plan.id]))} type="button" aria-label="Dismiss suggestion">×</button>
                   </div>

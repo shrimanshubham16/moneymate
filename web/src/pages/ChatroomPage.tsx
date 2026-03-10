@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoArrowBack, IoSend, IoClose } from 'react-icons/io5';
 import { HiChatBubbleLeftRight } from 'react-icons/hi2';
+import { FaBug, FaLightbulb } from 'react-icons/fa';
 import { VscBug } from 'react-icons/vsc';
 import { HiLightBulb } from 'react-icons/hi';
 import {
@@ -524,7 +525,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
                       {/* Tag badge — block-level above text */}
                       {tag && (
                         <span className={`chat-tag-badge ${tag}`}>
-                          {tag === 'bug' ? '🐛 BUG' : '💡 Feature'}
+                          {tag === 'bug' ? <><FaBug /> BUG</> : <><FaLightbulb /> Feature</>}
                         </span>
                       )}
                       {/* Message text on its own line when tag present */}
@@ -645,7 +646,7 @@ export function ChatroomPage({ token }: ChatroomPageProps) {
         {/* Active tag chip — replaces the raw `:BUG:` / `:Feature:` prefix */}
         {activeTag && (
           <div className={`chat-active-tag-chip ${activeTag}`}>
-            {activeTag === 'bug' ? '🐛 BUG' : '💡 Feature'}
+            {activeTag === 'bug' ? <><FaBug /> BUG</> : <><FaLightbulb /> Feature</>}
             <button className="tag-chip-remove" onClick={removeTag}>
               <IoClose />
             </button>
