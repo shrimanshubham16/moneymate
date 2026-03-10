@@ -20,6 +20,7 @@ import { IntroModal } from "../components/IntroModal";
 import { useIntroModal } from "../hooks/useIntroModal";
 import { feedbackCoin, feedbackBump } from "../utils/haptics";
 import { ClientCache } from "../utils/cache";
+import { calculateHealthScore } from "../utils/healthCalculation";
 import { useAppModal } from "../hooks/useAppModal";
 import { AppModalRenderer } from "../components/AppModalRenderer";
 import { subscribePresenceCount } from "../lib/chatClient";
@@ -86,183 +87,54 @@ export function DashboardPage({ token }: DashboardPageProps) {
     }
   }, [selectedView]);
 
-  // Calculate CORRECT health score on frontend (backend doesn't respect 'paid' status properly)
-  // This MUST be called unconditionally (before any early returns) to follow React hooks rules
+  // Single source of truth: shared health calculation used by both Dashboard and /health page
   const correctHealth = useMemo(() => {
-    if (!data) return { remaining: 0, category: 'ok' };
-    
-    // Get current user ID from token to filter own items
+    if (!data) return { remaining: 0, category: 'ok' } as any;
+
     let currentUserId: string | null = null;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      // Token may use 'userId', 'user_id', or 'sub' depending on how it was created
       currentUserId = payload.userId || payload.user_id || payload.sub;
     } catch (e) { /* ignore */ }
-    
-    // Determine if we need to filter by user
-    // - "me" or "merged" views: filter by currentUserId to prevent double-counting with aggregates
-    // - Specific user view: Use that user's aggregates (can't decrypt their individual items due to E2E)
-    const isSpecificUserView = selectedView !== 'me' && selectedView !== 'merged';
-    const filterByUser = (items: any[]) => {
-      if (isSpecificUserView) {
-        // For specific user view, we'll use aggregates instead (can't decrypt their items)
-        return [];
-      }
-      // Filter to current user's items only (for "me" or "merged" views) — backend returns userId
-      return items.filter((item: any) => item.userId === currentUserId);
-    };
-    
-    // Filter items based on view type (prevents double-counting with aggregates in merged view)
-    const ownIncomes = filterByUser(data.incomes || []);
-    const ownFixedExpenses = filterByUser(data.fixedExpenses || []);
-    const ownInvestments = filterByUser(data.investments || []);
-    const ownVariablePlans = filterByUser(data.variablePlans || []);
-    
-    // Get shared users' aggregates (pre-computed totals from user_aggregates table)
-    // This allows combined health calculation even with E2E encryption!
-    const sharedAggregates = data.sharedUserAggregates || [];
-    
-    // For specific user view, find THAT user's aggregate from the list (backend returns camelCase)
-    const specificUserAggregate = isSpecificUserView 
-      ? sharedAggregates.find((agg: any) => agg.userId === selectedView) 
-      : null;
-    
-    // Calculate shared totals - for specific user view, use only their aggregate (camelCase from API)
-    const sharedIncomeTotal = isSpecificUserView 
-      ? (parseFloat(specificUserAggregate?.totalIncomeMonthly) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalIncomeMonthly) || 0), 0);
-    const sharedFixedTotal = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.totalFixedMonthly) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalFixedMonthly) || 0), 0);
-    const sharedInvestmentsTotal = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.totalInvestmentsMonthly) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalInvestmentsMonthly) || 0), 0);
-    const sharedVariablePlanned = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.totalVariablePlanned) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalVariablePlanned) || 0), 0);
-    const sharedVariableActual = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.totalVariableActual) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalVariableActual) || 0), 0);
-    const sharedCreditCardBill = isSpecificUserView
-      ? (parseFloat(specificUserAggregate?.totalCreditCardDues) || 0)
-      : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.totalCreditCardDues) || 0), 0);
-    
-    
-    // Credit card BILL for health: use full bill amount (committed obligation),
-    // not dues (bill - paid). Paying the CC company doesn't change the obligation.
-    const ownCcBill = isSpecificUserView ? 0 : (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
-      return sum + (parseFloat(c.billAmount || c.bill_amount) || 0);
-    }, 0);
-    const ccBill = ownCcBill + sharedCreditCardBill;
-    
-    // Calculate total income (own + shared) - use filtered ownIncomes
-    // Respect includeInHealth flag: exclude incomes where includeInHealth === false
-    const ownIncome = ownIncomes
-      .filter((inc: any) => inc.includeInHealth !== false)
-      .reduce((sum: number, inc: any) => {
-        const amount = parseFloat(inc.amount) || 0;
-        const monthly = inc.frequency === 'monthly' ? amount :
-          inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
-        return sum + monthly;
-      }, 0);
-    const totalIncome = ownIncome + sharedIncomeTotal;
-    
-    // Calculate fixed expenses (exclude skipped, expired, and not-yet-started — must match /health page logic)
-    const now = new Date();
-    const ownFixedTotal = ownFixedExpenses
-      .filter((exp: any) => {
-        if (exp.isSkipped) return false;
-        const endDate = exp.endDate || exp.end_date;
-        const startDate = exp.startDate || exp.start_date;
-        if (endDate && new Date(endDate) < now) return false;
-        if (startDate && new Date(startDate) > now) return false;
-        return true;
-      })
-      .reduce((sum: number, exp: any) => {
-        const amount = parseFloat(exp.amount) || 0;
-        const monthly = exp.frequency === 'monthly' ? amount :
-          exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
-        return sum + monthly;
-      }, 0);
-    const totalFixedForHealth = ownFixedTotal + sharedFixedTotal;
-    
-    // Calculate ALL active investments (commitment exists whether paid or not)
-    const ownInvestmentsTotal = ownInvestments
-      .filter((inv: any) => inv.status === 'active')
-      .reduce((sum: number, inv: any) => sum + (parseFloat(inv.monthlyAmount) || 0), 0);
-    const totalInvestmentsForHealth = ownInvestmentsTotal + sharedInvestmentsTotal;
-    
-    // Variable expenses - FIXED: Calculate per-plan max(actual, prorated) then sum
-    // This matches the /health page breakdown exactly
-    const today = new Date();
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const monthProgress = today.getDate() / daysInMonth;
-    const remainingDaysRatio = 1 - monthProgress;
-    
-    // Calculate per-plan effective amounts (matching /health breakdown display) - use filtered ownVariablePlans
-    const ownVariableTotal = ownVariablePlans.reduce((sum: number, plan: any) => {
-      // Get actuals excluding ExtraCash and CreditCard (they don't reduce available funds)
-      const actuals = (plan.actuals || []).filter((a: any) => 
-        a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
-      );
-      const actualTotal = actuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
-      const proratedForRemainingDays = (parseFloat(plan.planned) || 0) * remainingDaysRatio;
-      // Use higher of actual vs prorated per plan
-      return sum + Math.max(actualTotal, proratedForRemainingDays);
-    }, 0);
-    // For shared variable, use max of their actual vs prorated planned
-    const sharedVariableEffective = Math.max(sharedVariableActual, sharedVariablePlanned * remainingDaysRatio);
-    const variableTotal = ownVariableTotal + sharedVariableEffective;
-    
-    // Future Bomb Defusal SIP — monthly amount needed to defuse bombs 1 month before due
-    const bombSipTotal = ((data.futureBombs || []) as any[]).reduce((sum: number, bomb: any) => {
-      const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount ?? 0) || 0) - (parseFloat(bomb.savedAmount ?? 0) || 0));
-      if (bombRemaining <= 0) return sum;
-      const dueDate = new Date(bomb.dueDate);
-      const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
-      const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
-      const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today.getTime()) / msPerMonth));
-      return sum + (bombRemaining / monthsLeft);
-    }, 0);
-    
-    const totalOutflow = totalFixedForHealth + variableTotal + totalInvestmentsForHealth + ccBill + bombSipTotal;
-    const remaining = totalIncome - totalOutflow;
-    
-    // Determine category using PERCENTAGE-BASED configurable thresholds
-    // Use thresholds from dashboard response, fallback to defaults
-    const ht = data.healthThresholds || { good_min: 20, ok_min: 10, ok_max: 19.99, not_well_max: 9.99 };
-    // Allow negative percentages so "worrisome" is reachable when outflow > income
-    const healthPct = totalIncome > 0
-      ? (remaining / totalIncome) * 100
-      : (remaining < 0 ? -100 : 0);
-    let category: string;
-    if (healthPct < 0) category = "worrisome";          // deficit — spending exceeds income
-    else if (healthPct >= ht.good_min) category = "good";
-    else if (healthPct >= ht.ok_min) category = "ok";
-    else category = "not_well";                          // 0 – ok_min
-    
-    
-    // For specific user view without aggregates, show notice
-    const noAggregateData = isSpecificUserView && !specificUserAggregate;
-    
-    // Return both combined values AND own values for aggregate push
-    return { 
-      remaining: noAggregateData ? null : remaining, // null indicates unavailable
-      category: noAggregateData ? 'unavailable' : category,
-      healthPct: noAggregateData ? 0 : healthPct,
-      noAggregateData,
-      isSpecificUserView,
-      // Own values for aggregate push (so shared users can see our totals)
-      // Use filtered ownVariablePlans to avoid including shared users' data
+
+    const result = calculateHealthScore({
+      incomes: data.incomes || [],
+      fixedExpenses: data.fixedExpenses || [],
+      variablePlans: data.variablePlans || [],
+      investments: data.investments || [],
+      creditCards: creditCards || [],
+      futureBombs: data.futureBombs || [],
+      sharedAggregates: data.sharedUserAggregates || [],
+      healthThresholds: data.healthThresholds,
+      currentUserId,
+      selectedView,
+    });
+
+    const b = result.breakdown;
+
+    console.log('[HEALTH_CALC] Dashboard', {
+      income: Math.round(b.totalIncome), fixed: Math.round(b.totalFixed),
+      variable: Math.round(b.totalVariable), investments: Math.round(b.totalInvestments),
+      ccBill: Math.round(b.totalCcBill), bombSip: Math.round(b.bombSip),
+      outflow: Math.round(b.totalOutflow), remaining: Math.round(result.remaining ?? 0),
+      pct: result.healthPct?.toFixed(1), category: result.category,
+    });
+
+    const ownVarPlanned = (data.variablePlans || [])
+      .filter((p: any) => p.userId === currentUserId || p.user_id === currentUserId)
+      .reduce((sum: number, p: any) => sum + (parseFloat(p.planned) || 0), 0);
+
+    return {
+      ...result,
       ownAggregates: {
-        total_income_monthly: ownIncome,
-        total_fixed_monthly: ownFixedTotal,
-        total_investments_monthly: ownInvestmentsTotal,
-        total_variable_planned: ownVariablePlans.reduce((sum: number, p: any) => sum + (parseFloat(p.planned) || 0), 0),
-        total_variable_actual: ownVariableTotal,
-        total_credit_card_dues: ownCcBill,
-        health_category: category,
-        health_percentage: healthPct
+        total_income_monthly: b.ownIncome,
+        total_fixed_monthly: b.ownFixed,
+        total_investments_monthly: b.ownInvestments,
+        total_variable_planned: ownVarPlanned,
+        total_variable_actual: b.ownVariable,
+        total_credit_card_dues: b.ownCcBill,
+        health_category: result.category,
+        health_percentage: result.healthPct,
       }
     };
   }, [data, creditCards, token, selectedView]);
@@ -682,74 +554,22 @@ export function DashboardPage({ token }: DashboardPageProps) {
     };
   }, [data, creditCards, sharingMembers]);
 
-  // Monthly Report totals — mirrors the health score formula exactly so net matches health remaining
+  // Monthly Report — reads directly from correctHealth.breakdown so it is guaranteed identical
   const reportTotals = useMemo(() => {
-    if (!data || selectedView !== 'me') return null;
-
-    let uid: string | null = null;
-    try { const p = JSON.parse(atob(token.split('.')[1])); uid = p.userId || p.user_id || p.sub; } catch (_) { /* */ }
-    const own = (items: any[]) => items.filter((i: any) => i.userId === uid);
-
-    const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const remainingDaysRatio = 1 - now.getDate() / daysInMonth;
-
-    const totalIncome = own(data.incomes || [])
-      .filter((inc: any) => inc.includeInHealth !== false)
-      .reduce((s: number, inc: any) => {
-        const amt = parseFloat(inc.amount) || 0;
-        return s + (inc.frequency === 'monthly' ? amt : inc.frequency === 'quarterly' ? amt / 3 : amt / 12);
-      }, 0);
-
-    const totalFixed = own(data.fixedExpenses || [])
-      .filter((exp: any) => {
-        if (exp.isSkipped) return false;
-        const endDate = exp.endDate || exp.end_date;
-        const startDate = exp.startDate || exp.start_date;
-        if (endDate && new Date(endDate) < now) return false;
-        if (startDate && new Date(startDate) > now) return false;
-        return true;
-      })
-      .reduce((s: number, f: any) => {
-        const amt = parseFloat(f.amount) || 0;
-        return s + (f.frequency === 'monthly' ? amt : f.frequency === 'quarterly' ? amt / 3 : amt / 12);
-      }, 0);
-
-    const totalVariable = own(data.variablePlans || []).reduce((s: number, plan: any) => {
-      const actuals = (plan.actuals || []).filter((a: any) =>
-        a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
-      );
-      const actualTotal = actuals.reduce((sa: number, a: any) => sa + (parseFloat(a.amount) || 0), 0);
-      const prorated = (parseFloat(plan.planned) || 0) * remainingDaysRatio;
-      return s + Math.max(actualTotal, prorated);
-    }, 0);
-
-    const totalInvestments = own(data.investments || [])
-      .filter((i: any) => i.status === 'active')
-      .reduce((s: number, i: any) => s + (parseFloat(i.monthlyAmount) || 0), 0);
-
-    const totalCC = (creditCards || []).filter((c: any) => !c.isSharedCard).reduce((s: number, c: any) => {
-      return s + (parseFloat(c.billAmount || c.bill_amount) || 0);
-    }, 0);
-
-    const totalBombSip = ((data.futureBombs || []) as any[]).reduce((s: number, bomb: any) => {
-      const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount ?? 0) || 0) - (parseFloat(bomb.savedAmount ?? 0) || 0));
-      if (bombRemaining <= 0) return s;
-      const dueDate = new Date(bomb.dueDate);
-      const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
-      const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
-      const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - now.getTime()) / msPerMonth));
-      return s + (bombRemaining / monthsLeft);
-    }, 0);
-
-    const net = totalIncome - totalFixed - totalVariable - totalInvestments - totalCC - totalBombSip;
+    if (!data || selectedView !== 'me' || !correctHealth?.breakdown) return null;
+    const b = correctHealth.breakdown;
+    const net = b.totalIncome - b.totalOutflow;
     const ht = data.healthThresholds || { good_min: 20, ok_min: 10 };
-    const pct = totalIncome > 0 ? (net / totalIncome) * 100 : (net < 0 ? -100 : 0);
+    const pct = b.totalIncome > 0 ? (net / b.totalIncome) * 100 : (net < 0 ? -100 : 0);
     let rating: 'good' | 'tight' | 'negative' = 'negative';
     if (net >= 0 && pct >= ht.good_min) rating = 'good';
     else if (net >= 0 && pct >= ht.ok_min) rating = 'tight';
-    return { totalIncome, totalFixed, totalVariable, totalInvestments, totalCC, totalBombSip, net, rating };
-  }, [data, creditCards, selectedView, token]);
+    return {
+      totalIncome: b.totalIncome, totalFixed: b.totalFixed,
+      totalVariable: b.totalVariable, totalInvestments: b.totalInvestments,
+      totalCC: b.totalCcBill, totalBombSip: b.bombSip, net, rating
+    };
+  }, [data, selectedView, correctHealth]);
 
   if (loading) {
     return (

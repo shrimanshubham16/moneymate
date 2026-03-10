@@ -11,6 +11,7 @@ import { isFeatureEnabled } from "../features";
 import { getHealthThresholds, updateHealthThresholds } from "../api";
 import { HealthThresholds } from "../services/clientCalculations";
 import { feedbackPowerUp, feedbackBump } from "../utils/haptics";
+import { calculateHealthScore } from "../utils/healthCalculation";
 import "./HealthDetailsPage.css";
 
 interface HealthDetailsPageProps {
@@ -121,249 +122,121 @@ export function HealthDetailsPage({ token }: HealthDetailsPageProps) {
       }
 
 
-      // Backend's health calculation uses encrypted placeholder values - must use decrypted dashboard data
-      // Calculate ALL values from dashboard's decrypted data (NOT backend's healthData which uses encrypted placeholders)
-      
-      // Get current user ID from token to filter own items (prevent double-counting with aggregates)
+      // Use the SAME shared health calculation as the Dashboard (single source of truth)
       let currentUserId: string | null = null;
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        // Token may use 'userId', 'user_id', or 'sub' depending on how it was created
         currentUserId = payload.userId || payload.user_id || payload.sub;
       } catch (e) {
         console.error('[HEALTH_TOKEN_DEBUG] Failed to parse token:', e);
       }
       
-      // Determine if we need to filter by user
-      // - "me" or "merged" views: filter by currentUserId to prevent double-counting with aggregates
-      // - Specific user view: Use that user's aggregates (can't decrypt their individual items due to E2E)
-      const isSpecificUserView = selectedView !== 'me' && selectedView !== 'merged';
-      const filterByUser = (items: any[]) => {
-        if (isSpecificUserView) {
-          // For specific user view, we'll use aggregates instead (can't decrypt their items)
-          return [];
-        }
-        // Filter to current user's items only (for "me" or "merged" views)
-        return items.filter((item: any) => item.userId === currentUserId || item.user_id === currentUserId);
-      };
-      
-      // Filter items based on view type
-      const ownIncomes = filterByUser(data.incomes || []);
-      const ownFixedExpenses = filterByUser(data.fixedExpenses || []);
-      const ownInvestmentsData = filterByUser(data.investments || []);
-      const ownVariablePlansData = filterByUser(data.variablePlans || []);
-      // Get shared users' aggregates for combined health calculation
-      const sharedAggregates = data.sharedUserAggregates || [];
-      
-      // For specific user view, find THAT user's aggregate from the list
-      const specificUserAggregate = isSpecificUserView 
-        ? sharedAggregates.find((agg: any) => agg.user_id === selectedView) 
-        : null;
-      
-      // Calculate shared totals - for specific user view, use only their aggregate
-      const sharedIncomeTotal = isSpecificUserView 
-        ? (parseFloat(specificUserAggregate?.total_income_monthly) || 0)
-        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_income_monthly) || 0), 0);
-      const sharedFixedTotal = isSpecificUserView
-        ? (parseFloat(specificUserAggregate?.total_fixed_monthly) || 0)
-        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_fixed_monthly) || 0), 0);
-      const sharedInvestmentsTotal = isSpecificUserView
-        ? (parseFloat(specificUserAggregate?.total_investments_monthly) || 0)
-        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_investments_monthly) || 0), 0);
-      const sharedVariablePlanned = isSpecificUserView
-        ? (parseFloat(specificUserAggregate?.total_variable_planned) || 0)
-        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_variable_planned) || 0), 0);
-      const sharedVariableActual = isSpecificUserView
-        ? (parseFloat(specificUserAggregate?.total_variable_actual) || 0)
-        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_variable_actual) || 0), 0);
-      const sharedCreditCardDues = isSpecificUserView
-        ? (parseFloat(specificUserAggregate?.total_credit_card_dues) || 0)
-        : sharedAggregates.reduce((sum: number, agg: any) => sum + (parseFloat(agg.total_credit_card_dues) || 0), 0);
-      
-      // Calculate TOTAL INCOME from decrypted dashboard data (own only - use filtered ownIncomes)
-      // Respect include_in_health flag: exclude incomes where includeInHealth === false
-      const ownIncomeTotal = ownIncomes
-        .filter((inc: any) => inc.includeInHealth !== false)
-        .reduce((sum: number, inc: any) => {
-          const amount = parseFloat(inc.amount) || 0;
-          const monthly = inc.frequency === 'monthly' ? amount :
-            inc.frequency === 'quarterly' ? amount / 3 : amount / 12;
-          return sum + monthly;
-        }, 0);
-      const totalIncomeForHealth = ownIncomeTotal + sharedIncomeTotal;
-      
-      // Fixed expenses — exclude skipped SIPs and expired/not-yet-started items
-      const now = new Date();
-      const ownFixedTotal = ownFixedExpenses
-        .filter((exp: any) => {
-          if (exp.isSkipped) return false;
-          const endDate = exp.endDate || exp.end_date;
-          const startDate = exp.startDate || exp.start_date;
-          if (endDate && new Date(endDate) < now) return false;
-          if (startDate && new Date(startDate) > now) return false;
-          return true;
-        })
-        .reduce((sum: number, exp: any) => {
-          const amount = parseFloat(exp.amount) || 0;
-          const monthly = exp.frequency === 'monthly' ? amount :
-            exp.frequency === 'quarterly' ? amount / 3 : amount / 12;
-          return sum + monthly;
-        }, 0);
-      const fixedTotalForHealth = ownFixedTotal + sharedFixedTotal;
-      
-      // Investments — count ALL active (commitment exists whether paid or not)
-      const ownInvestmentsTotal = ownInvestmentsData
-        .filter((inv: any) => inv.status === 'active')
-        .reduce((sum: number, inv: any) => sum + (parseFloat(inv.monthlyAmount) || 0), 0);
-      const investmentsTotalForHealth = ownInvestmentsTotal + sharedInvestmentsTotal;
-      
-      // Calculate variable total from dashboard's decrypted/recalculated data
-      // FIXED: Calculate per-plan max(actual, prorated) then sum - matches breakdown display
-      const today = new Date();
-      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      const monthProgress = today.getDate() / daysInMonth;
-      const remainingDaysRatio = 1 - monthProgress;
-      
-      // Calculate per-plan effective amounts (matching breakdown display logic) - use filtered ownVariablePlansData
-      const ownVariableTotal = ownVariablePlansData.reduce((sum: number, plan: any) => {
-        // Get actuals excluding ExtraCash and CreditCard (they don't reduce available funds)
-        const actuals = (plan.actuals || []).filter((a: any) => 
-          a.paymentMode !== "ExtraCash" && a.paymentMode !== "CreditCard"
-        );
-        const actualTotal = actuals.reduce((s: number, a: any) => s + (parseFloat(a.amount) || 0), 0);
-        const proratedForRemainingDays = (parseFloat(plan.planned) || 0) * remainingDaysRatio;
-        // Use higher of actual vs prorated per plan
-        return sum + Math.max(actualTotal, proratedForRemainingDays);
-      }, 0);
-      // For shared variable, use max of their actual vs prorated planned
-      const sharedVariableEffective = Math.max(sharedVariableActual, sharedVariablePlanned * remainingDaysRatio);
-      const variableTotalForHealth = ownVariableTotal + sharedVariableEffective;
-      
-      // For logging purposes
-      const totalVariableActual = (data.variablePlans || []).reduce((sum: number, p: any) => 
-        sum + (parseFloat(p.actualTotal) || 0), 0);
-      const totalVariablePlanned = (data.variablePlans || []).reduce((sum: number, p: any) => 
-        sum + (parseFloat(p.planned) || 0), 0);
-      const variableProrated = totalVariablePlanned * remainingDaysRatio;
-      
-      // Credit card BILL for health: use full bill amount (committed obligation).
-      // Paying the CC company doesn't change the obligation — health only improves
-      // by skipping SIP, pausing investment, saving on prorated variable, or adding income.
-      const ownCreditCardTotal = isSpecificUserView ? 0 : (cardsRes.data || []).filter((c: any) => !c.isSharedCard).reduce((sum: number, c: any) => {
-        return sum + (parseFloat(c.billAmount || c.bill_amount) || 0);
-      }, 0);
-      const creditCardTotalForHealth = ownCreditCardTotal + sharedCreditCardDues;
-      
-      // Future Bomb Defusal SIP — monthly amount needed to defuse bombs 1 month before due
-      const today2 = new Date();
-      const bombSipForHealth = ((data.futureBombs || []) as any[]).reduce((sum: number, bomb: any) => {
-        const bombRemaining = Math.max(0, (parseFloat(bomb.totalAmount || bomb.total_amount) || 0) - (parseFloat(bomb.savedAmount || bomb.saved_amount) || 0));
-        if (bombRemaining <= 0) return sum;
-        const dueDate = new Date(bomb.dueDate || bomb.due_date);
-        const defuseBy = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, dueDate.getDate());
-        const msPerMonth = 30.44 * 24 * 60 * 60 * 1000;
-        const monthsLeft = Math.max(1, Math.floor((defuseBy.getTime() - today2.getTime()) / msPerMonth));
-        return sum + (bombRemaining / monthsLeft);
-      }, 0);
-      
-      const totalOutflowForHealth = fixedTotalForHealth + variableTotalForHealth + investmentsTotalForHealth + creditCardTotalForHealth + bombSipForHealth;
-      
-      // Calculate correct remaining using frontend's decrypted totals
-      const correctRemaining = totalIncomeForHealth - totalOutflowForHealth;
-      
-      // Determine category based on configurable thresholds (using health score)
-      const t = thresholds;
-      // Allow negative percentages so "worrisome" is reachable when outflow > income
-      const healthPct = totalIncomeForHealth > 0
-        ? (correctRemaining / totalIncomeForHealth) * 100
-        : (correctRemaining < 0 ? -100 : 0);
-      let correctCategory: string;
-      if (healthPct < 0) correctCategory = "worrisome";          // deficit
-      else if (healthPct >= t.good_min) correctCategory = "good";
-      else if (healthPct >= t.ok_min) correctCategory = "ok";
-      else correctCategory = "not_well";
+      const healthResult = calculateHealthScore({
+        incomes: data.incomes || [],
+        fixedExpenses: data.fixedExpenses || [],
+        variablePlans: data.variablePlans || [],
+        investments: data.investments || [],
+        creditCards: cardsRes.data || [],
+        futureBombs: data.futureBombs || [],
+        sharedAggregates: data.sharedUserAggregates || [],
+        healthThresholds: thresholds,
+        currentUserId,
+        selectedView,
+      });
 
-      // Determine health description and advice based on CORRECT category
+      const hb = healthResult.breakdown;
+
+      console.log('[HEALTH_CALC] HealthPage', {
+        income: Math.round(hb.totalIncome), fixed: Math.round(hb.totalFixed),
+        variable: Math.round(hb.totalVariable), investments: Math.round(hb.totalInvestments),
+        ccBill: Math.round(hb.totalCcBill), bombSip: Math.round(hb.bombSip),
+        outflow: Math.round(hb.totalOutflow), remaining: Math.round(healthResult.remaining ?? 0),
+        pct: healthResult.healthPct?.toFixed(1), category: healthResult.category,
+      });
+
       let description = "";
       let advice = "";
-
-      if (correctCategory === "good") {
+      if (healthResult.category === "good") {
         description = "Excellent! You're in great financial shape with healthy savings.";
         advice = "Consider increasing your investments or building an emergency fund.";
-      } else if (correctCategory === "ok") {
+      } else if (healthResult.category === "ok") {
         description = "You're doing okay, but there's room for improvement.";
         advice = "Try to reduce non-essential expenses and increase your income sources.";
-      } else if (correctCategory === "not_well") {
+      } else if (healthResult.category === "not_well") {
         description = "Warning! You're running tight on finances this month.";
         advice = "Review your variable expenses and consider pausing some investments temporarily.";
-      } else if (correctCategory === "worrisome") {
+      } else if (healthResult.category === "worrisome") {
         description = "Critical! You're significantly short on funds this month.";
         advice = "Immediate action needed: Cut non-essential expenses, consider emergency loans, or find additional income.";
       }
 
       setHealth({
-        category: correctCategory,
-        remaining: correctRemaining,
+        category: healthResult.category,
+        remaining: healthResult.remaining,
         description,
         advice
       });
 
-      // Use backend's data directly
-      const breakdown = healthData.breakdown;
-      const obligations = healthData.obligations || {};
-
-      // Use ALL items for health calculation (paid/unpaid doesn't matter — commitment exists regardless)
-      const allActiveInvestments = ownInvestmentsData.filter((inv: any) => inv.status === 'active');
-      
-      // For merged or specific user view, show shared aggregate line items so totals match breakdown
+      const isSpecificUserView = selectedView !== 'me' && selectedView !== 'merged';
+      const sharedAggregates = data.sharedUserAggregates || [];
       const isShowingSharedData = (selectedView === 'merged' || isSpecificUserView) && sharedAggregates.length > 0;
-      
-      // Only show health-included incomes in breakdown so items sum to total
+
+      const filterByUser = (items: any[]) => {
+        if (isSpecificUserView) return [];
+        return items.filter((item: any) => item.userId === currentUserId || item.user_id === currentUserId);
+      };
+      const ownIncomes = filterByUser(data.incomes || []);
+      const ownFixedExpenses = filterByUser(data.fixedExpenses || []);
+      const ownInvestmentsData = filterByUser(data.investments || []);
+      const ownVariablePlansData = filterByUser(data.variablePlans || []);
+      const allActiveInvestments = ownInvestmentsData.filter((inv: any) => inv.status === 'active');
       const healthIncomes = ownIncomes.filter((inc: any) => inc.includeInHealth !== false);
-      
+
+      const healthDataBreakdown = healthData.breakdown;
+
       setBreakdown({
         income: {
-          total: totalIncomeForHealth,
+          total: hb.totalIncome,
           sources: healthIncomes,
-          sharedTotal: isShowingSharedData ? sharedIncomeTotal : 0
+          sharedTotal: isShowingSharedData ? hb.sharedIncome : 0
         },
         expenses: {
           fixed: {
-            total: fixedTotalForHealth,
+            total: hb.totalFixed,
             items: ownFixedExpenses,
-            sharedTotal: isShowingSharedData ? sharedFixedTotal : 0
+            sharedTotal: isShowingSharedData ? hb.sharedFixed : 0
           },
           variable: {
-            total: variableTotalForHealth,
+            total: hb.totalVariable,
             items: ownVariablePlansData,
-            sharedTotal: isShowingSharedData ? sharedVariableEffective : 0
+            sharedTotal: isShowingSharedData ? hb.sharedVariable : 0
           }
         },
         investments: {
-          total: investmentsTotalForHealth,  // ALL active (commitment always exists)
+          total: hb.totalInvestments,
           items: allActiveInvestments,
-          sharedTotal: isShowingSharedData ? sharedInvestmentsTotal : 0
+          sharedTotal: isShowingSharedData ? hb.sharedInvestments : 0
         },
         debts: {
           creditCards: {
-            total: creditCardTotalForHealth,
-            items: isSpecificUserView ? [] : cardsRes.data.filter((card: any) => {
+            total: hb.totalCcBill,
+            items: isSpecificUserView ? [] : (cardsRes.data || []).filter((card: any) => {
               if (card.isSharedCard) return false;
               const billAmount = parseFloat(card.billAmount || card.bill_amount || 0) || 0;
               return billAmount > 0;
             }),
-            sharedTotal: isShowingSharedData ? sharedCreditCardDues : 0
+            sharedTotal: isShowingSharedData ? hb.sharedCcBill : 0
           },
           loans: {
-            total: breakdown?.debts?.loans?.total || loansRes.data.reduce((sum: number, loan: any) => sum + (loan.emi || 0), 0),
+            total: healthDataBreakdown?.debts?.loans?.total || loansRes.data.reduce((sum: number, loan: any) => sum + (loan.emi || 0), 0),
             items: loansRes.data
           }
         },
         bombDefusal: {
-          total: bombSipForHealth,
+          total: hb.bombSip,
           items: (data.futureBombs || [])
         },
-        totalOutflow: fixedTotalForHealth + variableTotalForHealth + investmentsTotalForHealth + creditCardTotalForHealth + bombSipForHealth,
+        totalOutflow: hb.totalOutflow,
         monthProgress: healthData.monthProgress || 0
       });
 
