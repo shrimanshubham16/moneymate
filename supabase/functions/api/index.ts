@@ -2193,108 +2193,97 @@ serve(async (req) => {
         }
       }
 
-      // Overspend detection: E2E users send isOverspend flag from client;
-      // Overspend detection: E2E users send isOverspend flag from client;
-      // non-E2E uses server-side DB amounts
-      const isE2EForOverspend = await isE2EUser();
-      let totalActual = 0;
-      let plannedAmount = 0;
+      // Overspend detection (wrapped in try/catch so it never breaks the response)
+      try {
+        const isE2EForOverspend = await isE2EUser();
+        let totalActual = 0;
+        let plannedAmount = 0;
 
-      // E2E: plan.planned is 0 in DB, so we need the flag from client
-      // Non-E2E: plan.planned has the real value; skip if plan doesn't exist
-      const canDetectOverspend = isE2EForOverspend ? !!body.isOverspend : !!(plan && parseFloat(plan.planned));
+        const canDetectOverspend = isE2EForOverspend ? !!body.isOverspend : !!(plan && parseFloat(plan.planned));
+        console.log('[OVERSPEND_CHECK]', { isE2E: isE2EForOverspend, bodyIsOverspend: body.isOverspend, canDetect: canDetectOverspend, planId });
 
-      const { data: prefs } = await supabase.from('user_preferences')
-        .select('month_start_day').eq('user_id', userId).maybeSingle();
-      const monthStartDay = prefs?.month_start_day || 1;
-      const today = new Date(body.incurred_at || new Date().toISOString());
-      let monthStart: Date;
-      let monthEnd: Date;
-      if (today.getDate() >= monthStartDay) {
-        monthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
-        monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, monthStartDay);
-      } else {
-        monthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
-        monthEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
-      }
+        if (canDetectOverspend) {
+          const { data: prefs } = await supabase.from('user_preferences')
+            .select('month_start_day').eq('user_id', userId).maybeSingle();
+          const monthStartDay = prefs?.month_start_day || 1;
+          const today = new Date(body.incurred_at || new Date().toISOString());
+          let monthStart: Date;
+          let monthEnd: Date;
+          if (today.getDate() >= monthStartDay) {
+            monthStart = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+            monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, monthStartDay);
+          } else {
+            monthStart = new Date(today.getFullYear(), today.getMonth() - 1, monthStartDay);
+            monthEnd = new Date(today.getFullYear(), today.getMonth(), monthStartDay);
+          }
 
-      if (canDetectOverspend) {
-        if (!isE2EForOverspend) {
-          const { data: actuals } = await supabase.from('variable_expense_actuals')
-            .select('amount')
-            .eq('plan_id', planId).eq('user_id', userId)
-            .gte('incurred_at', monthStart.toISOString())
-            .lt('incurred_at', monthEnd.toISOString());
+          if (!isE2EForOverspend) {
+            const { data: actuals } = await supabase.from('variable_expense_actuals')
+              .select('amount')
+              .eq('plan_id', planId).eq('user_id', userId)
+              .gte('incurred_at', monthStart.toISOString())
+              .lt('incurred_at', monthEnd.toISOString());
+            totalActual = (actuals || []).reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
+            plannedAmount = parseFloat(plan.planned) || 0;
+          }
 
-          totalActual = (actuals || []).reduce((sum: number, a: any) => sum + (parseFloat(a.amount) || 0), 0);
-          plannedAmount = parseFloat(plan.planned) || 0;
-        }
+          const isOverspend = isE2EForOverspend ? !!body.isOverspend : totalActual > plannedAmount;
+          console.log('[OVERSPEND_DETECT]', { isOverspend, totalActual, plannedAmount });
 
-        const isOverspend = isE2EForOverspend ? !!body.isOverspend : totalActual > plannedAmount;
+          if (isOverspend) {
+            // Deduplication: use text search on stringified payload (payload is stored as TEXT)
+            const { data: existingOverspend } = await supabase.from('activities')
+              .select('id')
+              .eq('actor_id', userId)
+              .eq('entity', 'variable_expense')
+              .eq('action', 'overspend_detected')
+              .like('payload', `%"planId":"${planId}"%`)
+              .gte('created_at', monthStart.toISOString())
+              .lt('created_at', monthEnd.toISOString())
+              .limit(1);
 
-        if (isOverspend) {
-          const { data: existingOverspend } = await supabase.from('activities')
-            .select('id')
-            .eq('actor_id', userId)
-            .eq('entity', 'variable_expense')
-            .eq('action', 'overspend_detected')
-            .contains('payload', { planId })
-            .gte('created_at', monthStart.toISOString())
-            .lt('created_at', monthEnd.toISOString())
-            .limit(1);
+            console.log('[OVERSPEND_DEDUP]', { existing: existingOverspend?.length || 0 });
 
-          if (!existingOverspend || existingOverspend.length === 0) {
-            const { data: constraint } = await supabase.from('constraint_scores')
-              .select('*').eq('user_id', userId).maybeSingle();
+            if (!existingOverspend || existingOverspend.length === 0) {
+              const { data: constraint } = await supabase.from('constraint_scores')
+                .select('*').eq('user_id', userId).maybeSingle();
 
-            const billingPeriod = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
-            const activityPayload = isE2EForOverspend
-              ? { planId, billingPeriod }
-              : { planId, planName: plan.name, planned: plannedAmount, actual: totalActual, overspend: totalActual - plannedAmount, billingPeriod };
+              const billingPeriod = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+              const activityPayload = isE2EForOverspend
+                ? { planId, billingPeriod }
+                : { planId, planName: plan.name, planned: plannedAmount, actual: totalActual, overspend: totalActual - plannedAmount, billingPeriod };
 
-            if (constraint) {
-              const currentScore = constraint.score || 0;
-              const currentOverspends = constraint.recent_overspends || 0;
-              const newScore = Math.min(100, currentScore + 5);
-              const newTier = newScore >= 70 ? 'red' : newScore >= 40 ? 'amber' : 'green';
+              if (constraint) {
+                const currentScore = constraint.score || 0;
+                const currentOverspends = constraint.recent_overspends || 0;
+                const newScore = Math.min(100, currentScore + 5);
+                const newTier = newScore >= 70 ? 'red' : newScore >= 40 ? 'amber' : 'green';
 
-              await supabase.from('constraint_scores')
-                .update({ score: newScore, tier: newTier, recent_overspends: currentOverspends + 1, updated_at: new Date().toISOString() })
-                .eq('user_id', userId);
+                await supabase.from('constraint_scores')
+                  .update({ score: newScore, tier: newTier, recent_overspends: currentOverspends + 1, updated_at: new Date().toISOString() })
+                  .eq('user_id', userId);
+                console.log('[OVERSPEND_SCORE]', { oldScore: currentScore, newScore, newTier });
+              } else {
+                await supabase.from('constraint_scores').insert({
+                  user_id: userId, score: 5, tier: 'green', recent_overspends: 1
+                });
+                console.log('[OVERSPEND_SCORE] Created new constraint_scores row with score=5');
+              }
               await logActivity(userId, 'variable_expense', 'overspend_detected', activityPayload);
-            } else {
-              await supabase.from('constraint_scores').insert({
-                user_id: userId, score: 5, tier: 'green', recent_overspends: 1
-              });
-              await logActivity(userId, 'variable_expense', 'overspend_detected', activityPayload);
+
+              // Companion overspend nudge
+              const overspendPlanName = plan?.name || 'a variable expense';
+              notifyCompanions(supabase, userId, 'Budget Overspend',
+                `Overspent on "${overspendPlanName}" this month`,
+                `companion_overspend:${userId}:${planId}:${billingPeriod}`, '/activities');
             }
           }
         }
+      } catch (overspendErr) {
+        console.error('[OVERSPEND_ERROR] Overspend detection failed (non-fatal):', overspendErr);
       }
 
-      // Notify shared companions about overspend (gentle nudge)
-      if (!isE2EForOverspend && totalActual > plannedAmount) {
-          try {
-            const billingMonth = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
-            const { data: myMemberships } = await supabase.from('shared_members')
-              .select('shared_account_id').eq('user_id', userId);
-            if (myMemberships?.length) {
-              const accountIds = myMemberships.map((m: any) => m.shared_account_id);
-              const { data: companions } = await supabase.from('shared_members')
-                .select('user_id').in('shared_account_id', accountIds).neq('user_id', userId);
-              const { data: me } = await supabase.from('users').select('username').eq('id', userId).single();
-              for (const c of (companions || [])) {
-                await createNotification(supabase, {
-                  userId: c.user_id,
-                  type: 'budget_alert',
-                  title: 'Companion Budget Alert',
-                  message: `${me?.username || 'Your companion'} exceeded their ${plan.name} budget this month`,
-                  groupKey: `companion_overspend:${userId}:${planId}:${billingMonth}`
-                }).catch(err => console.warn('[BACKGROUND] Companion notification failed:', err));
-              }
-            }
-          } catch (e) { console.warn('[COMPANION_NUDGE]', e); }
-      }
+      // Companion overspend nudge is now handled via notifyCompanions inside the overspend block above
 
       // Enhanced activity log with all details
       let cardName = null;
