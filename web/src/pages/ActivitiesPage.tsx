@@ -7,7 +7,8 @@ import {
   FaClipboardList, FaMoneyBillWave, FaWallet, FaChartBar, FaChartLine,
   FaCreditCard, FaUniversity, FaBomb, FaHandshake, FaBell, FaFileAlt,
   FaHistory, FaCalendarAlt, FaFilter, FaChevronDown, FaChevronUp,
-  FaThumbtack, FaComment, FaTimes, FaPaperPlane, FaTrashAlt
+  FaThumbtack, FaComment, FaTimes, FaPaperPlane, FaTrashAlt,
+  FaLock, FaUserCircle
 } from "react-icons/fa";
 import { MdAccountBalanceWallet } from "react-icons/md";
 import { PageInfoButton } from "../components/PageInfoButton";
@@ -35,6 +36,8 @@ const ENTITY_LABELS: Record<string, string> = {
   sharing: "Sharing",
   alert: "Alert",
   system: "System",
+  security: "Security",
+  profile: "Profile",
 };
 
 export function ActivitiesPage({ token }: ActivitiesPageProps) {
@@ -361,6 +364,8 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       sharing: <FaHandshake />,
       alert: <FaBell />,
       system: <MdAccountBalanceWallet />,
+      security: <FaLock />,
+      profile: <FaUserCircle />,
     };
     return iconMap[entity] || <FaFileAlt />;
   };
@@ -380,6 +385,8 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
       sharing: "#14b8a6",
       alert: "#f97316",
       system: "#64748b",
+      security: "#e11d48",
+      profile: "#0ea5e9",
     };
     return colorMap[entity] || "#64748b";
   };
@@ -409,7 +416,8 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         const planName = payload.planName || payload.plan || payload.name || "expense";
         const amount = payload.amount || 0;
         const paymentMode = payload.paymentMode ? ` via ${payload.paymentMode}` : "";
-        if (amount > 0) return `${uname} spent ${formatCurrency(amount)} on ${planName}${paymentMode}`;
+        const subcat = payload.subcategory && payload.subcategory !== "Unspecified" ? ` (${payload.subcategory})` : "";
+        if (amount > 0) return `${uname} spent ${formatCurrency(amount)} on ${planName}${subcat}${paymentMode}`;
         return `${uname} added actual expense`;
       }
       case "added fixed expense":
@@ -428,26 +436,76 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         if (invAmount > 0 || invName) return `${uname} added investment "${invName}" ${invAmount > 0 ? formatCurrency(invAmount) + "/month" : ""}`.trim();
         return `${uname} added investment`;
       }
+      case "added future bomb": {
+        const bombName = payload.name || "future bomb";
+        const total = payload.totalAmount ? ` of ${formatCurrency(payload.totalAmount)}` : "";
+        const due = payload.dueDate ? ` due ${payload.dueDate}` : "";
+        return `${uname} added future bomb "${bombName}"${total}${due}`;
+      }
       case "payment":
         if (activity.entity === "credit_card" && payload.amount) {
           const cardName = payload.cardName || "credit card";
-          return `${uname} paid ${formatCurrency(payload.amount)} on ${cardName}`;
+          const totalPaid = payload.newTotalPaid ? ` (total paid: ${formatCurrency(payload.newTotalPaid)})` : "";
+          return `${uname} paid ${formatCurrency(payload.amount)} on ${cardName}${totalPaid}`;
         }
         return `${uname} made payment ${payload.amount ? formatCurrency(payload.amount) : ""}`.trim();
-      case "updated_bill":
-        if (activity.entity === "credit_card" && payload.billAmount) {
-          return `${uname} updated bill to ${formatCurrency(payload.billAmount)} for ${payload.cardName || "credit card"}`;
+      case "updated_bill": {
+        const cardLabel = payload.cardName || "credit card";
+        if (payload.billAmount) {
+          const prev = payload.previousBillAmount ? ` (was ${formatCurrency(payload.previousBillAmount)})` : "";
+          return `${uname} updated bill to ${formatCurrency(payload.billAmount)} for ${cardLabel}${prev}`;
         }
         return `${uname} updated ${entity} bill`;
+      }
+      case "reset_billing": {
+        const resetCard = payload.cardName || "credit card";
+        return `${uname} reset billing cycle for "${resetCard}"`;
+      }
       case "updated":
         return `${uname} updated ${entity}${payload.name ? ` "${payload.name}"` : ""}`;
+      case "updated fixed expense": {
+        const feName = payload.name || "expense";
+        const sipTag = payload.isSip ? " (SIP)" : "";
+        return `${uname} updated fixed expense "${feName}"${sipTag}`;
+      }
+      case "updated investment": {
+        const invName = payload.name || "investment";
+        return `${uname} updated investment "${invName}"`;
+      }
+      case "updated accumulated fund": {
+        const accName = payload.name || "expense";
+        const accAmt = payload.accumulatedFunds !== undefined ? ` to ${formatCurrency(payload.accumulatedFunds)}` : "";
+        return `${uname} updated savings for "${accName}"${accAmt}`;
+      }
+      case "updated available fund": {
+        const fundName = payload.name || "investment";
+        const fundAmt = payload.accumulatedFunds !== undefined ? ` to ${formatCurrency(payload.accumulatedFunds)}` : "";
+        return `${uname} updated fund for "${fundName}"${fundAmt}`;
+      }
       case "deleted":
         return `${uname} deleted ${entity}${payload.name ? ` "${payload.name}"` : ""}`;
+      case "deleted_actual": {
+        const delPlan = payload.planName || "expense";
+        const delSub = payload.subcategory && payload.subcategory !== "Unspecified" ? ` (${payload.subcategory})` : "";
+        return `${uname} deleted expense from ${delPlan}${delSub}`;
+      }
       case "paid": {
         const name = payload.name || "";
-        if (payload.amount && name) return `${uname} marked "${name}" as paid (${formatCurrency(payload.amount)})`;
-        if (name) return `${uname} marked "${name}" as paid`;
+        const freq = payload.frequency ? ` (${payload.frequency})` : "";
+        if (payload.amount && name) return `${uname} marked "${name}"${freq} as paid (${formatCurrency(payload.amount)})`;
+        if (name) return `${uname} marked "${name}"${freq} as paid`;
         return `${uname} marked ${entity} as paid`;
+      }
+      case "skipped": {
+        const skipName = payload.name || "SIP";
+        const skipFreq = payload.frequency ? ` (${payload.frequency})` : "";
+        const skipPeriod = payload.billingPeriod ? ` for ${payload.billingPeriod}` : "";
+        return `${uname} skipped SIP "${skipName}"${skipFreq}${skipPeriod}`;
+      }
+      case "undo_skip": {
+        const undoName = payload.name || "SIP";
+        const undoFreq = payload.frequency ? ` (${payload.frequency})` : "";
+        return `${uname} resumed SIP "${undoName}"${undoFreq}`;
       }
       case "unpaid":
         return `${uname} unmarked "${payload.name || entity}" payment`;
@@ -455,6 +513,30 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         return `Overspend detected on "${payload.planName || "plan"}" — spent ${formatCurrency(payload.actual || 0)} vs planned ${formatCurrency(payload.planned || 0)}`;
       case "monthly_reset":
         return `Monthly billing cycle reset for ${payload.month || "new period"}`;
+      case "password_changed":
+        return `${uname} changed their password`;
+      case "encryption_enabled":
+        return `${uname} enabled E2E encryption`;
+      case "unpaid_dues_penalty":
+      case "unpaid_dues_penalty_client": {
+        const penaltyAmt = payload.penalty || 0;
+        const ue = payload.unpaidExpenses || 0;
+        const uc = payload.unpaidCards || 0;
+        const parts: string[] = [];
+        if (ue > 0) parts.push(`${ue} unpaid expense${ue > 1 ? "s" : ""}`);
+        if (uc > 0) parts.push(`${uc} unpaid card${uc > 1 ? "s" : ""}`);
+        return `Overspend risk +${penaltyAmt} for ${parts.join(" and ") || "unpaid dues"}`;
+      }
+      case "sent_invite":
+        return `${uname} invited ${payload.invitee || "user"} as ${payload.role || "member"}`;
+      case "approved_request":
+        return `${uname} approved sharing with ${payload.inviter || "user"}`;
+      case "rejected_request":
+        return `${uname} rejected sharing from ${payload.inviter || "user"}`;
+      case "cancelled_invite":
+        return `${uname} cancelled invite to ${payload.invitee || "user"}`;
+      case "revoked_sharing":
+        return `${uname} revoked sharing`;
       default: {
         let details = "";
         if (payload.name) details += ` ${payload.name}`;
@@ -474,9 +556,13 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
     if (payload.actual) details.push({ label: "Actual", value: formatCurrency(payload.actual) });
     if (payload.monthlyAmount || payload.monthly_amount) details.push({ label: "Monthly", value: formatCurrency(payload.monthlyAmount || payload.monthly_amount) });
     if (payload.billAmount) details.push({ label: "Bill", value: formatCurrency(payload.billAmount) });
+    if (payload.previousBillAmount) details.push({ label: "Previous Bill", value: formatCurrency(payload.previousBillAmount) });
+    if (payload.newTotalPaid) details.push({ label: "Total Paid", value: formatCurrency(payload.newTotalPaid) });
+    if (payload.previousPaidAmount) details.push({ label: "Previous Paid", value: formatCurrency(payload.previousPaidAmount) });
     if (payload.frequency) details.push({ label: "Frequency", value: payload.frequency });
     if (payload.category) details.push({ label: "Category", value: payload.category });
     if (payload.subcategory && payload.subcategory !== "Unspecified") details.push({ label: "Subcategory", value: payload.subcategory });
+    if (payload.isSip !== undefined) details.push({ label: "Type", value: payload.isSip ? "Periodic SIP" : "Fixed" });
     if (payload.paymentMode) details.push({ label: "Payment Mode", value: payload.paymentMode });
     if (payload.creditCard) details.push({ label: "Credit Card", value: payload.creditCard });
     if (payload.justification) details.push({ label: "Note", value: payload.justification });
@@ -484,10 +570,25 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
     if (payload.status) details.push({ label: "Status", value: payload.status });
     if (payload.planName) details.push({ label: "Plan", value: payload.planName });
     if (payload.cardName) details.push({ label: "Card", value: payload.cardName });
+    if (payload.accumulatedFunds !== undefined) details.push({ label: "Saved So Far", value: formatCurrency(payload.accumulatedFunds) });
     if (payload.overspend) details.push({ label: "Overspend", value: formatCurrency(payload.overspend) });
+    if (payload.penalty) details.push({ label: "Penalty", value: `+${payload.penalty}` });
+    if (payload.unpaidExpenses) details.push({ label: "Unpaid Expenses", value: String(payload.unpaidExpenses) });
+    if (payload.unpaidCards) details.push({ label: "Unpaid Cards", value: String(payload.unpaidCards) });
+    if (payload.unpaidExpenseNames?.length) details.push({ label: "Unpaid Items", value: payload.unpaidExpenseNames.join(", ") });
+    if (payload.unpaidCardNames?.length) details.push({ label: "Unpaid CC", value: payload.unpaidCardNames.join(", ") });
+    if (payload.incurredAt) details.push({ label: "Date", value: new Date(payload.incurredAt).toLocaleDateString("en-IN") });
+    if (payload.startDate) details.push({ label: "Start", value: payload.startDate });
+    if (payload.endDate) details.push({ label: "End", value: payload.endDate });
+    if (payload.dueDate) details.push({ label: "Due Date", value: payload.dueDate });
     if (payload.billingPeriod) details.push({ label: "Billing Period", value: payload.billingPeriod });
     if (payload.month) details.push({ label: "Month", value: payload.month });
     if (payload.previousMonth) details.push({ label: "Previous Month", value: payload.previousMonth });
+    if (payload.invitee) details.push({ label: "Invitee", value: payload.invitee });
+    if (payload.inviter) details.push({ label: "Inviter", value: payload.inviter });
+    if (payload.role) details.push({ label: "Role", value: payload.role });
+    if (payload.totalAmount) details.push({ label: "Total Amount", value: formatCurrency(payload.totalAmount) });
+    if (payload.savedAmount) details.push({ label: "Saved Amount", value: formatCurrency(payload.savedAmount) });
 
     return details;
   };

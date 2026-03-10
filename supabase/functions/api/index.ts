@@ -341,20 +341,25 @@ serve(async (req) => {
         const isE2EForPenalty = await isE2EUser();
 
         const { data: activeExpenses } = await supabase.from('fixed_expenses')
-          .select('id').eq('user_id', userId);
+          .select('id, name').eq('user_id', userId);
         const { data: prevPayments } = await supabase.from('payments')
           .select('entity_id').eq('user_id', userId).eq('month', previousMonthStr);
 
         const paidExpenseIds = new Set((prevPayments || []).map((p: any) => p.entity_id));
-        const unpaidCount = (activeExpenses || []).filter((e: any) => !paidExpenseIds.has(e.id)).length;
+        const unpaidExpensesList = (activeExpenses || []).filter((e: any) => !paidExpenseIds.has(e.id));
+        const unpaidCount = unpaidExpensesList.length;
+        const unpaidExpenseNames = unpaidExpensesList.slice(0, 5).map((e: any) => e.name || '[encrypted]');
 
         let unpaidCards = 0;
+        let unpaidCardNames: string[] = [];
         if (!isE2EForPenalty) {
           const { data: creditCards } = await supabase.from('credit_cards')
-            .select('id, bill_amount, paid_amount').eq('user_id', userId);
-          unpaidCards = (creditCards || []).filter((c: any) =>
+            .select('id, name, bill_amount, paid_amount').eq('user_id', userId);
+          const unpaidCardsList = (creditCards || []).filter((c: any) =>
             (parseFloat(c.bill_amount) || 0) > (parseFloat(c.paid_amount) || 0)
-          ).length;
+          );
+          unpaidCards = unpaidCardsList.length;
+          unpaidCardNames = unpaidCardsList.slice(0, 5).map((c: any) => c.name || '[unknown]');
         }
 
         const totalUnpaidDues = unpaidCount + unpaidCards;
@@ -378,7 +383,9 @@ serve(async (req) => {
 
           await logActivity(userId, 'system', 'unpaid_dues_penalty', {
             unpaidExpenses: unpaidCount,
-            unpaidCards: unpaidCards,
+            unpaidExpenseNames,
+            unpaidCards,
+            unpaidCardNames,
             penalty,
             billingPeriod: previousMonthStr
           });
@@ -1037,19 +1044,16 @@ serve(async (req) => {
       const valid = await verifyPassword(oldPassword, currentUser.password_hash);
       if (!valid) return error('Current password is incorrect');
 
-      // Update password
       const newPasswordHash = await hashPassword(newPassword);
       await supabase.from('users').update({
         password_hash: newPasswordHash
       }).eq('id', userId);
 
-      // If re-encrypted data provided, update all entities
       if (encryptedData) {
         console.log('[RE_ENCRYPT] Processing re-encrypted data for password change');
-        // This is handled by the reEncryptionService on the client side
-        // which makes individual API calls to update each entity
       }
 
+      await logActivity(userId, 'security', 'password_changed', {});
       return json({ message: 'Password updated successfully' });
     }
 
@@ -1150,6 +1154,7 @@ serve(async (req) => {
 
       if (updateErr) return error('Failed to enable encryption');
 
+      await logActivity(userId, 'security', 'encryption_enabled', {});
       return json({ message: 'Encryption enabled successfully' });
     }
 
@@ -1965,14 +1970,21 @@ serve(async (req) => {
       if (!data) return error('Fixed expense not found', 404);
       // Log accumulated fund updates specifically, and general updates
       if (body.accumulated_funds !== undefined) {
-        await logActivity(userId, 'fixed_expense', 'updated accumulated fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
+        await logActivity(userId, 'fixed_expense', 'updated accumulated fund', {
+          id, name: data.name,
+          accumulatedFunds: body.accumulated_funds,
+          isSip: !!data.is_sip, frequency: data.frequency
+        });
       } else {
         await logActivity(userId, 'fixed_expense', 'updated fixed expense', {
           id,
           name: body.name || data.name || '[encrypted]',
           category: body.category || data.category,
           amount: body.amount,
-          frequency: body.frequency
+          frequency: body.frequency,
+          isSip: !!(body.is_sip ?? data.is_sip),
+          startDate: body.start_date || data.start_date,
+          endDate: body.end_date || data.end_date
         });
       }
       await invalidateUserCache(userId);
@@ -2237,6 +2249,8 @@ serve(async (req) => {
 
       // E2E: Include encrypted amount fields in activity so frontend can decrypt them
       await logActivity(userId, 'variable_expense', 'added actual expense', {
+        planId: planId,
+        actualId: data.id,
         planName: plan?.name,
         category: plan?.category,
         amount: body.amount || data.amount || 0,
@@ -2247,7 +2261,8 @@ serve(async (req) => {
         creditCard: cardName,
         justification: body.justification || data.justification,
         justification_enc: body.justification_enc || data.justification_enc,
-        justification_iv: body.justification_iv || data.justification_iv
+        justification_iv: body.justification_iv || data.justification_iv,
+        incurredAt: body.incurred_at || data.incurred_at
       });
 
       await invalidateUserCache(userId);
@@ -2431,9 +2446,19 @@ serve(async (req) => {
       }
 
       if (body.accumulated_funds !== undefined) {
-        await logActivity(userId, 'investment', 'updated available fund', { id, name: data.name, accumulatedFunds: body.accumulated_funds });
+        await logActivity(userId, 'investment', 'updated available fund', {
+          id, name: data.name,
+          accumulatedFunds: body.accumulated_funds,
+          goal: data.goal || '', monthlyAmount: data.monthly_amount, status: data.status
+        });
       } else {
-        await logActivity(userId, 'investment', 'updated investment', { id, name: data.name });
+        await logActivity(userId, 'investment', 'updated investment', {
+          id, name: data.name,
+          goal: body.goal || data.goal || '',
+          monthlyAmount: body.monthly_amount ?? data.monthly_amount,
+          status: body.status || data.status,
+          accumulatedFunds: data.accumulated_funds
+        });
       }
       await invalidateUserCache(userId);
 
@@ -2493,6 +2518,7 @@ serve(async (req) => {
       const logName = body.name || '[encrypted]';
       const logTotal = body.total_amount || data.total_amount || 0;
       await logActivity(userId, 'future_bomb', 'added future bomb', {
+        id: data.id,
         name: logName,
         totalAmount: logTotal,
         dueDate: body.due_date || body.target_date,
@@ -2788,11 +2814,17 @@ serve(async (req) => {
       const body = await req.json();
       const updatePayload: any = {};
 
-      // If setting recovery wrapped key, verify the recovery hash matches
+      // Two flows hit this endpoint with recoveryKeyHash:
+      //   1. "I have my phrase" — verify hash against DB
+      //   2. "Generate/Regenerate phrase" — save the NEW hash (flagged by isNewRecoveryPhrase)
       if (body.wrappedKeyRecovery && body.recoveryKeyHash) {
-        const { data: u } = await supabase.from('users').select('recovery_key_hash').eq('id', userId).single();
-        if (!u || u.recovery_key_hash !== body.recoveryKeyHash) {
-          return error('Recovery phrase does not match. Please check your 24 words.', 400);
+        if (body.isNewRecoveryPhrase) {
+          updatePayload.recovery_key_hash = body.recoveryKeyHash;
+        } else {
+          const { data: u } = await supabase.from('users').select('recovery_key_hash').eq('id', userId).single();
+          if (!u || u.recovery_key_hash !== body.recoveryKeyHash) {
+            return error('Recovery phrase does not match. Please check your 24 words.', 400);
+          }
         }
       }
 
@@ -3058,16 +3090,27 @@ serve(async (req) => {
       if (body.paid_amount_iv) updatePayload.paid_amount_iv = body.paid_amount_iv;
       const { data, error: e } = await supabase.from('credit_cards').update(updatePayload).eq('id', id).select().single();
       if (e) return error(e.message, 500);
-      await logActivity(userId, 'credit_card', 'payment', { id: data.id, amount: body.amount });
+      await logActivity(userId, 'credit_card', 'payment', {
+        id: data.id, amount: body.amount,
+        cardName: card.name || '[encrypted]',
+        newTotalPaid: newPaidAmount,
+        billAmount: card.bill_amount || 0
+      });
       await invalidateUserCache(userId);
       const toReturn = (paidToStore === 0) ? { ...data, paid_amount: newPaidAmount } : data;
       return json({ data: transformCreditCard(toReturn) });
     }
     if (path.match(/\/debts\/credit-cards\/[^/]+\/reset-billing$/) && method === 'POST') {
       const id = path.split('/')[3];
+      const { data: resetCard } = await supabase.from('credit_cards').select('name, bill_amount, paid_amount').eq('id', id).eq('user_id', userId).single();
       const { data, error: e } = await supabase.from('credit_cards').update({ current_expenses: 0, needs_bill_update: false }).eq('id', id).eq('user_id', userId).select().single();
       if (e) return error(e.message, 500);
-      await logActivity(userId, 'credit_card', 'reset_billing', { id: data.id });
+      await logActivity(userId, 'credit_card', 'reset_billing', {
+        id: data.id,
+        cardName: resetCard?.name || '[encrypted]',
+        previousBillAmount: resetCard?.bill_amount || 0,
+        previousPaidAmount: resetCard?.paid_amount || 0
+      });
       await invalidateUserCache(userId);
       return json({ data: transformCreditCard(data) });
     }
@@ -3086,7 +3129,12 @@ serve(async (req) => {
       if (body.bill_amount_iv) updatePayload.bill_amount_iv = body.bill_amount_iv;
       const { data, error: e } = await supabase.from('credit_cards').update(updatePayload).eq('id', id).select().single();
       if (e) return error(e.message, 500);
-      await logActivity(userId, 'credit_card', 'updated_bill', { id: data.id, billAmount: actualBillAmount });
+      await logActivity(userId, 'credit_card', 'updated_bill', {
+        id: data.id,
+        cardName: card.name || '[encrypted]',
+        billAmount: actualBillAmount,
+        previousBillAmount: card.bill_amount || 0
+      });
       await invalidateUserCache(userId);
       const toReturn = (isE2E && !isSharedCard) ? { ...data, bill_amount: actualBillAmount } : data;
       return json({ data: transformCreditCard(toReturn) });
@@ -3352,8 +3400,10 @@ serve(async (req) => {
             user_id: userId, score: penalty, tier: 'green', recent_overspends: 0
           });
         }
+        const today = new Date();
+        const clientBillingPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
         await logActivity(userId, 'system', 'unpaid_dues_penalty_client', {
-          unpaidCards, penalty
+          unpaidCards, penalty, billingPeriod: clientBillingPeriod
         });
       }
       return json({ data: { success: true } });
@@ -3743,11 +3793,16 @@ serve(async (req) => {
         }
       }
 
-      // Fetch the item name for activity logging
       let itemName = 'Unknown';
+      let itemFrequency = '';
+      let itemCategory = '';
+      let itemIsSip = false;
       if (body.itemType === 'fixed_expense') {
-        const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).maybeSingle();
+        const { data: expense } = await supabase.from('fixed_expenses').select('name, frequency, category, is_sip').eq('id', body.itemId).maybeSingle();
         itemName = expense?.name || 'Unknown Expense';
+        itemFrequency = expense?.frequency || '';
+        itemCategory = expense?.category || '';
+        itemIsSip = !!expense?.is_sip;
       } else if (body.itemType === 'investment') {
         const { data: investment } = await supabase.from('investments').select('name').eq('id', body.itemId).maybeSingle();
         itemName = investment?.name || 'Unknown Investment';
@@ -3906,7 +3961,14 @@ serve(async (req) => {
         }
       }
 
-      await logActivity(userId, body.itemType, isSkip ? 'skipped' : 'paid', { id: body.itemId, name: itemName, amount: paymentAmount });
+      const markPaidPayload: any = { id: body.itemId, name: itemName, amount: paymentAmount };
+      if (body.itemType === 'fixed_expense') {
+        markPaidPayload.frequency = itemFrequency;
+        markPaidPayload.category = itemCategory;
+        markPaidPayload.isSip = itemIsSip;
+        markPaidPayload.billingPeriod = billingMonthStr;
+      }
+      await logActivity(userId, body.itemType, isSkip ? 'skipped' : 'paid', markPaidPayload);
       await invalidateUserCache(userId);
       return json({ data: payment });
     }
@@ -3947,11 +4009,9 @@ serve(async (req) => {
       const body = await req.json();
       if (!body.itemId) return error('itemId required');
 
-      // Fetch item name
-      const { data: expense } = await supabase.from('fixed_expenses').select('name').eq('id', body.itemId).maybeSingle();
-      const itemName = expense?.name || 'Unknown Expense';
+      const { data: undoExpDetail } = await supabase.from('fixed_expenses').select('name, frequency, category').eq('id', body.itemId).maybeSingle();
+      const itemName = undoExpDetail?.name || 'Unknown Expense';
 
-      // Get user's billing period
       const { data: prefs } = await supabase.from('user_preferences')
         .select('month_start_day').eq('user_id', userId).maybeSingle();
       const msd = prefs?.month_start_day || 1;
@@ -4007,7 +4067,11 @@ serve(async (req) => {
         }
       }
 
-      await logActivity(userId, 'fixed_expense', 'undo_skip', { id: body.itemId, name: itemName });
+      await logActivity(userId, 'fixed_expense', 'undo_skip', {
+        id: body.itemId, name: itemName,
+        frequency: undoExpDetail?.frequency || '',
+        category: undoExpDetail?.category || ''
+      });
       await invalidateUserCache(userId);
       return json({ data: { success: true } });
     }

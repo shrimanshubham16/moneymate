@@ -910,6 +910,7 @@ function RecoveryProtectionCard({ token, user }: { token: string; user: any }) {
         wrappedKeyRecovery: wrappedRecovery.ciphertext,
         wrappedKeyRecoveryIv: wrappedRecovery.iv,
         recoveryKeyHash: phraseHash,
+        isNewRecoveryPhrase: true,
       };
 
       // First-time: also wrap KEK with password and send wrapSalt
