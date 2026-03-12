@@ -433,7 +433,7 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
 
   const formatCurrency = (amount: any) => {
     const n = typeof amount === 'number' ? amount : parseFloat(amount);
-    if (isNaN(n) || !isFinite(n)) return "₹0";
+    if (isNaN(n) || !isFinite(n)) return "";
     return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
   };
 

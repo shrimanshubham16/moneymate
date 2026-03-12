@@ -524,15 +524,11 @@ serve(async (req) => {
   // Helper to log activities
   async function logActivity(actorId: string, entity: string, action: string, payload?: any) {
     try {
-      // Strip sensitive amount fields from activity payload for E2E users
-      let safePayload = payload;
-      if (payload && _isE2EUserCached) {
-        const sensitiveKeys = ['amount', 'planned', 'actual', 'overspend', 'billAmount', 'paidAmount', 'accumulatedFunds', 'monthlyAmount', 'principal', 'emi'];
-        safePayload = { ...payload };
-        for (const k of sensitiveKeys) {
-          if (k in safePayload) delete safePayload[k];
-        }
-      }
+      // Activity logs keep plaintext amounts so they remain readable by
+      // shared partners (who cannot decrypt the other user's _enc fields).
+      // E2E protects data-at-rest in the main financial tables; the activity
+      // log is an intentionally human-readable audit trail.
+      const safePayload = payload;
       const { error: insertErr } = await supabase.from('activities').insert({
         actor_id: actorId,
         entity,
