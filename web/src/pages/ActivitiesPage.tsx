@@ -54,10 +54,11 @@ async function decryptPayloadFields(payload: any, key: CryptoKey): Promise<any> 
     tasks.push(
       decryptString(payload[field], payload[ivField], key)
         .then(dec => {
+          if (dec === undefined || dec === null || dec === '') return;
           const num = parseFloat(dec);
-          result[base] = isNaN(num) ? dec : num;
+          result[base] = (!isNaN(num) && isFinite(num)) ? num : dec;
         })
-        .catch(() => { /* keep existing value */ })
+        .catch(() => { /* decryption failed (wrong key?) — keep original value */ })
     );
   }
   await Promise.all(tasks);
@@ -191,10 +192,13 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
         };
       });
 
-      // Decrypt encrypted payload fields (name_enc, amount_enc, etc.) for E2E users
+      // Decrypt encrypted payload fields only for the current user's own activities
+      // (shared users' payloads are encrypted with their key — decrypting with ours produces garbage)
       const sanitizedActivities = cryptoKey
         ? await Promise.all(rawActivities.map(async (a: any) => {
             if (!a.payload || typeof a.payload !== 'object') return a;
+            const isOwnActivity = a.actor_id === userId || a.actorId === userId;
+            if (!isOwnActivity) return a;
             const hasEncFields = Object.keys(a.payload).some(k => k.endsWith('_enc'));
             if (!hasEncFields) return a;
             const decrypted = await decryptPayloadFields(a.payload, cryptoKey);
