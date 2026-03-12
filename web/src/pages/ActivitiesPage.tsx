@@ -431,8 +431,11 @@ export function ActivitiesPage({ token }: ActivitiesPageProps) {
     return colorMap[entity] || "#64748b";
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+  const formatCurrency = (amount: any) => {
+    const n = typeof amount === 'number' ? amount : parseFloat(amount);
+    if (isNaN(n) || !isFinite(n)) return "₹0";
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+  };
 
   const getActionMessage = (activity: any) => {
     const uname = activity.username || "Someone";
