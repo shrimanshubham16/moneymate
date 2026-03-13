@@ -587,14 +587,16 @@ export async function fetchLoans(token: string, cryptoKey?: CryptoKey) {
   return request<{ data: any[] }>("/debts/loans", { method: "GET" }, token, cryptoKey);
 }
 
-export async function fetchActivity(token: string, startDate?: string, endDate?: string, cryptoKey?: CryptoKey, view?: string) {
+export async function fetchActivity(token: string, startDate?: string, endDate?: string, _cryptoKey?: CryptoKey, view?: string) {
   const params = new URLSearchParams();
   if (startDate) params.append('start_date', startDate);
   if (endDate) params.append('end_date', endDate);
   if (view && view !== 'me') params.append('view', view);
   const queryString = params.toString();
   const url = `/activity${queryString ? `?${queryString}` : ''}`;
-  return request<{ data: any[] }>(url, { method: "GET" }, token, cryptoKey);
+  // Do NOT pass cryptoKey — activity payloads contain mixed-user encrypted data.
+  // ActivitiesPage handles per-activity decryption using the isOwnActivity check.
+  return request<{ data: any[] }>(url, { method: "GET" }, token);
 }
 
 
